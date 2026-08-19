@@ -343,8 +343,20 @@ export const spacingRole = defineTheme(spacingContract, {
 export const statusBadgeTokens = defineComponentTokens('statusBadge', {
   paddingX:   '{dimension.2}',
   paddingY:   '{dimension.1}',
-  radius:     '{semantic.radius.chip}',
+  // Капсула, а не шаг `chip`: шесть пикселей скругления на бейдже высотой
+  // около двадцати четырёх читаются как скруглённый прямоугольник, то есть
+  // как маленькая кнопка, — а статус не нажимают.
+  radius:     '{semantic.radius.pill}',
   dotSize:    '{dimension.2}',
+});
+
+// components/timeline-connector.ts — вертикальный волосок между событиями
+// истории подачи. Толщина линии не отступ, поэтому в шкале пространства ей
+// не место; обе величины идут через роли, потому что коннектор — это
+// буквально граница, повёрнутая вертикально.
+export const timelineConnectorTokens = defineComponentTokens('timelineConnector', {
+  color: '{theme.color.borderDefault}',
+  width: '{semantic.border.default}',
 });
 
 // components/pipeline-row.ts
@@ -392,17 +404,25 @@ export const transitions = defineComposite('transition', {
 ```typescript
 // composites/text-styles.ts
 export const textStyles = defineComposite('text', {
-  display:     { size: '{typography.size.8}', line: '{typography.line.8}', weight: '{typography.weight.semibold}', tracking: '-0.02em'  },
-  title1:      { size: '{typography.size.7}', line: '{typography.line.7}', weight: '{typography.weight.semibold}', tracking: '-0.015em' },
-  title2:      { size: '{typography.size.6}', line: '{typography.line.6}', weight: '{typography.weight.semibold}', tracking: '-0.01em'  },
-  title3:      { size: '{typography.size.5}', line: '{typography.line.5}', weight: '{typography.weight.semibold}', tracking: '-0.005em' },
-  body:        { size: '{typography.size.4}', line: '{typography.line.4}', weight: '{typography.weight.regular}',  tracking: '0'        },
-  bodyStrong:  { size: '{typography.size.4}', line: '{typography.line.4}', weight: '{typography.weight.medium}',   tracking: '0'        },
-  small:       { size: '{typography.size.3}', line: '{typography.line.3}', weight: '{typography.weight.regular}',  tracking: '0'        },
-  caption:     { size: '{typography.size.2}', line: '{typography.line.2}', weight: '{typography.weight.regular}',  tracking: '0'        },
-  overline:    { size: '{typography.size.1}', line: '{typography.line.1}', weight: '{typography.weight.medium}',   tracking: '+0.06em'  },
+  display:     { size: '{typography.size.8}', line: '{typography.line.8}', weight: '{typography.weight.semibold}', tracking: '{typography.tracking.tightest}' },
+  title1:      { size: '{typography.size.7}', line: '{typography.line.7}', weight: '{typography.weight.semibold}', tracking: '{typography.tracking.tighter}'  },
+  title2:      { size: '{typography.size.6}', line: '{typography.line.6}', weight: '{typography.weight.semibold}', tracking: '{typography.tracking.tight}'    },
+  title3:      { size: '{typography.size.5}', line: '{typography.line.5}', weight: '{typography.weight.semibold}', tracking: '{typography.tracking.snug}'     },
+  body:        { size: '{typography.size.4}', line: '{typography.line.4}', weight: '{typography.weight.regular}',  tracking: '{typography.tracking.normal}'   },
+  bodyStrong:  { size: '{typography.size.4}', line: '{typography.line.4}', weight: '{typography.weight.medium}',   tracking: '{typography.tracking.normal}'   },
+  small:       { size: '{typography.size.3}', line: '{typography.line.3}', weight: '{typography.weight.regular}',  tracking: '{typography.tracking.normal}'   },
+  caption:     { size: '{typography.size.2}', line: '{typography.line.2}', weight: '{typography.weight.regular}',  tracking: '{typography.tracking.normal}'   },
+  overline:    { size: '{typography.size.1}', line: '{typography.line.1}', weight: '{typography.weight.medium}',   tracking: '{typography.tracking.wide}'     },
+
+  // Табличные цифры, которых требует текст ниже: без собственного стиля их
+  // некому нести. Делит ступень со `small` — колонка чисел живёт в плотных
+  // таблицах, — и единственный ссылается на моноширинную гарнитуру.
+  numeric:     { family: '{semantic.typography.familyNumeric}',
+                 size: '{typography.size.3}', line: '{typography.line.3}', weight: '{typography.weight.regular}',  tracking: '{typography.tracking.normal}'   },
 });
 ```
+
+Трекинг задан ссылками на шкалу, а не литералами: иначе значение вроде `-0.015em` живёт в композите отдельной копией и расходится со шкалой при первой же её перенастройке.
 
 | Шаг | Кегль / интерлиньяж | Где |
 | --- | --- | --- |

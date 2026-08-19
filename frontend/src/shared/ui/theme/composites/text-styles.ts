@@ -5,66 +5,89 @@ import { defineComposite } from "design-token-engine";
  * under one name, so a caller applies one token instead of assembling four and
  * getting one of them wrong.
  *
- * Every name here has a matching entry in `tokens/typography.ts`'s size scale,
- * one to one. That correspondence is the point of naming sizes by role: the
- * question "what size is a card title" has exactly one place to look, and no
- * style has to share a size with an unrelated one just because they happened to
- * land on the same step.
+ * Size and line always come from the same step of their scales — the two were
+ * chosen against each other, and separating them is how vertical rhythm
+ * quietly breaks. Tracking tightens as type grows, for the same reason it
+ * loosens as type shrinks: the letter spacing that keeps eleven-pixel text
+ * legible makes a thirty-two-pixel heading look scattered.
  *
- * Leading tightens as type grows. The same ratio that keeps body text readable
- * leaves a heading looking like two disconnected lines, and tracking moves the
- * opposite way for the same reason — large type is set tighter, small type
- * needs the air.
+ * Names follow §8. Several styles deliberately share a size — `body` and
+ * `bodyStrong` are one step apart in weight only — which is exactly what a
+ * numbered size scale allows and role-named sizes would have forced into a
+ * duplicate.
  */
-export const textStyles = defineComposite("textStyle", {
-    pageTitle: {
-        size: "{typography.size.pageTitle}",
-        line: "{typography.lineHeight.tight}",
+export const textStyles = defineComposite("text", {
+    /** Large analytics figures and empty-state headings. */
+    display: {
+        size: "{typography.size.8}",
+        line: "{typography.line.8}",
+        weight: "{typography.weight.semibold}",
+        tracking: "{typography.tracking.tightest}",
+    },
+    /** Screen heading. */
+    title1: {
+        size: "{typography.size.7}",
+        line: "{typography.line.7}",
+        weight: "{typography.weight.semibold}",
+        tracking: "{typography.tracking.tighter}",
+    },
+    /** Section heading. */
+    title2: {
+        size: "{typography.size.6}",
+        line: "{typography.line.6}",
         weight: "{typography.weight.semibold}",
         tracking: "{typography.tracking.tight}",
     },
-    sectionTitle: {
-        size: "{typography.size.sectionTitle}",
-        line: "{typography.lineHeight.snug}",
+    /** Card heading. */
+    title3: {
+        size: "{typography.size.5}",
+        line: "{typography.line.5}",
         weight: "{typography.weight.semibold}",
         tracking: "{typography.tracking.snug}",
     },
-    cardTitle: {
-        size: "{typography.size.cardTitle}",
-        line: "{typography.lineHeight.snug}",
-        weight: "{typography.weight.medium}",
-        tracking: "{typography.tracking.snug}",
-    },
     body: {
-        size: "{typography.size.body}",
-        line: "{typography.lineHeight.normal}",
+        size: "{typography.size.4}",
+        line: "{typography.line.4}",
         weight: "{typography.weight.regular}",
         tracking: "{typography.tracking.normal}",
     },
-    bodySmall: {
-        size: "{typography.size.bodySmall}",
-        line: "{typography.lineHeight.normal}",
+    bodyStrong: {
+        size: "{typography.size.4}",
+        line: "{typography.line.4}",
+        weight: "{typography.weight.medium}",
+        tracking: "{typography.tracking.normal}",
+    },
+    /** Dense tables and metadata. */
+    small: {
+        size: "{typography.size.3}",
+        line: "{typography.line.3}",
         weight: "{typography.weight.regular}",
         tracking: "{typography.tracking.normal}",
     },
-    /** Field labels and column headers — the only style carrying extra tracking, because it is set small and often in capitals. */
-    label: {
-        size: "{typography.size.label}",
-        line: "{typography.lineHeight.snug}",
+    caption: {
+        size: "{typography.size.2}",
+        line: "{typography.line.2}",
+        weight: "{typography.weight.regular}",
+        tracking: "{typography.tracking.normal}",
+    },
+    /** Small capitalised headings above a block — the one style set with extra tracking, because capitals at eleven pixels close up without it. */
+    overline: {
+        size: "{typography.size.1}",
+        line: "{typography.line.1}",
         weight: "{typography.weight.medium}",
         tracking: "{typography.tracking.wide}",
     },
-    caption: {
-        size: "{typography.size.caption}",
-        line: "{typography.lineHeight.normal}",
-        weight: "{typography.weight.regular}",
-        tracking: "{typography.tracking.normal}",
-    },
-    /** Salary figures, dates, identifiers. The only style that names a family, and the sole consumer of the mono face — which is why `app/fonts.ts` loads exactly one weight of it. */
+
+    /**
+     * Not in §8, and added because §8 asks for something it never defines:
+     * tabular figures are required in every table, sum and date, and nothing
+     * there carries them. Shares `small`'s step, since a figure column sits
+     * inside dense tables.
+     */
     numeric: {
         family: "{semantic.typography.familyNumeric}",
-        size: "{typography.size.numeric}",
-        line: "{typography.lineHeight.normal}",
+        size: "{typography.size.3}",
+        line: "{typography.line.3}",
         weight: "{typography.weight.regular}",
         tracking: "{typography.tracking.normal}",
     },

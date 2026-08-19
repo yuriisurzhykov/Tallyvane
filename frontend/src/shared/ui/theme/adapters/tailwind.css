@@ -1,86 +1,87 @@
 /**
- * The only Tailwind-aware file in this tree, and the only place the `--ds-*`
- * variables from `generated/tokens.css` are given class-facing names.
+ * The only Tailwind-aware file in this tree, and the only place a `--ds-*`
+ * variable is given a class-facing name.
  *
- * The mapping is one-to-one and the names are unchanged: role `surfacePage`
- * compiles to `--ds-color-surface-page`, is registered here as
- * `--color-surface-page`, and is written as `bg-surface-page`. There is no
- * translation table, because there is no legacy vocabulary to translate from —
- * a luxury of starting clean, and one worth protecting. The moment a name here
- * stops matching its role, this file becomes a dictionary someone has to keep
- * in their head.
+ * The mapping is one-to-one and the names are unchanged: role `surfacePrimary`
+ * compiles to `--ds-color-surface-primary`, is registered here as
+ * `--color-surface-primary`, and is written as `bg-surface-primary`. There is
+ * no translation table, because there is no legacy vocabulary to translate
+ * from — a luxury of starting clean, and one worth protecting. The moment a
+ * name here stops matching its role, this file becomes a dictionary someone has
+ * to keep in their head.
  *
  * THE INVARIANT: no class-facing name may resolve to a primitive. Every
  * category, without exception — no `bg-neutral-700`, no `p-4`, no `text-6`, no
  * `font-sans`, and no raw stacking number or page width either. The primitive
  * tiers exist in the generated stylesheet, because the roles above them have to
- * resolve to something, but none of them is given a name a component could
- * write.
+ * resolve to something, but none is given a name a component could write.
  *
  * A class is exactly the thing that carries a token out of this directory, so
- * every class registered here is a decision about what the rest of the project
- * is able to know. Grant one that points at a primitive and the project knows
- * about primitives — permanently, because it will be used, and no amount of
- * review catches every instance afterwards. Withholding the name is the only
- * enforcement that does not depend on anyone remembering.
+ * every class registered here decides what the rest of the project is able to
+ * know. Grant one that points at a primitive and the project knows about
+ * primitives — permanently, because it will be used, and no amount of review
+ * catches every instance afterwards. Withholding the name is the only
+ * enforcement that does not depend on anyone remembering. The generator checks
+ * this on every run and fails the build.
  *
  * That is also why some things are applied as base rules or whole utilities
  * rather than registered: both reach a value without minting a name for it.
  *
- * For colour the payoff is theme survival. For spacing it is density: the
- * product has a density control, and remapping `insetMd` retunes every
- * component at once, whereas components spelling out `p-4` would have to be
- * rewritten one by one — which is another way of saying the feature could not
- * exist. Verbosity here buys that.
- *
- * Border widths are the one category with nothing here at all, and nothing is
- * missing: the design has exactly one border width, and Tailwind's plain
- * `border`/`border-b` already draw it. The primitive exists only so that
- * `components/timeline-connector.ts` can name its own hairline instead of
- * writing a bare `1px`.
- *
  * NOTE: written before Tailwind is installed, so none of this has been through
- * a real build yet. The mapping follows from the generated variable names, but
+ * a real build. The mapping follows from the generated variable names, but
  * expect to confirm it the day the build exists.
  */
 @theme {
     /* --------------------------------------------------------------------
      * COLOUR
      *
-     * The namespace is cleared first so that none of Tailwind's own palette
-     * survives. Leaving it in place would mean `text-red-500` quietly works
-     * and produces a red that belongs to no theme and answers to no audit.
+     * The namespace is cleared first so none of Tailwind's own palette
+     * survives. Leaving it would mean `text-red-500` quietly works and
+     * produces a red belonging to no theme and answering to no audit.
+     *
+     * Each status has three names for three different jobs, and they are not
+     * interchangeable: the colour itself for a dot or a bar, a wash to sit
+     * behind it, and a text colour dark or light enough to actually read.
      * -------------------------------------------------------------------- */
     --color-*: initial;
 
-    --color-surface-page: var(--ds-color-surface-page);
-    --color-surface-card: var(--ds-color-surface-card);
-    --color-surface-sunken: var(--ds-color-surface-sunken);
-    --color-surface-hover: var(--ds-color-surface-hover);
+    --color-surface-primary: var(--ds-color-surface-primary);
+    --color-surface-elevated: var(--ds-color-surface-elevated);
+    --color-surface-inset: var(--ds-color-surface-inset);
+    --color-surface-row-hover: var(--ds-color-surface-row-hover);
+    --color-surface-selected: var(--ds-color-surface-selected);
     --color-surface-overlay: var(--ds-color-surface-overlay);
 
     --color-text-primary: var(--ds-color-text-primary);
     --color-text-secondary: var(--ds-color-text-secondary);
     --color-text-muted: var(--ds-color-text-muted);
+    --color-text-disabled: var(--ds-color-text-disabled);
     --color-text-on-accent: var(--ds-color-text-on-accent);
+    --color-text-on-solid: var(--ds-color-text-on-solid);
 
     --color-border-subtle: var(--ds-color-border-subtle);
     --color-border-default: var(--ds-color-border-default);
     --color-border-strong: var(--ds-color-border-strong);
     --color-border-focus: var(--ds-color-border-focus);
 
-    --color-accent: var(--ds-color-accent);
-    --color-accent-hover: var(--ds-color-accent-hover);
-    --color-accent-subtle: var(--ds-color-accent-subtle);
+    --color-interactive-primary: var(--ds-color-interactive-primary);
+    --color-interactive-primary-hover: var(--ds-color-interactive-primary-hover);
+    --color-interactive-primary-pressed: var(--ds-color-interactive-primary-pressed);
+    --color-interactive-primary-subtle: var(--ds-color-interactive-primary-subtle);
+    --color-interactive-primary-text: var(--ds-color-interactive-primary-text);
 
-    --color-status-attention: var(--ds-color-status-attention);
-    --color-status-attention-subtle: var(--ds-color-status-attention-subtle);
     --color-status-success: var(--ds-color-status-success);
     --color-status-success-subtle: var(--ds-color-status-success-subtle);
+    --color-status-success-text: var(--ds-color-status-success-text);
     --color-status-danger: var(--ds-color-status-danger);
     --color-status-danger-subtle: var(--ds-color-status-danger-subtle);
+    --color-status-danger-text: var(--ds-color-status-danger-text);
+    --color-status-attention: var(--ds-color-status-attention);
+    --color-status-attention-subtle: var(--ds-color-status-attention-subtle);
+    --color-status-attention-text: var(--ds-color-status-attention-text);
     --color-status-info: var(--ds-color-status-info);
     --color-status-info-subtle: var(--ds-color-status-info-subtle);
+    --color-status-info-text: var(--ds-color-status-info-text);
 
     /* --------------------------------------------------------------------
      * SPACING
@@ -89,60 +90,55 @@
      * multiplier, and that is the point. With the multiplier in place every
      * `p-<n>` resolves for any n at all, so `p-7` would silently render a
      * value belonging to no scale. Without it, only the roles below produce a
-     * utility, and anything else produces nothing.
+     * utility and anything else produces nothing.
      *
-     * Naming these by job also removes a collision worth knowing about:
-     * Tailwind consults `--spacing-<key>` ahead of `--container-<key>` for the
-     * width family, so a system with `sm`/`md`/`lg` spacing keys quietly
-     * hijacks `max-w-md`. `inset-md` cannot collide with a container name.
+     * Naming by job also avoids a collision worth knowing about: Tailwind
+     * consults `--spacing-<key>` ahead of `--container-<key>` for the width
+     * family, so a system with `sm`/`md`/`lg` spacing keys quietly hijacks
+     * `max-w-md`. `stack-tight` cannot collide with a container name.
      * -------------------------------------------------------------------- */
     --spacing-*: initial;
 
-    --spacing-inset-xs: var(--ds-semantic-spacing-inset-xs);
-    --spacing-inset-sm: var(--ds-semantic-spacing-inset-sm);
-    --spacing-inset-md: var(--ds-semantic-spacing-inset-md);
-    --spacing-inset-lg: var(--ds-semantic-spacing-inset-lg);
-
-    --spacing-stack-xs: var(--ds-semantic-spacing-stack-xs);
-    --spacing-stack-sm: var(--ds-semantic-spacing-stack-sm);
-    --spacing-stack-md: var(--ds-semantic-spacing-stack-md);
-
-    --spacing-section-sm: var(--ds-semantic-spacing-section-sm);
-    --spacing-section-md: var(--ds-semantic-spacing-section-md);
+    --spacing-inline-tight: var(--ds-semantic-spacing-inline-tight);
+    --spacing-inline: var(--ds-semantic-spacing-inline);
+    --spacing-stack-tight: var(--ds-semantic-spacing-stack-tight);
+    --spacing-stack: var(--ds-semantic-spacing-stack);
+    --spacing-group-gap: var(--ds-semantic-spacing-group-gap);
+    --spacing-section-gap: var(--ds-semantic-spacing-section-gap);
+    --spacing-screen-padding: var(--ds-semantic-spacing-screen-padding);
 
     /* --------------------------------------------------------------------
      * RADII
      * -------------------------------------------------------------------- */
     --radius-*: initial;
 
+    --radius-chip: var(--ds-semantic-radius-chip);
     --radius-control: var(--ds-semantic-radius-control);
     --radius-card: var(--ds-semantic-radius-card);
     --radius-surface: var(--ds-semantic-radius-surface);
     --radius-pill: var(--ds-semantic-radius-pill);
 
     /* --------------------------------------------------------------------
-     * SHADOWS — two, and no more; see composites/shadows.ts on why elevation
-     * is carried by surface value rather than by shadow.
+     * SHADOWS — three, and only for what genuinely floats above content it
+     * did not lay out; see composites/shadows.ts on why a card in the page
+     * flow gets none.
      * -------------------------------------------------------------------- */
     --shadow-*: initial;
 
-    --shadow-overlay-panel: var(--ds-shadow-overlay-panel);
-    --shadow-focus-ring: var(--ds-shadow-focus-ring);
+    --shadow-elevation1: var(--ds-shadow-elevation1);
+    --shadow-elevation2: var(--ds-shadow-elevation2);
+    --shadow-elevation3: var(--ds-shadow-elevation3);
 
     /* --------------------------------------------------------------------
      * TYPOGRAPHY — every namespace cleared, and nothing registered back.
      *
-     * There is no `font-sans` class, deliberately. Registering one would mean
-     * a class-facing name resolving to a primitive, which is the single thing
-     * this file must never produce: the class is what carries a token out of
-     * this directory, so a class backed by a primitive hands the whole project
-     * a way around the semantic layer.
-     *
-     * The interface face is therefore set once in a base rule below, which
-     * creates no class at all. The mono face reaches its only consumer through
-     * the `text-numeric` style. Sizes stay absent for a related reason: a text
-     * style is four properties at once, and a bare `--text-*` scale alongside
-     * the styles would let a size be set without its leading.
+     * There is no `font-sans` class, deliberately: it would be a class-facing
+     * name resolving to a primitive. The interface face is set once in a base
+     * rule below, which creates no class; the mono face reaches its only
+     * consumer through the `text-numeric` style. Sizes stay absent for a
+     * related reason — a text style is four properties at once, and a bare
+     * `--text-*` scale alongside the styles would let a size be set without
+     * its leading.
      * -------------------------------------------------------------------- */
     --font-*: initial;
     --text-*: initial;
@@ -166,11 +162,11 @@
      * and do not need to: the bridge only has to make the class-facing name
      * resolve to something real.
      *
-     * Tailwind's own `--container-*` scale is cleared so that `max-w-md` and
+     * Tailwind's own `--container-*` scale is cleared so `max-w-md` and
      * friends cannot offer a second, foreign set of widths alongside these.
      * `--breakpoint-*` is deliberately left alone: Tailwind's defaults are
-     * 640, 768, 1024, 1280 and 1536, which is exactly this project's own set,
-     * so overriding them would only create a copy to keep in step.
+     * 640, 768, 1024, 1280 and 1536, exactly this project's own set, so
+     * overriding them would only create a copy to keep in step.
      * -------------------------------------------------------------------- */
     --container-*: initial;
 
@@ -191,8 +187,7 @@
      * `z-10` and `z-50` are bare-value utilities Tailwind builds without
      * consulting the theme, so they survive whatever this file does. That
      * leaves one route around the named layers that CSS cannot close — a lint
-     * rule is the place to close it, alongside the raw-colour and
-     * arbitrary-dimension rules the token engine already ships.
+     * rule is the place to close it.
      * -------------------------------------------------------------------- */
     --z-background: var(--ds-semantic-z-background);
     --z-content: var(--ds-semantic-z-content);
@@ -221,57 +216,71 @@
 /* ------------------------------------------------------------------------
  * TEXT STYLES
  *
- * One class sets size, leading, weight and tracking together. `text-body`
- * rather than `text-4 leading-4 font-normal tracking-normal`, and there is no
+ * One class sets size, leading, weight and tracking together, so there is no
  * way to apply three of the four.
  * ------------------------------------------------------------------------ */
-@utility text-page-title {
-    font-size: var(--ds-text-style-page-title-size);
-    line-height: var(--ds-text-style-page-title-line);
-    font-weight: var(--ds-text-style-page-title-weight);
-    letter-spacing: var(--ds-text-style-page-title-tracking);
+@utility text-display {
+    font-size: var(--ds-text-display-size);
+    line-height: var(--ds-text-display-line);
+    font-weight: var(--ds-text-display-weight);
+    letter-spacing: var(--ds-text-display-tracking);
 }
 
-@utility text-section-title {
-    font-size: var(--ds-text-style-section-title-size);
-    line-height: var(--ds-text-style-section-title-line);
-    font-weight: var(--ds-text-style-section-title-weight);
-    letter-spacing: var(--ds-text-style-section-title-tracking);
+@utility text-title1 {
+    font-size: var(--ds-text-title1-size);
+    line-height: var(--ds-text-title1-line);
+    font-weight: var(--ds-text-title1-weight);
+    letter-spacing: var(--ds-text-title1-tracking);
 }
 
-@utility text-card-title {
-    font-size: var(--ds-text-style-card-title-size);
-    line-height: var(--ds-text-style-card-title-line);
-    font-weight: var(--ds-text-style-card-title-weight);
-    letter-spacing: var(--ds-text-style-card-title-tracking);
+@utility text-title2 {
+    font-size: var(--ds-text-title2-size);
+    line-height: var(--ds-text-title2-line);
+    font-weight: var(--ds-text-title2-weight);
+    letter-spacing: var(--ds-text-title2-tracking);
+}
+
+@utility text-title3 {
+    font-size: var(--ds-text-title3-size);
+    line-height: var(--ds-text-title3-line);
+    font-weight: var(--ds-text-title3-weight);
+    letter-spacing: var(--ds-text-title3-tracking);
 }
 
 @utility text-body {
-    font-size: var(--ds-text-style-body-size);
-    line-height: var(--ds-text-style-body-line);
-    font-weight: var(--ds-text-style-body-weight);
-    letter-spacing: var(--ds-text-style-body-tracking);
+    font-size: var(--ds-text-body-size);
+    line-height: var(--ds-text-body-line);
+    font-weight: var(--ds-text-body-weight);
+    letter-spacing: var(--ds-text-body-tracking);
 }
 
-@utility text-body-small {
-    font-size: var(--ds-text-style-body-small-size);
-    line-height: var(--ds-text-style-body-small-line);
-    font-weight: var(--ds-text-style-body-small-weight);
-    letter-spacing: var(--ds-text-style-body-small-tracking);
+@utility text-body-strong {
+    font-size: var(--ds-text-body-strong-size);
+    line-height: var(--ds-text-body-strong-line);
+    font-weight: var(--ds-text-body-strong-weight);
+    letter-spacing: var(--ds-text-body-strong-tracking);
 }
 
-@utility text-label {
-    font-size: var(--ds-text-style-label-size);
-    line-height: var(--ds-text-style-label-line);
-    font-weight: var(--ds-text-style-label-weight);
-    letter-spacing: var(--ds-text-style-label-tracking);
+@utility text-small {
+    font-size: var(--ds-text-small-size);
+    line-height: var(--ds-text-small-line);
+    font-weight: var(--ds-text-small-weight);
+    letter-spacing: var(--ds-text-small-tracking);
 }
 
 @utility text-caption {
-    font-size: var(--ds-text-style-caption-size);
-    line-height: var(--ds-text-style-caption-line);
-    font-weight: var(--ds-text-style-caption-weight);
-    letter-spacing: var(--ds-text-style-caption-tracking);
+    font-size: var(--ds-text-caption-size);
+    line-height: var(--ds-text-caption-line);
+    font-weight: var(--ds-text-caption-weight);
+    letter-spacing: var(--ds-text-caption-tracking);
+}
+
+@utility text-overline {
+    font-size: var(--ds-text-overline-size);
+    line-height: var(--ds-text-overline-line);
+    font-weight: var(--ds-text-overline-weight);
+    letter-spacing: var(--ds-text-overline-tracking);
+    text-transform: uppercase;
 }
 
 /* The only style that also sets a family, and the only one that turns on
@@ -279,12 +288,25 @@
  * compared at a glance, and `slashed-zero` keeps a zero from reading as a
  * letter in a job identifier. */
 @utility text-numeric {
-    font-family: var(--ds-text-style-numeric-family);
-    font-size: var(--ds-text-style-numeric-size);
-    line-height: var(--ds-text-style-numeric-line);
-    font-weight: var(--ds-text-style-numeric-weight);
-    letter-spacing: var(--ds-text-style-numeric-tracking);
+    font-family: var(--ds-text-numeric-family);
+    font-size: var(--ds-text-numeric-size);
+    line-height: var(--ds-text-numeric-line);
+    font-weight: var(--ds-text-numeric-weight);
+    letter-spacing: var(--ds-text-numeric-tracking);
     font-variant-numeric: tabular-nums slashed-zero;
+}
+
+/* ------------------------------------------------------------------------
+ * FOCUS RING
+ *
+ * An outline rather than a shadow or a border: an outline costs no layout and
+ * cannot shift the element it marks, and unlike a shadow it survives being
+ * drawn over by a neighbour. Two pixels, which is the one place in the design
+ * a border is thicker than a hairline.
+ * ------------------------------------------------------------------------ */
+@utility focus-ring {
+    outline: var(--ds-semantic-border-focus) solid var(--ds-color-border-focus);
+    outline-offset: var(--ds-semantic-border-focus);
 }
 
 /* ------------------------------------------------------------------------
@@ -293,7 +315,7 @@
  * Duration and easing arrive as two variables and are applied together here,
  * so the pair cannot be split by accident. Each utility also names the
  * properties it animates: `transition: all` is never what anyone means, and it
- * forces the browser to watch every property on the element for a change.
+ * makes the browser watch every property on the element for a change.
  * ------------------------------------------------------------------------ */
 @utility transition-hover {
     transition-property: color, background-color, border-color, box-shadow, opacity;
@@ -301,22 +323,16 @@
     transition-timing-function: var(--ds-transition-hover-easing);
 }
 
-@utility transition-press {
-    transition-property: transform, background-color;
-    transition-duration: var(--ds-transition-press-duration);
-    transition-timing-function: var(--ds-transition-press-easing);
+@utility transition-popover {
+    transition-property: opacity, transform;
+    transition-duration: var(--ds-transition-popover-duration);
+    transition-timing-function: var(--ds-transition-popover-easing);
 }
 
-@utility transition-enter {
-    transition-property: opacity, transform;
-    transition-duration: var(--ds-transition-enter-duration);
-    transition-timing-function: var(--ds-transition-enter-easing);
-}
-
-@utility transition-exit {
-    transition-property: opacity, transform;
-    transition-duration: var(--ds-transition-exit-duration);
-    transition-timing-function: var(--ds-transition-exit-easing);
+@utility transition-drawer {
+    transition-property: transform;
+    transition-duration: var(--ds-transition-drawer-duration);
+    transition-timing-function: var(--ds-transition-drawer-easing);
 }
 
 @media (prefers-reduced-motion: reduce) {

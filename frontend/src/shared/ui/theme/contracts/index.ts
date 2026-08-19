@@ -1,3 +1,4 @@
+export { borderContract } from "./border";
 export { colorContract } from "./color";
 export { layoutContract } from "./layout";
 export { radiusContract } from "./radius";

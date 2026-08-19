@@ -7,7 +7,7 @@ The source of truth for every visual value. Specification and reasoning live in
 tokens/       primitives — physical values, hsl() strings
 contracts/    the required-role list per category, single source
 themes/       themed semantics: dark.ts, light.ts, shared-roles.ts
-semantic/     flat semantics with no theme axis: radius, spacing, typography, layout, z-index
+semantic/     flat semantics with no theme axis: radius, spacing, border, typography, layout, z-index
 components/   component tokens, namespaced, no contract
 composites/   shadows, transitions, text styles
 adapters/     the bridge to Tailwind and to non-CSS consumers

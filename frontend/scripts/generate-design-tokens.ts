@@ -25,6 +25,7 @@ const GENERATED_DIR = path.join(THEME_DIR, "generated");
 const ADAPTERS_DIR = path.join(THEME_DIR, "adapters");
 
 const REFERENCED_VARIABLE = /var\(\s*(--ds-[a-z0-9-]+)/g;
+const DECLARED_VARIABLE = /^\s*(--ds-[a-z0-9-]+)\s*:/gm;
 
 /**
  * Fails the build if an adapter gives a primitive a class-facing name.
@@ -43,21 +44,34 @@ const REFERENCED_VARIABLE = /var\(\s*(--ds-[a-z0-9-]+)/g;
  * compile to `--ds-color-*`. The compiler reports the exact primitive names, so
  * this is an exact-membership test rather than a guess about shapes.
  */
-async function findExposedPrimitives(primitiveVariables: Readonly<Record<string, readonly string[]>>): Promise<string[]> {
+async function auditAdapters(
+    css: string,
+    primitiveVariables: Readonly<Record<string, readonly string[]>>,
+): Promise<string[]> {
     const owner = new Map<string, string>();
     for (const [category, names] of Object.entries(primitiveVariables)) {
         for (const name of names) owner.set(name, category);
     }
+    // Everything the compiler actually declared, taken from the generated
+    // stylesheet rather than rebuilt here, so the two cannot drift.
+    const declared = new Set([...css.matchAll(DECLARED_VARIABLE)].map((match) => match[1] as string));
 
     const violations: string[] = [];
     for (const file of await readdir(ADAPTERS_DIR)) {
         if (!file.endsWith(".css")) continue;
-        const filePath = path.join(ADAPTERS_DIR, file);
-        const contents = await readFile(filePath, "utf8");
+        const contents = await readFile(path.join(ADAPTERS_DIR, file), "utf8");
         for (const match of contents.matchAll(REFERENCED_VARIABLE)) {
             const name = match[1] as string;
             const category = owner.get(name);
-            if (category) violations.push(`${file}: ${name} is a ${category} primitive`);
+            if (category) {
+                violations.push(`${file}: ${name} is a ${category} primitive — expose the semantic role instead`);
+            } else if (!declared.has(name)) {
+                // Renaming a role leaves the adapter pointing at a variable
+                // that no longer exists. CSS does not complain: the `var()`
+                // resolves to nothing, the declaration is dropped, and the
+                // style is simply absent wherever that class is used.
+                violations.push(`${file}: ${name} is not declared by the compiler — renamed or misspelled`);
+            }
         }
     }
     return [...new Set(violations)].sort();
@@ -104,15 +118,11 @@ async function main(): Promise<void> {
         console.warn(`[tokens] ${warning}`);
     }
 
-    // Runs on every generate, not only under `--check`: the point is that the
-    // breach cannot survive long enough to reach a commit.
-    const exposed = await findExposedPrimitives(primitiveVariables);
-    if (exposed.length > 0) {
-        console.error(
-            `\n[tokens] An adapter gives a primitive a class-facing name:\n${exposed.map((v) => `  - ${v}`).join("\n")}\n\n` +
-            "Expose the semantic role instead, or apply the value in a base rule or a whole utility,\n" +
-            "which reaches it without minting a name the rest of the project can write.\n",
-        );
+    // Runs on every generate, not only under `--check`: the point is that
+    // neither fault can survive long enough to reach a commit.
+    const violations = await auditAdapters(css, primitiveVariables);
+    if (violations.length > 0) {
+        console.error(`\n[tokens] Adapter problems:\n${violations.map((v) => `  - ${v}`).join("\n")}\n`);
         process.exitCode = 1;
         return;
     }

@@ -1,47 +1,63 @@
-import { defineTheme } from "design-token-engine";
+import { defineTheme, mergeTokenTree } from "design-token-engine";
 import { colorContract } from "../contracts/color";
+import { sharedColorRoles } from "./shared-roles";
 
 /**
- * The same role names as `light.ts`, travelling the same scales in the opposite
- * direction. Read the two side by side: any role whose line here is not the
- * mirror of its line there is either a deliberate contrast correction or a
- * mistake, and the diff is the only place that distinction is visible.
+ * The default theme. It is listed first in `compiler.config.ts`, which is what
+ * makes it compile to `:root` while light compiles to a `.theme-light`
+ * override — and it is the theme the first render deterministically produces,
+ * on the server and the client alike (§12).
+ *
+ * Only the roles that differ between themes are written here; the rest arrive
+ * through `mergeTokenTree` from `shared-roles.ts`.
+ *
+ * Contrast ratios are reasoned, not yet measured. Expect some of these to move
+ * once there is a screen to point an audit at — the usual casualties are muted
+ * text and status text on its own wash.
  */
-export const darkTheme = defineTheme(colorContract, {
-    // Same inversion as light: the page is darker than the cards on it, so a
-    // card reads as raised through value alone.
-    surfacePage: "{color.neutral.1000}",
-    surfaceCard: "{color.neutral.950}",
-    surfaceSunken: "{color.overlayWhite.4}",
-    surfaceHover: "{color.overlayWhite.4}",
+export const darkTheme = defineTheme(colorContract, mergeTokenTree(sharedColorRoles, {
+    surfacePrimary: "{color.neutral.1000}",
+    surfaceElevated: "{color.neutral.950}",
+    surfaceInset: "{color.neutral.900}",
+    surfaceRowHover: "{color.overlayWhite.4}",
+    /**
+     * An overlay rather than a tint. The specification suggests a wash of amber
+     * here, which predates the decision that amber means "this needs you" and
+     * nothing else — a selected row is not asking for anything, so tinting it
+     * with the attention colour would spend the one signal the interface has.
+     */
+    surfaceSelected: "{color.overlayWhite.12}",
     surfaceOverlay: "{color.scrim.dark}",
 
-    // Not `neutral.0` — pure white on a near-black ground produces halation,
-    // and the text appears to vibrate at small sizes. One step in costs nothing
-    // legible and removes the effect.
-    textPrimary: "{color.neutral.50}",
-    textSecondary: "{color.neutral.300}",
-    textMuted: "{color.neutral.400}",
+    /** Not `neutral.0`: pure white on a near-black ground haloes, and small text appears to vibrate. */
+    textPrimary: "{color.neutral.100}",
+    textSecondary: "{color.neutral.400}",
+    textMuted: "{color.neutral.500}",
+    textDisabled: "{color.neutral.600}",
+    /** Text printed on the accent, which here is near-white — so this is near-black. Inverted in the light theme. */
     textOnAccent: "{color.neutral.1000}",
 
     borderSubtle: "{color.overlayWhite.8}",
     borderDefault: "{color.overlayWhite.12}",
     borderStrong: "{color.overlayWhite.24}",
-    borderFocus: "{color.neutral.50}",
+    /**
+     * Monochrome, like the accent, and for a reason beyond consistency. An
+     * amber ring would be tempting, focus being a kind of attention — but the
+     * screen would then carry two amber signals, "this record needs action" and
+     * "your cursor is here". One is about the work and the other about
+     * navigation, and they must not be confused.
+     */
+    borderFocus: "{color.neutral.0}",
 
-    accent: "{color.neutral.50}",
-    accentHover: "{color.neutral.0}",
-    accentSubtle: "{color.overlayWhite.8}",
+    interactivePrimary: "{color.neutral.100}",
+    interactivePrimaryHover: "{color.neutral.0}",
+    interactivePrimaryPressed: "{color.neutral.200}",
+    interactivePrimarySubtle: "{color.overlayWhite.12}",
+    /** The accent used AS text — a link, a quiet button label — rather than as a fill behind text. */
+    interactivePrimaryText: "{color.neutral.100}",
 
-    // Light steps for the foreground, mirroring light theme's dark ones. The
-    // washes sit slightly stronger than in light because a translucent colour
-    // loses more presence over a dark ground than over a pale one.
-    statusAttention: "{color.amber.300}",
-    statusAttentionSubtle: "alpha({color.amber.500}, 18%)",
-    statusSuccess: "{color.green.300}",
-    statusSuccessSubtle: "alpha({color.green.500}, 18%)",
-    statusDanger: "{color.red.300}",
-    statusDangerSubtle: "alpha({color.red.500}, 16%)",
-    statusInfo: "{color.blue.300}",
-    statusInfoSubtle: "alpha({color.blue.500}, 16%)",
-});
+    statusSuccessText: "{color.green.300}",
+    statusDangerText: "{color.red.300}",
+    statusAttentionText: "{color.amber.300}",
+    statusInfoText: "{color.blue.300}",
+}));
