@@ -1,28 +1,37 @@
 import { expect, test } from "@playwright/test";
 import { pagesManifest } from "./pages.manifest";
 import { seedTheme, THEMES } from "./utils/theme";
-import { collectTextSamples, formatFindings, judge, type ContrastFinding } from "./utils/contrast";
+import { collectTextSamples, formatFindings, judge, type ContrastFinding } from "./utils/apca";
 
 /**
- * Contrast, measured by APCA rather than by the WCAG 2 ratio.
+ * Contrast measured by APCA — the quality bar, not the compliance one.
  *
- * The ratio it replaces is a formula from 1988 that models paper. It is
+ * `contrast-wcag.spec.ts` is the compliance one, and the two are deliberately
+ * kept apart rather than merged into a single verdict. They come from different
+ * models that disagree in both directions, and a combined result would hide
+ * which of them objected — while making APCA impossible to drop.
+ *
+ * Dropping it is a live possibility, so the seams are worth stating. APCA is
+ * research-grade rather than a standard: it was removed from the WCAG 3 draft
+ * in 2023, WCAG 3 has not chosen a contrast algorithm, and the library's licence
+ * is a limited one. Removing all of it means deleting this file, `utils/apca.ts`,
+ * `utils/apca-w3.d.ts` and the `apca-w3` dependency. Nothing else refers to it.
+ *
+ * Why keep it at all: the WCAG 2 ratio is a formula that models paper. It is
  * symmetric, so it scores dark-on-light and light-on-dark identically even
- * though a self-illuminated screen does not display them identically, and it
- * takes no account of size or weight beyond one coarse threshold. In practice
- * it passes combinations that are hard to read and fails ones that are fine —
- * which is exactly what the successor exists to correct.
+ * though a self-illuminated screen does not show them identically, and it
+ * accounts for size and weight only through one coarse threshold. It passes
+ * combinations that are hard to read.
  *
  * Two consequences for reading these failures. There is no single pass mark:
- * the report says what size the text would have to be at its measured contrast
- * and weight, so the fix is a darker colour OR a larger size OR a heavier
- * weight, whichever suits the design. And it runs per theme, because a
- * monochrome accent inverts and the two directions are genuinely different
- * measurements, not the same one twice.
+ * the report says what size the text would need at its measured contrast and
+ * weight, so the fix is a darker colour, a larger size or a heavier weight,
+ * whichever suits the design. And it runs per theme, because a monochrome
+ * accent inverts and the two directions are genuinely different measurements.
  */
 for (const entry of pagesManifest) {
     for (const theme of THEMES) {
-        test(`${entry.name} @ ${theme} — APCA contrast`, async ({ page }, testInfo) => {
+        test(`${entry.name} @ ${theme} — contrast (APCA)`, async ({ page }, testInfo) => {
             await seedTheme(page, theme);
             await page.goto(entry.path);
             await page.waitForLoadState("networkidle");

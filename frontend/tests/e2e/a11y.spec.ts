@@ -9,12 +9,11 @@ type AxeViolation = Awaited<ReturnType<AxeBuilder["analyze"]>>["violations"][num
  * Structural accessibility: roles, names, landmarks, heading order, form
  * labelling — everything a machine can decide without a human looking.
  *
- * Colour contrast is deliberately excluded here and checked in
- * `contrast.spec.ts` instead. axe implements the WCAG 2 ratio, and running both
- * would produce two verdicts from two different models on the same pixels: one
- * pair passing here and failing there is not a contradiction to resolve but a
- * disagreement about which model to trust. This project trusts APCA, so this
- * suite is not asked the question.
+ * Contrast is excluded here and has two files of its own,
+ * `contrast-wcag.spec.ts` and `contrast-apca.spec.ts`. Three separate suites
+ * rather than one, so each failure names the question it answers: a broken
+ * landmark and an unreadable colour pair are different problems with different
+ * owners, and a colour pair measured two ways is two answers rather than one.
  */
 const CONTRAST_RULES = ["color-contrast", "color-contrast-enhanced"];
 

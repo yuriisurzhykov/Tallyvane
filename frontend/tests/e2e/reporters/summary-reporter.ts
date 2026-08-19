@@ -12,11 +12,15 @@ import type { FullResult, Reporter, TestCase, TestResult } from "@playwright/tes
  * failed screenshot diff; this one is for a machine deciding what to say about
  * the run.
  *
- * Two families of finding are digested, and they come from different places on
- * purpose. Structural accessibility comes from axe; colour contrast does not,
- * because axe implements the WCAG 2 ratio and this project measures with APCA
- * instead. A summary that only counted axe violations would report a clean run
- * on a page whose text is unreadable.
+ * Two families of finding are digested. Anything axe reports — structural
+ * problems and WCAG 2.2 AA contrast alike — arrives as a violation; APCA
+ * contrast has its own shape and its own attachment, because it answers a
+ * different question and comes from a different model.
+ *
+ * The APCA half is designed to be removable. Should that method be dropped, the
+ * attachment simply stops appearing, `contrastFindings` is omitted and the count
+ * stays at zero; deleting `CONTRAST_ATTACHMENT` and its two references then
+ * tidies up. Nothing else here knows about it.
  */
 
 interface AxeViolationSummary {
@@ -32,6 +36,14 @@ interface ContrastFindingSummary {
     readonly fontSize: number;
     /** The smallest size that would pass at the measured contrast and weight. Above the plausible range means no size would. */
     readonly requiredSize: number;
+    /**
+     * The colours carried through, so the summary can group by pair. Without
+     * them the report is a list of selectors — and a page repeating one bad
+     * role in ninety places produces ninety lines describing one mistake.
+     */
+    readonly foreground: string;
+    readonly background: string;
+    readonly fontWeight: number;
 }
 
 interface TestSummaryEntry {
@@ -41,6 +53,7 @@ interface TestSummaryEntry {
     readonly durationMs: number;
     readonly errorMessage?: string;
     readonly a11yViolations?: readonly AxeViolationSummary[];
+    readonly wcagContrastViolations?: readonly AxeViolationSummary[];
     readonly contrastFindings?: readonly ContrastFindingSummary[];
 }
 
@@ -49,12 +62,15 @@ interface Summary {
     readonly overallStatus: FullResult["status"];
     readonly counts: { readonly passed: number; readonly failed: number; readonly skipped: number; readonly total: number };
     readonly a11yViolationCount: number;
-    readonly contrastFindingCount: number;
+    /** Offending ELEMENTS, not rules: one rule failing on ninety nodes is ninety things to fix. */
+    readonly wcagContrastNodeCount: number;
+    readonly apcaFindingCount: number;
     readonly tests: readonly TestSummaryEntry[];
 }
 
 const AXE_ATTACHMENT = "axe-results";
-const CONTRAST_ATTACHMENT = "apca-findings";
+const WCAG_CONTRAST_ATTACHMENT = "wcag-contrast-results";
+const APCA_ATTACHMENT = "apca-findings";
 
 /** A malformed attachment yields nothing rather than throwing: a reporter that crashes takes the run's result with it, which is a worse outcome than an incomplete digest. */
 function parseAttachment<T>(raw: string, map: (value: unknown) => T): T[] {
@@ -77,12 +93,15 @@ function toAxeSummary(value: unknown): AxeViolationSummary {
 }
 
 function toContrastSummary(value: unknown): ContrastFindingSummary {
-    const finding = value as { selector?: string; lc?: number; fontSize?: number; requiredSize?: number };
+    const finding = value as Partial<ContrastFindingSummary>;
     return {
         selector: finding.selector ?? "unknown",
         lc: finding.lc ?? 0,
         fontSize: finding.fontSize ?? 0,
         requiredSize: finding.requiredSize ?? 0,
+        foreground: finding.foreground ?? "unknown",
+        background: finding.background ?? "unknown",
+        fontWeight: finding.fontWeight ?? 400,
     };
 }
 
@@ -111,7 +130,8 @@ export default class SummaryReporter implements Reporter {
 
     onTestEnd(test: TestCase, result: TestResult): void {
         const axeRaw = readAttachment(result, AXE_ATTACHMENT);
-        const contrastRaw = readAttachment(result, CONTRAST_ATTACHMENT);
+        const wcagRaw = readAttachment(result, WCAG_CONTRAST_ATTACHMENT);
+        const apcaRaw = readAttachment(result, APCA_ATTACHMENT);
 
         this.entries.push({
             title: test.titlePath().filter(Boolean).join(" > "),
@@ -122,7 +142,8 @@ export default class SummaryReporter implements Reporter {
                 ? { errorMessage: result.errors[0].message }
                 : {}),
             ...(axeRaw ? { a11yViolations: parseAttachment(axeRaw, toAxeSummary) } : {}),
-            ...(contrastRaw ? { contrastFindings: parseAttachment(contrastRaw, toContrastSummary) } : {}),
+            ...(wcagRaw ? { wcagContrastViolations: parseAttachment(wcagRaw, toAxeSummary) } : {}),
+            ...(apcaRaw ? { contrastFindings: parseAttachment(apcaRaw, toContrastSummary) } : {}),
         });
     }
 
@@ -140,7 +161,11 @@ export default class SummaryReporter implements Reporter {
                 total: this.entries.length,
             },
             a11yViolationCount: this.entries.reduce((sum, entry) => sum + (entry.a11yViolations?.length ?? 0), 0),
-            contrastFindingCount: this.entries.reduce((sum, entry) => sum + (entry.contrastFindings?.length ?? 0), 0),
+            wcagContrastNodeCount: this.entries.reduce(
+                (sum, entry) => sum + (entry.wcagContrastViolations ?? []).reduce((n, violation) => n + violation.nodes, 0),
+                0,
+            ),
+            apcaFindingCount: this.entries.reduce((sum, entry) => sum + (entry.contrastFindings?.length ?? 0), 0),
             tests: this.entries,
         };
 
