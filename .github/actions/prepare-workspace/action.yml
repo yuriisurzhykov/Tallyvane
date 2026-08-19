@@ -1,0 +1,27 @@
+name: Prepare workspace
+description: pnpm, the Node runtime and an install from the committed lockfile. Every workflow needs this and none of them should spell it out.
+
+runs:
+  using: composite
+  steps:
+    # `pnpm/setup`, not `pnpm/action-setup` — the latter is superseded and now
+    # covers pnpm 10 and older only. This one installs pnpm as a self-contained
+    # binary and provisions the JavaScript runtime in the same step, which is
+    # why there is no `actions/setup-node` here: it would be a second, silent
+    # answer to the question of which Node runs.
+    #
+    # Both versions come from the root `package.json` — pnpm from
+    # `packageManager`, Node from `devEngines.runtime` — so neither is repeated
+    # here and neither can drift.
+    - uses: pnpm/setup@v2
+      with:
+        # The pnpm store, kept between runs.
+        cache: true
+        # The action would run `pnpm install` on its own. Doing it explicitly is
+        # one extra line and removes a dependence on what pnpm defaults to in
+        # CI: `--frozen-lockfile` is the difference between verifying the
+        # committed dependency set and quietly resolving a different one.
+        install: false
+
+    - run: pnpm install --frozen-lockfile
+      shell: bash

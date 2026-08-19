@@ -1,0 +1,79 @@
+name: Frontend and Backend Tests
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+
+# A second push to the same branch makes the first run's answer worthless, so
+# it is cancelled rather than left to finish. Not on the default branch: there
+# the history of which commit was green is the point.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Prepare workspace
+        uses: ./.github/actions/prepare-workspace
+
+      # Types first. Every check after this reads them, and a type error
+      # produces a wall of unrelated failures downstream that costs more to
+      # read than to prevent.
+      - name: Run type check and lint
+        run: pnpm run typecheck
+
+      - name: Lint verification
+        run: pnpm run lint
+
+      # Architecture: the committed token artefacts against a fresh compile,
+      # the Feature-Sliced rules, and the dependency graph.
+      - name: Architecture verification
+        run: pnpm run arch
+
+      - name: Run unit tests
+        run: pnpm run test
+
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          # `basic`, not the default. From v6 the enhanced cache is a
+          # proprietary component under separate terms of use, which upgrading
+          # silently accepts on your behalf; the basic provider is MIT and
+          # caches the two directories that matter. Worth revisiting only if
+          # build times ever justify reading those terms.
+          cache-provider: basic
+
+      - name: Make the wrapper executable
+        run: chmod +x ./gradlew
+        working-directory: backend
+
+      # There is nothing to compile yet — no module declares a source set. The
+      # job exists to prove the wrapper resolves and the module graph is
+      # consistent, so that the day a module appears it lands on a pipeline
+      # that already works rather than one nobody has ever run.
+      - name: Resolve the project graph
+        run: ./gradlew projects --no-daemon
+        working-directory: backend
