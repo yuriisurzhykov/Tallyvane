@@ -33,9 +33,12 @@ interface AxeViolationSummary {
 interface ContrastFindingSummary {
     readonly selector: string;
     readonly lc: number;
+    /** The level this text is held to, which depends on what the text is for rather than on how big it is. */
+    readonly requiredLc: number;
+    /** The text style that decided the level, or `null` when nothing declared one. */
+    readonly style: string | null;
     readonly fontSize: number;
-    /** The smallest size that would pass at the measured contrast and weight. Above the plausible range means no size would. */
-    readonly requiredSize: number;
+    readonly fontWeight: number;
     /**
      * The colours carried through, so the summary can group by pair. Without
      * them the report is a list of selectors — and a page repeating one bad
@@ -43,7 +46,6 @@ interface ContrastFindingSummary {
      */
     readonly foreground: string;
     readonly background: string;
-    readonly fontWeight: number;
 }
 
 interface TestSummaryEntry {
@@ -54,6 +56,8 @@ interface TestSummaryEntry {
     readonly errorMessage?: string;
     readonly a11yViolations?: readonly AxeViolationSummary[];
     readonly wcagContrastViolations?: readonly AxeViolationSummary[];
+    /** Pairs axe could not compute. Counted apart from violations, because "unknown" and "wrong" call for different work. */
+    readonly wcagContrastIncomplete?: readonly AxeViolationSummary[];
     readonly contrastFindings?: readonly ContrastFindingSummary[];
 }
 
@@ -64,6 +68,7 @@ interface Summary {
     readonly a11yViolationCount: number;
     /** Offending ELEMENTS, not rules: one rule failing on ninety nodes is ninety things to fix. */
     readonly wcagContrastNodeCount: number;
+    readonly wcagContrastUnmeasuredCount: number;
     readonly apcaFindingCount: number;
     readonly tests: readonly TestSummaryEntry[];
 }
@@ -82,6 +87,21 @@ function parseAttachment<T>(raw: string, map: (value: unknown) => T): T[] {
     }
 }
 
+/**
+ * The contrast attachment carries `{ violations, incomplete }` rather than a
+ * bare array, because a pair axe could not measure is a separate kind of news
+ * from one it measured and rejected. Both are reported; neither is a pass.
+ */
+function parseAxeReport(raw: string): { violations: AxeViolationSummary[]; incomplete: AxeViolationSummary[] } {
+    try {
+        const parsed = JSON.parse(raw) as { violations?: unknown; incomplete?: unknown };
+        const toList = (value: unknown) => (Array.isArray(value) ? value.map(toAxeSummary) : []);
+        return { violations: toList(parsed.violations), incomplete: toList(parsed.incomplete) };
+    } catch {
+        return { violations: [], incomplete: [] };
+    }
+}
+
 function toAxeSummary(value: unknown): AxeViolationSummary {
     const violation = value as { id?: string; impact?: string | null; help?: string; nodes?: unknown[] };
     return {
@@ -97,11 +117,12 @@ function toContrastSummary(value: unknown): ContrastFindingSummary {
     return {
         selector: finding.selector ?? "unknown",
         lc: finding.lc ?? 0,
+        requiredLc: finding.requiredLc ?? 0,
+        style: finding.style ?? null,
         fontSize: finding.fontSize ?? 0,
-        requiredSize: finding.requiredSize ?? 0,
+        fontWeight: finding.fontWeight ?? 400,
         foreground: finding.foreground ?? "unknown",
         background: finding.background ?? "unknown",
-        fontWeight: finding.fontWeight ?? 400,
     };
 }
 
@@ -118,6 +139,13 @@ function readAttachment(result: TestResult, name: string): string | null {
         }
     }
     return null;
+}
+
+function countNodes(
+    entries: readonly TestSummaryEntry[],
+    pick: (entry: TestSummaryEntry) => readonly AxeViolationSummary[] | undefined,
+): number {
+    return entries.reduce((sum, entry) => sum + (pick(entry) ?? []).reduce((n, item) => n + item.nodes, 0), 0);
 }
 
 export default class SummaryReporter implements Reporter {
@@ -142,7 +170,12 @@ export default class SummaryReporter implements Reporter {
                 ? { errorMessage: result.errors[0].message }
                 : {}),
             ...(axeRaw ? { a11yViolations: parseAttachment(axeRaw, toAxeSummary) } : {}),
-            ...(wcagRaw ? { wcagContrastViolations: parseAttachment(wcagRaw, toAxeSummary) } : {}),
+            ...(wcagRaw
+                ? {
+                    wcagContrastViolations: parseAxeReport(wcagRaw).violations,
+                    wcagContrastIncomplete: parseAxeReport(wcagRaw).incomplete,
+                }
+                : {}),
             ...(apcaRaw ? { contrastFindings: parseAttachment(apcaRaw, toContrastSummary) } : {}),
         });
     }
@@ -161,10 +194,8 @@ export default class SummaryReporter implements Reporter {
                 total: this.entries.length,
             },
             a11yViolationCount: this.entries.reduce((sum, entry) => sum + (entry.a11yViolations?.length ?? 0), 0),
-            wcagContrastNodeCount: this.entries.reduce(
-                (sum, entry) => sum + (entry.wcagContrastViolations ?? []).reduce((n, violation) => n + violation.nodes, 0),
-                0,
-            ),
+            wcagContrastNodeCount: countNodes(this.entries, (entry) => entry.wcagContrastViolations),
+            wcagContrastUnmeasuredCount: countNodes(this.entries, (entry) => entry.wcagContrastIncomplete),
             apcaFindingCount: this.entries.reduce((sum, entry) => sum + (entry.contrastFindings?.length ?? 0), 0),
             tests: this.entries,
         };

@@ -1,5 +1,60 @@
 import type { Page } from "@playwright/test";
-import { calcAPCA, fontLookupAPCA } from "apca-w3";
+import { calcAPCA } from "apca-w3";
+
+/**
+ * APCA's use-case levels, quoted from the algorithm's own documentation.
+ *
+ * These are the primary way the method is meant to be applied. The font lookup
+ * table — which an earlier version of this file used for everything — is
+ * described by its authors as OPTIONAL, and encodes the strict reading for
+ * columns of body text. Applying it to a badge or an overline asks continuous
+ * reading of text nobody reads continuously, and produces a size floor the
+ * method does not actually impose.
+ */
+const LEVEL = {
+    /** Body text, and any non-body text below 12px. Nothing here is lower than the strictest level available. */
+    body: 90,
+    /** Body text at 18px/400 and up, or non-body from 15px/400. */
+    prominent: 75,
+    /** Content text that is not body, column or block text — text you want read, but not read through. */
+    content: 60,
+    /** Larger, heavier text: headlines from 36px/400 or 24px/700. */
+    heading: 45,
+    /** Spot-readable only: placeholder text, disabled controls, a copyright line. */
+    spot: 30,
+} as const;
+
+/**
+ * The level each text style is held to, derived from its size and weight
+ * against the documented thresholds.
+ *
+ * Keyed by the utility class, because that is what the DOM carries and what a
+ * component actually writes. A style missing from this table fails the suite
+ * rather than falling through to a default — an unclassified style is one
+ * nobody decided the purpose of, and guessing on its behalf is how a heading
+ * threshold ends up applied to body copy.
+ *
+ * Every entry rests on the type scale, so the two move together: raise or lower
+ * a size and its level may change. The scale was deliberately set so that the
+ * smallest style is 15px and body is 18px, which is exactly where the
+ * thresholds step down from Lc 90 to Lc 75 — see `tokens/typography.ts`.
+ */
+const STYLE_LEVEL: Readonly<Record<string, number>> = {
+    /** 36px/600 — a headline by any reading. */
+    "text-display": LEVEL.heading,
+    /** 28, 24 and 20px at weight 600, all past the 18px/600 mark. */
+    "text-title1": LEVEL.content,
+    "text-title2": LEVEL.content,
+    "text-title3": LEVEL.content,
+    /** 18px/400 body: exactly the size at which the body minimum becomes Lc 75. */
+    "text-body": LEVEL.prominent,
+    "text-body-strong": LEVEL.prominent,
+    /** 17, 16 and 15px non-body: all at or above the 15px mark for Lc 75. */
+    "text-small": LEVEL.prominent,
+    "text-caption": LEVEL.prominent,
+    "text-overline": LEVEL.prominent,
+    "text-numeric": LEVEL.prominent,
+};
 
 export interface TextSample {
     readonly selector: string;
@@ -8,31 +63,32 @@ export interface TextSample {
     readonly background: string;
     readonly fontSize: number;
     readonly fontWeight: number;
+    /** The nearest text style in effect, inherited like font-size. `null` when no ancestor declares one. */
+    readonly style: string | null;
+    /** Inside a disabled control, or placeholder text. Held to the spot-readable level, per the documentation's own listing of those two cases. */
+    readonly spotReadable: boolean;
 }
 
 export interface ContrastFinding extends TextSample {
     readonly lc: number;
-    readonly requiredSize: number;
+    readonly requiredLc: number;
 }
 
 /**
- * Collects every visible run of text on the page together with the colour it is
- * actually drawn against.
+ * Collects every visible run of text together with the colour it is actually
+ * drawn against.
  *
- * "Actually" is the hard part and the reason this cannot be checked against the
- * token pairs alone. An element's own background is usually transparent, and
- * several of this system's surface roles are translucent overlays, so the
- * colour behind a word is the composite of every background between it and the
- * page. That is resolved here by walking the ancestor chain and alpha-blending
- * from the bottom up.
+ * "Actually" is the hard part, and the reason this cannot be checked against
+ * token pairs alone: an element's own background is usually transparent and
+ * several surface roles are translucent overlays, so the colour behind a word
+ * is the composite of every background between it and the page.
  *
- * Known limits, stated rather than hidden: background images, gradients and
- * blend modes are not accounted for, and neither is `opacity` on an ancestor.
- * None of those appear in this design — it has no gradients by decision — but a
- * page that grows one will be measured optimistically until this grows with it.
+ * Known limits, stated rather than hidden: background images, gradients, blend
+ * modes and ancestor `opacity` are not accounted for. None appear in this
+ * design, but a page that grows one will be measured optimistically.
  */
 export async function collectTextSamples(page: Page): Promise<TextSample[]> {
-    return page.evaluate(() => {
+    return page.evaluate((knownStyles: string[]) => {
         interface Rgba { r: number; g: number; b: number; a: number }
 
         function parse(value: string): Rgba | null {
@@ -57,12 +113,31 @@ export async function collectTextSamples(page: Page): Promise<TextSample[]> {
                 const colour = parse(getComputedStyle(node).backgroundColor);
                 if (colour && colour.a > 0) layers.push(colour);
             }
-            // The canvas beneath everything. White is the browser's own default
-            // and only shows through if the page set no background at all,
-            // which would itself be worth failing on.
             let result: Rgba = { r: 255, g: 255, b: 255, a: 1 };
             for (let i = layers.length - 1; i >= 0; i -= 1) result = over(layers[i]!, result);
             return result;
+        }
+
+        /**
+         * The style in effect, found by walking up — font size inherits, so the
+         * style governing a word may be declared on an ancestor.
+         *
+         * Matched against the known list rather than by prefix: colour
+         * utilities are also called `text-*` (`text-text-muted`,
+         * `text-status-danger-text`), and a prefix match would take the first
+         * of those as the style.
+         */
+        function effectiveStyle(element: Element): string | null {
+            for (let node: Element | null = element; node; node = node.parentElement) {
+                const current = node;
+                const found = knownStyles.find((style) => current.classList.contains(style));
+                if (found) return found;
+            }
+            return null;
+        }
+
+        function isSpotReadable(element: Element): boolean {
+            return element.closest("[disabled], [aria-disabled='true'], fieldset[disabled]") !== null;
         }
 
         function describe(element: Element): string {
@@ -85,7 +160,7 @@ export async function collectTextSamples(page: Page): Promise<TextSample[]> {
                 .trim();
         }
 
-        const samples: TextSample[] = [];
+        const samples: unknown[] = [];
         for (const element of Array.from(document.body.querySelectorAll("*"))) {
             const text = ownText(element);
             if (!text) continue;
@@ -99,8 +174,6 @@ export async function collectTextSamples(page: Page): Promise<TextSample[]> {
             const background = effectiveBackground(element);
             const rawForeground = parse(style.color);
             if (!rawForeground) continue;
-            // Text can be translucent too, so it is composited over the
-            // background it sits on rather than measured as if it were opaque.
             const foreground = over(rawForeground, background);
 
             const rgb = (c: Rgba) => `rgb(${Math.round(c.r)}, ${Math.round(c.g)}, ${Math.round(c.b)})`;
@@ -111,62 +184,45 @@ export async function collectTextSamples(page: Page): Promise<TextSample[]> {
                 background: rgb(background),
                 fontSize: Number.parseFloat(style.fontSize),
                 fontWeight: Number.parseInt(style.fontWeight, 10) || 400,
+                style: effectiveStyle(element),
+                spotReadable: isSpotReadable(element),
             });
         }
-        return samples;
-
-        // The interface is re-declared inside the browser context because this
-        // function is serialised and evaluated there, with no access to the
-        // module's types.
-        interface TextSample {
-            selector: string;
-            text: string;
-            foreground: string;
-            background: string;
-            fontSize: number;
-            fontWeight: number;
-        }
-    });
+        return samples as never;
+    }, Object.keys(STYLE_LEVEL));
 }
 
-/**
- * Sizes above this are not real text; the lookup uses out-of-range values as
- * sentinels for "no size at this weight is acceptable".
- */
-const IMPOSSIBLE_SIZE = 200;
+/** The level a sample is held to, or `null` when its purpose was never declared. */
+function requiredLevel(sample: TextSample): number | null {
+    if (sample.spotReadable) return LEVEL.spot;
+    if (sample.style === null) return null;
+    return STYLE_LEVEL[sample.style] ?? null;
+}
 
-/**
- * Judges a sample against APCA.
- *
- * APCA has no single pass mark, and that is the substantive difference from the
- * ratio it replaces. Readability depends on how large and how heavy the text is
- * as much as on the two colours, so the algorithm answers "what is the smallest
- * size that works at this contrast and weight" and the check is whether the
- * text is at least that big. The lookup table is the algorithm's own — inventing
- * thresholds here would be both wrong and, under its licence, not APCA.
- */
 export function judge(sample: TextSample): ContrastFinding | null {
+    const required = requiredLevel(sample);
+    // An undeclared purpose is reported as a failure at the strictest level:
+    // silently passing text nobody classified is how the check stops covering
+    // the page it is pointed at.
+    const threshold = required ?? LEVEL.body;
+
     const lc = Math.abs(calcAPCA(sample.foreground, sample.background));
-    const weightIndex = Math.min(9, Math.max(1, Math.round(sample.fontWeight / 100)));
-    const requiredSize = fontLookupAPCA(lc)[weightIndex] ?? IMPOSSIBLE_SIZE;
+    if (required !== null && lc >= threshold) return null;
 
-    const achievable = requiredSize > 0 && requiredSize < IMPOSSIBLE_SIZE;
-    if (achievable && sample.fontSize >= requiredSize) return null;
-
-    return { ...sample, lc: Math.round(lc * 10) / 10, requiredSize };
+    return { ...sample, lc: Math.round(lc * 10) / 10, requiredLc: threshold };
 }
 
 export function formatFindings(findings: readonly ContrastFinding[]): string {
     if (findings.length === 0) return "";
     const lines = findings.map((finding) => {
-        const required = finding.requiredSize >= IMPOSSIBLE_SIZE
-            ? "no size is sufficient at this weight"
-            : `needs ${finding.requiredSize}px, is ${finding.fontSize}px`;
+        const purpose = finding.spotReadable
+            ? "spot-readable"
+            : finding.style ?? "NO TEXT STYLE — classify it, or the level is a guess";
         return [
             `- ${finding.selector}`,
             `    "${finding.text}"`,
-            `    ${finding.foreground} on ${finding.background} — Lc ${finding.lc} at weight ${finding.fontWeight}`,
-            `    ${required}`,
+            `    ${finding.foreground} on ${finding.background}`,
+            `    Lc ${finding.lc}, needs Lc ${finding.requiredLc} (${purpose}, ${finding.fontSize}px/${finding.fontWeight})`,
         ].join("\n");
     });
     return `APCA contrast is insufficient:\n${lines.join("\n")}`;

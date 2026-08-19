@@ -24,9 +24,14 @@ export const lightTheme = defineTheme(colorContract, mergeTokenTree(sharedColorR
     surfaceSelected: "{color.overlayBlack.12}",
     surfaceOverlay: "{color.scrim.light}",
 
-    textPrimary: "{color.neutral.900}",
-    textSecondary: "{color.neutral.700}",
-    textMuted: "{color.neutral.600}",
+    /**
+     * The mirror of dark's three levels, and the light end has more room: on
+     * the lightest surface the band clearing Lc 75 reaches up to about 33%
+     * lightness, where dark's stopped at 82. These sit at 7, 22 and 31.
+     */
+    textPrimary: "{color.neutral.1000}",
+    textSecondary: "{color.neutral.800}",
+    textMuted: "{color.neutral.700}",
     textDisabled: "{color.neutral.400}",
     textOnAccent: "{color.neutral.0}",
 
@@ -42,10 +47,11 @@ export const lightTheme = defineTheme(colorContract, mergeTokenTree(sharedColorR
     interactivePrimarySubtle: "{color.overlayBlack.12}",
     interactivePrimaryText: "{color.neutral.900}",
 
-    // Dark steps, mirroring the light ones the dark theme uses. The 500s that
-    // carry the status colour itself are far too light to read as text here.
-    statusSuccessText: "{color.green.800}",
-    statusDangerText: "{color.red.800}",
-    statusAttentionText: "{color.amber.800}",
-    statusInfoText: "{color.blue.600}",
+    // Dark steps, mirroring the light ones the dark theme uses, and chosen the
+    // same way: by measurement against both the page and the status wash, since
+    // the wash is the harder of the two backgrounds.
+    statusSuccessText: "{color.green.900}",
+    statusDangerText: "{color.red.900}",
+    statusAttentionText: "{color.amber.900}",
+    statusInfoText: "{color.blue.800}",
 }));

@@ -36,7 +36,6 @@ const TEXT_ROLES = [
     ["textPrimary", "text-text-primary"],
     ["textSecondary", "text-text-secondary"],
     ["textMuted", "text-text-muted"],
-    ["textDisabled", "text-text-disabled"],
 ] as const;
 
 const BORDERS = [
@@ -147,13 +146,16 @@ export default function DesignSystemStorybook() {
                 </div>
             </Section>
 
-            <Section id="text-roles" title="Text roles">
+            <Section id="text-roles" title="Text roles" note="`textDisabled` is shown on a genuinely disabled control rather than as a paragraph. Its whole job is to look unavailable, so both contrast models exempt it — but only when the markup says it is disabled, which is also what a screen reader reads.">
                 <div className="flex flex-col gap-stack-tight">
                     {TEXT_ROLES.map(([label, className]) => (
                         <p key={label} className={`text-body ${className}`}>
                             {label} — the quick brown fox jumps over the lazy dog
                         </p>
                     ))}
+                    <button type="button" disabled className="self-start rounded-control border border-border-subtle px-stack py-inline text-body text-text-disabled">
+                        textDisabled — an unavailable action
+                    </button>
                 </div>
             </Section>
 
@@ -194,7 +196,11 @@ export default function DesignSystemStorybook() {
                 <div className="flex flex-col gap-stack-tight">
                     {STATUSES.map(([label, fill, subtle, text]) => (
                         <div key={label} className="flex items-center gap-inline">
-                            <span className={`inline-block size-inline rounded-pill ${fill}`} />
+                            {/* The dot takes the TEXT colour, not the fill. A fill is
+                                deep enough to carry white text, which makes it nearly
+                                invisible as a dot on a dark page — the two roles look
+                                interchangeable and are not. */}
+                            <span className={`inline-block size-inline rounded-pill ${text.replace("text-", "bg-")}`} />
                             <span
                                 className={`rounded-pill ${subtle} ${text} text-caption`}
                                 style={{

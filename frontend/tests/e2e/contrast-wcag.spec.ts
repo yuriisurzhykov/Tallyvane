@@ -42,11 +42,24 @@ for (const entry of pagesManifest) {
             // separate lines — a broken landmark and an unreadable colour are
             // different problems, and a single total hides which you have.
             await testInfo.attach("wcag-contrast-results", {
-                body: JSON.stringify(results.violations, null, 2),
+                body: JSON.stringify({ violations: results.violations, incomplete: results.incomplete }, null, 2),
                 contentType: "application/json",
             });
 
-            expect(results.violations, formatViolations(results.violations)).toEqual([]);
+            /**
+             * Unlike the structural suite, an incomplete result fails here.
+             *
+             * axe reports `incomplete` when it cannot compute a contrast at
+             * all — text over an image or a gradient, an ancestor with opacity,
+             * an element it judges obscured. Treating those as passes is the
+             * quiet failure mode of every contrast check: the elements hardest
+             * to measure are exactly the ones most likely to be wrong, and a
+             * suite that skips them reports green over unread text.
+             */
+            expect(
+                [...results.violations, ...results.incomplete],
+                formatViolations(results.violations, results.incomplete),
+            ).toEqual([]);
         });
     }
 }
@@ -58,10 +71,23 @@ type AxeViolation = Awaited<ReturnType<AxeBuilder["analyze"]>>["violations"][num
  * reported as one line names a rule everyone already knows and leaves the
  * search for the actual elements to the reader.
  */
-function formatViolations(violations: readonly AxeViolation[]): string {
-    if (violations.length === 0) return "";
-    const lines = violations.flatMap((violation) =>
-        violation.nodes.map((node) => `- ${node.target.join(" ")}\n    ${node.failureSummary ?? violation.help}`),
-    );
-    return `WCAG 2.2 AA contrast violations:\n${lines.join("\n")}`;
+function formatViolations(violations: readonly AxeViolation[], incomplete: readonly AxeViolation[]): string {
+    const sections: string[] = [];
+
+    if (violations.length > 0) {
+        sections.push(`WCAG 2.2 AA contrast violations:\n${describe(violations)}`);
+    }
+    if (incomplete.length > 0) {
+        sections.push(
+            "Contrast could not be determined for these — treated as failures, since an unmeasured " +
+            `pair is an unknown one rather than a passing one:\n${describe(incomplete)}`,
+        );
+    }
+    return sections.join("\n\n");
+}
+
+function describe(results: readonly AxeViolation[]): string {
+    return results
+        .flatMap((result) => result.nodes.map((node) => `- ${node.target.join(" ")}\n    ${node.failureSummary ?? result.help}`))
+        .join("\n");
 }

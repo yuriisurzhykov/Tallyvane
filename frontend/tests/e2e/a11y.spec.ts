@@ -17,6 +17,18 @@ type AxeViolation = Awaited<ReturnType<AxeBuilder["analyze"]>>["violations"][num
  */
 const CONTRAST_RULES = ["color-contrast", "color-contrast-enhanced"];
 
+/**
+ * `wcag22aa` matters and was missing: WCAG 2.2 added criteria the earlier tags
+ * do not cover, and axe implements one of them — `target-size`, for controls
+ * too small or too close together to hit reliably. Requesting only 2.0 and 2.1
+ * meant a suite named after 2.2 never asked about 2.2.
+ *
+ * `best-practice` is included even though no law requires it. Those rules catch
+ * real problems earlier than the conformance ones, and the cost of heeding them
+ * here is far lower than after there is a product.
+ */
+const TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"];
+
 /** `critical` and `serious` fail the build. Lower impacts are still captured and attached, because they are worth reading without being worth blocking a merge. */
 const BLOCKING_IMPACTS = new Set(["critical", "serious"]);
 
@@ -28,7 +40,7 @@ for (const entry of pagesManifest) {
             await page.waitForLoadState("networkidle");
 
             const results = await new AxeBuilder({ page })
-                .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "best-practice"])
+                .withTags(TAGS)
                 .disableRules(CONTRAST_RULES)
                 .analyze();
 
@@ -36,6 +48,23 @@ for (const entry of pagesManifest) {
                 body: JSON.stringify(results.violations, null, 2),
                 contentType: "application/json",
             });
+
+            /**
+             * Anything axe could not decide, recorded rather than dropped.
+             *
+             * These do not fail the run, and the distinction is deliberate: an
+             * incomplete result here usually means a judgement no machine can
+             * make — whether link text reads sensibly in context, whether an
+             * image's description is accurate. Blocking on those would make the
+             * suite unpassable. Attaching them keeps the unknowns visible
+             * instead of letting a green run imply they were checked.
+             */
+            if (results.incomplete.length > 0) {
+                await testInfo.attach("axe-incomplete", {
+                    body: JSON.stringify(results.incomplete, null, 2),
+                    contentType: "application/json",
+                });
+            }
 
             const blocking = results.violations.filter((violation) => BLOCKING_IMPACTS.has(violation.impact ?? ""));
             expect(blocking, formatViolations(blocking)).toEqual([]);

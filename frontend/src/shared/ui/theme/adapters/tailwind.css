@@ -27,9 +27,9 @@
  * That is also why some things are applied as base rules or whole utilities
  * rather than registered: both reach a value without minting a name for it.
  *
- * NOTE: written before Tailwind is installed, so none of this has been through
- * a real build. The mapping follows from the generated variable names, but
- * expect to confirm it the day the build exists.
+ * The mapping was written before Tailwind was installed, from the generated
+ * variable names alone, and has since been confirmed against a real build: the
+ * app compiles and the browser suites render both themes through these classes.
  */
 @theme {
     /* --------------------------------------------------------------------

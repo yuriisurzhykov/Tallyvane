@@ -57,6 +57,7 @@ const lines = [
     `| Skipped | ${summary.counts.skipped} |`,
     `| Structural a11y violations | ${summary.a11yViolationCount} |`,
     `| Contrast, WCAG 2.2 AA — elements | ${summary.wcagContrastNodeCount} |`,
+    `| Contrast, WCAG 2.2 AA — unmeasurable | ${summary.wcagContrastUnmeasuredCount} |`,
     `| Contrast, APCA — findings | ${summary.apcaFindingCount} |`,
     "",
     `[Full report, including visual diffs →](${runUrl}) — download the \`playwright-report\` artifact.`,
@@ -113,39 +114,45 @@ const CONTRAST_SHOWN = 12;
 const byPair = new Map();
 for (const test of summary.tests) {
     for (const finding of test.contrastFindings ?? []) {
-        const key = `${finding.foreground}|${finding.background}|${finding.fontWeight}|${shortTitle(test.title)}`;
+        // Grouped by pair AND by the level demanded, because the same two
+        // colours can be fine as a heading and fail as body copy — those are
+        // two different decisions, not one.
+        const key = `${finding.foreground}|${finding.background}|${finding.requiredLc}|${shortTitle(test.title)}`;
         const group = byPair.get(key);
         if (group) {
             group.count += 1;
-            group.smallestSize = Math.min(group.smallestSize, finding.fontSize);
+            group.styles.add(finding.style ?? "unclassified");
         } else {
-            byPair.set(key, { finding, theme: shortTitle(test.title), count: 1, smallestSize: finding.fontSize });
+            byPair.set(key, {
+                finding,
+                theme: shortTitle(test.title),
+                count: 1,
+                styles: new Set([finding.style ?? "unclassified"]),
+            });
         }
     }
 }
 
 const contrast = [...byPair.values()]
-    // Lowest contrast first: that is the order they should be fixed in.
-    .sort((a, b) => a.finding.lc - b.finding.lc)
-    .map(({ finding, theme, count, smallestSize }) => {
-        const need = finding.requiredSize >= 200
-            ? "no size works at this weight"
-            : `needs ${finding.requiredSize}px, smallest use is ${smallestSize}px`;
-        return `- \`${finding.foreground}\` on \`${finding.background}\` at weight ${finding.fontWeight}` +
-            ` — Lc ${finding.lc}, ${need} · ${count} place${count === 1 ? "" : "s"} in _${theme}_`;
-    });
+    // Furthest from its target first: that is the order to fix them in.
+    .sort((a, b) => a.finding.lc - a.finding.requiredLc - (b.finding.lc - b.finding.requiredLc))
+    .map(({ finding, theme, count, styles }) =>
+        `- \`${finding.foreground}\` on \`${finding.background}\`` +
+        ` — Lc ${finding.lc}, needs Lc ${finding.requiredLc}` +
+        ` · ${[...styles].join(", ")} · ${count} place${count === 1 ? "" : "s"} in _${theme}_`,
+    );
 
 if (contrast.length > 0) {
     lines.push(
         "",
         "<details><summary>Contrast — APCA</summary>",
         "",
-        "A quality bar rather than a legal one, and it has no single pass mark: the threshold depends",
-        "on size and weight, so each line says what size the text would need at its measured contrast.",
-        "A darker colour, a larger size or a heavier weight all fix it.",
+        "A quality bar rather than a legal one, and it has no single pass mark: the level a piece of",
+        "text is held to depends on what the text is for. Body copy is held to Lc 90, headings to 45,",
+        "and text that is only meant to be glanced at — placeholders, disabled controls — to 30.",
         "",
-        "Grouped by colour pair — one pair is one decision, however many places it appears in.",
-        "Lowest contrast first.",
+        "Grouped by colour pair and required level: one group is one decision, however many places it",
+        "appears in. Furthest from its target first.",
         "",
         ...contrast.slice(0, CONTRAST_SHOWN),
     );

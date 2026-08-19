@@ -16,6 +16,27 @@ allowBuilds:
   esbuild: true
   unrs-resolver: true
 
+# Rolldown (Vitest 4 → Vite 8) ships its native binary as optional platform
+# packages filtered by os/cpu/libc. pnpm otherwise installs only the current
+# host's match, so a lockfile produced on Windows leaves Linux CI without
+# `@rolldown/binding-linux-x64-gnu` and `vitest run` dies looking for a WASM
+# fallback that was never a dependency. Naming the platforms we develop and
+# run on makes those bindings part of the install.
+supportedArchitectures:
+  os:
+    - current
+    - linux
+    - darwin
+    - win32
+  cpu:
+    - current
+    - x64
+    - arm64
+  libc:
+    - current
+    - glibc
+    - musl
+
 # The extension is intentionally NOT a workspace member yet. It is a separate
 # build with its own toolchain, and adding it before it exists would only make
 # every install slower for no benefit.

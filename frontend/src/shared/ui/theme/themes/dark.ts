@@ -29,11 +29,21 @@ export const darkTheme = defineTheme(colorContract, mergeTokenTree(sharedColorRo
     surfaceSelected: "{color.overlayWhite.12}",
     surfaceOverlay: "{color.scrim.dark}",
 
-    /** Not `neutral.0`: pure white on a near-black ground haloes, and small text appears to vibrate. */
+    /**
+     * Three levels within a narrow band, and the narrowness is measured rather
+     * than chosen: on the darkest surface a role has to reach Lc 75 to be
+     * legible at the sizes this interface sets, which admits nothing below
+     * about 82% lightness. These sit at 94, 88 and 83 — 95.0, 85.0 and 77.5 —
+     * distinguishable side by side and each clearing its bar.
+     *
+     * Not `neutral.0` for the top: pure white on a near-black ground haloes,
+     * and small text appears to vibrate.
+     */
     textPrimary: "{color.neutral.100}",
-    textSecondary: "{color.neutral.400}",
-    textMuted: "{color.neutral.500}",
-    textDisabled: "{color.neutral.600}",
+    textSecondary: "{color.neutral.200}",
+    textMuted: "{color.neutral.300}",
+    /** Held only to the spot-readable level, because looking unavailable is the entire job. */
+    textDisabled: "{color.neutral.500}",
     /** Text printed on the accent, which here is near-white — so this is near-black. Inverted in the light theme. */
     textOnAccent: "{color.neutral.1000}",
 
@@ -56,8 +66,19 @@ export const darkTheme = defineTheme(colorContract, mergeTokenTree(sharedColorRo
     /** The accent used AS text — a link, a quiet button label — rather than as a fill behind text. */
     interactivePrimaryText: "{color.neutral.100}",
 
-    statusSuccessText: "{color.green.300}",
-    statusDangerText: "{color.red.300}",
-    statusAttentionText: "{color.amber.300}",
-    statusInfoText: "{color.blue.300}",
+    /**
+     * Status as TEXT on the page, which is a different job from the fill and
+     * takes the opposite end of each ramp.
+     *
+     * Two steps lighter than a first attempt, because HSL lightness is not
+     * luminance: red and blue at 70-76% lightness measured Lc 57 and Lc 60
+     * against the page, well short, while green at the same nominal lightness
+     * reached 78. Every one of these was chosen from the measurement rather
+     * than from the step number looking right.
+     */
+    statusSuccessText: "{color.green.200}",
+    /** A step lighter than its neighbours: red is the least luminous hue of the four, and at the same nominal lightness it measured Lc 72 where the others cleared 75. */
+    statusDangerText: "{color.red.100}",
+    statusAttentionText: "{color.amber.200}",
+    statusInfoText: "{color.blue.200}",
 }));

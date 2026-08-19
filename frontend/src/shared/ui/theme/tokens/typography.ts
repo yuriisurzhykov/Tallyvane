@@ -58,27 +58,44 @@ export const typography = definePrimitives({
         bold: 700,
     },
 
-    /** The pixel equivalent at the default root size is noted per line, since that is the number anyone reasons in. */
+    /**
+     * The pixel equivalent at the default root size is noted per line, since
+     * that is the number anyone reasons in.
+     *
+     * The whole scale sits a step higher than a first draft of it, and the
+     * reason is measured rather than aesthetic. Contrast requirements step down
+     * at particular sizes: non-body text needs Lc 90 below 15px and only Lc 75
+     * at or above it, and body text needs Lc 90 below 18px and Lc 75 at or
+     * above. Under the old scale — 11, 13, 14, 16 — every style fell on the
+     * strict side of both thresholds, and Lc 90 on a near-black page admits
+     * only colours above about 91% lightness. Three levels of grey text were
+     * therefore impossible: they existed, but no two of them were
+     * distinguishable.
+     *
+     * Starting at 15 rather than 11 buys back the whole muted range. The cost
+     * is a slightly less dense interface; the alternative was an interface with
+     * one usable text colour.
+     */
     size: {
-        1: "0.6875rem", // 11
-        2: "0.8125rem", // 13
-        3: "0.875rem",  // 14
-        4: "1rem",      // 16
-        5: "1.0625rem", // 17
-        6: "1.25rem",   // 20
-        7: "1.5rem",    // 24
-        8: "2rem",      // 32
+        1: "0.9375rem", // 15
+        2: "1rem",      // 16
+        3: "1.0625rem", // 17
+        4: "1.125rem",  // 18
+        5: "1.25rem",   // 20
+        6: "1.5rem",    // 24
+        7: "1.75rem",   // 28
+        8: "2.25rem",   // 36
     },
 
     line: {
-        1: "1rem",     // 16
-        2: "1.125rem", // 18
-        3: "1.25rem",  // 20
-        4: "1.5rem",   // 24
-        5: "1.5rem",   // 24
-        6: "1.75rem",  // 28
-        7: "2rem",     // 32
-        8: "2.5rem",   // 40
+        1: "1.25rem",   // 20
+        2: "1.375rem",  // 22
+        3: "1.5rem",    // 24
+        4: "1.625rem",  // 26
+        5: "1.75rem",   // 28
+        6: "2rem",      // 32
+        7: "2.25rem",   // 36
+        8: "2.75rem",   // 44
     },
 
     /**
