@@ -43,7 +43,7 @@ export function defineContract<const TRequired extends readonly string[]>(config
     readonly category: string;
     readonly required: TRequired;
 }): Contract<TRequired[number]> {
-    return Object.freeze({ category: config.category, required: config.required }) as Contract<TRequired[number]>;
+    return Object.freeze({ category: config.category, required: config.required });
 }
 
 /**

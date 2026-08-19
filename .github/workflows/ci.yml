@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A second push to the same branch makes the first run's answer worthless, so
+# it is cancelled rather than left to finish. Not on main: there the history of
+# which commit was green is the point.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # No version pinned here on purpose: the root `packageManager` field
+      # already names it, and repeating it would create a second place to
+      # forget when it changes.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # `.node-version` rather than the `engines` range: a range lets CI
+          # drift onto whatever major is newest that week, and the first sign is
+          # a failure nobody caused.
+          node-version-file: .node-version
+          cache: pnpm
+
+      # `--frozen-lockfile` is the default in CI and stated anyway: it is the
+      # difference between a run that verifies the committed dependency set and
+      # one that quietly resolves a different one.
+      - run: pnpm install --frozen-lockfile
+
+      # Types first. Every check after this reads them, and a type error
+      # produces a wall of unrelated failures downstream that costs more to read
+      # than to prevent.
+      - run: pnpm run typecheck
+
+      - run: pnpm run lint
+
+      # Architecture: the committed token artefacts against a fresh compile,
+      # the Feature-Sliced rules, and the dependency graph.
+      - run: pnpm run arch
+
+      - run: pnpm run test
+
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # There is nothing to compile yet — no module declares a source set. The
+      # job exists to prove the wrapper resolves and the module manifest is
+      # consistent, so that the day a module appears it lands on a pipeline that
+      # already works rather than one nobody has ever run.
+      - run: ./gradlew projects --no-daemon
+        working-directory: backend

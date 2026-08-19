@@ -56,7 +56,7 @@ const rule: Rule.RuleModule = {
         return {
             JSXAttribute(node: any) {
                 if (!isClassNameAttribute(node)) return;
-                walkForStrings((node as any).value, (value, stringNode) => {
+                walkForStrings((node).value, (value, stringNode) => {
                     for (const match of findDimensionBearingArbitraryClasses(value)) {
                         context.report({
                             node: stringNode,

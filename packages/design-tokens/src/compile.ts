@@ -375,7 +375,7 @@ export function compileDesignTokens(input: CompilerInput): CompileResult {
         const { lines: componentLines, data: componentData } = serializeComponentsFor(input.components, registry);
 
         resolved[themeName] = {
-            color: resolvedColor as Record<string, unknown>,
+            color: resolvedColor,
             component: componentData,
             composite: compositeData,
         };

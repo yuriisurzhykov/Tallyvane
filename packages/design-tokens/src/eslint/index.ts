@@ -34,6 +34,7 @@ import noArbitraryColorClass from "./no-arbitrary-color-class.ts";
 import noArbitraryDimensionClass from "./no-arbitrary-dimension-class.ts";
 import noRawColorValue from "./no-raw-color-value.ts";
 import noRawDimensionValue from "./no-raw-dimension-value.ts";
+import noUnnamedZIndexClass from "./no-unnamed-z-index-class.ts";
 
 const plugin = {
     meta: { name: "design-token-engine", version: "0.0.1" },
@@ -42,8 +43,9 @@ const plugin = {
         "no-arbitrary-color-class": noArbitraryColorClass,
         "no-raw-dimension-value": noRawDimensionValue,
         "no-arbitrary-dimension-class": noArbitraryDimensionClass,
+        "no-unnamed-z-index-class": noUnnamedZIndexClass,
     },
 };
 
 export default plugin;
-export { noArbitraryColorClass, noArbitraryDimensionClass, noRawColorValue, noRawDimensionValue };
+export { noArbitraryColorClass, noArbitraryDimensionClass, noRawColorValue, noRawDimensionValue, noUnnamedZIndexClass };

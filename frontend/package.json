@@ -10,15 +10,21 @@
     "dev": "echo 'Next is installed but has no root layout yet, so there is nothing to serve.' && exit 1",
     "build": "echo 'Next is installed but has no root layout yet, so there is nothing to build.' && exit 1",
     "typecheck": "tsc --noEmit",
-    "arch": "echo 'Not wired yet — Steiger, eslint-boundaries, dependency-cruiser and the custom validator arrive later in milestone 0.' && exit 1",
+    "arch": "pnpm run tokens:check && pnpm run arch:fsd && pnpm run arch:graph",
+    "arch:fsd": "steiger ./src",
+    "arch:graph": "depcruise app src scripts --config .dependency-cruiser.cjs",
+    "graph": "depcruise app src --config .dependency-cruiser.cjs --output-type dot",
     "tokens:generate": "tsx scripts/generate-design-tokens.ts",
     "tokens:check": "tsx scripts/generate-design-tokens.ts --check"
   },
   "devDependencies": {
+    "@feature-sliced/steiger-plugin": "^0.7.0",
     "@types/node": "^26",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
+    "dependency-cruiser": "^18.2.0",
     "design-token-engine": "workspace:*",
+    "steiger": "^0.6.0",
     "tsx": "^4",
     "typescript": "^5"
   },

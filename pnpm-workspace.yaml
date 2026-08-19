@@ -9,8 +9,12 @@ packages:
 #
 # esbuild: its install script places the native binary for the current
 #   platform. Pulled in by tsx and vitest; neither runs without it.
+# unrs-resolver: same shape — a native module resolver whose install script
+#   places the platform binary. Pulled in by eslint-plugin-import-x, which
+#   cannot resolve a single import without it.
 allowBuilds:
   esbuild: true
+  unrs-resolver: true
 
 # The extension is intentionally NOT a workspace member yet. It is a separate
 # build with its own toolchain, and adding it before it exists would only make

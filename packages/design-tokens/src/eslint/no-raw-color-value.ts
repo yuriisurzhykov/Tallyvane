@@ -21,7 +21,7 @@ const rule: Rule.RuleModule = {
         return {
             JSXAttribute(node: any) {
                 if (!isStyleAttribute(node)) return;
-                const value = (node as any).value;
+                const value = (node).value;
                 if (!value || value.type !== "JSXExpressionContainer") return;
                 const expression = value.expression;
                 if (!expression || expression.type !== "ObjectExpression") return;

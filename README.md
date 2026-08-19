@@ -44,3 +44,23 @@ Architecture here is checked by machines. Layer boundaries are compile errors,
 not review comments; import direction, naming, and token usage fail CI. The
 reasoning is in `ARCHITECTURE.md` section 15 — reviewers get tired and agree,
 compilers do not.
+
+## Checking it
+
+`pnpm verify` runs everything CI runs, in the order CI runs it. The parts, if
+one of them is what you need:
+
+| Command | What fails it |
+| --- | --- |
+| `pnpm typecheck` | Types, across every package |
+| `pnpm lint` | ESLint: layer matrix, import cycles, public-API sidesteps, raw colours and dimensions in markup, unnamed stacking layers |
+| `pnpm arch` | Committed token artefacts against a fresh compile, Feature-Sliced rules, the file-level dependency graph |
+| `pnpm test` | Unit tests |
+
+Types run first on purpose: everything after them reads types, and a type error
+otherwise produces a wall of unrelated failures that costs more to read than to
+prevent.
+
+`pnpm --filter tallyvane-frontend run graph` writes the dependency graph in DOT
+form, which is the cheapest way to see architectural drift — a picture gets
+looked at, a rule list does not.

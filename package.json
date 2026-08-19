@@ -7,11 +7,26 @@
     "node": ">=22"
   },
   "scripts": {
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "arch": "pnpm --recursive --if-present run arch",
     "typecheck": "pnpm --recursive --if-present run typecheck",
     "test": "pnpm --recursive --if-present run test",
+    "verify": "pnpm run typecheck && pnpm run lint && pnpm run arch && pnpm run test",
     "tokens:generate": "pnpm --filter tallyvane-frontend run tokens:generate",
     "tokens:check": "pnpm --filter tallyvane-frontend run tokens:check"
   },
-  "//": "Workspace root. Holds no source of its own — only the scripts that fan out across packages."
+  "//": "Workspace root. Holds no source of its own — only the scripts that fan out across packages.",
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@next/eslint-plugin-next": "^16.3.1",
+    "design-token-engine": "workspace:*",
+    "eslint": "^10.8.1",
+    "eslint-import-resolver-typescript": "^4.4.5",
+    "eslint-plugin-boundaries": "^7.2.0",
+    "eslint-plugin-import-x": "^4.17.1",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.11.0",
+    "typescript-eslint": "^8.67.0"
+  }
 }
