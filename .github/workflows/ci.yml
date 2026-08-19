@@ -70,6 +70,7 @@ jobs:
 
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
+        working-directory: backend
 
       # There is nothing to compile yet — no module declares a source set. The
       # job exists to prove the wrapper resolves and the module manifest is
