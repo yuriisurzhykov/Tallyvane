@@ -21,8 +21,8 @@
     "typecheck": "pnpm --recursive --if-present run typecheck",
     "test": "pnpm --recursive --if-present run test",
     "verify": "pnpm run typecheck && pnpm run lint && pnpm run arch && pnpm run test",
-    "tokens:generate": "pnpm --filter tallyvane-frontend run tokens:generate",
-    "tokens:check": "pnpm --filter tallyvane-frontend run tokens:check"
+    "tokens:generate": "pnpm --filter tallyvane-frontend-web run tokens:generate",
+    "tokens:check": "pnpm --filter tallyvane-frontend-web run tokens:check"
   },
   "//": "Workspace root. Holds no source of its own — only the scripts that fan out across packages.",
   "devDependencies": {

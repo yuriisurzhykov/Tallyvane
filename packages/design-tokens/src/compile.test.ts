@@ -455,8 +455,8 @@ describe("compileDesignTokens — output structure not covered by other describe
     it("emits the exact AUTO-GENERATED header, not just SOME header", () => {
         const result = compileDesignTokens(baseInput([]));
         expect(result.css).toContain("/*\n * AUTO-GENERATED FILE. DO NOT EDIT MANUALLY.\n");
-        expect(result.css).toContain(" * Source: frontend/src/shared/ui/theme/{tokens,contracts,themes,semantic,components,composites}/\n");
-        expect(result.css).toContain(" * Generator: frontend/scripts/generate-design-tokens.ts\n */");
+        expect(result.css).toContain(" * Source: the token definition modules passed to compileDesignTokens().\n");
+        expect(result.css).toContain(" * Generator: the project's own token-generation script.\n */");
     });
 
     // DS007 is unit-tested in isolation in validate.test.ts, but nothing

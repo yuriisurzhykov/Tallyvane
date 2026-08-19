@@ -87,12 +87,12 @@ jobs:
       - uses: ./.github/actions/setup-playwright
 
       - name: Regenerate baselines
-        working-directory: frontend
+        working-directory: frontend-web
         run: pnpm run test:visual:update
 
       - name: Commit and push
         id: commit
-        run: bash .github/scripts/commit-baselines.sh
+        run: bash .github/scripts/commit-baselines.sh frontend-web/tests/visual-snapshots
         env:
           HEAD_REF: ${{ needs.guard.outputs.head_ref }}
 

@@ -1,6 +1,7 @@
 packages:
   - 'packages/*'
-  - 'frontend'
+  - 'frontend-web'
+  - 'frontend-admin'
 
 # Install-time scripts are blocked unless a package appears here with an
 # explicit true or false. Leaving one out is not "allowed by default" — pnpm

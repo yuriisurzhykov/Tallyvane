@@ -1,0 +1,17 @@
+/**
+ * The single stylesheet entry point, imported once by the root layout.
+ *
+ * Order is load-bearing. The generated tokens declare the `--ds-*` custom
+ * properties; the adapter maps them onto the names Tailwind's `@theme` reads.
+ * Reversing the two leaves every `var(--ds-*)` in the adapter pointing at a
+ * property that does not exist yet — which CSS resolves to nothing, silently,
+ * producing a page with no colours and no error anywhere.
+ *
+ * The theme lives in the `frontend-shared` package now (ADR-032), imported by
+ * package name the same way `tailwindcss` itself is — `frontend-admin` has an
+ * identical pair of lines pointing at the same generated files, so the two
+ * apps can never render two different palettes.
+ */
+@import "tailwindcss";
+@import "frontend-shared/ui/theme/generated/tokens.css";
+@import "frontend-shared/ui/theme/adapters/tailwind.css";

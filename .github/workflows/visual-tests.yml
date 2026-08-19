@@ -41,7 +41,7 @@ jobs:
       # entry in its config, so there is no separate build step to keep in step
       # with it.
       - name: Run suites
-        working-directory: frontend
+        working-directory: frontend-web
         run: pnpm run test:e2e
 
       # `!cancelled()` rather than `always()`: a run someone stopped on purpose
@@ -55,17 +55,17 @@ jobs:
           # The report carries the diff images beside their baselines, which is
           # the only form in which a visual failure is legible at all.
           path: |
-            frontend/playwright-report
-            frontend/test-results
+            frontend-web/playwright-report
+            frontend-web/test-results
           retention-days: 14
 
       - name: Build the pull-request comment
         if: ${{ !cancelled() && github.event_name == 'pull_request' }}
         run: >
           node .github/scripts/format-summary.mjs
-          frontend/test-results/summary.json
+          frontend-web/test-results/summary.json
           "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          frontend/pr-comment.md
+          frontend-web/pr-comment.md
 
       # Sticky, so a branch pushed five times carries one comment showing the
       # current state rather than five showing its history.
@@ -73,4 +73,4 @@ jobs:
         if: ${{ !cancelled() && github.event_name == 'pull_request' }}
         uses: marocchino/sticky-pull-request-comment@v3
         with:
-          path: frontend/pr-comment.md
+          path: frontend-web/pr-comment.md

@@ -7,5 +7,5 @@ runs:
     # Chromium alone. The visual baselines are Linux-Chromium by convention, so
     # installing the other engines would cost minutes per run and produce no
     # verdict anything compares against.
-    - run: pnpm --filter tallyvane-frontend exec playwright install --with-deps chromium
+    - run: pnpm --filter tallyvane-frontend-web exec playwright install --with-deps chromium
       shell: bash

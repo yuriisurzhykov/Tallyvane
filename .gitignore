@@ -45,6 +45,7 @@ tmp/
 .cache/
 
 # ---------- Deliberately NOT ignored ----------
-# frontend/src/shared/ui/theme/generated/  — compiled design tokens are committed
-#   on purpose; `tokens:check` verifies they match a fresh compile.
+# packages/frontend-shared/src/shared/ui/theme/generated/  — compiled design
+#   tokens are committed on purpose; `tokens:check` verifies they match a
+#   fresh compile.
 # docs/openapi.yaml                        — the API contract is a source, not an output.

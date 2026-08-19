@@ -5,7 +5,7 @@
     "module": "esnext",
     "moduleResolution": "bundler",
     "strict": true,
-    // Kept deliberately in step with frontend/tsconfig.json. This package
+    // Kept deliberately in step with frontend-web/tsconfig.json. This package
     // exports its TypeScript source rather than a built bundle, so a consumer
     // typechecks these files under ITS OWN settings — and `skipLibCheck` offers
     // no shelter, since that only ever applied to declaration files. Any flag

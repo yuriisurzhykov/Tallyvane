@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "type": "module",
-  "description": "Project-agnostic design-token engine: an authoring API (definePrimitives/defineContract/defineTheme/defineComponentTokens/defineComposite) plus a compiler (reference resolution, cycle detection, usage-graph promotion analysis, CSS/resolved-data serialization) and a custom ESLint rule set. Ships zero color/role names of its own — see README.md for how a project (e.g. frontend/src/shared/ui/theme/) supplies those and consumes this package.",
+  "description": "Project-agnostic design-token engine: an authoring API (definePrimitives/defineContract/defineTheme/defineComponentTokens/defineComposite) plus a compiler (reference resolution, cycle detection, usage-graph promotion analysis, CSS/resolved-data serialization) and a custom ESLint rule set. Ships zero color/role names of its own — see README.md for how a project (e.g. packages/frontend-shared/src/shared/ui/theme/) supplies those and consumes this package.",
   "main": "src/index.ts",
   "types": "src/index.ts",
   "exports": {

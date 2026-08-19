@@ -42,8 +42,69 @@ importers:
         specifier: ^8.67.0
         version: 8.67.0(eslint@10.8.1(jiti@2.7.0)(supports-color@7.2.0))(supports-color@7.2.0)(typescript@5.9.3)
 
-  frontend:
+  frontend-admin:
     dependencies:
+      content-kit:
+        specifier: workspace:*
+        version: link:../packages/content-kit
+      frontend-shared:
+        specifier: workspace:*
+        version: link:../packages/frontend-shared
+      next:
+        specifier: ^16.3.1
+        version: 16.3.1(@babel/core@7.29.7(supports-color@7.2.0))(@playwright/test@1.62.1)(@types/node@26.2.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      react:
+        specifier: ^19.2.8
+        version: 19.2.8
+      react-dom:
+        specifier: ^19.2.8
+        version: 19.2.8(react@19.2.8)
+    devDependencies:
+      '@feature-sliced/steiger-plugin':
+        specifier: ^0.7.0
+        version: 0.7.0(typescript@5.9.3)
+      '@tailwindcss/postcss':
+        specifier: ^4.3.3
+        version: 4.3.3
+      '@types/node':
+        specifier: ^26
+        version: 26.2.0
+      '@types/react':
+        specifier: ^19.2.18
+        version: 19.2.18
+      '@types/react-dom':
+        specifier: ^19.2.4
+        version: 19.2.4(@types/react@19.2.18)
+      dependency-cruiser:
+        specifier: ^18.2.0
+        version: 18.2.0
+      design-token-engine:
+        specifier: workspace:*
+        version: link:../packages/design-tokens
+      postcss:
+        specifier: ^8.5.26
+        version: 8.5.26
+      steiger:
+        specifier: ^0.6.0
+        version: 0.6.0(typescript@5.9.3)
+      tailwindcss:
+        specifier: ^4.3.3
+        version: 4.3.3
+      tsx:
+        specifier: ^4
+        version: 4.23.12
+      typescript:
+        specifier: ^5
+        version: 5.9.3
+
+  frontend-web:
+    dependencies:
+      content-kit:
+        specifier: workspace:*
+        version: link:../packages/content-kit
+      frontend-shared:
+        specifier: workspace:*
+        version: link:../packages/frontend-shared
       next:
         specifier: ^16.3.1
         version: 16.3.1(@babel/core@7.29.7(supports-color@7.2.0))(@playwright/test@1.62.1)(@types/node@26.2.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -103,6 +164,37 @@ importers:
         specifier: ^5
         version: 5.9.3
 
+  packages/content-kit:
+    dependencies:
+      frontend-shared:
+        specifier: workspace:*
+        version: link:../frontend-shared
+      react:
+        specifier: ^19.2.8
+        version: 19.2.8
+      react-dom:
+        specifier: ^19.2.8
+        version: 19.2.8(react@19.2.8)
+    devDependencies:
+      '@feature-sliced/steiger-plugin':
+        specifier: ^0.7.0
+        version: 0.7.0(typescript@5.9.3)
+      '@types/react':
+        specifier: ^19.2.18
+        version: 19.2.18
+      '@types/react-dom':
+        specifier: ^19.2.4
+        version: 19.2.4(@types/react@19.2.18)
+      dependency-cruiser:
+        specifier: ^18.2.0
+        version: 18.2.0
+      steiger:
+        specifier: ^0.6.0
+        version: 0.6.0(typescript@5.9.3)
+      typescript:
+        specifier: ^5
+        version: 5.9.3
+
   packages/design-tokens:
     devDependencies:
       '@stryker-mutator/core':
@@ -126,6 +218,37 @@ importers:
       vitest:
         specifier: ^4.1.10
         version: 4.1.10(@types/node@26.2.0)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12))
+
+  packages/frontend-shared:
+    dependencies:
+      design-token-engine:
+        specifier: workspace:*
+        version: link:../design-tokens
+      react:
+        specifier: ^19.2.8
+        version: 19.2.8
+      react-dom:
+        specifier: ^19.2.8
+        version: 19.2.8(react@19.2.8)
+    devDependencies:
+      '@feature-sliced/steiger-plugin':
+        specifier: ^0.7.0
+        version: 0.7.0(typescript@5.9.3)
+      '@types/react':
+        specifier: ^19.2.18
+        version: 19.2.18
+      '@types/react-dom':
+        specifier: ^19.2.4
+        version: 19.2.4(@types/react@19.2.18)
+      dependency-cruiser:
+        specifier: ^18.2.0
+        version: 18.2.0
+      steiger:
+        specifier: ^0.6.0
+        version: 0.6.0(typescript@5.9.3)
+      typescript:
+        specifier: ^5
+        version: 5.9.3
 
 packages:
 

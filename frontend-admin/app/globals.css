@@ -1,0 +1,10 @@
+/**
+ * The single stylesheet entry point, imported once by the root layout.
+ *
+ * Identical to `frontend-web/app/globals.css`, importing the same generated
+ * files from the same `frontend-shared` package — one palette, rendered by
+ * two applications, never two palettes that could quietly diverge.
+ */
+@import "tailwindcss";
+@import "frontend-shared/ui/theme/generated/tokens.css";
+@import "frontend-shared/ui/theme/adapters/tailwind.css";

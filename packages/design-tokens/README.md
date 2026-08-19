@@ -39,7 +39,7 @@ analysis, CSS/plain-data serialization) and a custom ESLint rule pair.
 
 This package ships **zero color/role names of its own**. `surfacePrimary`,
 `statusDanger`, `codeBlock.keyword` — none of that vocabulary lives here.
-It lives in the consuming project (in this repo: `frontend/src/shared/ui/theme/`).
+It lives in the consuming project (in this repo: `packages/frontend-shared/src/shared/ui/theme/`, shared between `frontend` and `frontend-admin` — see that package's own README for why it's a separate workspace package rather than living inside either app).
 What this package provides is the *shape* every project's vocabulary has to
 take, and the machinery that enforces it.
 
@@ -289,7 +289,7 @@ actually fixed instead of just exempted?"* — checking for real (not
 assuming) found that every one of those cases already had a real fix: this
 project's own `xxs` token (4px) or a plain Tailwind numeric utility
 (`gap-0.5`, `mt-px`) matched an EXISTING sibling component's already-migrated
-pattern exactly (see `frontend/src/shared/ui/theme/README.md`'s 2026-08-15
+pattern exactly (see `packages/frontend-shared/src/shared/ui/theme/README.md`'s 2026-08-15
 entry). Once that was true for every case in this codebase, the `minPx`
 option had no reason to exist — a threshold is only justified by a value
 that genuinely has no real alternative, and none did. Both rules now report
@@ -423,9 +423,12 @@ before anything here was written).
 
 ## How to use this in a NEW project
 
-1. Add this package as a workspace dependency (see `frontend/package.json`'s
-   `"design-token-engine": "workspace:*"` + `frontend/next.config.ts`'s
-   `transpilePackages` for the exact wiring this repo uses).
+1. Add this package as a workspace dependency (see `packages/frontend-shared/package.json`'s
+   `"design-token-engine": "workspace:*"` + `frontend-web/next.config.ts`'s
+   `transpilePackages` for the exact wiring this repo uses — note that the
+   theme SOURCE and the app consuming it are two different workspace
+   packages here, which is a wrinkle specific to this repo's two-Next-app
+   split, not something a new project needs to replicate).
 2. `definePrimitives({...})` for your own scale(s) — any names, any values,
    no constraints. Primitives are addressed only through `{category.path}`
    reference strings, never a hardcoded class name.
@@ -440,11 +443,14 @@ before anything here was written).
 5. `defineComponentTokens(namespace, {...})` / `defineComposite(kind, {...})`
    freely, for anything component- or recipe-specific. No contract, by
    design.
-6. Write a `compile.config.ts` (see `frontend/src/shared/ui/theme/compiler.config.ts`)
+6. Write a `compile.config.ts` (see
+   `packages/frontend-shared/src/shared/ui/theme/compiler.config.ts`)
    assembling every module above into this package's `CompilerInput` shape,
    and a `scripts/generate-design-tokens.ts` (see
-   `frontend/scripts/generate-design-tokens.ts`) calling `compileDesignTokens()`
-   and writing `generated/tokens.css` + `generated/resolved.ts`.
+   `frontend-web/scripts/generate-design-tokens.ts` — `frontend-admin` has an
+   identical copy, both pointed at the one theme source) calling
+   `compileDesignTokens()` and writing `generated/tokens.css` +
+   `generated/resolved.ts`.
 7. Write your own `adapters/tailwind.css` mapping the generated `--ds-*`
    variables onto the class-facing names Tailwind's `@theme` reads. Any
    non-CSS consumer (Mermaid, `next/og`, WebGL, ...) reads
@@ -464,9 +470,10 @@ the component library needs structurally, not which brand it's wearing.
 
 **Nothing under a project's `adapters/` should import this package at
 runtime**, with one narrow, documented exception
-(`hslStringToRgb01` — see `frontend/src/shared/ui/theme/adapters/project-graph.ts`'s
-own comment for why a pure, project-agnostic color-math function is a
-different concern than "the compiler"). `compileDesignTokens()`,
+(`hslStringToRgb01` — see the comment at its call site in
+`packages/frontend-shared/src/shared/ui/theme/` for why a pure,
+project-agnostic color-math function is a different concern than "the
+compiler"). `compileDesignTokens()`,
 `resolveTree()`, the whole authoring API — these are **build-time-only**
 dependencies of your `generate-design-tokens.ts` script. Every real runtime
 consumer (Mermaid, `next/og`, a WebGL canvas, or any future adapter) reads

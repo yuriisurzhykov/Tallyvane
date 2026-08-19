@@ -29,14 +29,21 @@ recorded there with the alternative that was rejected and why.
 ## Layout
 
 ```
-backend/     Kotlin modular monolith — see backend/README.md
-frontend/    Next.js app with strict Feature-Sliced Design — see frontend/README.md
-extension/   Chrome extension, the only way LinkedIn can be captured
-ops/         Deployment, database migrations, backup jobs
-data/        Tax tables by year, generated block schemas
-templates/   Typst templates for résumé rendering
-docs/        Specifications and decision records
+backend/         Kotlin modular monolith — see backend/README.md
+frontend-web/    Next.js app: blog + console — see frontend-web/README.md
+frontend-admin/  Next.js app: CMS admin, a separate deployable — see frontend-admin/README.md
+packages/        Shared workspace packages: design-tokens, frontend-shared, content-kit
+extension/       Chrome extension, the only way LinkedIn can be captured
+ops/             Deployment, database migrations, backup jobs
+data/            Tax tables by year, generated block schemas
+templates/       Typst templates for résumé rendering
+docs/            Specifications and decision records
 ```
+
+`frontend-web` and `frontend-admin` used to be one Next.js application with
+three route groups (ADR-011) until the admin surface needed a security
+property a route group can't express — see
+[docs/adr/ADR-032-subdomain-split-and-admin-isolation.md](docs/adr/ADR-032-subdomain-split-and-admin-isolation.md).
 
 ## Principles that are enforced, not suggested
 
@@ -61,6 +68,6 @@ Types run first on purpose: everything after them reads types, and a type error
 otherwise produces a wall of unrelated failures that costs more to read than to
 prevent.
 
-`pnpm --filter tallyvane-frontend run graph` writes the dependency graph in DOT
-form, which is the cheapest way to see architectural drift — a picture gets
-looked at, a rule list does not.
+`pnpm --filter tallyvane-frontend-web run graph` writes the dependency graph
+in DOT form, which is the cheapest way to see architectural drift — a picture
+gets looked at, a rule list does not.

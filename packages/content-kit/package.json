@@ -1,0 +1,41 @@
+{
+  "name": "content-kit",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The ADR-013 'block type defined once' system — content-page/media-asset entities and every content-block widget — held as its own package because both frontend (public render) and frontend-admin (editor + live preview) need the exact same definition, not two that could drift.",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "exports": {
+    "./entities/content-page": "./src/entities/content-page/index.ts",
+    "./entities/media-asset": "./src/entities/media-asset/index.ts",
+    "./widgets/block-renderer": "./src/widgets/block-renderer/index.ts",
+    "./widgets/hero-block": "./src/widgets/hero-block/index.ts",
+    "./widgets/feature-grid-block": "./src/widgets/feature-grid-block/index.ts",
+    "./widgets/faq-block": "./src/widgets/faq-block/index.ts",
+    "./widgets/cta-block": "./src/widgets/cta-block/index.ts",
+    "./widgets/screenshot-block": "./src/widgets/screenshot-block/index.ts",
+    "./widgets/quote-block": "./src/widgets/quote-block/index.ts",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "arch": "pnpm run arch:fsd && pnpm run arch:graph",
+    "arch:fsd": "steiger ./src",
+    "arch:graph": "depcruise src --config .dependency-cruiser.cjs"
+  },
+  "dependencies": {
+    "frontend-shared": "workspace:*",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@feature-sliced/steiger-plugin": "^0.7.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "dependency-cruiser": "^18.2.0",
+    "steiger": "^0.6.0",
+    "typescript": "^5"
+  }
+}

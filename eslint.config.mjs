@@ -24,21 +24,118 @@ import designTokens from "design-token-engine/eslint-plugin";
  * package name is not.
  */
 
-/** Lowest first. A layer may import from those strictly below it, and from nothing else — not even itself. */
-const LAYERS = ["shared", "entities", "features", "widgets", "views", "app"];
-
 /**
- * The permission matrix, generated rather than written out. Typing eighteen
- * allow-lists by hand invites exactly one transposed pair, and a transposed
- * pair here silently legalises an upward import — the one thing this whole
- * arrangement exists to prevent.
+ * Lowest first, across the whole methodology. Not every app has every layer
+ * locally any more (ADR-032): `shared` is the `frontend-shared` package, and
+ * `frontend-admin` has no local `entities` — `content-page`/`media-asset`
+ * live in `content-kit`. Each scope below lists the subset it actually has,
+ * in order, and `layerPolicies` builds that scope's permission matrix from
+ * exactly that list. This is deliberately NOT how the two apps are kept from
+ * importing each other — that boundary is the pnpm workspace graph itself
+ * (`frontend-admin` declares no dependency on `frontend-web`), which a lint
+ * rule could not enforce as reliably as a missing package.json entry does.
  */
-const layerRules = LAYERS.map((layer, index) => ({
-    from: [{ element: { type: layer } }],
-    allow: LAYERS.slice(0, index).map((type) => ({ to: { element: { type } } })),
-}));
+function layerPolicies(layers) {
+    return layers.map((layer, index) => ({
+        from: [{ element: { type: layer } }],
+        allow: layers.slice(0, index).map((type) => ({ to: { element: { type } } })),
+    }));
+}
+
+/** The composition root sees every layer in its own scope — that's what routing is for. */
+function routesPolicy(layers) {
+    return {
+        from: [{ element: { type: "routes" } }],
+        allow: layers.map((type) => ({ to: { element: { type } } })),
+    };
+}
+
+const FRONTEND_LAYERS = ["entities", "features", "widgets", "views", "app"];
+const ADMIN_LAYERS = ["features", "widgets", "views", "app"];
 
 const TS_FILES = ["**/*.ts", "**/*.tsx", "**/*.mts"];
+
+/**
+ * The FSD/Next boundaries block is identical in shape for `frontend-web` and
+ * `frontend-admin` — only the directory, the local layer list and the Next
+ * `rootDir` differ. Written once and applied twice rather than copy-pasted,
+ * so the two apps' rules cannot quietly drift apart the way two pasted blocks
+ * eventually do.
+ */
+function appBoundariesBlock(appDir, layers) {
+    return {
+        files: [`${appDir}/**/*.{ts,tsx}`],
+        languageOptions: {
+            globals: { ...globals.browser },
+        },
+        plugins: {
+            boundaries,
+            "import-x": importX,
+            "react-hooks": reactHooks,
+            "@next/next": next,
+        },
+        settings: {
+            "boundaries/elements": [
+                // `<app>/app` is Next's routing directory, NOT the FSD app
+                // layer — that one is `<app>/src/app`. The two share a name
+                // and nothing else, which is worth stating because getting
+                // them confused makes the matrix below look wrong.
+                { type: "routes", pattern: `${appDir}/app/**`, partialMatch: false },
+                { type: "app", pattern: `${appDir}/src/app/*`, partialMatch: false },
+                { type: "views", pattern: `${appDir}/src/views/*`, partialMatch: false },
+                { type: "widgets", pattern: `${appDir}/src/widgets/*`, partialMatch: false },
+                { type: "features", pattern: `${appDir}/src/features/*`, partialMatch: false },
+                ...(layers.includes("entities")
+                    ? [{ type: "entities", pattern: `${appDir}/src/entities/*`, partialMatch: false }]
+                    : []),
+            ],
+            "boundaries/include": [`${appDir}/**/*.{ts,tsx}`],
+            "import-x/resolver-next": [
+                createTypeScriptImportResolver({
+                    project: ["frontend-web/tsconfig.json", "frontend-admin/tsconfig.json", "packages/*/tsconfig.json"],
+                    // A workspace genuinely has several tsconfigs; the resolver
+                    // suggests merging them behind project references, which
+                    // would couple packages that are deliberately independent.
+                    noWarnOnMultipleProjects: true,
+                }),
+            ],
+            // Without this the Next plugin looks for a routing directory at the
+            // workspace root and warns on every run; the app lives one level in.
+            next: { rootDir: appDir },
+        },
+        rules: {
+            ...reactHooks.configs.recommended.rules,
+            ...next.configs.recommended.rules,
+
+            "boundaries/dependencies": ["error", {
+                default: "disallow",
+                policies: [routesPolicy(layers), ...layerPolicies(layers)],
+            }],
+            /**
+             * Reaching into a slice past its `index.ts` makes every internal
+             * file part of the public surface by accident, and the slice can
+             * then never be reorganised without breaking callers who were never
+             * supposed to see it.
+             *
+             * The plugin prints a deprecation notice for this rule on every
+             * run, and it is kept anyway. `boundaries/dependencies` is the
+             * suggested replacement, but expressing "the import must land on
+             * the slice's index" through its selectors is not obvious, and a
+             * selector that is subtly wrong does not fail loudly — it matches
+             * nothing and permits everything. A visible warning beats a rule
+             * that has quietly stopped checking.
+             */
+            "boundaries/entry-point": ["error", {
+                default: "disallow",
+                policies: [{ target: [{ element: { type: layers } }], allow: "index.{ts,tsx}" }],
+            }],
+
+            "import-x/no-cycle": ["error", { maxDepth: Infinity }],
+            "import-x/no-self-import": "error",
+            "import-x/no-useless-path-segments": "error",
+        },
+    };
+}
 
 export default [
     {
@@ -57,7 +154,7 @@ export default [
             "**/tests/visual-snapshots/**",
             // Compiler output. Linting it would report on decisions made in the
             // token source, at coordinates that exist in neither file.
-            "frontend/src/shared/ui/theme/generated/**",
+            "packages/frontend-shared/src/shared/ui/theme/generated/**",
         ],
     },
 
@@ -104,96 +201,22 @@ export default [
     },
 
     // ---------------------------------------------------------------------
-    // FRONTEND
+    // FRONTEND-WEB — blog + console
     // ---------------------------------------------------------------------
-    {
-        files: ["frontend/**/*.{ts,tsx}"],
-        languageOptions: {
-            globals: { ...globals.browser },
-        },
-        plugins: {
-            boundaries,
-            "import-x": importX,
-            "react-hooks": reactHooks,
-            "@next/next": next,
-        },
-        settings: {
-            "boundaries/elements": [
-                // `frontend/app` is Next's routing directory, NOT the FSD app
-                // layer — that one is `frontend/src/app`. The two share a name
-                // and nothing else, which is worth stating because getting them
-                // confused makes the matrix below look wrong.
-                { type: "routes", pattern: "frontend/app/**", partialMatch: false },
-                { type: "app", pattern: "frontend/src/app/*", partialMatch: false },
-                { type: "views", pattern: "frontend/src/views/*", partialMatch: false },
-                { type: "widgets", pattern: "frontend/src/widgets/*", partialMatch: false },
-                { type: "features", pattern: "frontend/src/features/*", partialMatch: false },
-                { type: "entities", pattern: "frontend/src/entities/*", partialMatch: false },
-                { type: "shared", pattern: "frontend/src/shared/*", partialMatch: false },
-            ],
-            "boundaries/include": ["frontend/**/*.{ts,tsx}"],
-            "import-x/resolver-next": [
-                createTypeScriptImportResolver({
-                    project: ["frontend/tsconfig.json", "packages/*/tsconfig.json"],
-                    // A workspace genuinely has several tsconfigs; the resolver
-                    // suggests merging them behind project references, which
-                    // would couple packages that are deliberately independent.
-                    noWarnOnMultipleProjects: true,
-                }),
-            ],
-            // Without this the Next plugin looks for a routing directory at the
-            // workspace root and warns on every run; the app lives one level in.
-            next: { rootDir: "frontend" },
-        },
-        rules: {
-            ...reactHooks.configs.recommended.rules,
-            ...next.configs.recommended.rules,
+    appBoundariesBlock("frontend-web", FRONTEND_LAYERS),
 
-            "boundaries/dependencies": ["error", {
-                default: "disallow",
-                policies: [
-                    // The composition root, and the only thing allowed to see
-                    // everything: routes exist precisely to wire layers
-                    // together.
-                    {
-                        from: [{ element: { type: "routes" } }],
-                        allow: LAYERS.map((type) => ({ to: { element: { type } } })),
-                    },
-                    ...layerRules,
-                ],
-            }],
-            /**
-             * Reaching into a slice past its `index.ts` makes every internal
-             * file part of the public surface by accident, and the slice can
-             * then never be reorganised without breaking callers who were never
-             * supposed to see it.
-             *
-             * The plugin prints a deprecation notice for this rule on every
-             * run, and it is kept anyway. `boundaries/dependencies` is the
-             * suggested replacement, but expressing "the import must land on
-             * the slice's index" through its selectors is not obvious, and a
-             * selector that is subtly wrong does not fail loudly — it matches
-             * nothing and permits everything. A visible warning beats a rule
-             * that has quietly stopped checking.
-             */
-            "boundaries/entry-point": ["error", {
-                default: "disallow",
-                policies: [{ target: [{ element: { type: LAYERS } }], allow: "index.{ts,tsx}" }],
-            }],
-
-            "import-x/no-cycle": ["error", { maxDepth: Infinity }],
-            "import-x/no-self-import": "error",
-            "import-x/no-useless-path-segments": "error",
-        },
-    },
+    // ---------------------------------------------------------------------
+    // FRONTEND-ADMIN — CMS admin, a separate app since ADR-032
+    // ---------------------------------------------------------------------
+    appBoundariesBlock("frontend-admin", ADMIN_LAYERS),
 
     // Design-token governance. Scoped to where markup lives, because these
     // rules are about literals written into JSX and inline styles.
     {
-        files: ["frontend/**/*.tsx"],
+        files: ["frontend-web/**/*.tsx", "frontend-admin/**/*.tsx", "packages/frontend-shared/**/*.tsx"],
         ignores: [
             // The one place literal colours and dimensions ARE the content.
-            "frontend/src/shared/ui/theme/**",
+            "packages/frontend-shared/src/shared/ui/theme/**",
         ],
         plugins: { "design-tokens": designTokens },
         rules: {
@@ -238,13 +261,13 @@ export default [
     },
 
     {
-        files: ["frontend/steiger.config.ts"],
+        files: ["frontend-web/steiger.config.ts", "frontend-admin/steiger.config.ts", "packages/*/steiger.config.ts"],
         rules: {
             /**
              * `@feature-sliced/steiger-plugin` does not ship usable types for
              * its preset, so spreading it reads as `any` and the unsafe-value
              * rules fire on a third-party gap rather than on anything written
-             * here. Scoped to this one file: switching the rules off more
+             * here. Scoped to these files: switching the rules off more
              * broadly would hide the same class of defect in our own code,
              * which is the class they are best at catching.
              */

@@ -1,0 +1,42 @@
+{
+  "name": "frontend-shared",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The FSD `shared` layer, extracted from frontend-web/ so it can be a real dependency of both frontend-web (blog + console) and frontend-admin instead of code either of them could otherwise reach into. Ships zero business vocabulary — see ARCHITECTURE.md §12.5 and the `shared-has-no-domain` rule this package exists to keep true across two apps instead of one.",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "exports": {
+    "./ui/theme": "./src/shared/ui/theme/index.ts",
+    "./ui/theme/tokens": "./src/shared/ui/theme/tokens/index.ts",
+    "./ui/theme/compiler.config": "./src/shared/ui/theme/compiler.config.ts",
+    "./ui/theme/*": "./src/shared/ui/theme/*",
+    "./api": "./src/shared/api/index.ts",
+    "./i18n": "./src/shared/i18n/index.ts",
+    "./lib": "./src/shared/lib/index.ts",
+    "./config": "./src/shared/config/index.ts",
+    "./blocks": "./src/shared/blocks/index.ts",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "arch": "pnpm run arch:fsd && pnpm run arch:graph",
+    "arch:fsd": "steiger ./src",
+    "arch:graph": "depcruise src --config .dependency-cruiser.cjs"
+  },
+  "//": "design-token-engine is a regular dependency, not dev: compiler.config.ts is imported (as data) from each consuming app's own tokens:generate script, which lives outside this package.",
+  "dependencies": {
+    "design-token-engine": "workspace:*",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@feature-sliced/steiger-plugin": "^0.7.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "dependency-cruiser": "^18.2.0",
+    "steiger": "^0.6.0",
+    "typescript": "^5"
+  }
+}

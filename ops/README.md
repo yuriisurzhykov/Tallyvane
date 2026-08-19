@@ -9,16 +9,33 @@ backup/       nightly dump, offsite upload, weekly restore verification
 
 ## Containers
 
-Four services: PostgreSQL, the Ktor server, the Next.js frontend, and
-`cloudflared`. Typst and cwebp are not containers — they are static binaries
-inside the server image, invoked as short-lived processes.
+Five services: PostgreSQL, the Ktor server, two Next.js frontends
+(`frontend-web`, built from `frontend-web/`; `frontend-admin`, built from
+`frontend-admin/`), and `cloudflared`. Typst and cwebp are not containers —
+they are static binaries inside the server image, invoked as short-lived
+processes.
+
+Two frontend containers rather than one is a deliberate change (ADR-032, and
+see the ARCHITECTURE.md §3.2/§16 update it made): the admin surface needed to
+be a genuinely separate application — no workspace dependency on the console,
+so a developer cannot import one into the other by accident — not just a
+different route inside the same process.
 
 ## No inbound ports
 
 `cloudflared` opens an outbound tunnel; traffic arrives through it. The
-firewall can block every inbound port except SSH. Path routing happens at the
-tunnel: `/api/*`, `/calendar/*` and `/media/*` go to Ktor, everything else to
-Next, so Node never sits in the hot path of an API call.
+firewall can block every inbound port except SSH. Routing happens at the
+tunnel by hostname first, then by path within that hostname: `tallyvane.com`
+and `app.tallyvane.com` go to `frontend-web` except for `/api/*`,
+`/calendar/*` and `/media/*`, which go to Ktor; `admin.tallyvane.com` goes to
+`frontend-admin` with the same exception for `/api/*` and `/media/*`, pointed
+at the same Ktor container. Node never sits in the hot path of an API call,
+in either frontend.
+
+`admin.tallyvane.com` additionally sits behind Cloudflare Access — an
+identity check the request has to clear before it ever reaches the tunnel's
+ingress target. That reuses the tunnel already in place rather than adding a
+VPN or any other new piece of infrastructure to operate.
 
 ## Memory budget
 
@@ -26,10 +43,11 @@ Next, so Node never sits in the hot path of an API call.
 | --- | --- |
 | PostgreSQL | 384 MB |
 | JVM | 576 MB (heap 384) |
-| Node with Next.js | 320 MB |
+| Node — `frontend-web` | 320 MB |
+| Node — `frontend-admin` | 192 MB (estimate — single owner, low concurrency, smaller route tree; replace with a measured number once it's real) |
 | cloudflared | 48 MB |
 | typst / cwebp at peak | 64 MB |
-| Left to the OS and page cache | ~640 MB |
+| Left to the OS and page cache | ~464 MB (was ~640 MB with one Node process; ADR-032 spends some of that margin on admin isolation) |
 
 Limits are declared per service so a spike in one container cannot kill its
 neighbours.

@@ -402,9 +402,15 @@ export function compileDesignTokens(input: CompilerInput): CompileResult {
         themeBlocks.push(`${selector} {\n${body}${colorScheme}\n}`);
     });
 
+    // No project path here, deliberately: this package is consumed by more than one
+    // project (see README.md), each with its own layout, and a hardcoded path would be
+    // wrong for whichever one didn't write it — exactly the assumption this engine's own
+    // "ships zero color/role names of its own" promise exists to rule out for vocabulary.
+    // A consuming project's own generate script is free to add a project-specific header
+    // of its own around this data.
     const header = "/*\n * AUTO-GENERATED FILE. DO NOT EDIT MANUALLY.\n"
-        + " * Source: frontend/src/shared/ui/theme/{tokens,contracts,themes,semantic,components,composites}/\n"
-        + " * Generator: frontend/scripts/generate-design-tokens.ts\n */";
+        + " * Source: the token definition modules passed to compileDesignTokens().\n"
+        + " * Generator: the project's own token-generation script.\n */";
 
     return { css: [header, ...themeBlocks].join("\n\n"), resolved, warnings, primitiveVariables: flat.primitivesByCategory };
 }

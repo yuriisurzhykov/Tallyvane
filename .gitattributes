@@ -23,5 +23,5 @@ gradlew text eol=lf
 
 # Generated artefacts: tracked, but collapsed in review so they do not drown
 # a diff. They are still verified by `tokens:check`.
-frontend/src/shared/ui/theme/generated/** linguist-generated=true
+packages/frontend-shared/src/shared/ui/theme/generated/** linguist-generated=true
 data/blocks/**                            linguist-generated=true
