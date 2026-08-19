@@ -46,6 +46,15 @@ export default [
             "**/node_modules/**",
             "**/.next/**",
             "**/dist/**",
+            // Next writes this and owns it; it is not in any tsconfig we
+            // control, so the type-aware parser cannot read it either.
+            "**/next-env.d.ts",
+            // Playwright's own report is a bundled application it ships, not
+            // source. Linting it produced over a thousand findings about code
+            // nobody here can change.
+            "**/playwright-report/**",
+            "**/test-results/**",
+            "**/tests/visual-snapshots/**",
             // Compiler output. Linting it would report on decisions made in the
             // token source, at coordinates that exist in neither file.
             "frontend/src/shared/ui/theme/generated/**",
@@ -53,6 +62,14 @@ export default [
     },
 
     js.configs.recommended,
+
+    // Plain JavaScript — the config files and the CI helper scripts. They run
+    // under Node and nothing else, and the type-aware rules below deliberately
+    // skip them, so this is the only place they get their globals.
+    {
+        files: ["**/*.{js,mjs,cjs}"],
+        languageOptions: { globals: { ...globals.node } },
+    },
 
     // Scoped to TypeScript explicitly. Type-aware rules ask the parser for a
     // type checker, and applying them to a plain `.mjs` file — this config

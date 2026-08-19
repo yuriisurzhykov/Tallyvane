@@ -1,0 +1,108 @@
+name: Accept Visual Baselines
+
+# Comment `/update-snapshots` on a pull request to accept its new baseline
+# screenshots, for when the visual check fails because the page genuinely
+# changed rather than because it broke. The regenerated images are pushed to the
+# pull request's own branch, which re-triggers the normal check — so nobody
+# needs a local Linux container to produce images matching CI's renderer.
+#
+# It is also the only place baselines are ever written. The check itself never
+# regenerates them, because a suite that rewrites its own expectation on failure
+# cannot fail.
+#
+# Every step here is a step, not a program: the logic lives in
+# `.github/scripts/`, where it is linted, diffable and readable. What remains in
+# this file is which scripts run, in what order, with what permissions — which
+# is the part a workflow file is actually good at describing.
+#
+# ── SECURITY ─────────────────────────────────────────────────────────────────
+# This is the dangerous shape: a comment triggers a job that checks out branch
+# code and holds write credentials. Two things keep it safe.
+#
+# The `if` below gates who may ask. It says nothing about whose code is about to
+# run, so `baseline-request-guard.mjs` additionally refuses a branch from a
+# fork — see its own comment for what that prevents.
+#
+# The split into two jobs closes a race: `guard` resolves the branch to an
+# immutable commit SHA, and `update-snapshots` checks out that SHA rather than
+# the branch name, which can be repointed between verification and use.
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  guard:
+    # `issue_comment` fires for plain issues too, hence the first condition.
+    if: >
+      github.event.issue.pull_request != null &&
+      contains(github.event.comment.body, '/update-snapshots') &&
+      contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association)
+    runs-on: ubuntu-latest
+    # `pull-requests`, not `issues`: a comment on a pull request is scoped as a
+    # pull-request resource even though the REST path says issues.
+    permissions:
+      pull-requests: write
+    outputs:
+      is_fork: ${{ steps.guard.outputs.is_fork }}
+      head_sha: ${{ steps.guard.outputs.head_sha }}
+      head_ref: ${{ steps.guard.outputs.head_ref }}
+    steps:
+      # No `ref:`, and that is what matters here: for an `issue_comment` event
+      # checkout defaults to the default branch, so the guard runs this
+      # repository's own copy of the check. Running the pull request's version
+      # of the code that decides whether the pull request may run would be no
+      # check at all.
+      #
+      # The sparse checkout is only speed — this job needs the scripts and
+      # nothing else. It is not the control; the absent `ref:` is.
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: .github/scripts
+          sparse-checkout-cone-mode: false
+
+      - id: guard
+        run: node .github/scripts/baseline-request-guard.mjs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          COMMENT_ID: ${{ github.event.comment.id }}
+
+  update-snapshots:
+    needs: guard
+    if: needs.guard.outputs.is_fork != 'true'
+    runs-on: ubuntu-latest
+    # Job level only — permissions on an individual step are ignored.
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Check out the verified commit
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.guard.outputs.head_sha }}
+
+      - uses: ./.github/actions/prepare-workspace
+      - uses: ./.github/actions/setup-playwright
+
+      - name: Regenerate baselines
+        working-directory: frontend
+        run: pnpm run test:visual:update
+
+      - name: Commit and push
+        id: commit
+        run: bash .github/scripts/commit-baselines.sh
+        env:
+          HEAD_REF: ${{ needs.guard.outputs.head_ref }}
+
+      - name: Report the outcome
+        if: ${{ always() }}
+        run: node .github/scripts/baseline-result-comment.mjs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          JOB_STATUS: ${{ job.status }}
+          BASELINES_CHANGED: ${{ steps.commit.outputs.changed }}

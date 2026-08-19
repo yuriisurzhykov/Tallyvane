@@ -6,6 +6,14 @@
   "engines": {
     "node": ">=22"
   },
+  "//devEngines": "The version development and CI actually use, as opposed to the minimum `engines` will tolerate. `pnpm/setup` reads it, so the CI workflows name no Node version of their own.",
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": "22",
+      "onFail": "download"
+    }
+  },
   "scripts": {
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

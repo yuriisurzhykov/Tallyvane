@@ -1,0 +1,76 @@
+name: Visual & Accessibility Tests
+
+# Screenshots, axe and APCA contrast, on every pull request and every push to
+# the default branch. Both events run in compare-only mode — never
+# `--update-snapshots` here.
+#
+# The reason that matters: a workflow that regenerates baselines when they fail
+# can never fail. It would rewrite the expectation to match whatever the code
+# now produces and report success, which is the one outcome a regression suite
+# must not be able to reach. Baselines are accepted deliberately instead, from
+# the pull request, through the `/update-snapshots` command in
+# accept-visual-baselines.yml — so by the time a branch merges its baselines are
+# already right, and this run on the default branch is a confirmation rather
+# than a place that writes back to the repository.
+
+on:
+  pull_request:
+    types: [ opened, synchronize, reopened ]
+  push:
+    branches: [ master ]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: visual-tests-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  test:
+    name: Browser suites
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/prepare-workspace
+      - uses: ./.github/actions/setup-playwright
+
+      # Playwright builds and starts the app itself, through the `webServer`
+      # entry in its config, so there is no separate build step to keep in step
+      # with it.
+      - name: Run suites
+        working-directory: frontend
+        run: pnpm run test:e2e
+
+      # `!cancelled()` rather than `always()`: a run someone stopped on purpose
+      # has nothing worth uploading, and `always()` would also fire after a
+      # cancellation and slow it down.
+      - name: Upload report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          # The report carries the diff images beside their baselines, which is
+          # the only form in which a visual failure is legible at all.
+          path: |
+            frontend/playwright-report
+            frontend/test-results
+          retention-days: 14
+
+      - name: Build the pull-request comment
+        if: ${{ !cancelled() && github.event_name == 'pull_request' }}
+        run: >
+          node .github/scripts/format-summary.mjs
+          frontend/test-results/summary.json
+          "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          frontend/pr-comment.md
+
+      # Sticky, so a branch pushed five times carries one comment showing the
+      # current state rather than five showing its history.
+      - name: Comment on the pull request
+        if: ${{ !cancelled() && github.event_name == 'pull_request' }}
+        uses: marocchino/sticky-pull-request-comment@v3
+        with:
+          path: frontend/pr-comment.md

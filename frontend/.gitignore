@@ -1,0 +1,18 @@
+# ---------- Node ----------
+node_modules/
+
+# Playwright output. The baselines under tests/visual-snapshots ARE committed —
+# they are the expected result — but the diffs, traces and reports a run
+# produces are not.
+test-results/
+playwright-report/
+blob-report/
+.playwright/
+.next/
+.turbo/
+dist/
+coverage/
+*.tsbuildinfo
+.npm/
+.pnpm-store/
+next-env.d.ts

@@ -12,3 +12,5 @@
  * compiler out of the bundle.
  */
 export { resolved } from "./generated/resolved";
+export { ThemeProvider, ThemeInitScript, useTheme, THEME_STORAGE_KEY } from "./provider";
+export type { ThemeId, ThemePreference } from "./provider";
