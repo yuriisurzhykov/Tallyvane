@@ -2,6 +2,7 @@ import type { CompilerInput } from "design-token-engine";
 import {
     borderContract,
     colorContract,
+    controlContract,
     layoutContract,
     radiusContract,
     spacingContract,
@@ -10,7 +11,7 @@ import {
 } from "./contracts";
 import { border, color, dimension, layout, motion, radius, typography, zIndex } from "./tokens";
 import { darkTheme, lightTheme } from "./themes";
-import { borderRole, layoutRole, radiusRole, spacingRole, typographyRole, zIndexRole } from "./semantic";
+import { borderRole, controlRole, layoutRole, radiusRole, spacingRole, typographyRole, zIndexRole } from "./semantic";
 import { statusBadgeTokens, timelineConnectorTokens } from "./components";
 import { shadows, textStyles, transitions } from "./composites";
 
@@ -40,6 +41,7 @@ const compilerInput: CompilerInput = {
         typography: typographyContract,
         border: borderContract,
         layout: layoutContract,
+        control: controlContract,
         z: zIndexContract,
     },
     themes: {
@@ -52,6 +54,7 @@ const compilerInput: CompilerInput = {
         typography: typographyRole,
         border: borderRole,
         layout: layoutRole,
+        control: controlRole,
         z: zIndexRole,
     },
     components: [statusBadgeTokens, timelineConnectorTokens],

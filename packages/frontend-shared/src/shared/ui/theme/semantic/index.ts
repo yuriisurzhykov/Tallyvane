@@ -1,4 +1,5 @@
 export { borderRole } from "./border";
+export { controlRole } from "./control";
 export { layoutRole } from "./layout";
 export { radiusRole } from "./radius";
 export { spacingRole } from "./spacing";

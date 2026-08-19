@@ -23,20 +23,28 @@
     "typecheck": "tsc --noEmit",
     "arch": "pnpm run arch:fsd && pnpm run arch:graph",
     "arch:fsd": "steiger ./src",
-    "arch:graph": "depcruise src --config .dependency-cruiser.cjs"
+    "arch:graph": "depcruise src --config .dependency-cruiser.cjs",
+    "test": "vitest run"
   },
-  "//": "design-token-engine is a regular dependency, not dev: compiler.config.ts is imported (as data) from each consuming app's own tokens:generate script, which lives outside this package.",
+  "//": "design-token-engine is a regular dependency, not dev: compiler.config.ts is imported (as data) from each consuming app's own tokens:generate script, which lives outside this package. @base-ui/react and lucide-react are regular dependencies too, unlike the test tooling below: components built on them ship in both apps' runtime bundles.",
   "dependencies": {
+    "@base-ui/react": "^1.7.0",
     "design-token-engine": "workspace:*",
+    "lucide-react": "^1.32.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },
   "devDependencies": {
     "@feature-sliced/steiger-plugin": "^0.7.0",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.2",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "dependency-cruiser": "^18.2.0",
+    "jsdom": "^30.0.1",
     "steiger": "^0.6.0",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.10"
   }
 }

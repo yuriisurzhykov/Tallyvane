@@ -166,6 +166,9 @@
     --ds-semantic-layout-brief-max-width: 100rem;
     --ds-semantic-layout-sidebar-expanded: 15rem;
     --ds-semantic-layout-sidebar-collapsed: 4rem;
+    --ds-semantic-control-height-sm: 2rem;
+    --ds-semantic-control-height-md: 2.5rem;
+    --ds-semantic-control-height-lg: 3rem;
     --ds-semantic-z-background: 0;
     --ds-semantic-z-content: 10;
     --ds-semantic-z-sidebar: 20;

@@ -1,0 +1,36 @@
+{
+  "name": "test-kit",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Playwright accessibility, contrast and visual-regression checking logic, extracted so it belongs to none of its consumers. frontend-web, packages/storybook and (eventually) frontend-admin each supply their own list of pages or stories and call the same functions here — none of them holds the WCAG/APCA tags, the screenshot options or the summary reporter itself. See docs/frontend/02-component-testing-architecture.md for why this cannot live inside any one of them.",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "exports": {
+    "./specs/a11y": "./src/specs/a11y.ts",
+    "./specs/contrast-wcag": "./src/specs/contrast-wcag.ts",
+    "./specs/contrast-apca": "./src/specs/contrast-apca.ts",
+    "./specs/visual": "./src/specs/visual.ts",
+    "./reporters/summary-reporter": "./src/reporters/summary-reporter.ts",
+    "./utils/theme": "./src/utils/theme.ts",
+    "./playwright/shared-config": "./src/playwright/shared-config.ts",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "//": "@playwright/test is a peer dependency, not a regular one: test() registrations only reach a consumer's own Playwright CLI run if they come from the exact same module instance that CLI resolves. A second copy here would silently register tests nobody's runner ever collects.",
+  "peerDependencies": {
+    "@playwright/test": "^1.62.1"
+  },
+  "dependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "apca-w3": "^0.1.9"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1",
+    "@types/node": "^26",
+    "typescript": "^5"
+  }
+}

@@ -26,7 +26,6 @@
     "tokens:check": "tsx scripts/generate-design-tokens.ts --check"
   },
   "devDependencies": {
-    "@axe-core/playwright": "^4.13.0",
     "@feature-sliced/steiger-plugin": "^0.7.0",
     "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "^4.3.3",
@@ -40,6 +39,7 @@
     "postcss": "^8.5.26",
     "steiger": "^0.6.0",
     "tailwindcss": "^4.3.3",
+    "test-kit": "workspace:*",
     "tsx": "^4",
     "typescript": "^5"
   },

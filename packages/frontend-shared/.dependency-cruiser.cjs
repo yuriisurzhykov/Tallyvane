@@ -30,6 +30,11 @@ module.exports = {
                     // the boundary is declared before there is anything behind
                     // it; treating them as dead code inverts the intent.
                     "^src/shared/[^/]+/index\\.ts$",
+                    // A test is an entry point Vitest finds by filename glob,
+                    // not a module anything imports — it will always look like
+                    // an orphan to a check that only follows `import`, the
+                    // same reason config files and `.d.ts` are exempt above.
+                    "\\.(spec|test)\\.(ts|tsx)$",
                 ],
             },
             to: {},

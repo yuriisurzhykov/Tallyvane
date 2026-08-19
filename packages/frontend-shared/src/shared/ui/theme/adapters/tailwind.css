@@ -176,6 +176,19 @@
     --layout-sidebar-collapsed: var(--ds-semantic-layout-sidebar-collapsed);
 
     /* --------------------------------------------------------------------
+     * CONTROL HEIGHT
+     *
+     * Same treatment as layout, and for the same reason: read through
+     * Tailwind's variable form (`h-(--control-height-md)`), not through a
+     * generated `h-sm`/`h-md`/`h-lg` utility. A bare utility would let a
+     * height be reached without the component that owns choosing it — sizing
+     * a control is a component's decision, not a layout call site's.
+     * -------------------------------------------------------------------- */
+    --control-height-sm: var(--ds-semantic-control-height-sm);
+    --control-height-md: var(--ds-semantic-control-height-md);
+    --control-height-lg: var(--ds-semantic-control-height-lg);
+
+    /* --------------------------------------------------------------------
      * STACKING ORDER
      *
      * Unlike the layout roles above, these must sit in `@theme` and nowhere

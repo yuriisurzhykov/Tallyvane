@@ -133,6 +133,7 @@ never mutates.
 | `Button` | Tones: `primary` (monochrome, per ADR-029), `neutral`, `ghost`, `danger`. Sizes, loading state, leading/trailing icon slots. | Base UI | server |
 | `IconButton` | Icon-only; an accessible label is a required prop, not an optional one. | Base UI | server |
 | `Link` | Inline navigation, and the `render` target when a button must be an anchor. | — | server |
+| `SkipLink` | Visually hidden until focused, then jumps to the main landmark. One look, one job, no variants — required once by `AppShell`, WCAG 2.4.1. | — | server |
 | `Toggle` / `ToggleGroup` | Two-state and exclusive-choice buttons: density, table-versus-board, theme. | Base UI | client |
 | `Menu` | Dropdown with roving focus, typeahead, and a shortcut column. | Base UI | client |
 
@@ -144,6 +145,7 @@ never mutates.
 | `Fieldset` | Grouped controls with a legend. | Base UI | server |
 | `Form` | Consolidated submission and server-error mapping. | Base UI | client |
 | `Input` | Single-line text. | Base UI | server |
+| `PasswordField` | Single-line text with a visibility toggle. Composes `Input` and `IconButton` rather than a third implementation of a text box. | Base UI | client |
 | `TextArea` | Auto-growing multi-line. | — | client |
 | `NumberField` | Numeric with increment, decrement and scrub. | Base UI | client |
 | `MoneyField` | Cents in, cents out. **Never a float** — the API is integer cents throughout. | Base UI | client |
@@ -158,6 +160,7 @@ never mutates.
 | `RatingScale` | A 1–5 scale, used by four unrelated fields: interest, fit, interview confidence, question difficulty. Generic because the scale is generic; the label is not its business. | — | client |
 | `SearchField` | Text input with clear affordance and debounce. | Base UI | client |
 | `FileDrop` | Drag-and-drop upload for résumés and media. | — | client |
+| `Slider` | One value dragged or stepped from a numeric range. Single-thumb only — no dual-thumb range variant until a real call site needs one. | Base UI | client |
 | `DateField` / `DateTimeField` | Interview times, posting dates, earliest start. **See open questions** — Base UI ships no date component. | ? | client |
 
 ### Surfaces and structure
@@ -207,6 +210,7 @@ methodology rule.
 | `Skeleton` | Loading placeholder; must be still under reduced motion. | — | server |
 | `Spinner` | Only for genuinely slow work — PDF render, media processing. Ordinary writes are optimistic and show nothing. | — | server |
 | `Callout` | A toned block of explanation: tax warnings, the LLM budget notice, extraction-confidence caveats. | — | server |
+| `LiveRegion` | `aria-live="polite"` by default, `"assertive"` where genuinely urgent; visually hidden, pairs with `VisuallyHidden`. For the status announcements `Toast` does not cover — a filtered result count, a background save finishing. | — | server |
 
 ---
 

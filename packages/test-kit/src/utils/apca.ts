@@ -34,10 +34,9 @@ const LEVEL = {
  * nobody decided the purpose of, and guessing on its behalf is how a heading
  * threshold ends up applied to body copy.
  *
- * Every entry rests on the type scale, so the two move together: raise or lower
- * a size and its level may change. The scale was deliberately set so that the
- * smallest style is 15px and body is 18px, which is exactly where the
- * thresholds step down from Lc 90 to Lc 75 — see `tokens/typography.ts`.
+ * Every entry rests on the shared type scale in `frontend-shared`, which is
+ * why this table is safe to reuse across every consumer of that theme rather
+ * than belonging to whichever app happened to write it first.
  */
 const STYLE_LEVEL: Readonly<Record<string, number>> = {
     /** 36px/600 — a headline by any reading. */
