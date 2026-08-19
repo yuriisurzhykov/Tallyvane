@@ -15,7 +15,6 @@ desktop.ini
 .gradle/
 build/
 out/
-.idea/
 *.class
 *.hprof
 local.properties

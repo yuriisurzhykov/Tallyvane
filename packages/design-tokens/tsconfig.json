@@ -1,0 +1,33 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    // Kept deliberately in step with frontend/tsconfig.json. This package
+    // exports its TypeScript source rather than a built bundle, so a consumer
+    // typechecks these files under ITS OWN settings — and `skipLibCheck` offers
+    // no shelter, since that only ever applied to declaration files. Any flag
+    // the consumer enables and this file does not is a wall of errors that
+    // surfaces in the consumer's build instead of here.
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "useUnknownInCatchVariables": true,
+    "verbatimModuleSyntax": true,
+    "forceConsistentCasingInFileNames": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules"]
+}

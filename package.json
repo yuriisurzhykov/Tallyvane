@@ -1,0 +1,17 @@
+{
+  "name": "tallyvane",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "pnpm@11.22.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "arch": "pnpm --recursive --if-present run arch",
+    "typecheck": "pnpm --recursive --if-present run typecheck",
+    "test": "pnpm --recursive --if-present run test",
+    "tokens:generate": "pnpm --filter tallyvane-frontend run tokens:generate",
+    "tokens:check": "pnpm --filter tallyvane-frontend run tokens:check"
+  },
+  "//": "Workspace root. Holds no source of its own — only the scripts that fan out across packages."
+}

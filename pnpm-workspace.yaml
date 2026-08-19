@@ -1,0 +1,17 @@
+packages:
+  - 'packages/*'
+  - 'frontend'
+
+# Install-time scripts are blocked unless a package appears here with an
+# explicit true or false. Leaving one out is not "allowed by default" — pnpm
+# treats an unanswered package as an error, so arbitrary code from a transitive
+# dependency cannot run on this machine just because someone added a package.
+#
+# esbuild: its install script places the native binary for the current
+#   platform. Pulled in by tsx and vitest; neither runs without it.
+allowBuilds:
+  esbuild: true
+
+# The extension is intentionally NOT a workspace member yet. It is a separate
+# build with its own toolchain, and adding it before it exists would only make
+# every install slower for no benefit.

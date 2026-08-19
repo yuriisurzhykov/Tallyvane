@@ -7,12 +7,25 @@
     "node": ">=22"
   },
   "scripts": {
-    "dev": "echo 'Not wired yet — Next.js arrives in milestone 0.' && exit 1",
-    "build": "echo 'Not wired yet — Next.js arrives in milestone 0.' && exit 1",
-    "typecheck": "echo 'Not wired yet — TypeScript arrives in milestone 0.' && exit 1",
-    "arch": "echo 'Not wired yet — Steiger, eslint-boundaries, dependency-cruiser and the custom validator arrive in milestone 0.' && exit 1",
-    "tokens:generate": "echo 'Not wired yet — the design-token compiler arrives in milestone 0.' && exit 1",
-    "tokens:check": "echo 'Not wired yet — the design-token compiler arrives in milestone 0.' && exit 1"
+    "dev": "echo 'Next is installed but has no root layout yet, so there is nothing to serve.' && exit 1",
+    "build": "echo 'Next is installed but has no root layout yet, so there is nothing to build.' && exit 1",
+    "typecheck": "tsc --noEmit",
+    "arch": "echo 'Not wired yet — Steiger, eslint-boundaries, dependency-cruiser and the custom validator arrive later in milestone 0.' && exit 1",
+    "tokens:generate": "tsx scripts/generate-design-tokens.ts",
+    "tokens:check": "tsx scripts/generate-design-tokens.ts --check"
   },
-  "//": "No dependencies on purpose. The script names are declared up front because the architecture refers to them by name; each one fails loudly rather than silently doing nothing."
+  "devDependencies": {
+    "@types/node": "^26",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "design-token-engine": "workspace:*",
+    "tsx": "^4",
+    "typescript": "^5"
+  },
+  "//": "design-token-engine is a devDependency on purpose: the compiler is build-time only and must never reach a bundle. Runtime consumers read the generated output instead.",
+  "dependencies": {
+    "next": "^16.3.1",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  }
 }
