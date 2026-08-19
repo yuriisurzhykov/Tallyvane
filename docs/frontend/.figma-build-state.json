@@ -1,0 +1,77 @@
+{
+  "runId": "tallyvane-ds-2026-08-18",
+  "fileKey": "w3TihjuFfkRnAgpOCcYPWw",
+  "fileUrl": "https://www.figma.com/design/w3TihjuFfkRnAgpOCcYPWw",
+  "planTier": "starter",
+  "constraints": {
+    "modesPerCollection": 1,
+    "consequence": "Light theme and density modes cannot exist as Figma modes. Dark only in Figma; light lives in code. Density becomes component variants."
+  },
+  "phase": "phase3-blocked",
+  "blocker": {
+    "reason": "Figma MCP tool call limit reached: Starter plan allows 20 calls per MONTH, not per day",
+    "resetsMonthly": true,
+    "unblockOptions": ["upgrade to Professional (200/day)", "wait for monthly reset", "build the screen in code instead"],
+    "remainingWork": ["IconButton", "NavItem", "ProgressMeter", "SectionHeader", "ActionCard", "Today screen", "set component-set backgrounds to surface/primary"]
+  },
+  "completedSteps": ["P0.a", "P0.b", "P0.c", "P0.d", "P0.e", "P0.f", "P1.a", "P1.b", "P1.c", "P1.d", "P1.e", "P1.f", "P1.g", "P1.h", "P2.a", "P2.b", "P2.c", "colour-pass", "P3.a", "P3.b"],
+  "fonts": {
+    "sans": { "family": "IBM Plex Sans", "styles": ["Regular", "Medium", "SemiBold"] },
+    "mono": { "family": "IBM Plex Mono", "styles": ["Regular"] }
+  },
+  "entities": {
+    "collections": {
+      "Primitives": { "id": "VariableCollectionId:3:2", "modeId": "3:0", "modeName": "Value" },
+      "Semantic": { "id": "VariableCollectionId:3:3", "modeId": "3:1", "modeName": "Dark" },
+      "Layout": { "id": "VariableCollectionId:3:4", "modeId": "3:2", "modeName": "Comfortable" }
+    },
+    "variableCounts": { "colorPrimitives": 49, "floatPrimitives": 32, "layoutRoles": 12, "semanticRoles": 33 },
+    "textStyles": {
+      "Display": "S:3445bd5f3b65a4b74724e99b136c02aa3cda1d4d,",
+      "Title 1": "S:8a1dc52c07e6174e6fd42000396f7365cb114f91,",
+      "Title 2": "S:3d40609085c56f4917ba81b4815438b63a1e5c0b,",
+      "Title 3": "S:8b2354c85b4969d1b568002e1285eddb4fbc17a8,",
+      "Body": "S:d3158ec66b647b35dc3200091744fd16f33b17b6,",
+      "Body Strong": "S:ea2d70260318b86028df19ec5628325ec4740fec,",
+      "Small": "S:0f7132de354c4e87eef1da3411d505ebe0e03548,",
+      "Small Strong": "S:16e0a5a118f2be0d1e4632097572a281bfc7d712,",
+      "Caption": "S:3e4371ceb30aa06e1aba90e455dad42d031078c3,",
+      "Overline": "S:312d56cee92c60fbbc322e31b3867e94837512fe,",
+      "Mono": "S:689878bc94d9cf37d4c6b7fac886731e6f9b3daa,"
+    },
+    "effectStyles": {
+      "Elevation 1": "S:7fa75a32d285ff28ab88e0f4d87835a1dad12436,",
+      "Elevation 2": "S:30bfaddc0decefaedaf915714876d44d8bc08ead,",
+      "Elevation 3": "S:59cab5c72d17c9886173d26e93d11809ec7e5f70,"
+    },
+    "pages": {
+      "Foundations": "0:1",
+      "Components": "7:4",
+      "Today": "7:5"
+    },
+    "foundationsRootFrame": "8:2",
+    "components": {
+      "Badge": { "setId": "11:17", "variants": ["Neutral", "Info", "Attention", "Success", "Danger"] },
+      "Button": { "setId": "12:10", "variants": ["Primary", "Secondary", "Ghost"] }
+    },
+    "extraTokensAddedDuringPhase3": {
+      "size/control": "VariableID:12:2",
+      "size/control-compact": "VariableID:12:3"
+    }
+  },
+  "colourPassApplied": {
+    "blue": "moved to slate, hue 205, saturation lowered",
+    "green": "moved to olive, hue 95, saturation lowered",
+    "red": "pinkness removed from the light steps"
+  },
+  "v1Scope": {
+    "components": ["Badge", "Button", "IconButton", "ActionCard", "NavItem", "ProgressMeter", "SectionHeader"],
+    "screens": ["Today"],
+    "depth": "base state plus key variants; the seven interaction states come after the look is approved"
+  },
+  "knownGaps": [
+    "alpha() expressions in code have no alias equivalent in Figma: the seven subtle roles carry baked-in alpha and must be updated by hand if the base colour changes",
+    "Light theme not represented in Figma",
+    "Density not represented as a mode"
+  ]
+}

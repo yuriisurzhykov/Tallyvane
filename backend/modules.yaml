@@ -1,0 +1,89 @@
+# Authoritative manifest of who may depend on whom.
+#
+# The Gradle graph is checked against this file by the `validateModuleGraph`
+# task. Any deviation fails the build — an undeclared dependency and a declared
+# but unused one are both errors. The point is that gaining access to another
+# module is a visible line in a diff, not a quiet import.
+#
+# See ARCHITECTURE.md section 15.2.
+
+layers:
+  contract:       [platform:kernel, platform:events]
+  domain:         [platform:kernel]
+  application:    [own:domain, own:contract, platform:kernel, platform:events, any:contract]
+  infrastructure: [own:application, own:contract, "platform:*"]
+  web:            [own:application, own:contract, platform:http]
+
+platform:
+  kernel:        { depends: [] }
+  events:        { depends: [platform:kernel] }
+  persistence:   { depends: [platform:kernel] }
+  http:          { depends: [platform:kernel] }
+  outbox:        { depends: [platform:kernel, platform:persistence] }
+  llm:           { depends: [platform:kernel] }
+  storage:       { depends: [platform:kernel] }
+  exec:          { depends: [platform:kernel] }
+  observability: { depends: [platform:kernel] }
+
+# Modules that exist in the build today.
+modules: {}
+
+# Modules that are designed but not yet created. Listed here so the intended
+# shape is reviewable before any code exists, and so `reads` conflicts surface
+# on paper rather than after the fact. Moving an entry from `planned` to
+# `modules` is what makes it real.
+planned:
+  identity:
+    layers: [contract, domain, application, infrastructure, web]
+    reads: []
+    publishes: []
+  jobs:
+    layers: [contract, domain, application, infrastructure, web]
+    reads: [identity]
+    publishes: [JobSaved, JobUpdated]
+  capture:
+    layers: [contract, application, infrastructure, web]
+    reads: [jobs, identity]
+    publishes: []
+  applications:
+    layers: [contract, domain, application, infrastructure, web]
+    reads: [jobs, documents, identity]
+    publishes: [ApplicationSubmitted, StatusAdvanced, InterviewScheduled]
+  contacts:
+    layers: [contract, domain, application, infrastructure, web]
+    reads: [jobs, identity]
+    publishes: [ConnectionSent, MessageLogged]
+  documents:
+    layers: [contract, domain, application, infrastructure, web]
+    reads: [identity]
+    publishes: []
+  resume:
+    layers: [contract, domain, application, infrastructure, web]
+    reads: [jobs, documents]
+    publishes: [ResumeRendered]
+  compensation:
+    layers: [contract, domain, application, infrastructure, web]
+    reads: [identity]
+    publishes: []
+  briefing:
+    layers: [domain, application, infrastructure, web]
+    reads: [jobs, applications, contacts, documents, compensation]
+    publishes: []
+  reminders:
+    layers: [contract, domain, application, infrastructure, web]
+    reads: [applications, contacts]
+    publishes: []
+    subscribes: ["*"]
+  analytics:
+    layers: [application, infrastructure, web]
+    reads: []
+    publishes: []
+    subscribes: ["*"]
+  content:
+    layers: [contract, domain, application, infrastructure, web]
+    reads: [identity]
+    publishes: [ContentPublished]
+  mailbox:
+    layers: [domain, application, infrastructure, web]
+    reads: [applications, contacts]
+    publishes: [MessageLogged]

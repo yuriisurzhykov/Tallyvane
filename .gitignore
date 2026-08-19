@@ -1,0 +1,51 @@
+# ---------- OS ----------
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---------- Editors ----------
+.idea/
+*.iml
+*.iws
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# ---------- Gradle / JVM ----------
+.gradle/
+build/
+out/
+.idea/
+*.class
+*.hprof
+local.properties
+
+# ---------- Node ----------
+node_modules/
+.next/
+.turbo/
+dist/
+coverage/
+*.tsbuildinfo
+.npm/
+.pnpm-store/
+
+# ---------- Environment and secrets ----------
+# Never commit real values. `.env.example` documents the shape and IS tracked.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+secrets/
+
+# ---------- Local runtime artefacts ----------
+*.log
+tmp/
+.cache/
+
+# ---------- Deliberately NOT ignored ----------
+# frontend/src/shared/ui/theme/generated/  — compiled design tokens are committed
+#   on purpose; `tokens:check` verifies they match a fresh compile.
+# docs/openapi.yaml                        — the API contract is a source, not an output.

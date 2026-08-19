@@ -1,0 +1,27 @@
+# Normalise line endings on the way into the repository. Without this, a
+# Windows checkout commits CRLF and every diff on a Linux CI looks like a
+# whole-file rewrite.
+* text=auto eol=lf
+
+# Files that must keep platform-native endings to stay executable.
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
+*.ps1  text eol=crlf
+gradlew text eol=lf
+
+# Binary — never diffed, never line-ending converted.
+*.jar   binary
+*.png   binary
+*.jpg   binary
+*.webp  binary
+*.avif  binary
+*.pdf   binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.otf   binary
+
+# Generated artefacts: tracked, but collapsed in review so they do not drown
+# a diff. They are still verified by `tokens:check`.
+frontend/src/shared/ui/theme/generated/** linguist-generated=true
+data/blocks/**                            linguist-generated=true
