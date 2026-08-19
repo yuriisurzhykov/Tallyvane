@@ -36,6 +36,8 @@ jobs:
 
       - uses: ./.github/actions/prepare-workspace
       - uses: ./.github/actions/setup-playwright
+        with:
+          module: frontend-web
 
       # Playwright builds and starts the app itself, through the `webServer`
       # entry in its config, so there is no separate build step to keep in step

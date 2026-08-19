@@ -1,11 +1,30 @@
 name: Setup Playwright
 description: Installs the browser the suites actually compare against. Only workflows that run Playwright need it.
 
+inputs:
+  module:
+    description: >-
+      Any workspace member that has `@playwright/test` as a dependency, e.g.
+      `frontend-web` — a path relative to the repository root, used only to
+      give pnpm a package to run the `playwright` binary through. The browser
+      binaries themselves land in a shared cache, not inside that package, so
+      installing "for" one module still covers every suite that runs on the
+      same runner.
+    required: true
+
 runs:
   using: composite
   steps:
     # Chromium alone. The visual baselines are Linux-Chromium by convention, so
     # installing the other engines would cost minutes per run and produce no
     # verdict anything compares against.
-    - run: pnpm --filter tallyvane-frontend-web exec playwright install --with-deps chromium
+    #
+    # `--filter "./$MODULE"` selects by directory rather than by package.json
+    # `name`, and `$MODULE` is bash expanding its own environment variable —
+    # not `${{ }}` text spliced into the generated script — for the same
+    # injection reason `regenerate-baselines/action.yml` expands its inputs
+    # this way.
+    - run: pnpm --filter "./$MODULE" exec playwright install --with-deps chromium
       shell: bash
+      env:
+        MODULE: ${{ inputs.module }}

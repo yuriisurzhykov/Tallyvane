@@ -1,0 +1,54 @@
+name: Regenerate baselines
+description: >-
+  Regenerates a workspace member's Playwright visual baselines and commits
+  them to the current branch if anything actually changed. Package-agnostic
+  on purpose: `module` is the only thing naming which app or package this
+  runs against, so a second visual suite (frontend-admin,
+  packages/frontend-shared, ...) getting one is a new caller of this action,
+  not a change to it.
+
+inputs:
+  module:
+    description: >-
+      Workspace member whose baselines to regenerate, e.g. `frontend-web` or
+      `packages/frontend-shared` — a path relative to the repository root,
+      not a package.json `name`. Must have a `test:visual:update` script and
+      a `tests/visual-snapshots` directory, following the same convention
+      `frontend-web` already does; if it doesn't, the first step below fails
+      loudly, the normal `pnpm` way, rather than silently doing nothing.
+    required: true
+  head-ref:
+    description: Branch to push the regenerated baselines to.
+    required: true
+
+outputs:
+  changed:
+    description: "'true' if any baseline actually changed and was pushed, 'false' otherwise."
+    value: ${{ steps.commit.outputs.changed }}
+
+runs:
+  using: composite
+  steps:
+    - name: Regenerate baselines
+      # `working-directory` is a plain path value the runner uses directly,
+      # not text spliced into a shell script — unlike a `run:` step, it is
+      # safe to source from a caller-supplied input, even one that ultimately
+      # traces back to attacker-reachable text (a PR comment, for this
+      # action's current caller).
+      working-directory: ${{ inputs.module }}
+      run: pnpm run test:visual:update
+      shell: bash
+
+    - name: Commit and push
+      id: commit
+      # `$MODULE`/`$HEAD_REF` are bash expanding their OWN environment
+      # variables at run time — the run: text itself is fixed, unlike
+      # `${{ }}`, which would splice a caller-supplied string directly into
+      # the generated script and reopen exactly the risk `working-directory`
+      # above is exempt from. See commit-baselines.sh for what it does with
+      # the resulting path.
+      run: bash .github/scripts/commit-baselines.sh "$MODULE/tests/visual-snapshots"
+      shell: bash
+      env:
+        HEAD_REF: ${{ inputs.head-ref }}
+        MODULE: ${{ inputs.module }}
