@@ -12,6 +12,14 @@
 # so a second Playwright suite (e.g. frontend-admin's, once it has one) is a
 # second argument at the call site, not a change here.
 #
+# `/update-snapshots frontend-web` and `/update-snapshots packages/storybook`
+# commented close together start two independent workflow runs that both
+# resolve the same `head_sha` and both end up here — whichever pushes first
+# wins, and the other's plain `git push` would be rejected as a non-fast-forward.
+# The retry loop below is safe specifically because it is a rebase, not a
+# force-push: each module writes only under its own `tests/visual-snapshots/`,
+# so replaying this commit onto whatever the branch became is conflict-free.
+#
 # Environment: HEAD_REF — the branch to push to, resolved by the guard step.
 set -euo pipefail
 
@@ -35,5 +43,16 @@ if git diff --cached --quiet; then
 fi
 
 git commit -m "chore: accept visual baselines (via /update-snapshots)"
-git push origin "HEAD:${HEAD_REF}"
+
+attempt=1
+max_attempts=5
+while ! git push origin "HEAD:${HEAD_REF}"; do
+    if [ "$attempt" -ge "$max_attempts" ]; then
+        echo "::error::Still rejected after $max_attempts rebase attempts against ${HEAD_REF} — a real conflict, not just a race." >&2
+        exit 1
+    fi
+    git fetch origin "${HEAD_REF}"
+    git rebase FETCH_HEAD
+    attempt=$((attempt + 1))
+done
 echo "changed=true" >> "$GITHUB_OUTPUT"

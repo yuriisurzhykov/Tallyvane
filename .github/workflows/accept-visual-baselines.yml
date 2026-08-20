@@ -95,6 +95,11 @@ jobs:
         uses: actions/checkout@v7
         with:
           ref: ${{ needs.guard.outputs.head_sha }}
+          # Full history, not the default shallow depth-1: `commit-baselines.sh`
+          # rebases onto `head_ref` if a concurrent /update-snapshots run for a
+          # different module pushed first, and rebase needs a real merge-base
+          # with that branch's tip, not just this one checked-out commit.
+          fetch-depth: 0
 
       - uses: ./.github/actions/prepare-workspace
       - uses: ./.github/actions/setup-playwright

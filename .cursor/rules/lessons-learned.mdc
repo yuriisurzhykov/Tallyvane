@@ -128,21 +128,6 @@ description: The rules-log file for all the lessons learned during working on th
   behaviour (rewrite mismatches, create missing) — the fix is only ordering,
   not a semantic change.
 
-### CI, GitHub Actions and baseline scripts
-
-- **A path-shaped string is not the same claim as an existing path.**
-  `baseline-request-guard.mjs`'s `MODULE_PATTERN` regex only rejects shell
-  metacharacters; it happily accepts `storybook` (the package.json `name`,
-  read off `packages/storybook/README.md`'s own `pnpm --filter
-  tallyvane-storybook` examples) as if it were the actual directory
-  `packages/storybook`. The guard job's checkout is sparse and pinned to the
-  default branch, so it cannot `fs.existsSync` its way to a real answer —
-  existence has to be checked against the pull request's own tree, over the
-  Contents API by `head.sha`, not the file system. Left unchecked, the
-  malformed value survives all the way to `working-directory: storybook` in
-  the next job and fails there as a bare `bash: No such file or directory`,
-  three jobs removed from the actual mistake.
-
 ### Lint, architecture rules and the toolchain
 
 - **pnpm resolves a workspace package as a symlink to its source, not into
