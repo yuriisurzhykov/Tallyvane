@@ -146,7 +146,7 @@ never mutates.
 | Component | Purpose | Base | Env |
 | --- | --- | --- | --- |
 | `Button` | Tones: `primary` (monochrome, per ADR-029), `neutral`, `ghost`, `danger`. Sizes, loading state, leading/trailing icon slots. | Base UI | server |
-| `IconButton` | Icon-only; an accessible label is a required prop, not an optional one. | Base UI | server |
+| `IconButton` | Icon-only; an accessible label is a required prop, not an optional one. Tones `primary`/`neutral`/`ghost`/`danger` mirror `Button`'s; sizes `sm`/`md`/`lg` render as an equal-width/height square via the `control` height role. | — | server |
 | `Link` | Inline navigation, and the `render` target when a button must be an anchor. | — | server |
 | `SkipLink` | Visually hidden until focused, then jumps to the main landmark. One look, one job, no variants — required once by `AppShell`, WCAG 2.4.1. | — | server |
 | `Toggle` / `ToggleGroup` | Two-state and exclusive-choice buttons: density, table-versus-board, theme. | Base UI | client |

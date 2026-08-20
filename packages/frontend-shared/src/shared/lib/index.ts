@@ -5,4 +5,5 @@
  * The architecture bans utility dumping grounds outright, so a module landing
  * here needs a reason beyond "it did not fit elsewhere".
  */
-export {};
+export { cn } from "./utils";
+export { isSafeRelativePath } from "./safe-relative-path";
