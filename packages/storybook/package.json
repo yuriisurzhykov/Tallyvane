@@ -14,7 +14,7 @@
     "test:a11y": "pnpm run build-storybook && playwright test --project=desktop a11y.spec.ts",
     "test:contrast": "pnpm run build-storybook && playwright test --project=desktop contrast-wcag.spec.ts contrast-apca.spec.ts",
     "test:visual": "pnpm run build-storybook && playwright test --project=desktop --project=tablet --project=mobile visual.spec.ts",
-    "test:visual:update": "pnpm run build-storybook && playwright test --update-snapshots visual.spec.ts",
+    "test:visual:update": "pnpm run build-storybook && playwright test visual.spec.ts --update-snapshots",
     "test:e2e": "pnpm run build-storybook && playwright test"
   },
   "dependencies": {

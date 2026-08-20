@@ -118,6 +118,30 @@ description: The rules-log file for all the lessons learned during working on th
 - **`exactOptionalPropertyTypes` forbids assigning `undefined`** to an optional
   property. Use conditional spreading (`...(cond ? { key: value } : {})`) rather
   than assigning `undefined` and hoping.
+- **`playwright test --update-snapshots <pattern>` silently eats `<pattern>`
+  as the flag's own optional `[mode]` argument** — commander.js (`--update-snapshots`
+  accepts `all|changed|missing|none`) greedily binds the very next token,
+  so `<pattern>` never reaches the test filter and instead fails with
+  `argument '<pattern>' is invalid` ([microsoft/playwright#36297](https://github.com/microsoft/playwright/issues/36297)).
+  Put the positional pattern before the flag: `playwright test <pattern>
+  --update-snapshots`. Omitting the mode value keeps the default `changed`
+  behaviour (rewrite mismatches, create missing) — the fix is only ordering,
+  not a semantic change.
+
+### CI, GitHub Actions and baseline scripts
+
+- **A path-shaped string is not the same claim as an existing path.**
+  `baseline-request-guard.mjs`'s `MODULE_PATTERN` regex only rejects shell
+  metacharacters; it happily accepts `storybook` (the package.json `name`,
+  read off `packages/storybook/README.md`'s own `pnpm --filter
+  tallyvane-storybook` examples) as if it were the actual directory
+  `packages/storybook`. The guard job's checkout is sparse and pinned to the
+  default branch, so it cannot `fs.existsSync` its way to a real answer —
+  existence has to be checked against the pull request's own tree, over the
+  Contents API by `head.sha`, not the file system. Left unchecked, the
+  malformed value survives all the way to `working-directory: storybook` in
+  the next job and fails there as a bare `bash: No such file or directory`,
+  three jobs removed from the actual mistake.
 
 ### Lint, architecture rules and the toolchain
 

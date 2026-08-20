@@ -40,6 +40,30 @@ export async function api(path, { method = "GET", body } = {}) {
     return response.status === 204 ? null : response.json();
 }
 
+/**
+ * Like `api`, but a 404 resolves to `null` instead of throwing — for callers
+ * that need to distinguish "does not exist" from every other failure, which
+ * still throws normally.
+ */
+export async function apiGetOrNull(path) {
+    const token = process.env.GITHUB_TOKEN;
+    if (!token) throw new Error("GITHUB_TOKEN is not set — the workflow step must pass it through `env`.");
+
+    const response = await fetch(`${API}${path}`, {
+        headers: {
+            authorization: `Bearer ${token}`,
+            accept: "application/vnd.github+json",
+            "x-github-api-version": "2022-11-28",
+        },
+    });
+
+    if (response.status === 404) return null;
+    if (!response.ok) {
+        throw new Error(`GET ${path} responded ${response.status}: ${await response.text()}`);
+    }
+    return response.json();
+}
+
 /** Reads an environment variable a script cannot run without, rather than proceeding with `undefined` and failing later somewhere confusing. */
 export function required(name) {
     const value = process.env[name];
