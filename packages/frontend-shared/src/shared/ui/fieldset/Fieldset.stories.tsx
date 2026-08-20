@@ -1,4 +1,5 @@
 import { Fieldset, type FieldsetProps } from "./Fieldset";
+import { Text } from "../text";
 
 /**
  * `@storybook/react-vite`'s types live in `packages/storybook`'s own
@@ -28,12 +29,12 @@ export const Default: Story<FieldsetProps> = {
         legend: "Notification preferences",
         children: (
             <>
-                <label>
+                <Text variant="body" render={<label />}>
                     <input type="checkbox" /> Email alerts
-                </label>
-                <label>
+                </Text>
+                <Text variant="body" render={<label />}>
                     <input type="checkbox" /> SMS alerts
-                </label>
+                </Text>
             </>
         ),
     },

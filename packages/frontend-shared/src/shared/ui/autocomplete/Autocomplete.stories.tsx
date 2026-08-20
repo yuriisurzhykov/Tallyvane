@@ -32,7 +32,7 @@ export default meta;
 export const Default: Story = {
     render: () => (
         <Autocomplete.Root items={ JOB_TITLES }>
-            <label htmlFor="autocomplete-title">Job title</label>
+            <Autocomplete.Label htmlFor="autocomplete-title">Job title</Autocomplete.Label>
             <Autocomplete.InputGroup>
                 <Autocomplete.Input id="autocomplete-title" placeholder="e.g. Software Engineer"/>
                 <Autocomplete.Clear label="Clear job title"/>
@@ -55,7 +55,7 @@ export const Default: Story = {
 export const WithDefaultValue: Story = {
     render: () => (
         <Autocomplete.Root items={ JOB_TITLES } defaultValue="Staff Engineer">
-            <label htmlFor="autocomplete-title-default">Job title</label>
+            <Autocomplete.Label htmlFor="autocomplete-title-default">Job title</Autocomplete.Label>
             <Autocomplete.InputGroup>
                 <Autocomplete.Input id="autocomplete-title-default" placeholder="e.g. Software Engineer"/>
                 <Autocomplete.Clear label="Clear job title"/>
@@ -77,7 +77,7 @@ export const WithDefaultValue: Story = {
 export const FreeTextNotInList: Story = {
     render: () => (
         <Autocomplete.Root items={ JOB_TITLES } defaultValue="Head of Platform Engineering">
-            <label htmlFor="autocomplete-title-freetext">Job title</label>
+            <Autocomplete.Label htmlFor="autocomplete-title-freetext">Job title</Autocomplete.Label>
             <Autocomplete.InputGroup>
                 <Autocomplete.Input id="autocomplete-title-freetext" placeholder="e.g. Software Engineer"/>
                 <Autocomplete.Clear label="Clear job title"/>
@@ -102,7 +102,7 @@ export const Sizes: Story = {
         <div className="flex flex-col items-start gap-stack">
             { (["sm", "md", "lg"] as const).map((size) => (
                 <Autocomplete.Root key={ size } items={ JOB_TITLES }>
-                    <label htmlFor={ `autocomplete-title-${ size }` }>{ `Job title (${ size })` }</label>
+                    <Autocomplete.Label htmlFor={ `autocomplete-title-${ size }` }>{ `Job title (${ size })` }</Autocomplete.Label>
                     <Autocomplete.InputGroup size={ size }>
                         <Autocomplete.Input id={ `autocomplete-title-${ size }` } placeholder="e.g. Software Engineer"/>
                         <Autocomplete.Clear label="Clear job title"/>
@@ -126,7 +126,7 @@ export const Sizes: Story = {
 export const Grouped: Story = {
     render: () => (
         <Autocomplete.Root items={ RECENT_GROUPS }>
-            <label htmlFor="autocomplete-title-grouped">Job title</label>
+            <Autocomplete.Label htmlFor="autocomplete-title-grouped">Job title</Autocomplete.Label>
             <Autocomplete.InputGroup>
                 <Autocomplete.Input id="autocomplete-title-grouped" placeholder="e.g. Software Engineer"/>
                 <Autocomplete.Clear label="Clear job title"/>
@@ -156,7 +156,7 @@ export const Grouped: Story = {
 export const Disabled: Story = {
     render: () => (
         <Autocomplete.Root items={ JOB_TITLES } disabled>
-            <label htmlFor="autocomplete-title-disabled">Job title</label>
+            <Autocomplete.Label htmlFor="autocomplete-title-disabled">Job title</Autocomplete.Label>
             <Autocomplete.InputGroup>
                 <Autocomplete.Input id="autocomplete-title-disabled" placeholder="e.g. Software Engineer"/>
                 <Autocomplete.Clear label="Clear job title"/>

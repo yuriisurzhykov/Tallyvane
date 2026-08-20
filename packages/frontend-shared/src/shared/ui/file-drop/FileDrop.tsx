@@ -168,7 +168,7 @@ export function FileDrop({
     return (
         <div
             className={ [CLASS_NAME, className].filter(Boolean).join(" ") }
-            { ...(disabled ? { "data-disabled": "" } : {}) }
+            { ...(disabled ? { "data-disabled": "", "aria-disabled": "true" as const } : {}) }
             { ...(isDraggingOver ? { "data-dragging-over": "" } : {}) }
             onClick={ openFileDialog }
             onDragEnter={ handleDragEnter }

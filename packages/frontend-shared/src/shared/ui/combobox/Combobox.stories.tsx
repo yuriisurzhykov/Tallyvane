@@ -32,7 +32,7 @@ export default meta;
 export const Default: Story = {
     render: () => (
         <Combobox.Root items={ COMPANIES }>
-            <label htmlFor="combobox-company">Company</label>
+            <Combobox.Label htmlFor="combobox-company">Company</Combobox.Label>
             <Combobox.InputGroup>
                 <Combobox.Input id="combobox-company" placeholder="Search companies"/>
                 <Combobox.Clear label="Clear company"/>
@@ -55,7 +55,7 @@ export const Default: Story = {
 export const WithDefaultValue: Story = {
     render: () => (
         <Combobox.Root items={ COMPANIES } defaultValue="Globex">
-            <label htmlFor="combobox-company-default">Company</label>
+            <Combobox.Label htmlFor="combobox-company-default">Company</Combobox.Label>
             <Combobox.InputGroup>
                 <Combobox.Input id="combobox-company-default" placeholder="Search companies"/>
                 <Combobox.Clear label="Clear company"/>
@@ -80,7 +80,7 @@ export const Sizes: Story = {
         <div className="flex flex-col items-start gap-stack">
             { (["sm", "md", "lg"] as const).map((size) => (
                 <Combobox.Root key={ size } items={ COMPANIES }>
-                    <label htmlFor={ `combobox-company-${ size }` }>{ `Company (${ size })` }</label>
+                    <Combobox.Label htmlFor={ `combobox-company-${ size }` }>{ `Company (${ size })` }</Combobox.Label>
                     <Combobox.InputGroup size={ size }>
                         <Combobox.Input id={ `combobox-company-${ size }` } placeholder="Search companies"/>
                         <Combobox.Clear label="Clear company"/>
@@ -105,7 +105,7 @@ export const Sizes: Story = {
 export const Grouped: Story = {
     render: () => (
         <Combobox.Root items={ RECENT_GROUPS }>
-            <label htmlFor="combobox-company-grouped">Company</label>
+            <Combobox.Label htmlFor="combobox-company-grouped">Company</Combobox.Label>
             <Combobox.InputGroup>
                 <Combobox.Input id="combobox-company-grouped" placeholder="Search companies"/>
                 <Combobox.Clear label="Clear company"/>
@@ -136,7 +136,7 @@ export const Grouped: Story = {
 export const Disabled: Story = {
     render: () => (
         <Combobox.Root items={ COMPANIES } disabled>
-            <label htmlFor="combobox-company-disabled">Company</label>
+            <Combobox.Label htmlFor="combobox-company-disabled">Company</Combobox.Label>
             <Combobox.InputGroup>
                 <Combobox.Input id="combobox-company-disabled" placeholder="Search companies"/>
                 <Combobox.Clear label="Clear company"/>

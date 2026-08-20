@@ -1,4 +1,5 @@
 import { Accordion } from "./Accordion";
+import { Text } from "../text";
 
 /**
  * `@storybook/react-vite`'s types live in `packages/storybook`'s own
@@ -38,6 +39,7 @@ const meta: StoryMeta = {
 };
 export default meta;
 
+// `Accordion.Panel` deliberately forces no typography of its own (see its own comment) — each answer's text is wrapped in `Text` here, matching what a real FAQ answer would render.
 export const SingleOpen: Story = {
     render: () => (
         <Accordion.Root defaultValue={ ["billing"] }>
@@ -45,19 +47,19 @@ export const SingleOpen: Story = {
                 <Accordion.Header>
                     <Accordion.Trigger>How does billing work?</Accordion.Trigger>
                 </Accordion.Header>
-                <Accordion.Panel>Monthly, cancel anytime.</Accordion.Panel>
+                <Accordion.Panel><Text variant="body">Monthly, cancel anytime.</Text></Accordion.Panel>
             </Accordion.Item>
             <Accordion.Item value="export">
                 <Accordion.Header>
                     <Accordion.Trigger>Can I export my data?</Accordion.Trigger>
                 </Accordion.Header>
-                <Accordion.Panel>Yes, as CSV or JSON.</Accordion.Panel>
+                <Accordion.Panel><Text variant="body">Yes, as CSV or JSON.</Text></Accordion.Panel>
             </Accordion.Item>
             <Accordion.Item value="support" disabled>
                 <Accordion.Header>
                     <Accordion.Trigger>Enterprise support (unavailable)</Accordion.Trigger>
                 </Accordion.Header>
-                <Accordion.Panel>Not offered on this plan.</Accordion.Panel>
+                <Accordion.Panel><Text variant="body">Not offered on this plan.</Text></Accordion.Panel>
             </Accordion.Item>
         </Accordion.Root>
     ),
@@ -70,13 +72,13 @@ export const MultipleOpen: Story = {
                 <Accordion.Header>
                     <Accordion.Trigger>How does billing work?</Accordion.Trigger>
                 </Accordion.Header>
-                <Accordion.Panel>Monthly, cancel anytime.</Accordion.Panel>
+                <Accordion.Panel><Text variant="body">Monthly, cancel anytime.</Text></Accordion.Panel>
             </Accordion.Item>
             <Accordion.Item value="export">
                 <Accordion.Header>
                     <Accordion.Trigger>Can I export my data?</Accordion.Trigger>
                 </Accordion.Header>
-                <Accordion.Panel>Yes, as CSV or JSON.</Accordion.Panel>
+                <Accordion.Panel><Text variant="body">Yes, as CSV or JSON.</Text></Accordion.Panel>
             </Accordion.Item>
         </Accordion.Root>
     ),
@@ -97,7 +99,7 @@ export const WithIndicator: Story = {
                         ) }
                     />
                 </Accordion.Header>
-                <Accordion.Panel>Monthly, cancel anytime.</Accordion.Panel>
+                <Accordion.Panel><Text variant="body">Monthly, cancel anytime.</Text></Accordion.Panel>
             </Accordion.Item>
         </Accordion.Root>
     ),

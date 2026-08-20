@@ -26,7 +26,7 @@ export default meta;
 export const Default: Story = {
     render: () => (
         <PercentField.Root id="match-rate" locale="en-US" defaultValue={ 500 }>
-            <label htmlFor="match-rate">401(k) match rate</label>
+            <PercentField.Label htmlFor="match-rate">401(k) match rate</PercentField.Label>
             <PercentField.Group>
                 <PercentField.Decrement label="Decrease match rate"/>
                 <PercentField.Input/>
@@ -41,7 +41,7 @@ export const Sizes: Story = {
         <div className="flex flex-col items-start gap-stack">
             { (["sm", "md", "lg"] as const).map((size) => (
                 <PercentField.Root key={ size } id={ `vest-${ size }` } locale="en-US" defaultValue={ 250 }>
-                    <label htmlFor={ `vest-${ size }` }>Equity vested ({ size })</label>
+                    <PercentField.Label htmlFor={ `vest-${ size }` }>{ `Equity vested (${ size })` }</PercentField.Label>
                     <PercentField.Group size={ size }>
                         <PercentField.Decrement label="Decrease equity vested" size={ size }/>
                         <PercentField.Input/>
@@ -56,7 +56,7 @@ export const Sizes: Story = {
 export const OpenEndedOver100Percent: Story = {
     render: () => (
         <PercentField.Root id="match-rate-uncapped" locale="en-US" defaultValue={ 12500 } step={ 100 }>
-            <label htmlFor="match-rate-uncapped">401(k) match rate (no cap — some plans exceed 100%)</label>
+            <PercentField.Label htmlFor="match-rate-uncapped">401(k) match rate (no cap — some plans exceed 100%)</PercentField.Label>
             <PercentField.Group>
                 <PercentField.Decrement label="Decrease match rate"/>
                 <PercentField.Input/>
@@ -70,7 +70,7 @@ export const WithMinMax: Story = {
     render: () => (
         <PercentField.Root id="offer-probability" locale="en-US" defaultValue={ 4000 } min={ 0 } max={ 10000 }
                            step={ 500 }>
-            <label htmlFor="offer-probability">Estimated offer probability</label>
+            <PercentField.Label htmlFor="offer-probability">Estimated offer probability</PercentField.Label>
             <PercentField.Group>
                 <PercentField.Decrement label="Decrease estimated offer probability"/>
                 <PercentField.Input/>
@@ -83,7 +83,7 @@ export const WithMinMax: Story = {
 export const Disabled: Story = {
     render: () => (
         <PercentField.Root id="match-rate-disabled" locale="en-US" defaultValue={ 500 } disabled>
-            <label htmlFor="match-rate-disabled">401(k) match rate</label>
+            <PercentField.Label htmlFor="match-rate-disabled">401(k) match rate</PercentField.Label>
             <PercentField.Group>
                 <PercentField.Decrement label="Decrease match rate"/>
                 <PercentField.Input/>

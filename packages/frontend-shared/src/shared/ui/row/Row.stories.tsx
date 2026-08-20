@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Row, type SpacingRole } from "./Row";
+import { Text } from "../text";
 
 /** See `Logo.stories.tsx` for why this local shape stands in for CSF3's real types. */
 interface StoryMeta {
@@ -23,8 +24,8 @@ export default meta;
 
 const items = (
     <>
-        <span>Icon</span>
-        <span>Label</span>
+        <Text variant="body">Icon</Text>
+        <Text variant="body">Label</Text>
     </>
 );
 

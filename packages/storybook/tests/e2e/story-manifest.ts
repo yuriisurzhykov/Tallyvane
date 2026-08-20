@@ -18,6 +18,7 @@ import type { PageEntry } from "test-kit/types";
 interface StorybookIndexEntry {
     readonly id: string;
     readonly type?: string;
+    readonly tags?: readonly string[];
 }
 
 interface StorybookIndex {
@@ -25,6 +26,19 @@ interface StorybookIndex {
 }
 
 const STATIC_DIR = path.resolve(fileURLToPath(new URL(".", import.meta.url)), "..", "..", "storybook-static");
+
+/**
+ * A story tagged with this (`tags: [NO_VISIBLE_TEXT_TAG]` on the CSF3 export)
+ * is exempt from `defineApcaContrastSpecs`'s "at least one sample was
+ * measured" assertion — see `PageEntry.skipTextCheck`'s own comment for what
+ * that assertion is actually for and why a structurally textless story is a
+ * different case from it silently finding nothing on a page that should have
+ * text. A tag, not a `parameters` flag: `storybook build`'s `index.json` is
+ * generated statically from source without executing story modules, so
+ * `tags` (which the index already carries) is the only per-story metadata
+ * this file can read without loading each story's real module.
+ */
+export const NO_VISIBLE_TEXT_TAG = "no-visible-text";
 
 export function readStoryManifest(): readonly PageEntry[] {
     const indexPath = path.join(STATIC_DIR, "index.json");
@@ -39,5 +53,6 @@ export function readStoryManifest(): readonly PageEntry[] {
         .map((entry) => ({
             name: entry.id,
             path: `/iframe.html?id=${ entry.id }&viewMode=story`,
+            skipTextCheck: (entry.tags ?? []).includes(NO_VISIBLE_TEXT_TAG),
         }));
 }

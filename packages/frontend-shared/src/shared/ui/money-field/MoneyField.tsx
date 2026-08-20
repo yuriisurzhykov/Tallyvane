@@ -116,6 +116,7 @@ function Root({
  */
 export const MoneyField = {
     Root,
+    Label: NumberField.Label,
     Group: NumberField.Group,
     Input: NumberField.Input,
     Increment: NumberField.Increment,

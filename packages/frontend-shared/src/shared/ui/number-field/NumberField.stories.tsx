@@ -27,7 +27,7 @@ export default meta;
 export const Default: Story = {
     render: () => (
         <NumberField.Root id="years-experience" defaultValue={ 3 } min={ 0 } max={ 40 }>
-            <label htmlFor="years-experience">Years of experience</label>
+            <NumberField.Label htmlFor="years-experience">Years of experience</NumberField.Label>
             <NumberField.Group>
                 <NumberField.Decrement label="Decrease years of experience"/>
                 <NumberField.Input/>
@@ -42,7 +42,7 @@ export const Sizes: Story = {
         <div className="flex flex-col items-start gap-stack">
             { (["sm", "md", "lg"] as const).map((size) => (
                 <NumberField.Root key={ size } id={ `rounds-${ size }` } defaultValue={ 2 } min={ 0 }>
-                    <label htmlFor={ `rounds-${ size }` }>Interview rounds ({ size })</label>
+                    <NumberField.Label htmlFor={ `rounds-${ size }` }>{ `Interview rounds (${ size })` }</NumberField.Label>
                     <NumberField.Group size={ size }>
                         <NumberField.Decrement label="Decrease interview rounds" size={ size }/>
                         <NumberField.Input/>
@@ -57,7 +57,7 @@ export const Sizes: Story = {
 export const WithMinMax: Story = {
     render: () => (
         <NumberField.Root id="fit-rating" defaultValue={ 3 } min={ 1 } max={ 5 }>
-            <label htmlFor="fit-rating">Fit rating (1–5)</label>
+            <NumberField.Label htmlFor="fit-rating">Fit rating (1–5)</NumberField.Label>
             <NumberField.Group>
                 <NumberField.Decrement label="Decrease fit rating"/>
                 <NumberField.Input/>
@@ -70,7 +70,7 @@ export const WithMinMax: Story = {
 export const Disabled: Story = {
     render: () => (
         <NumberField.Root id="headcount-disabled" defaultValue={ 5 } disabled>
-            <label htmlFor="headcount-disabled">Headcount</label>
+            <NumberField.Label htmlFor="headcount-disabled">Headcount</NumberField.Label>
             <NumberField.Group>
                 <NumberField.Decrement label="Decrease headcount"/>
                 <NumberField.Input/>
@@ -84,7 +84,7 @@ export const WithScrubArea: Story = {
     render: () => (
         <NumberField.Root id="scrub-amount" defaultValue={ 100 }>
             <NumberField.ScrubArea>
-                <label htmlFor="scrub-amount">Amount (drag the label to scrub)</label>
+                <NumberField.Label htmlFor="scrub-amount">Amount (drag the label to scrub)</NumberField.Label>
             </NumberField.ScrubArea>
             <NumberField.Group>
                 <NumberField.Decrement label="Decrease amount"/>

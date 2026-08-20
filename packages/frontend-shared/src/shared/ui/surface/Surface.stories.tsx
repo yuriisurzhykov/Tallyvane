@@ -1,4 +1,6 @@
+import type { ReactNode } from "react";
 import { Surface } from "./Surface";
+import { Text } from "../text";
 
 /**
  * `@storybook/react-vite`'s `Meta`/`StoryObj` types are not resolvable from
@@ -14,7 +16,7 @@ interface StoryMeta {
 interface Story {
     readonly args: {
         readonly variant?: "primary" | "elevated" | "inset";
-        readonly children: string;
+        readonly children: ReactNode;
     };
 }
 
@@ -25,14 +27,15 @@ const meta: StoryMeta = {
 
 export default meta;
 
+// `Surface` renders `children` as-is ("caller decides" typography, same as `Panel`) — `Text` here demonstrates the intended real usage.
 export const Primary: Story = {
-    args: { variant: "primary", children: "Surface — primary" },
+    args: { variant: "primary", children: <Text variant="body">Surface — primary</Text> },
 };
 
 export const Elevated: Story = {
-    args: { variant: "elevated", children: "Surface — elevated" },
+    args: { variant: "elevated", children: <Text variant="body">Surface — elevated</Text> },
 };
 
 export const Inset: Story = {
-    args: { variant: "inset", children: "Surface — inset" },
+    args: { variant: "inset", children: <Text variant="body">Surface — inset</Text> },
 };

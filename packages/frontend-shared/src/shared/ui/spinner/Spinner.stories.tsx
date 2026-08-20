@@ -8,6 +8,8 @@ interface StoryMeta<TProps> {
 
 interface Story<TProps> {
     readonly args: TProps;
+    /** No visible text — with no `label`, only the `aria-hidden` ring renders. Opts out of the APCA suite's text-contrast check, which has nothing to measure here. */
+    readonly tags?: readonly string[];
 }
 
 const meta: StoryMeta<SpinnerProps> = {
@@ -16,7 +18,7 @@ const meta: StoryMeta<SpinnerProps> = {
 };
 export default meta;
 
-export const Small: Story<SpinnerProps> = { args: { size: "sm" } };
-export const Medium: Story<SpinnerProps> = { args: { size: "md" } };
-export const Large: Story<SpinnerProps> = { args: { size: "lg" } };
+export const Small: Story<SpinnerProps> = { args: { size: "sm" }, tags: ["no-visible-text"] };
+export const Medium: Story<SpinnerProps> = { args: { size: "md" }, tags: ["no-visible-text"] };
+export const Large: Story<SpinnerProps> = { args: { size: "lg" }, tags: ["no-visible-text"] };
 export const WithLabel: Story<SpinnerProps> = { args: { size: "lg", label: "Rendering PDF\u2026" } };

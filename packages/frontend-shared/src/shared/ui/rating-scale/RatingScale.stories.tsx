@@ -8,6 +8,8 @@ interface StoryMeta<TProps> {
 
 interface Story<TProps> {
     readonly args: TProps;
+    /** No visible text — `label`/`getValueLabel` only ever reach the DOM as `aria-label`s on the five dots. Opts out of the APCA suite's text-contrast check, which has nothing to measure here. */
+    readonly tags?: readonly string[];
 }
 
 const getValueLabel = (value: number) => `${ value } of 5`;
@@ -23,6 +25,7 @@ export const Unrated: Story<RatingScaleProps> = {
         label: "Interest level",
         getValueLabel,
     },
+    tags: ["no-visible-text"],
 };
 
 export const Rated: Story<RatingScaleProps> = {
@@ -31,6 +34,7 @@ export const Rated: Story<RatingScaleProps> = {
         getValueLabel,
         defaultValue: 4,
     },
+    tags: ["no-visible-text"],
 };
 
 export const Disabled: Story<RatingScaleProps> = {
@@ -40,4 +44,5 @@ export const Disabled: Story<RatingScaleProps> = {
         defaultValue: 3,
         disabled: true,
     },
+    tags: ["no-visible-text"],
 };

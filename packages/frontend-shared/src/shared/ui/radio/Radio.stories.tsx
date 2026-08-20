@@ -8,6 +8,8 @@ interface StoryMeta<TProps> {
 
 interface Story<TProps> {
     readonly args: TProps;
+    /** No visible text — named via `aria-label` alone. Opts out of the APCA suite's text-contrast check, which has nothing to measure here. */
+    readonly tags?: readonly string[];
 }
 
 const meta: StoryMeta<RadioProps> = {
@@ -27,6 +29,7 @@ export const Unselected: Story<RadioProps> = {
         "aria-label": "Remote",
         value: "remote",
     },
+    tags: ["no-visible-text"],
 };
 
 export const Invalid: Story<RadioProps> = {
@@ -35,6 +38,7 @@ export const Invalid: Story<RadioProps> = {
         value: "remote",
         "aria-invalid": "true",
     },
+    tags: ["no-visible-text"],
 };
 
 export const Disabled: Story<RadioProps> = {
@@ -43,4 +47,5 @@ export const Disabled: Story<RadioProps> = {
         value: "remote",
         disabled: true,
     },
+    tags: ["no-visible-text"],
 };

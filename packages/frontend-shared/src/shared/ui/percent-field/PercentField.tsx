@@ -114,6 +114,7 @@ function Root({
  */
 export const PercentField = {
     Root,
+    Label: NumberField.Label,
     Group: NumberField.Group,
     Input: NumberField.Input,
     Increment: NumberField.Increment,

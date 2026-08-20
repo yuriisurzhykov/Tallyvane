@@ -15,6 +15,8 @@ interface StoryMeta<TProps> {
 
 interface Story<TProps> {
     readonly args: TProps;
+    /** No visible text — icon-only, named via the required `label` (rendered as `aria-label`, not visible text). Opts out of the APCA suite's text-contrast check, which has nothing to measure here. */
+    readonly tags?: readonly string[];
 }
 
 /** A placeholder glyph — real icons arrive once `Icon`'s own API is decided (see `COMPONENTS.md` §13). */
@@ -32,15 +34,16 @@ const meta: StoryMeta<IconButtonProps> = {
 };
 export default meta;
 
-export const Primary: Story<IconButtonProps> = { args: { tone: "primary", label: "Add", children: <PlaceholderIcon /> } };
-export const Neutral: Story<IconButtonProps> = { args: { tone: "neutral", label: "Edit", children: <PlaceholderIcon /> } };
-export const Ghost: Story<IconButtonProps> = { args: { tone: "ghost", label: "More actions", children: <PlaceholderIcon /> } };
-export const Danger: Story<IconButtonProps> = { args: { tone: "danger", label: "Delete", children: <PlaceholderIcon /> } };
+export const Primary: Story<IconButtonProps> = { args: { tone: "primary", label: "Add", children: <PlaceholderIcon /> }, tags: ["no-visible-text"] };
+export const Neutral: Story<IconButtonProps> = { args: { tone: "neutral", label: "Edit", children: <PlaceholderIcon /> }, tags: ["no-visible-text"] };
+export const Ghost: Story<IconButtonProps> = { args: { tone: "ghost", label: "More actions", children: <PlaceholderIcon /> }, tags: ["no-visible-text"] };
+export const Danger: Story<IconButtonProps> = { args: { tone: "danger", label: "Delete", children: <PlaceholderIcon /> }, tags: ["no-visible-text"] };
 
-export const Small: Story<IconButtonProps> = { args: { tone: "neutral", size: "sm", label: "Edit", children: <PlaceholderIcon /> } };
-export const Medium: Story<IconButtonProps> = { args: { tone: "neutral", size: "md", label: "Edit", children: <PlaceholderIcon /> } };
-export const Large: Story<IconButtonProps> = { args: { tone: "neutral", size: "lg", label: "Edit", children: <PlaceholderIcon /> } };
+export const Small: Story<IconButtonProps> = { args: { tone: "neutral", size: "sm", label: "Edit", children: <PlaceholderIcon /> }, tags: ["no-visible-text"] };
+export const Medium: Story<IconButtonProps> = { args: { tone: "neutral", size: "md", label: "Edit", children: <PlaceholderIcon /> }, tags: ["no-visible-text"] };
+export const Large: Story<IconButtonProps> = { args: { tone: "neutral", size: "lg", label: "Edit", children: <PlaceholderIcon /> }, tags: ["no-visible-text"] };
 
 export const AsLink: Story<IconButtonProps> = {
     args: { tone: "ghost", label: "View job posting", render: <a href="/jobs/123" />, children: <PlaceholderIcon /> },
+    tags: ["no-visible-text"],
 };

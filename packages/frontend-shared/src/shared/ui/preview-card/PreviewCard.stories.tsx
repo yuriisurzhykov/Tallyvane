@@ -1,4 +1,5 @@
 import { PreviewCard } from "./PreviewCard";
+import { Text } from "../text";
 
 /**
  * `@storybook/react-vite`'s types live in `packages/storybook`'s own
@@ -23,12 +24,12 @@ export default meta;
 export const Default: Story = {
     render: () => (
         <PreviewCard.Root>
-            <PreviewCard.Trigger href="/jobs/123" className="text-interactive-primary-text underline">
+            <Text variant="body" className="text-interactive-primary-text underline" render={<PreviewCard.Trigger href="/jobs/123" />}>
                 Senior Platform Engineer at Acme Corp
-            </PreviewCard.Trigger>
+            </Text>
             <PreviewCard.Popup>
-                <p>Senior Platform Engineer</p>
-                <p>Acme Corp — Remote — $180k–$210k</p>
+                <Text variant="body">Senior Platform Engineer</Text>
+                <Text variant="body">Acme Corp — Remote — $180k–$210k</Text>
             </PreviewCard.Popup>
         </PreviewCard.Root>
     ),
@@ -37,13 +38,13 @@ export const Default: Story = {
 export const WithArrow: Story = {
     render: () => (
         <PreviewCard.Root>
-            <PreviewCard.Trigger href="/contacts/456" className="text-interactive-primary-text underline">
+            <Text variant="body" className="text-interactive-primary-text underline" render={<PreviewCard.Trigger href="/contacts/456" />}>
                 Jordan Blake
-            </PreviewCard.Trigger>
+            </Text>
             <PreviewCard.Popup side="bottom">
                 <PreviewCard.Arrow />
-                <p>Jordan Blake</p>
-                <p>Engineering Manager — met at conference</p>
+                <Text variant="body">Jordan Blake</Text>
+                <Text variant="body">Engineering Manager — met at conference</Text>
             </PreviewCard.Popup>
         </PreviewCard.Root>
     ),

@@ -33,6 +33,13 @@ export function defineApcaContrastSpecs(manifest: readonly PageEntry[]): void {
     for (const entry of manifest) {
         for (const theme of THEMES) {
             test(`${entry.name} @ ${theme} — contrast (APCA)`, async ({ page }, testInfo) => {
+                // `entry.skipTextCheck` marks a story as structurally unable to
+                // show text (a bare control with no label, a decorative
+                // primitive) — a known, different case from the assertion
+                // below, which exists to catch a walker silently finding
+                // nothing on a page that should have text.
+                test.skip(entry.skipTextCheck === true, "this story renders no visible text by design — see PageEntry.skipTextCheck");
+
                 await seedTheme(page, theme);
                 await page.goto(withThemeGlobal(entry.path, theme));
                 await page.waitForLoadState("networkidle");

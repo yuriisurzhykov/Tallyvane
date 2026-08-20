@@ -27,7 +27,7 @@ function TagPicker({ items, defaultValue }: { readonly items: readonly string[];
 
     return (
         <MultiSelect.Root items={ items } value={ value } onValueChange={ setValue }>
-            <label htmlFor={ inputId }>Tech tags</label>
+            <MultiSelect.Label htmlFor={ inputId }>Tech tags</MultiSelect.Label>
             <MultiSelect.InputGroup>
                 <MultiSelect.Chips>
                     <MultiSelect.Value>
@@ -77,16 +77,28 @@ export const ManyChipsWrap: Story = {
     render: () => <TagPicker items={ TECH_TAGS } defaultValue={ TECH_TAGS.slice(0, 6) }/>,
 };
 
+const TONES = ["neutral", "info", "attention", "success", "danger"] as const;
+
+/**
+ * `MultiSelect.Chip` composes Base UI's real `Combobox.Chip`, which throws
+ * (production error #22) without the `Combobox.Root`/`Chips` context it
+ * reads from — a bare `<div>` wrapper, this story's original shape, is not
+ * enough. `Root`'s own `items`/`value`/`onValueChange` are inert here (this
+ * story is a static tone swatch, not a real picker), but Base UI still
+ * requires the real context to exist around any `Chip`.
+ */
 export const Tones: Story = {
     render: () => (
-        <div className="flex flex-wrap gap-inline-tight">
-            { (["neutral", "info", "attention", "success", "danger"] as const).map((tone) => (
-                <MultiSelect.Chip key={ tone } tone={ tone }>
-                    { tone }
-                    <MultiSelect.ChipRemove label={ `Remove ${ tone }` }/>
-                </MultiSelect.Chip>
-            )) }
-        </div>
+        <MultiSelect.Root items={ TONES } value={ [] } onValueChange={ () => {} }>
+            <MultiSelect.Chips className="flex-wrap">
+                { TONES.map((tone) => (
+                    <MultiSelect.Chip key={ tone } tone={ tone }>
+                        { tone }
+                        <MultiSelect.ChipRemove label={ `Remove ${ tone }` }/>
+                    </MultiSelect.Chip>
+                )) }
+            </MultiSelect.Chips>
+        </MultiSelect.Root>
     ),
 };
 
@@ -97,7 +109,7 @@ export const AllowedStates: Story = {
 export const Disabled: Story = {
     render: () => (
         <MultiSelect.Root items={ TECH_TAGS } defaultValue={ ["React"] } disabled>
-            <label htmlFor="tags-disabled">Tech tags</label>
+            <MultiSelect.Label htmlFor="tags-disabled">Tech tags</MultiSelect.Label>
             <MultiSelect.InputGroup>
                 <MultiSelect.Chips>
                     <MultiSelect.Value>

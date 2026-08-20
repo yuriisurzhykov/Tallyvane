@@ -17,6 +17,7 @@
     "test:contrast:wcag": "playwright test --project=desktop contrast-wcag.spec.ts",
     "test:contrast:apca": "playwright test --project=desktop contrast-apca.spec.ts",
     "test:e2e": "playwright test",
+    "test:scoped": "node ../packages/test-kit/src/cli/run-scoped.mjs --ports=3100",
     "typecheck": "tsc --noEmit",
     "arch": "pnpm run tokens:check && pnpm run arch:fsd && pnpm run arch:graph",
     "arch:fsd": "steiger ./src",

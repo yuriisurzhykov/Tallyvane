@@ -8,6 +8,8 @@ interface StoryMeta<TProps> {
 
 interface Story<TProps> {
     readonly args: TProps;
+    /** No visible text — a placeholder shape carries no content by definition. Opts out of the APCA suite's text-contrast check, which has nothing to measure here. */
+    readonly tags?: readonly string[];
 }
 
 const meta: StoryMeta<SkeletonProps> = {
@@ -16,12 +18,13 @@ const meta: StoryMeta<SkeletonProps> = {
 };
 export default meta;
 
-export const TextLine: Story<SkeletonProps> = { args: {} };
-export const NarrowLine: Story<SkeletonProps> = { args: { className: "w-(--control-height-lg)" } };
-export const AvatarShaped: Story<SkeletonProps> = { args: { className: "h-(--control-height-lg) w-(--control-height-lg) rounded-pill" } };
+export const TextLine: Story<SkeletonProps> = { args: {}, tags: ["no-visible-text"] };
+export const NarrowLine: Story<SkeletonProps> = { args: { className: "w-(--control-height-lg)" }, tags: ["no-visible-text"] };
+export const AvatarShaped: Story<SkeletonProps> = { args: { className: "h-(--control-height-lg) w-(--control-height-lg) rounded-pill" }, tags: ["no-visible-text"] };
 export const CardShaped: Story<SkeletonProps> = {
     args: {
         className: "h-(--control-height-lg) rounded-card",
         style: { width: 320 }
-    }
+    },
+    tags: ["no-visible-text"],
 };

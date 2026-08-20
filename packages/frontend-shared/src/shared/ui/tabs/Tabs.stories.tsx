@@ -1,4 +1,5 @@
 import { Tabs } from "./Tabs";
+import { Text } from "../text";
 
 /**
  * `@storybook/react-vite`'s types live in `packages/storybook`'s own
@@ -22,6 +23,7 @@ const meta: StoryMeta = {
 };
 export default meta;
 
+// `Tabs.Panel` deliberately forces no typography of its own (`Tabs.tsx`'s own comment) — each panel's demo text is wrapped in `Text` here, matching what a real call site would render inside it.
 export const Horizontal: Story = {
     render: () => (
         <Tabs.Root>
@@ -33,9 +35,9 @@ export const Horizontal: Story = {
                 </Tabs.Tab>
                 <Tabs.Indicator/>
             </Tabs.List>
-            <Tabs.Panel value="pipeline">The pipeline table.</Tabs.Panel>
-            <Tabs.Panel value="board">The pipeline board.</Tabs.Panel>
-            <Tabs.Panel value="analytics">Analytics (unavailable on this plan).</Tabs.Panel>
+            <Tabs.Panel value="pipeline"><Text variant="body">The pipeline table.</Text></Tabs.Panel>
+            <Tabs.Panel value="board"><Text variant="body">The pipeline board.</Text></Tabs.Panel>
+            <Tabs.Panel value="analytics"><Text variant="body">Analytics (unavailable on this plan).</Text></Tabs.Panel>
         </Tabs.Root>
     ),
 };
@@ -48,8 +50,8 @@ export const Vertical: Story = {
                 <Tabs.Tab value="board">Board</Tabs.Tab>
                 <Tabs.Indicator/>
             </Tabs.List>
-            <Tabs.Panel value="pipeline">The pipeline table.</Tabs.Panel>
-            <Tabs.Panel value="board">The pipeline board.</Tabs.Panel>
+            <Tabs.Panel value="pipeline"><Text variant="body">The pipeline table.</Text></Tabs.Panel>
+            <Tabs.Panel value="board"><Text variant="body">The pipeline board.</Text></Tabs.Panel>
         </Tabs.Root>
     ),
 };
@@ -62,8 +64,8 @@ export const WithoutIndicator: Story = {
                 <Tabs.Tab value="pipeline">Pipeline</Tabs.Tab>
                 <Tabs.Tab value="board">Board</Tabs.Tab>
             </Tabs.List>
-            <Tabs.Panel value="pipeline">The pipeline table.</Tabs.Panel>
-            <Tabs.Panel value="board">The pipeline board.</Tabs.Panel>
+            <Tabs.Panel value="pipeline"><Text variant="body">The pipeline table.</Text></Tabs.Panel>
+            <Tabs.Panel value="board"><Text variant="body">The pipeline board.</Text></Tabs.Panel>
         </Tabs.Root>
     ),
 };

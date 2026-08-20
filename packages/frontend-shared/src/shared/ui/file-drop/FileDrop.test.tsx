@@ -77,6 +77,18 @@ describe("FileDrop", () => {
         expect(dropZone()).toHaveAttribute("data-disabled");
     });
 
+    // `aria-disabled`, not just `data-disabled`: the latter only drives the
+    // CSS opacity treatment. Without the former, a screen reader gets no
+    // signal the whole zone is inactive at all — and, per WCAG 1.4.3, only
+    // a real `aria-disabled`/`disabled` marks this text as an inactive
+    // component's, exempt from the 4.5:1 contrast minimum a `data-*`
+    // attribute axe doesn't recognise cannot claim.
+    it("marks the drop zone aria-disabled when disabled", () => {
+        renderFileDrop({ disabled: true });
+
+        expect(dropZone()).toHaveAttribute("aria-disabled", "true");
+    });
+
     it("reports the picked file, and shows its name, when chosen via the native input", () => {
         const { onFileChange } = renderFileDrop();
         const input = screen.getByLabelText("Browse files", { selector: "input" });

@@ -8,6 +8,8 @@ interface StoryMeta<TProps> {
 
 interface Story<TProps> {
     readonly args: TProps;
+    /** No visible text — named via `aria-label` alone. Opts out of the APCA suite's text-contrast check, which has nothing to measure here. */
+    readonly tags?: readonly string[];
 }
 
 const meta: StoryMeta<SliderProps> = {
@@ -23,6 +25,7 @@ export const Default: Story<SliderProps> = {
         min: 0,
         max: 20,
     },
+    tags: ["no-visible-text"],
 };
 
 export const AtMinimum: Story<SliderProps> = {
@@ -32,6 +35,7 @@ export const AtMinimum: Story<SliderProps> = {
         min: 0,
         max: 20,
     },
+    tags: ["no-visible-text"],
 };
 
 export const AtMaximum: Story<SliderProps> = {
@@ -41,6 +45,7 @@ export const AtMaximum: Story<SliderProps> = {
         min: 0,
         max: 20,
     },
+    tags: ["no-visible-text"],
 };
 
 export const Disabled: Story<SliderProps> = {
@@ -51,4 +56,5 @@ export const Disabled: Story<SliderProps> = {
         max: 20,
         disabled: true,
     },
+    tags: ["no-visible-text"],
 };

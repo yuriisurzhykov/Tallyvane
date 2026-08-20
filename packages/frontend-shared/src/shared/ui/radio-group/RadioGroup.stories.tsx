@@ -9,6 +9,8 @@ interface StoryMeta<TProps> {
 
 interface Story<TProps> {
     readonly args: TProps;
+    /** No visible text — every radio here is named via `aria-label` alone. Opts out of the APCA suite's text-contrast check, which has nothing to measure here. */
+    readonly tags?: readonly string[];
 }
 
 const meta: StoryMeta<RadioGroupProps> = {
@@ -29,6 +31,7 @@ export const WorkMode: Story<RadioGroupProps> = {
             </>
         ),
     },
+    tags: ["no-visible-text"],
 };
 
 export const Disabled: Story<RadioGroupProps> = {
@@ -44,4 +47,5 @@ export const Disabled: Story<RadioGroupProps> = {
             </>
         ),
     },
+    tags: ["no-visible-text"],
 };

@@ -12,6 +12,8 @@ interface Story {
         readonly ratio: number;
         readonly children: ReactNode;
     };
+    /** No visible text in this story — a plain colour swatch fills the box. Opts out of the APCA suite's text-contrast check, which has nothing to measure here. */
+    readonly tags?: readonly string[];
 }
 
 const meta: StoryMeta = {
@@ -26,6 +28,7 @@ export const Widescreen: Story = {
         ratio: 16 / 9,
         children: <div className="h-full w-full bg-surface-inset" />,
     },
+    tags: ["no-visible-text"],
 };
 
 export const Square: Story = {
@@ -33,4 +36,5 @@ export const Square: Story = {
         ratio: 1,
         children: <div className="h-full w-full bg-surface-inset" />,
     },
+    tags: ["no-visible-text"],
 };

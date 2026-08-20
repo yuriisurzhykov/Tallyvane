@@ -8,6 +8,8 @@ interface StoryMeta<TProps> {
 
 interface Story<TProps> {
     readonly args: TProps;
+    /** No visible text — named via `aria-label` alone. Opts out of the APCA suite's text-contrast check, which has nothing to measure here. */
+    readonly tags?: readonly string[];
 }
 
 const meta: StoryMeta<CheckboxProps> = {
@@ -20,6 +22,7 @@ export const Unchecked: Story<CheckboxProps> = {
     args: {
         "aria-label": "Remote only",
     },
+    tags: ["no-visible-text"],
 };
 
 export const Checked: Story<CheckboxProps> = {
@@ -27,6 +30,7 @@ export const Checked: Story<CheckboxProps> = {
         "aria-label": "Remote only",
         defaultChecked: true,
     },
+    tags: ["no-visible-text"],
 };
 
 export const Indeterminate: Story<CheckboxProps> = {
@@ -34,6 +38,7 @@ export const Indeterminate: Story<CheckboxProps> = {
         "aria-label": "Select all",
         indeterminate: true,
     },
+    tags: ["no-visible-text"],
 };
 
 export const Invalid: Story<CheckboxProps> = {
@@ -41,6 +46,7 @@ export const Invalid: Story<CheckboxProps> = {
         "aria-label": "Accept the terms",
         "aria-invalid": "true",
     },
+    tags: ["no-visible-text"],
 };
 
 export const Disabled: Story<CheckboxProps> = {
@@ -48,6 +54,7 @@ export const Disabled: Story<CheckboxProps> = {
         "aria-label": "Remote only",
         disabled: true,
     },
+    tags: ["no-visible-text"],
 };
 
 export const DisabledChecked: Story<CheckboxProps> = {
@@ -56,4 +63,5 @@ export const DisabledChecked: Story<CheckboxProps> = {
         disabled: true,
         defaultChecked: true,
     },
+    tags: ["no-visible-text"],
 };

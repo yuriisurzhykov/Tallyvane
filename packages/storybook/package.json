@@ -15,7 +15,8 @@
     "test:contrast": "pnpm run build-storybook && playwright test --project=desktop contrast-wcag.spec.ts contrast-apca.spec.ts",
     "test:visual": "pnpm run build-storybook && playwright test --project=desktop --project=tablet --project=mobile visual.spec.ts",
     "test:visual:update": "pnpm run build-storybook && playwright test visual.spec.ts --update-snapshots",
-    "test:e2e": "pnpm run build-storybook && playwright test"
+    "test:e2e": "pnpm run build-storybook && playwright test",
+    "test:scoped": "pnpm run build-storybook && node ../test-kit/src/cli/run-scoped.mjs --ports=6006,6007"
   },
   "dependencies": {
     "frontend-shared": "workspace:*",
