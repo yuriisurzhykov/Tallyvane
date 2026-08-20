@@ -60,7 +60,7 @@ export type IconButtonProps = useRender.ComponentProps<"button"> & IconButtonOwn
 
 /** Icon-only action. Square at every size, and always named via `aria-label` — there is no icon-only button with no name. */
 export function IconButton({ label, tone, size = "md", render, className, ...props }: IconButtonProps) {
-    const classNames = `inline-flex items-center justify-center rounded-control outline-none transition-hover focus-visible:focus-ring ${SIZE_CLASS[size]} ${TONE_CLASS[tone]}`;
+    const classNames = `inline-flex items-center justify-center rounded-control outline-none transition-hover focus-visible:focus-ring ${ SIZE_CLASS[size] } ${ TONE_CLASS[tone] }`;
 
     return useRender({
         defaultTagName: "button",

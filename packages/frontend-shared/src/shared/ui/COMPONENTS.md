@@ -202,7 +202,7 @@ methodology rule.
 | `Popover`               | Anchored panel with collision handling.                                                                      | Base UI | client |
 | `Tooltip`               | Hint for sighted users; never the only carrier of information.                                               | Base UI | client |
 | `Drawer`                | **The creation surface.** With modals banned, everything that would have been "new item" dialog is a drawer. | Base UI | client |
-| `ContextMenu`           | Right-click actions on table rows.                                                                           | Base UI | client |
+| `ContextMenu`           | Right-click actions on table rows, opened at the pointer rather than a trigger edge.                         | Base UI | client |
 | `PreviewCard`           | Hover preview for a linked job or contact.                                                                   | Base UI | client |
 | `Toast` / `ToastRegion` | The failure channel for optimistic writes, and the host of undo.                                             | Base UI | client |
 
