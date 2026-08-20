@@ -348,6 +348,23 @@
     transition-timing-function: var(--ds-transition-drawer-easing);
 }
 
+/**
+ * No fourth named duration — `transitions.ts`'s own comment is explicit that
+ * a fourth should be argued for, not added by default, and a tab indicator
+ * sliding between adjacent tabs or an accordion panel's height changing are
+ * the same "short distance" motion class `popover` already names, just
+ * animating layout geometry instead of opacity/transform. This utility
+ * reuses `popover`'s own duration/easing pair rather than inventing a
+ * redundant one, under its own name so a component reaching for it says
+ * what it animates, not which unrelated overlay category it happens to
+ * borrow timing from.
+ */
+@utility transition-geometry {
+    transition-property: left, top, width, height;
+    transition-duration: var(--ds-transition-popover-duration);
+    transition-timing-function: var(--ds-transition-popover-easing);
+}
+
 @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
