@@ -38,22 +38,16 @@
 }
 
 /*
- * `html`/`body`/`#storybook-root` are auto-height by default — sized to
- * their content, not to the real viewport — so a story reaching for
- * `h-full` to "fill the canvas" has nothing to resolve against; the
- * percentage has no determinate basis and the box just grows to fit
- * whatever is inside it instead of clipping. `100dvh` on `html` is the one
- * genuine break-out to the real viewport this chain needs; `height: 100%`
- * on everything below it then carries that real size down instead of
- * re-measuring the viewport at each level. `dvh` over `vh`: identical on
- * desktop, correct if this is ever opened somewhere with dynamic browser
- * chrome (mobile Safari/Chrome).
+ * No global viewport-height anchor here on purpose — a prior version of
+ * this file stretched `html`/`body`/`#storybook-root` to `100dvh` so that
+ * `ScrollArea`'s own `h-full` story would have a real height to resolve
+ * against. That worked, but it was the wrong scope for the actual need:
+ * every OTHER story's `#storybook-root` inherited the same full-viewport
+ * stretch too, even a one-line `Dot`, which is why full-page screenshots of
+ * nearly every component ballooned to near-viewport size regardless of how
+ * little was actually rendered — a real, measured storage cost across
+ * hundreds of stories, not a hypothetical one. `ScrollArea.stories.tsx` now
+ * gives itself a local, self-contained height instead (a plain fixed-height
+ * wrapper `decorator`), so only the one story that genuinely needs a real
+ * height carries the cost of providing one.
  */
-html {
-    height: 100dvh;
-}
-
-body,
-#storybook-root {
-    height: 100%;
-}

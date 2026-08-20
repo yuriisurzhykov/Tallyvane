@@ -54,9 +54,11 @@ const preview: Preview = {
         (Story, context) => (
             <ThemeProvider>
                 <ThemeSync themeFromToolbar={ context.globals.theme as ThemeId }>
-                    {/* `h-full`: carries `preview.css`'s real `#storybook-root` height down one
-                        more level, so a story's own `h-full` has a real box to resolve against. */}
-                    <div className="h-full bg-surface-primary p-screen-padding text-text-primary">
+                    {/* Sized to content, not stretched to the viewport — see `preview.css`'s
+                        comment for why a global height anchor was the wrong scope for that.
+                        A story that genuinely needs a real height (`ScrollArea`) supplies its
+                        own local one instead. */}
+                    <div className="bg-surface-primary p-screen-padding text-text-primary">
                         <Story/>
                     </div>
                 </ThemeSync>
