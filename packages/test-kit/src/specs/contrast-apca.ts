@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { seedTheme, THEMES } from "../utils/theme";
+import { seedTheme, THEMES, withThemeGlobal } from "../utils/theme";
 import { collectTextSamples, formatFindings, judge, type ContrastFinding } from "../utils/apca";
 import type { PageEntry } from "../types";
 
@@ -34,7 +34,7 @@ export function defineApcaContrastSpecs(manifest: readonly PageEntry[]): void {
         for (const theme of THEMES) {
             test(`${entry.name} @ ${theme} — contrast (APCA)`, async ({ page }, testInfo) => {
                 await seedTheme(page, theme);
-                await page.goto(entry.path);
+                await page.goto(withThemeGlobal(entry.path, theme));
                 await page.waitForLoadState("networkidle");
 
                 const samples = await collectTextSamples(page);

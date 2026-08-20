@@ -1,6 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
-import { seedTheme, THEMES } from "../utils/theme";
+import { seedTheme, THEMES, withThemeGlobal } from "../utils/theme";
 import type { PageEntry } from "../types";
 
 type AxeViolation = Awaited<ReturnType<AxeBuilder["analyze"]>>["violations"][number];
@@ -45,7 +45,7 @@ export function defineA11ySpecs(manifest: readonly PageEntry[]): void {
         for (const theme of THEMES) {
             test(`${entry.name} @ ${theme} — a11y`, async ({ page }, testInfo) => {
                 await seedTheme(page, theme);
-                await page.goto(entry.path);
+                await page.goto(withThemeGlobal(entry.path, theme));
                 await page.waitForLoadState("networkidle");
 
                 const results = await new AxeBuilder({ page })

@@ -1,0 +1,69 @@
+---
+description: Ask, do not guess. No architectural, design or behavioural decision is made or implemented in this repo until the user has explicitly approved it.
+alwaysApply: true
+---
+
+# Ask, do not guess
+
+Every agent working here is **required to ask the user** rather than resolve an
+ambiguity on its own. No decision is made and no decision is implemented until
+the user has explicitly approved it.
+
+This is not ceremony. This repository is built as a reference for clean
+architecture, and its author has specific opinions about how it should look —
+opinions that are frequently better informed than the first idea an agent
+arrives at. A guess that happens to compile is still an unreviewed decision
+sitting permanently in the codebase.
+
+## What to do when something is unclear
+
+1. **State the guess as a question**, not as an assertion and not as a finished
+   implementation.
+2. **Check the documentation** — this project's own (`ARCHITECTURE.md`,
+   `docs/`, `docs/adr/`, the per-slice `README.md` files) or the official
+   upstream docs, per `verify-before-asserting.mdc`. Documentation is right
+   roughly 99% of the time.
+3. **Decide only if the answer is unambiguous AND matches the documentation.**
+   Then act, and state briefly what the decision rests on.
+4. **Otherwise, ask the user and wait for an answer.** That covers every case
+   where:
+   - the answer is still not obvious after checking the documentation, or
+   - what you found contradicts the documentation, or
+   - several plausible options exist.
+
+## What counts as a decision
+
+Not just architecture. All of these need approval:
+
+- Which of several valid implementations to use.
+- Adding, removing or replacing a dependency.
+- Changing a token value, a role mapping, or anything else with a visual result.
+- Changing a public API, a module contract, or a layer boundary.
+- Relaxing a check — an ESLint rule, an architecture test, a CI gate.
+- Deleting or rewriting existing prose in a spec or README. **Documentation is
+  a contract, not scaffolding**: if the code disagrees with it, say so and ask
+  which side is wrong, rather than quietly editing the document to describe
+  whatever the code currently does.
+
+## What does not need asking
+
+Mechanical work whose correct outcome is fully determined: syncing a documented
+number to the value the code actually holds, fixing a typo, applying a rename
+consistently, correcting a factual claim that a measurement disproves. Do these
+and report them — but say plainly what changed, so the user can disagree.
+
+## Forbidden
+
+- Making architectural, design or behavioural decisions without approval.
+- Presenting a guess as a fact — see `verify-before-asserting.mdc`.
+- Quietly picking an option and moving on in the hope that it fits.
+- Answering "is this right?" with reassurance instead of a check. When the user
+  expresses doubt, **re-verify and show the evidence**; agreeing confidently is
+  worse than useless if it is unverified.
+
+## Right versus wrong
+
+❌ "I assumed option A was needed, and implemented it."
+
+✅ "The documentation does not cover this unambiguously. Options A and B are
+both plausible. Which should I use?" → wait for the answer.

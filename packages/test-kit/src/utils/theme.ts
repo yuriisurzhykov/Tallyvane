@@ -33,3 +33,25 @@ export async function seedTheme(page: Page, theme: ThemeName): Promise<void> {
         [THEME_STORAGE_KEY, theme] as const,
     );
 }
+
+/**
+ * `seedTheme` alone is a no-op for Storybook: its preview drives the theme
+ * from a toolbar "global" (`context.globals.theme`, defaulting to `"dark"`
+ * in `preview.tsx`), never from `localStorage` — confirmed by rendering the
+ * same story with and without this query param and reading
+ * `document.documentElement.className` back (`theme-dark` either way,
+ * without it, regardless of which theme a test thinks it seeded). Every
+ * screenshot/scan taken against `packages/storybook` before this existed
+ * silently measured dark theme only, `@ light` runs included.
+ *
+ * `globals=<name>:<value>` in the URL is Storybook's own documented
+ * mechanism for setting a global without going through its UI, and it
+ * resolves identically on the `iframe.html` preview URL used here. Harmless
+ * on `frontend-web`'s own routes — an unrecognized query parameter there is
+ * simply ignored — so every consumer of this function can call it
+ * unconditionally rather than branching on which kind of page it is.
+ */
+export function withThemeGlobal(path: string, theme: ThemeName): string {
+    const separator = path.includes("?") ? "&" : "?";
+    return `${path}${separator}globals=theme:${theme}`;
+}

@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { seedTheme, THEMES } from "../utils/theme";
+import { seedTheme, THEMES, withThemeGlobal } from "../utils/theme";
 import type { PageEntry } from "../types";
 
 /**
@@ -16,7 +16,7 @@ export function defineVisualSpecs(manifest: readonly PageEntry[]): void {
         for (const theme of THEMES) {
             test(`${entry.name} @ ${theme}`, async ({ page }) => {
                 await seedTheme(page, theme);
-                await page.goto(entry.path);
+                await page.goto(withThemeGlobal(entry.path, theme));
                 await page.waitForLoadState("networkidle");
 
                 // Passing an array puts the shot in a folder per entry, so the

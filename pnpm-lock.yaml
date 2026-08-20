@@ -237,9 +237,15 @@ importers:
         specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
     devDependencies:
+      '@feature-sliced/filesystem':
+        specifier: ^3.1.0
+        version: 3.1.0
       '@feature-sliced/steiger-plugin':
         specifier: ^0.7.0
         version: 0.7.0(typescript@5.9.3)
+      '@steiger/toolkit':
+        specifier: ^0.2.3
+        version: 0.2.3(vitest@4.1.10(@types/node@26.2.0)(jsdom@30.0.1)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)))
       '@testing-library/dom':
         specifier: ^10.4.1
         version: 10.4.1
@@ -1627,6 +1633,14 @@ packages:
 
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
+
+  '@steiger/toolkit@0.2.3':
+    resolution: {integrity: sha512-egAgPVSN5+bqmRDc0oGm4cXZtkF8puaBY7A7lft7nxJwb+v/J5aaFJ3vzQ9WxTR/qYl2bK5uKOIAGaj63Z0F1A==}
+    peerDependencies:
+      vitest: ^1.6.0 || ^2.1.8 || ^3.0.0
+    peerDependenciesMeta:
+      vitest:
+        optional: true
 
   '@storybook/builder-vite@10.5.9':
     resolution: {integrity: sha512-Zg4JbGQiHFPGlFJ9HM+XPgzKmU/RFPCymhohVRJhBBYfmgaQgz0flWWzscseCDpl638MNd8/r/H+nwuoBgSYDg==}
@@ -5246,6 +5260,10 @@ snapshots:
   '@sindresorhus/merge-streams@4.0.0': {}
 
   '@standard-schema/spec@1.1.0': {}
+
+  '@steiger/toolkit@0.2.3(vitest@4.1.10(@types/node@26.2.0)(jsdom@30.0.1)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)))':
+    optionalDependencies:
+      vitest: 4.1.10(@types/node@26.2.0)(jsdom@30.0.1)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12))
 
   '@storybook/builder-vite@10.5.9(esbuild@0.28.2)(storybook@10.5.9(@types/react@19.2.18)(react@19.2.8))(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12))':
     dependencies:

@@ -22,8 +22,9 @@
     "skipLibCheck": true,
     "allowJs": false,
     "noEmit": true,
+    "allowImportingTsExtensions": true,
     "incremental": true
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "steiger.config.ts", "vitest.config.ts", "tests/**/*.ts"],
+  "include": ["src/**/*.ts", "src/**/*.tsx", "steiger.config.ts", "steiger-rules/**/*.ts", "vitest.config.ts", "tests/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }
