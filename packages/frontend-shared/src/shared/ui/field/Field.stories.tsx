@@ -1,4 +1,5 @@
 import { Field, type FieldProps } from "./Field";
+import { Input } from "../input";
 
 /**
  * `@storybook/react-vite`'s types live in `packages/storybook`'s own
@@ -26,7 +27,7 @@ export default meta;
 export const Default: Story<FieldProps> = {
     args: {
         label: "Email",
-        children: <input type="email" />,
+        children: <Input type="email" />,
     },
 };
 
@@ -34,7 +35,7 @@ export const WithDescription: Story<FieldProps> = {
     args: {
         label: "Email",
         description: "We only use this to send interview invites.",
-        children: <input type="email" />,
+        children: <Input type="email" />,
     },
 };
 
@@ -42,7 +43,7 @@ export const WithError: Story<FieldProps> = {
     args: {
         label: "Email",
         error: "Enter a valid email address.",
-        children: <input type="email" />,
+        children: <Input type="email" />,
     },
 };
 
@@ -50,6 +51,6 @@ export const Required: Story<FieldProps> = {
     args: {
         label: "Email",
         required: true,
-        children: <input type="email" />,
+        children: <Input type="email" />,
     },
 };
