@@ -8,3 +8,52 @@
 @import "tailwindcss";
 @import "frontend-shared/ui/theme/generated/tokens.css";
 @import "frontend-shared/ui/theme/adapters/tailwind.css";
+
+/*
+ * Tailwind v4's automatic content detection does not follow into
+ * `node_modules` at all — and pnpm resolves a workspace package as a symlink
+ * INTO `node_modules`, source and all (the same structural gotcha already on
+ * record for dependency-cruiser in this repo's own methodology notes, now
+ * hitting Tailwind's scanner instead). Without this, Tailwind never sees the
+ * classes actually written inside `frontend-shared`'s components, so almost
+ * every `--ds-*`-backed role gets tree-shaken out of `@theme` as "unused",
+ * and even hand-authored rules referencing one of those variables render
+ * against nothing.
+ */
+@source "../../frontend-shared/src/**/*.{ts,tsx}";
+
+/*
+ * `tokens/typography.ts`'s `family.sans`/`family.mono` reference
+ * `var(--font-ibm-plex-sans)`/`var(--font-ibm-plex-mono)` — variables
+ * `next/font/google` sets on `<html>` in the two real Next.js apps
+ * (`app/fonts.ts`). Storybook has no `next/font`; `preview-head.html` loads
+ * the same two faces from Google Fonts instead, and this maps the same two
+ * custom property names onto the loaded family so the token reference
+ * resolves exactly as it does in the real apps, rather than special-casing
+ * Storybook's own font-family output.
+ */
+:root {
+    --font-ibm-plex-sans: "IBM Plex Sans";
+    --font-ibm-plex-mono: "IBM Plex Mono";
+}
+
+/*
+ * `html`/`body`/`#storybook-root` are auto-height by default — sized to
+ * their content, not to the real viewport — so a story reaching for
+ * `h-full` to "fill the canvas" has nothing to resolve against; the
+ * percentage has no determinate basis and the box just grows to fit
+ * whatever is inside it instead of clipping. `100dvh` on `html` is the one
+ * genuine break-out to the real viewport this chain needs; `height: 100%`
+ * on everything below it then carries that real size down instead of
+ * re-measuring the viewport at each level. `dvh` over `vh`: identical on
+ * desktop, correct if this is ever opened somewhere with dynamic browser
+ * chrome (mobile Safari/Chrome).
+ */
+html {
+    height: 100dvh;
+}
+
+body,
+#storybook-root {
+    height: 100%;
+}

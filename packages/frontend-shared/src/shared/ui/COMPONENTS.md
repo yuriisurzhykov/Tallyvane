@@ -97,6 +97,21 @@ untouched: Base UI emits `data-state` attributes and no classes. Where a Tier-0
 entry is a thin wrapper, the table says so — that entry is about *our* tokens
 and *our* API, not about reimplementing focus management.
 
+**A Tier 0 primitive may compose another Tier 0 primitive, if the one it
+composes carries no domain knowledge and imposes no competing visual
+decision of its own.** The ladder's "knows tokens, nothing else" is about
+domain scope, not a ban on all reuse — reusing `Text` for a label is DRY, not
+a tier violation, because `Text` itself still knows nothing but tokens.
+`VisuallyHidden` is the clearest case: it is "the partner of every icon-only
+control" by design, meant to be composed. The test is not "did this import
+another component" but "did this import something that decides how the page
+looks or means, on its own terms" — `Text`'s `variant`/`tone` resolution
+counts as neither, since the composing component still chooses which variant
+and tone to pass. A component that would need to hardcode a *specific*
+`variant`/`tone` no matter what the caller wants — e.g. baking in a status
+mapping — is where domain or presentation knowledge actually creeps in, and
+that is the real line, not the import statement itself.
+
 ---
 
 ## 3. Tier 0 — Primitives
@@ -115,7 +130,7 @@ never mutates.
 | `Numeric` | Tabular figures and slashed zero, right-aligned by default. Every salary, count and date in a column. | — | server |
 | `Truncate` | Line clamp with the full value reachable. | — | server |
 | `VisuallyHidden` | Screen-reader-only text; the partner of every icon-only control. | — | server |
-| `Kbd` | Renders a key combination. Required by the action menu, which must show its shortcuts. | — | server |
+| `KeyboardKey` | Renders a key combination. Required by the action menu, which must show its shortcuts. | — | server |
 
 ### Marks and identity
 
@@ -141,8 +156,8 @@ never mutates.
 
 | Component | Purpose | Base | Env |
 | --- | --- | --- | --- |
-| `Field` | Label, description, error, and the aria wiring between them. Every control below is used inside one. | Base UI | server |
-| `Fieldset` | Grouped controls with a legend. | Base UI | server |
+| `Field` | Label, description, error, and the aria wiring between them, from `@base-ui/react/field`. Every control below is used inside one. | Base UI | server |
+| `Fieldset` | Grouped controls with a legend, from `@base-ui/react/fieldset`; the legend labels the group via `aria-labelledby`, not a native `<legend>` — a deliberate upstream choice, not a gap. | Base UI | server |
 | `Form` | Consolidated submission and server-error mapping. | Base UI | client |
 | `Input` | Single-line text. | Base UI | server |
 | `PasswordField` | Single-line text with a visibility toggle. Composes `Input` and `IconButton` rather than a third implementation of a text box. | Base UI | client |
@@ -167,13 +182,13 @@ never mutates.
 
 | Component | Purpose | Base | Env |
 | --- | --- | --- | --- |
-| `Surface` | A themed background with a border. The card in the page flow — no shadow, per `composites/shadows.ts`. | — | server |
+| `Surface` | A themed background with a border, no shadow — the card in the page flow, per `composites/shadows.ts`. Three variants (`primary`/`elevated`/`inset`), `border-subtle` border, `card` radius. | — | server |
 | `Panel` | Surface with header, body and optional footer slots. | — | server |
-| `Separator` | Hairline, semantic or decorative. | Base UI | server |
-| `ScrollArea` | Scroll container with styled bars, so an inner scroll region does not look like a browser default. | Base UI | client |
-| `Stack` / `Row` | Vertical and horizontal flow, gaps **only** from the spacing roles. These exist to make the scale unavoidable. | — | server |
-| `Grid` | Column layout with token gaps. | — | server |
-| `AspectRatio` | Media boxes that do not shift on load. | — | server |
+| `Separator` | Hairline from `border-subtle`, semantic or decorative. Behaviour is Base UI's `Separator`; `decorative` is our own translation to `role="none"`, since the installed Base UI version (1.7.0) dropped that prop. | Base UI | server |
+| `ScrollArea` | Scroll container with a styled track/thumb (`surface-inset`/`border-strong`), so an inner scroll region never looks like a browser default. Both axes plus corner; one visual treatment, no variant. | Base UI | client |
+| `Stack` / `Row` | Vertical and horizontal flow, gaps **only** from the spacing roles (`inline-tight` … `section-gap`). `Row` centres its cross axis by default (icon+label). These exist to make the scale unavoidable. | — | server |
+| `Grid` | Column layout with token gaps; `columns` count is the one inline style, since no token names an arbitrary column count. | — | server |
+| `AspectRatio` | Media boxes that do not shift on load. Hand-built on the CSS `aspect-ratio` property — Base UI 1.7.0 ships no `AspectRatio` primitive. | — | server |
 
 ### Overlays
 
@@ -229,7 +244,7 @@ methodology rule.
 | `ErrorState` | The same shape with a retry, for a failed query. |
 | `LoadingRegion` | Skeleton composition matching the shape of what is loading, rather than a spinner in the middle of nothing. |
 | `InlineEdit` | Click to edit, 400 ms debounce, optimistic write, rollback with a toast. **The default write interaction of the product**, not a special case. |
-| `ActionMenu` | `Menu` plus a `Kbd` column and a final row pointing at the command palette — the menu says out loud that it is a short list of the frequent, not the whole set (ADR-030). |
+| `ActionMenu` | `Menu` plus a `KeyboardKey` column and a final row pointing at the command palette — the menu says out loud that it is a short list of the frequent, not the whole set (ADR-030). |
 | `CommandPalette` | The other surface of that same action set: `Dialog` plus `Combobox` over a command registry. |
 | `Toolbar` | Grouped controls above a list or editor. | 
 | `LoadMore` | Cursor pagination. Deliberately not numbered pages. |
@@ -461,6 +476,32 @@ building one, which is a genuinely hard accessibility problem. Undecided.
 
 **Icon set.** Still open from the token specification §14: Lucide as the neutral
 standard, or Phosphor, whose weight variants would track the density axis.
+
+**`Icon`'s own API — deferred, deliberately, for a dedicated discussion.**
+Raised and set aside while proposing Batch 1's variant surface, because it
+turned out to need more than one round: how it wraps whichever icon set §13
+settles on, and how brand marks (deferred separately — see the plan's Batch 0
+decision on `SourceBadge`) eventually pass through the same component without
+forcing it to know about them. The proposal on the table when this was
+deferred:
+
+- `icon: React.ComponentType<{ className?: string }>` — accepts the icon
+  component itself (Lucide-compatible), not pre-rendered JSX, so `Icon`
+  controls size and colour rather than trusting whatever the caller rendered.
+- `size: "sm" | "md" | "lg"` — needs a **new component token**, since no size
+  scale fits today (`sm: {dimension.4}` 16px, `md: {dimension.5}` 20px,
+  `lg: {dimension.6}` 24px, default `md`), following the `statusBadge` /
+  `timelineConnector` / `control` precedent of a component owning values that
+  would mislead as a shared scale.
+- No `tone` — colour inherits via `currentColor` from whatever text context
+  renders it, rather than `Icon` making its own colour decision, on the
+  reasoning that no known call site needs one yet (YAGNI) and the components
+  that do carry status colour (`Badge`, `Callout`, `Dot`) already have their
+  own `tone`.
+- `label?: string` — present sets `role="img"` + `aria-label`; absent sets
+  `aria-hidden="true"`, matching "Decorative by default" above.
+
+None of this is decided. Revisit before `Icon` is actually implemented.
 
 **Charts.** Hand-built SVG, decided. Three shapes are needed — funnel, weekly
 activity, rejection breakdown — and they must take their colours from status

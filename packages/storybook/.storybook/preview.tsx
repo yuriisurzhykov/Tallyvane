@@ -54,7 +54,9 @@ const preview: Preview = {
         (Story, context) => (
             <ThemeProvider>
                 <ThemeSync themeFromToolbar={ context.globals.theme as ThemeId }>
-                    <div className="bg-surface-primary p-screen-padding text-text-primary">
+                    {/* `h-full`: carries `preview.css`'s real `#storybook-root` height down one
+                        more level, so a story's own `h-full` has a real box to resolve against. */}
+                    <div className="h-full bg-surface-primary p-screen-padding text-text-primary">
                         <Story/>
                     </div>
                 </ThemeSync>
