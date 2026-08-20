@@ -1,0 +1,114 @@
+---
+description: How work happens in this repo (Tallyvane — Kotlin modular monolith + Next.js FSD frontend + a design-token compiler) — the process to follow, plus a catalog of real bugs already hit here so they are not rediagnosed from scratch.
+alwaysApply: true
+---
+
+# How work happens in this repo
+
+Tallyvane is a personal system for running a job search. It is **greenfield, not
+a migration**: the architecture is designed and reviewed in `ARCHITECTURE.md`,
+and almost no feature code exists yet. The rails were deliberately laid before
+the first module.
+
+```
+backend/     Kotlin modular monolith — platform/ (shared capabilities),
+             modules/<name>/{contract,domain,application,infrastructure,web},
+             arch-tests/ (boundaries as failing tests), build-logic/
+frontend-web/    Next.js 16 + Tailwind v4, strict Feature-Sliced Design under src/:
+             shared → entities → features → widgets → views → app
+packages/    design-tokens — the token compiler, a workspace package
+extension/   Chrome extension, the only way LinkedIn can be captured
+ops/ data/ templates/ docs/
+.github/     workflows + scripts/ (no inline scripting in YAML)
+```
+
+Read `ARCHITECTURE.md` first; `docs/frontend/` and `docs/backend/` hold the
+layer and module specifications. Everything below was learned the hard way in
+real sessions — follow the process, and skim the lesson catalog before touching
+an area it covers.
+
+## The process — apply this to every non-trivial step
+
+1. **"Will this be reused?"** — ask before writing anything. If yes, it goes in
+   a shared location, not duplicated at the call site:
+   - Cross-cutting UI (a11y-correct overlay mechanics, form controls, error
+     fallbacks) → `packages/frontend-shared/src/shared/ui/<name>/`.
+   - Cross-cutting frontend glue (formatting, fetch wrappers, hooks) →
+     `packages/frontend-shared/src/shared/lib/`.
+   - Anything about colour, size, type or motion → it is a **token**, and it
+     belongs in `packages/frontend-shared/src/shared/ui/theme/`, never a
+     literal at the call site. The lint rules will catch you, but the point
+     is not to need them.
+   - Backend capability used by more than one module (persistence, events,
+     outbox, HTTP, observability) → `backend/platform/<name>/`. Business logic
+     stays inside its own module and crosses boundaries only through
+     `modules/<name>/contract/`.
+   - CI logic → `.github/scripts/`, as a real `.mjs` or `.sh` file. **Never
+     inline in YAML**: inline scripting is unlintable, untestable, and
+     unreviewable, and it is how a workflow quietly does the wrong thing.
+2. **Break every plan/todo item into the smallest steps that are individually
+   reviewable, and walk through this checklist on each step — not once for
+   the whole feature:**
+   1. What do I actually need to do?
+   2. How will I do it — what are the real alternatives, not just the first idea?
+   3. Would another developer, or the repo's author, understand this without me
+      explaining it out loud?
+   4. Will it hold up under real load, even if "real load" here is modest?
+   5. Is it extensible or replaceable later without a rewrite?
+   6. If it touches data: how hard is migration, and what happens if a
+      dependency is temporarily unavailable?
+   7. Does the structure actually reflect SOLID, or merely gesture at it?
+3. **Document as you go, live, per slice** — not a retrospective write-up
+   composed once at the end. The file is updated the moment something
+   happens: made a decision → record it now; changed course → record it now;
+   hit an error and fixed it → record it now. "Slice" here is deliberately
+   broader than the FSD term (`ARCHITECTURE.md` §12's "vertical cut per
+   business domain") — it means whatever coherent unit is actually being
+   built at the granularity work is happening, which in practice includes a
+   package, an architectural layer or segment (`theme/`), a single Tier-0/1
+   UI component, a token category, a CI script, or a backend module.
+   - A `README.md` per slice you **create or meaningfully change**, colocated
+     with its code — for a UI component this is `shared/ui/<name>/README.md`,
+     not a shared package-level file.
+   - Structure: what it is and what problem it solves, **why nothing existing
+     could be reused instead** → what needed doing → what was actually done,
+     including wrong turns recorded as they're corrected (not silently
+     erased once the right answer is found) → why it is understandable,
+     scalable, extensible → migration and fault-tolerance impact where
+     applicable → the SOLID angle, as its own explicit heading, not folded
+     into prose.
+   - Match the established tone in `packages/frontend-shared/src/shared/ui/theme/README.md`,
+     `packages/design-tokens/README.md` and `backend/README.md`: dense
+     explanatory prose that states the rejected alternative, not bullet lists
+     of what the code already says.
+   - An inventory/index document (e.g. `COMPONENTS.md`) stays a short pointer
+     to the slice's `README.md` — one home per fact, not a second copy of the
+     same prose that can drift from the first.
+   - Specifications live in `docs/`, decisions in `docs/adr/` (one file per
+     decision, referenced by ID from the code). **When code and spec disagree,
+     one of them is a bug** — say which, and fix it in the same pass.
+4. **Never trust "should work."** Verify live, every time, before calling
+   something done:
+   - `pnpm verify` runs everything CI runs, in CI's order. It is the floor, not
+     the ceiling.
+   - For anything touching the design system: `pnpm --filter tallyvane-frontend-web
+     exec playwright test` — the structural, WCAG and APCA suites all run in
+     both themes and will fail on a palette change that looks fine.
+   - Quote **measured** numbers, never remembered ones.
+     `frontend-web/scripts/contrast-table.ts` exists precisely so contrast claims
+     can be checked in a second rather than recalled wrongly.
+   - For anything UI-visual, ask the user to check in a real browser. They will,
+     and they have caught real bugs this way that no test or type-check did.
+5. **When a first hypothesis is wrong, say so and show the correction** — in
+   code comments and in the relevant README or spec. Several entries below took
+   two tries; the wrong turn is left in the record on purpose, because the wrong
+   turn is often what makes the real cause make sense.
+6. **Prefer removing the root cause over shrinking the symptom.** The
+   flash-of-wrong-theme bug was not fixed by making the effect faster — a faster
+   race is still a race — but by moving the work into a blocking script that
+   runs before the first paint at all.
+7. **Security and reliability are defaults, not afterthoughts:** hash refresh
+   tokens rather than storing them, Argon2id with a timing-attack mitigation on
+   login, rate-limit auth endpoints, never leak internal error detail (hosts,
+   ports, class names, stack traces) into a client response, and prefer a
+   graceful fallback UI over a crash whenever a dependency might be down.

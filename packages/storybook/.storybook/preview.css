@@ -8,3 +8,46 @@
 @import "tailwindcss";
 @import "frontend-shared/ui/theme/generated/tokens.css";
 @import "frontend-shared/ui/theme/adapters/tailwind.css";
+
+/*
+ * Tailwind v4's automatic content detection does not follow into
+ * `node_modules` at all — and pnpm resolves a workspace package as a symlink
+ * INTO `node_modules`, source and all (the same structural gotcha already on
+ * record for dependency-cruiser in this repo's own methodology notes, now
+ * hitting Tailwind's scanner instead). Without this, Tailwind never sees the
+ * classes actually written inside `frontend-shared`'s components, so almost
+ * every `--ds-*`-backed role gets tree-shaken out of `@theme` as "unused",
+ * and even hand-authored rules referencing one of those variables render
+ * against nothing.
+ */
+@source "../../frontend-shared/src/**/*.{ts,tsx}";
+
+/*
+ * `tokens/typography.ts`'s `family.sans`/`family.mono` reference
+ * `var(--font-ibm-plex-sans)`/`var(--font-ibm-plex-mono)` — variables
+ * `next/font/google` sets on `<html>` in the two real Next.js apps
+ * (`app/fonts.ts`). Storybook has no `next/font`; `preview-head.html` loads
+ * the same two faces from Google Fonts instead, and this maps the same two
+ * custom property names onto the loaded family so the token reference
+ * resolves exactly as it does in the real apps, rather than special-casing
+ * Storybook's own font-family output.
+ */
+:root {
+    --font-ibm-plex-sans: "IBM Plex Sans";
+    --font-ibm-plex-mono: "IBM Plex Mono";
+}
+
+/*
+ * No global viewport-height anchor here on purpose — a prior version of
+ * this file stretched `html`/`body`/`#storybook-root` to `100dvh` so that
+ * `ScrollArea`'s own `h-full` story would have a real height to resolve
+ * against. That worked, but it was the wrong scope for the actual need:
+ * every OTHER story's `#storybook-root` inherited the same full-viewport
+ * stretch too, even a one-line `Dot`, which is why full-page screenshots of
+ * nearly every component ballooned to near-viewport size regardless of how
+ * little was actually rendered — a real, measured storage cost across
+ * hundreds of stories, not a hypothetical one. `ScrollArea.stories.tsx` now
+ * gives itself a local, self-contained height instead (a plain fixed-height
+ * wrapper `decorator`), so only the one story that genuinely needs a real
+ * height carries the cost of providing one.
+ */

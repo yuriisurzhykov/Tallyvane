@@ -1,0 +1,18 @@
+<!--
+  Storybook's injected preview-iframe <head> content. Loads the same two
+  faces `frontend-web`/`frontend-admin` self-host via `next/font/google`
+  (`app/fonts.ts`) — Storybook is a Vite tool, not Next.js, so it has no
+  `next/font` equivalent and cannot set `--font-ibm-plex-sans`/
+  `--font-ibm-plex-mono` the same way. This loads the fonts from Google's
+  CDN instead (a deliberate exception to this project's usual self-hosting
+  preference — see the linked skill's decision — since this is a
+  development/documentation surface, not the shipped product) and
+  `preview.css` maps the two custom properties `tokens/typography.ts`
+  already expects onto the loaded family names.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+    href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400&family=IBM+Plex+Sans:wght@400;500;600;700&display=optional"
+    rel="stylesheet"
+/>

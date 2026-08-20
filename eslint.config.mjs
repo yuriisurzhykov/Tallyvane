@@ -152,6 +152,12 @@ export default [
             "**/playwright-report/**",
             "**/test-results/**",
             "**/tests/visual-snapshots/**",
+            // Storybook's own build output — the same shape of problem as
+            // playwright-report above: a minified bundle Storybook ships, not
+            // source anyone here edits. Building it locally before running
+            // root lint produced thousands of findings against code nobody
+            // can change here either.
+            "**/storybook-static/**",
             // Compiler output. Linting it would report on decisions made in the
             // token source, at coordinates that exist in neither file.
             "packages/frontend-shared/src/shared/ui/theme/generated/**",

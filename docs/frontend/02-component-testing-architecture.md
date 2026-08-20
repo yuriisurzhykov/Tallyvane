@@ -126,7 +126,7 @@ sequenceDiagram
     Note over Compare: Если эталона ещё нет - тест проваливается, фактический скриншот сохраняется как кандидат
     Compare->>PR: sticky-комментарий + артефакт playwright-report с diff-картинками
     Dev->>PR: открывает playwright-report, сравнивает actual/expected/diff
-    Dev->>PR: пишет комментарий "/update-snapshots"
+    Dev->>PR: пишет комментарий "/update-snapshots <module>"
     PR->>Accept: триггерится (issue_comment: created)
     Accept->>Accept: guard проверяет автора и не-форк, фиксирует head_sha
     Accept->>Repo: checkout именно head_sha
@@ -283,8 +283,8 @@ flowchart TD
     StoryFile["Button.stories.tsx - только пропсы и args"]
     StoryFile --> Registered["Storybook сканирует файлы по маске из .storybook/main.ts, регистрирует историю под id actions-button--primary"]
 
-    Registered --> DevPath["Локально: pnpm --filter storybook run storybook"]
-    Registered --> BuildPath["В CI: pnpm --filter storybook run build-storybook"]
+    Registered --> DevPath["Локально: pnpm --filter tallyvane-storybook run storybook"]
+    Registered --> BuildPath["В CI: pnpm --filter tallyvane-storybook run build-storybook"]
 
     DevPath --> DevServer["Dev-сервер на :6006, сайдбар строится сам из поля title"]
     DevServer --> Iframe1["Клик по истории рендерит Button с этими args внутри iframe, обёрнутый в ThemeProvider из preview.tsx"]
@@ -310,7 +310,7 @@ flowchart TD
 3. Ничего не редактировать в `test-kit`, в `pages.manifest.ts` или в CI — `story-manifest.ts` подхватит историю сам при следующей сборке Storybook.
 4. Открыть PR. Первый прогон **специально провалится** — эталона для новой истории ещё нет. Это ожидаемо.
 5. Проверить `playwright-report` из артефактов: компонент выглядит так, как задумано?
-6. Если да — комментарий `/update-snapshots`. Эталон появится автоматически, проверка перезапустится и станет зелёной.
+6. Если да — комментарий `/update-snapshots packages/storybook`. Эталон появится автоматически, проверка перезапустится и станет зелёной.
 
 ### 9.2. ...добавить новый вариант к существующему компоненту
 
@@ -318,15 +318,15 @@ flowchart TD
 
 ### 9.3. ...обновить эталон после осознанного изменения дизайна
 
-Изменение стиля меняет пиксели существующей истории → проверка проваливается → diff в отчёте → `/update-snapshots`.
+Изменение стиля меняет пиксели существующей истории → проверка проваливается → diff в отчёте → `/update-snapshots packages/storybook`.
 
 ### 9.4. ...прогнать проверки локально
 
 ```bash
 pnpm --filter tallyvane-frontend-web run test:a11y
 pnpm --filter tallyvane-frontend-web run test:visual
-pnpm --filter storybook run test:a11y
-pnpm --filter storybook run test:visual
+pnpm --filter tallyvane-storybook run test:a11y
+pnpm --filter tallyvane-storybook run test:visual
 ```
 
 Локально сгенерированный `--update-snapshots` не годится как источник истины из-за разницы в рендеринге шрифтов между ОС (раздел 3) — годится только чтобы посмотреть глазами.

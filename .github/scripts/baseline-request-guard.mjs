@@ -12,12 +12,15 @@
  *
  * `<module>` is required, not defaulted to any one app — this workflow does
  * not know, and should not need to know, which workspace members have a
- * visual suite; the next job finds that out by trying `pnpm run
- * test:visual:update` in it, and fails loudly (a missing script, or a missing
- * directory) if the answer is "none". This script only checks that the text
- * is safe to use as a path segment, not that it names something real — this
- * job's checkout is deliberately sparse (`.github/scripts` only, see below)
- * and cannot see the rest of the repository to check further.
+ * visual suite. `MODULE_PATTERN` below only checks that the text is a shape
+ * safe to use as a path segment, not that it names something real: this
+ * job's own checkout is deliberately sparse (`.github/scripts` only) and
+ * cannot see the rest of the repository to check further. Existence is
+ * therefore checked separately, over the API, against the pull request's
+ * `head.sha` once that is known — not against this job's own (default-branch,
+ * sparse) checkout, and not against the file system at all. A module that
+ * passes both checks can still lack a `test:visual:update` script; that
+ * failure is left to the next job, which fails loudly there instead.
  *
  * The commit SHA is the other half. Everything downstream checks out that
  * value rather than the branch name, because a branch can be repointed between
@@ -25,7 +28,7 @@
  *
  * Environment: GITHUB_TOKEN, REPOSITORY, ISSUE_NUMBER, COMMENT_ID, COMMENT_BODY.
  */
-import { api, repository, required, run, setOutput } from "./lib/actions.mjs";
+import { api, apiGetOrNull, repository, required, run, setOutput } from "./lib/actions.mjs";
 
 // One optional `packages/` segment, then a lowercase-and-hyphens name — covers
 // every real workspace member (`frontend-web`, `frontend-admin`,
@@ -87,7 +90,23 @@ await run(async () => {
         throw new Error("Refusing to run against a fork branch.");
     }
 
+    const headSha = pullRequest.head.sha;
+    const contents = await apiGetOrNull(`/repos/${owner}/${repo}/contents/${module}?ref=${headSha}`);
+    // The Contents API returns an array for a directory, an object for a file.
+    // Both a missing path and an existing file are "not a module" here — a
+    // string like `storybook` (the package.json `name`, not a path) reads as
+    // a plausible file/segment and would otherwise slip through as if valid.
+    if (!Array.isArray(contents)) {
+        await commentUsage(
+            owner, repo, issueNumber,
+            `\`${module}\` is not a directory in this pull request. \`<module>\` is a path from the `
+                + "repository root, not a package name — e.g. `frontend-web` or `packages/storybook`, "
+                + "not `storybook`.",
+        );
+        throw new Error(`Module does not exist at ${headSha}: ${module}`);
+    }
+
     setOutput("module", module);
-    setOutput("head_sha", pullRequest.head.sha);
+    setOutput("head_sha", headSha);
     setOutput("head_ref", pullRequest.head.ref);
 });

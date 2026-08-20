@@ -11,7 +11,7 @@
     "build": "next build",
     "start": "next start",
     "test:visual": "playwright test --project=desktop --project=tablet --project=mobile visual.spec.ts",
-    "test:visual:update": "playwright test --update-snapshots visual.spec.ts",
+    "test:visual:update": "playwright test visual.spec.ts --update-snapshots",
     "test:a11y": "playwright test --project=desktop a11y.spec.ts",
     "test:contrast": "playwright test --project=desktop contrast-wcag.spec.ts contrast-apca.spec.ts",
     "test:contrast:wcag": "playwright test --project=desktop contrast-wcag.spec.ts",

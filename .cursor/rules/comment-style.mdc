@@ -1,0 +1,105 @@
+---
+description: Inline code comments must be short (1-2 sentences); only doc comments (JSDoc/TSDoc/KDoc/JavaDoc) may go into full detail
+alwaysApply: true
+---
+
+# Comments: concise inline, thorough doc comments
+
+An inline comment (one sitting next to a line/block inside a function body)
+must be understandable from its first sentence. Default to one sentence; add
+a second only if the first genuinely can't stand alone. If a "why" needs
+5-10 sentences to justify a one-line decision, that's prose, not a comment —
+state the conclusion, not the deliberation that led to it.
+
+- Don't narrate what the code obviously does (already covered by the
+  making_code_changes rule — this rule is about comments that *do* carry
+  real information, but bury it in length).
+- Don't write comments as an essay defending a choice. One clause naming the
+  reason beats a paragraph re-deriving it.
+- If a comment genuinely needs more than 2 sentences to be useful (a
+  subtle bug history, a link to an issue/README with the full story), that's
+  fine — but that's the exception, not the default.
+
+## Example
+
+### Wrong
+//  Guards the publish step below against a real failure mode, not a
+//  hypothetical one: when "Run tests" fails during `test:e2e:prepare`
+//  (fixture seeding, manifest generation) — BEFORE Playwright itself
+//  ever starts — no `playwright-report/` directory is produced at
+//  all. `peaceiris/actions-gh-pages` doesn't degrade gracefully when
+//  its `publish_dir` is missing: it logs an ENOENT, concludes this
+//  must be a "first deployment," and unconditionally runs `git
+//  checkout --orphan gh-pages` — which then fails outright ("a
+//  branch named 'gh-pages' already exists") on every run after the
+//  very first successful one. That turned one real, attributable
+//  failure (the seeding bug) into two confusing, misdirected ones in
+//  the same job.
+//
+//  Deliberately FAILS this step (not a silent skip) when the report
+//  is missing — a corrected first draft: the initial version of this
+//  guard only wrote `exists=false` and let the next step's `if:`
+//  quietly skip it, no failed/red step anywhere to explain why the
+//  report never got published. That's the exact "verification
+//  silently skips instead of failing loudly" pattern this repo's own
+//  rules warn against — even though the JOB overall still failed via
+//  "Run tests" (this step changes nothing about that), a skipped
+//  step gives no explicit, attributable signal of its own. `exit 1`
+//  with an `::error::` annotation makes this step itself show red,
+//  pointing straight back at "Run tests" as the real cause, instead
+//  of leaving a quiet gap for someone to puzzle over later.
+
+### Right
+//  `peaceiris/actions-gh-pages` crashes with a misleading "gh-pages
+//  already exists" error if `publish_dir` is missing (e.g. "Run
+//  tests" failed before Playwright started) — this step fails
+//  loudly instead of silently skipping. See frontend/tests/README.md's
+//  dated entry for the full story, including a corrected first draft.
+
+```typescript
+// We decided to use a Map here instead of a plain object because objects in
+// JavaScript have some quirks with prototype chain lookups, and also because
+// we wanted O(1) lookups without worrying about key collisions with built-in
+// Object.prototype properties like "toString" or "hasOwnProperty", which
+// could happen if a user-supplied key matched one of those names.
+const cache = new Map();
+```
+
+```typescript
+// Map avoids prototype-pollution collisions (e.g. a key named "toString").
+const cache = new Map();
+```
+
+## Example: link out instead of inlining the whole story
+
+```yaml
+# `peaceiris/actions-gh-pages` crashes with a misleading "gh-pages already
+# exists" error if `publish_dir` is missing (e.g. "Run tests" failed
+# before Playwright started) — this step fails loudly instead of
+# silently skipping. See frontend/tests/README.md's dated entry for the
+# full story, including a corrected first draft.
+```
+
+Not a 20-line comment re-deriving the root cause, the failed alternative,
+and the reasoning for the fix — that belongs in the linked README's dated
+entry (where this repo already keeps that kind of history), not repeated
+inline every time someone opens the file.
+
+## Exception: doc comments (JSDoc/TSDoc, KDoc, JavaDoc)
+
+A doc comment on a public function/class/type documents an API, not a line
+of code — it's fine, even expected, for it to be thorough: what it does, why
+it exists, how to use it, common misuse, examples, limitations.
+
+```typescript
+/**
+ * Resolves a hashed refresh-token cookie to its session.
+ *
+ * @throws {SessionExpiredError} if the session was revoked or expired.
+ * @example
+ * const session = await resolveSession(req.cookies.get("rt"));
+ */
+```
+
+Applies to comments in any language in this repo (`//`, `#`, `/* */`, etc.),
+not just TypeScript.
