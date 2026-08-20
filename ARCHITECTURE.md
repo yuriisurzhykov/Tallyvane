@@ -1,8 +1,10 @@
 # Tallyvane — Архитектура системы
 
-> Версия документа: 3.3
-> Статус: утверждённый дизайн, палитра и модель экранов проверены прототипом
+> Версия документа: 3.4
+> Статус: утверждённый дизайн, палитра и модель экранов проверены прототипом; Фаза 2 (раздел 21, Вехи 10–18) спроектирована, но не начата
 > Язык кода, идентификаторов и интерфейса: английский. Язык проектной документации: русский.
+>
+> Изменения относительно 3.3: добавлена Фаза 2 — дифференцирующий слой из issue #4 (Career Memory, Career Graph, Matching, Opportunity Score, Next Best Action, Outcome Learning, Experiments, Voice, Gamification), спроектированный тем же языком модульного монолита и FSD, что и первая версия. Стратегия — Фаза 1 (Вехи 0–9) реализуется и используется владельцем как личный инструмент; Фаза 2 (Вехи 10–18) начинается только по решению превратить продукт в публичный, и это решение зафиксировано отдельно, а не подразумевается автоматически. Границы продукта (§1.3) сознательно не расширены на агрегацию рынка вакансий — см. ADR-040.
 >
 > Изменения относительно 3.2: по итогам живого прототипа введены три уровня глубины вместо режима «подробно», плотность отделена от объёма информации, акцент стал монохромным, а янтарь оставлен только за смыслом «требует внимания»; добавлены быстрые действия на двух поверхностях.
 >
@@ -64,15 +66,30 @@
 - **показывает** честную аналитику воронки;
 - **публикует** собственную витрину: лендинг, блог, документацию и чейнджлог, редактируемые через встроенную админку без пересборки и деплоя.
 
+Начиная с Фазы 2 (раздел 21, Вехи 10–18) персональная система дополнительно:
+
+- **запоминает** карьеру не как резюме, а как Career Memory — атомарные, структурированные факты об опыте, из которых резюме — лишь одно из представлений;
+- **связывает** факты опыта в Career Graph — навыки, влияние, масштаб, домены и evidence как явные связи, а не абзацы текста;
+- **сопоставляет** вакансию не по ключевым словам, а по смыслу — semantic matching между требованиями вакансии и Career Graph;
+- **оценивает** не «насколько ты подходишь вакансии», а «насколько вакансия подходит тебе» — персональный explainable Opportunity Score (карьерная ценность, деньги на руки, локация, рост, шансы, личный интерес), а не голый процент совпадения;
+- **говорит, что делать дальше** — Next Best Action по всем открытым вакансиям и подачам одновременно, а не отдельный экран на каждую;
+- **учится на исходах** — какие форматы резюме, компании и стратегии на самом деле работают для этого конкретного пользователя, а не выдаёт общие советы;
+- **проверяет гипотезы** — личные эксперименты вида «referral сначала» против «сначала подать», с честной статистикой, а не интуицией;
+- **перенимает голос** — черновики сообщений и буллетов постепенно звучат как сам пользователь, а не как языковая модель.
+
 ### 1.3. Границы
 
-**Система делает:** ведёт учёт вакансий, компаний, контактов, подач, интервью и переписки; парсит вакансии из ATS серверно и из LinkedIn через расширение; генерирует, проверяет на читаемость и хранит документы; отправляет уведомления и отдаёт календарный фид; считает нетто-доход для W2; отвечает на аналитические вопросы; управляет содержимым публичного сайта и редактируемыми текстами приложения.
+**Система делает (Фаза 1):** ведёт учёт вакансий, компаний, контактов, подач, интервью и переписки; парсит вакансии из ATS серверно и из LinkedIn через расширение; генерирует, проверяет на читаемость и хранит документы; отправляет уведомления и отдаёт календарный фид; считает нетто-доход для W2; отвечает на аналитические вопросы; управляет содержимым публичного сайта и редактируемыми текстами приложения.
 
-**Система не делает:** не подаёт заявки автоматически и не заполняет чужие формы; не скрейпит LinkedIn с сервера; не является налоговым советником; не агрегирует вакансии и не является поисковиком по рынку; не хранит платёжные данные и не содержит биллинга.
+**Система дополнительно делает (Фаза 2):** хранит структурированную Career Memory и Career Graph; сопоставляет вакансии из уже захваченного набора с опытом пользователя семантически; считает персональный Opportunity Score и объясняет его; формирует единый список Next Best Action по всем вакансиям и подачам; диагностирует узкие места воронки и делает выводы по исходам; ведёт личные эксперименты по стратегии поиска; учится стилю письма пользователя на его правках.
+
+**Система не делает:** не подаёт заявки автоматически и не заполняет чужие формы; не скрейпит LinkedIn с сервера; не является налоговым советником; **не агрегирует вакансии и не является поисковиком по рынку — в том числе в Фазе 2** (см. [ADR-040](#22-журнал-архитектурных-решений)): Opportunity Score и Next Best Action считаются только над вакансиями, которые пользователь уже сам захватил, а не над рынком целиком; не хранит платёжные данные и не содержит биллинга.
 
 ### 1.4. Пользователь
 
 Один основной пользователь, Android/mobile-инженер уровня Staff, ищущий работу в США. Объём: от пяти до двадцати вакансий в неделю, накопительно сотни записей за год. Основное устройство — десктоп 17–24 дюйма; телефон для чтения перед звонком. Продукт спроектирован многопользовательским на уровне данных и API с первого дня, с прицелом на превращение в публичный продукт с веб-, мобильным и десктопным клиентами.
+
+Фаза 1 обслуживает этого пользователя как личный инструмент. Переход к Фазе 2 — явное решение «превратить в продукт», принимаемое после того, как Фаза 1 подтвердила себя в реальном использовании, а не автоматическое продолжение реализации.
 
 ### 1.5. Нефункциональные требования
 
@@ -83,8 +100,10 @@
 | Публикация контента | Изменение видно немедленно, без пересборки и деплоя |
 | Публичные страницы | Полный HTML для робота, Lighthouse не ниже 95 по всем осям |
 | Надёжность | Ни одно уведомление не теряется и не дублируется; ни один отправленный документ не пропадает |
-| Ресурсы | Вся система умещается в 2 ГБ RAM на одном VPS |
-| Стоимость | Не более 15 долларов в год: домен плюс токены LLM |
+| Ресурсы (Фаза 1) | Вся система умещается в 2 ГБ RAM на одном VPS |
+| Стоимость (Фаза 1) | Не более 15 долларов в год: домен плюс токены LLM |
+| Ресурсы (Фаза 2) | Embeddings — через `pgvector` в том же PostgreSQL, без нового сервиса; рост потребления памяти по замеру после Вехи 11, бюджет пересматривается тогда, а не заранее |
+| Стоимость (Фаза 2) | Отдельная строка сверх бюджета Фазы 1: LLM-вызовы matching-rerank и разговорного онбординга — цель не более ~$0.01 за одну адаптацию резюме под вакансию (см. [ADR-041](#22-журнал-архитектурных-решений)), дешёвая модель по умолчанию |
 | Восстановление | RPO 24 часа, RTO 1 час; восстановление проверяется автоматически |
 | Сопровождаемость | Изолированное изменение — минуты; архитектурные нарушения ловятся компилятором или CI, но никогда ревью |
 | Приватность | Данные не покидают инфраструктуру владельца, кроме явных вызовов LLM |
@@ -316,13 +335,25 @@ backend/
 │   ├── reminders/      { contract, domain, application, infrastructure, web }
 │   ├── analytics/      { application, infrastructure, web }
 │   ├── content/        { contract, domain, application, infrastructure, web }
-│   └── mailbox/        { domain, application, infrastructure, web }
+│   ├── mailbox/        { domain, application, infrastructure, web }
+│   │
+│   │   Фаза 2 — раздел 21, Вехи 10–18. Не создаются вместе с Фазой 1.
+│   ├── career/         { contract, domain, application, infrastructure, web }   Веха 10 — §6.15
+│   ├── preferences/    { contract, domain, application, infrastructure, web }   Веха 10 — §6.16
+│   ├── matching/       { contract, domain, application, infrastructure, web }   Веха 12 — §6.17
+│   ├── opportunity/    { contract, domain, application, infrastructure, web }   Веха 12 — §6.18
+│   ├── actions/        { contract, domain, application, infrastructure, web }   Веха 13 — §6.19
+│   ├── experiments/    { contract, domain, application, infrastructure, web }   Веха 15 — §6.20
+│   ├── voice/          { contract, domain, application, infrastructure, web }   Веха 16 — §6.21
+│   └── gamification/   { application, infrastructure, web }                    Веха 17 — §6.22
 ├── app/                                композиционный корень и точка входа
 ├── arch-tests/                         правила Konsist
 └── modules.yaml                        манифест разрешённых зависимостей
 ```
 
-Итого около шестидесяти модулей сборки. Это осознанная цена за то, что нарушение границы не компилируется. Ниже — чем эта цена гасится.
+Итого около шестидесяти модулей сборки в Фазе 1. Это осознанная цена за то, что нарушение границы не компилируется. Ниже — чем эта цена гасится.
+
+Фаза 2 добавляет ещё восемь модулей-возможностей (тридцать восемь модулей сборки: по пять слоёв на `career`, `preferences`, `matching`, `opportunity`, `actions`, `experiments`, `voice`, и три слоя на `gamification`, у которого, как и у `analytics`, нет ни контракта, ни домена — он читает события и не является источником решений для других модулей). Итог Фазы 2 — около ста модулей сборки. Каждый новый модуль подчиняется тому же правилу: слой добавляется, только если у него есть содержание, а не для симметрии со списком.
 
 **Модуль получает только те слои, которые ему нужны.** Отсутствие слоя — нормальное состояние, а не недоделка. У `analytics` нет ни контракта, ни домена: это набор проекций для чтения, к нему никто не обращается из других модулей, и собственных правил у него нет. У `briefing` нет контракта по той же причине. У `capture` нет домена: он целиком состоит из оркестрации чужих правил.
 
@@ -456,7 +487,7 @@ data class ApplicationSubmitted(
 
 Доставка идёт через outbox даже внутри одного процесса. Это выглядит избыточным, но даёт то, ради чего всё затевалось: событие, опубликованное в транзакции, которая потом откатилась, не будет доставлено; событие, опубликованное перед падением процесса, будет доставлено после перезапуска.
 
-**Матрица связей между модулями:**
+**Матрица связей между модулями (Фаза 1):**
 
 | Модуль | Читает синхронно из | Публикует события | Слушает события |
 | --- | --- | --- | --- |
@@ -473,6 +504,23 @@ data class ApplicationSubmitted(
 | `mailbox` | `applications`, `contacts` | `MessageLogged` | — |
 
 Обрати внимание на `briefing`: он читает из пяти модулей и не публикует ничего. Это правильно — бриф является чистым представлением, он ничего не меняет. И на `analytics`: он не читает ни у кого синхронно, потому что строит собственные проекции из событий. Оба случая — признак того, что границы проведены верно.
+
+**Матрица связей между модулями (добавляется в Фазе 2):**
+
+| Модуль | Читает синхронно из | Публикует события | Слушает события |
+| --- | --- | --- | --- |
+| `career` | `identity` | `ExperienceBlockAdded`, `ExperienceBlockUpdated`, `ExperienceBlockArchived` | — |
+| `preferences` | `identity` | `PreferencesUpdated` | — |
+| `matching` | `jobs`, `career` | `JobMatched` | `JobSaved`, `JobUpdated`, `ExperienceBlockAdded`, `ExperienceBlockUpdated` |
+| `opportunity` | `matching`, `compensation`, `preferences`, `jobs` | `OpportunityScored` | `JobMatched`, `PreferencesUpdated` |
+| `actions` | `opportunity`, `applications`, `contacts`, `reminders` | `ActionRecommended`, `ActionAccepted`, `ActionDismissed`, `ActionCompleted` | `OpportunityScored`, все события `applications` и `contacts` |
+| `experiments` | `applications`, `analytics` | `ExperimentStarted`, `ExperimentConcluded` | — |
+| `voice` | `contacts`, `resume` | `StyleEditObserved` | — |
+| `gamification` | — | — | `ActionAccepted`, `ActionCompleted`, все события `applications` и `contacts` |
+
+`matching` и `actions` — единственные модули Фазы 2, которые и читают синхронно, и слушают события: им нужен результат немедленно при явном запросе (пересчитать матчинг конкретной вакансии, показать список действий сейчас) и одновременно нужно инвалидировать свои проекции, когда где-то в системе что-то изменилось асинхронно. Это тот же принцип из [ADR-019](#22-журнал-архитектурных-решений), применённый к двум механизмам одновременно, а не выбор одного из них.
+
+`gamification` повторяет форму `analytics`: не читает синхронно ни у кого и ничего не публикует. Очки существуют только как проекция из событий (см. [ADR-039](#22-журнал-архитектурных-решений)) — у модуля нет ни контракта, ни домена, потому что нет решений, которые он принимает, только подсчёт.
 
 ### 4.6. Владение данными
 
@@ -980,7 +1028,270 @@ interface ProcessRunner { suspend fun run(command: Command, timeout: Duration): 
 
 `Clock` и `IdGenerator` — порты, а не статические вызовы, именно затем, чтобы весь домен был детерминированно тестируем. Прямые обращения к текущему времени и генератору случайных значений запрещены во всех модулях, кроме реализаций этих портов.
 
-### 6.14. Матрица компонентов
+### 6.15. Career Memory и Career Graph — модуль `career` (Фаза 2, Веха 10)
+
+```kotlin
+package tallyvane.career.application.port
+
+interface ExperienceBlockWriter {
+    suspend fun add(block: NewExperienceBlock): ExperienceBlockId
+    suspend fun update(id: ExperienceBlockId, patch: ExperienceBlockPatch): UpdateOutcome
+    suspend fun archive(id: ExperienceBlockId): UpdateOutcome
+}
+
+/** Разговорное интервью — цепочка вопросов, а не одна большая форма. */
+interface CareerInterviewer {
+    suspend fun nextQuestion(context: InterviewContext): InterviewTurn
+}
+
+sealed interface InterviewTurn {
+    data class Question(val text: String, val targetsGap: FactGap) : InterviewTurn
+    data class ExtractedBlock(val draft: NewExperienceBlock, val confidence: Confidence) : InterviewTurn
+    data object Done : InterviewTurn
+}
+```
+
+```kotlin
+package tallyvane.career.contract
+
+/** Опубликованный язык модуля: то, что читают matching и opportunity. */
+interface CareerGraph {
+    suspend fun blocksFor(userId: UserId): List<ExperienceBlockView>
+    suspend fun neighborsOf(blockId: ExperienceBlockId, edgeKinds: Set<EdgeKind>): List<GraphNodeView>
+}
+
+data class ExperienceBlockView(
+    val id: ExperienceBlockId,
+    val situation: String,
+    val actions: List<String>,
+    val results: List<MetricView>,
+    val skills: List<String>,
+    val technologies: List<String>,
+    val domains: List<String>,
+    val confidence: Confidence,
+)
+```
+
+**Facts vs representations — правило, а не соглашение.** `ExperienceBlockView` несёт только факты: ситуацию, действия, измеримый результат, теги. Формулировка буллета для конкретного резюме — это generated representation, она живёт в `resume:domain` (§8.7) как ссылка на блок плюс необязательное `override_text`, и никогда не пишется обратно в `career`. Правило проверяется тем же приёмом, что `no-llm-with-personal-data` (§17): классы в `resume:application`, формирующие текст буллета, не имеют мутирующего доступа к `career.contract.ExperienceBlockWriter` — только к чтению. Решение и его альтернативы — [ADR-033](#22-журнал-архитектурных-решений).
+
+**Граф — реляционные связи, а не отдельная БД.** `career_graph_edges` (§8.13) — обычная таблица `(from_id, edge_kind, to_id)` в той же схеме `career` в PostgreSQL. Обход соседей — рекурсивный CTE, не graph-движок. Решение и его альтернативы — [ADR-034](#22-журнал-архитектурных-решений).
+
+**Не знает.** О вакансиях, о том, как результат будет использован — matching и opportunity читают у `career`, а не наоборот.
+
+### 6.16. Модель предпочтений — модуль `preferences` (Фаза 2, Веха 10)
+
+```kotlin
+package tallyvane.preferences.domain
+
+/** Предпочтение может быть жёстким ограничением или взвешенным пожеланием. */
+sealed interface PreferenceConstraint<T> {
+    data class Hard<T>(val requirement: (T) -> Boolean) : PreferenceConstraint<T>
+    data class Soft<T>(val score: (T) -> Percent, val weight: Weight) : PreferenceConstraint<T>
+}
+
+interface PreferenceProfile {
+    fun evaluate(candidate: JobFacet): PreferenceEvaluation
+}
+
+data class PreferenceEvaluation(
+    val hardViolations: List<HardViolation>,
+    val softScore: Percent,
+    val explanation: List<PreferenceReason>,
+)
+```
+
+Жёсткое ограничение, нарушенное вакансией, не снижает Opportunity Score — оно **исключает** карточку из Next Best Action независимо от остальных сигналов (пример «SKIP» из issue #4: высокий skill match не перекрывает несовместимый office mode). Мягкое предпочтение только взвешивает.
+
+### 6.17. Semantic matching — модуль `matching` (Фаза 2, Веха 12)
+
+```kotlin
+package tallyvane.matching.application.port
+
+interface EmbeddingProvider {
+    suspend fun embed(texts: List<String>, purpose: EmbeddingPurpose): List<Embedding>
+}
+
+/** Индекс живёт в Postgres через pgvector — не отдельный сервис. См. ADR-035. */
+interface EmbeddingIndex {
+    suspend fun upsert(subject: EmbeddingSubject, embedding: Embedding)
+    suspend fun nearestTo(embedding: Embedding, subjectKind: SubjectKind, limit: Int): List<ScoredSubject>
+}
+```
+
+```kotlin
+package tallyvane.matching.domain
+
+/** Комбинирует сигналы в один скор. Чистая функция — как ApplicationStatusPolicy. */
+interface HybridMatchScorer {
+    fun score(signals: MatchSignals): MatchResult
+}
+
+data class MatchSignals(
+    val keywordOverlap: Percent,
+    val semanticSimilarity: Percent,
+    val skillOverlap: Set<String>,
+    val domainSimilarity: Percent,
+    val ruleBonuses: List<RuleSignal>,
+)
+
+data class MatchResult(
+    val score: Percent,
+    val tier: MatchTier,               // highly_relevant, relevant, weak, not_relevant
+    val explanation: List<MatchReason>,
+)
+```
+
+**Пайплайн.** `Job Description → извлечение требований с приоритетом (§8.4) → keyword/taxonomy → pgvector retrieval топ-K блоков career → rule-signals → дешёвый LLM-rerank только по топ-K → HybridMatchScorer.score`. LLM вызывается один раз на вакансию, а не на каждый блок, и идёт через уже существующий `platform:llm` с бюджетным охранником — новый декоратор не создаётся, конфигурация лимита расширяется отдельной строкой. Порядок стадий и то, что LLM видит только топ-K, а не полный список, зафиксированы в [ADR-036](#22-журнал-архитектурных-решений).
+
+**Не знает.** О предпочтениях пользователя, о деньгах, о том, что вакансия будет показана в Opportunity Score — это ответственность `opportunity`.
+
+### 6.18. Opportunity Score — модуль `opportunity` (Фаза 2, Веха 12)
+
+```kotlin
+package tallyvane.opportunity.domain
+
+/** Explainable-композит. Ни одного скрытого веса — все компоненты видны вызывающему. */
+interface OpportunityScorer {
+    fun score(input: OpportunityInput): OpportunityScoreResult
+}
+
+data class OpportunityInput(
+    val careerFit: Percent,            // от matching.contract
+    val compensation: CompensationBreakdown,  // от compensation.contract, life-adjusted (§6.6)
+    val preferenceEvaluation: PreferenceEvaluation,  // от preferences.contract
+    val locationFacts: LocationFacet,
+    val postedAt: Instant,
+    val now: Instant,
+)
+
+data class OpportunityScoreResult(
+    val total: Percent,
+    val components: OpportunityComponents,
+    val recommendation: Recommendation,  // strong_apply, apply, consider, skip
+    val explanation: List<ScoreReason>,  // "+", "−" пункты — см. §12.9 и issue #4 Part XVIII
+)
+
+data class OpportunityComponents(
+    val careerFit: Percent,
+    val compensation: Percent,
+    val lifestyle: Percent,
+    val location: Percent,
+    val careerGrowth: Percent,
+    val interviewOdds: Percent,
+    val personalInterest: Percent,
+)
+```
+
+**Никакого чёрного ящика.** `OpportunityScorer.score` — чистая функция от уже вычисленных входов, покрывается табличными тестами тем же приёмом, что и `DefaultApplicationStatusPolicy` (§9.3). Жёсткое нарушение из `preferences` форсирует `Recommendation.Skip` независимо от прочих компонентов. Решение зафиксировано в [ADR-037](#22-журнал-архитектурных-решений).
+
+**`interviewOdds`** — не ML-предсказание в Фазе 2: эвристика от уровня конкуренции (грубая оценка по размеру компании, давности постинга, seniority) плюс поправка от `experiments`/`analytics`, когда накопится история (Веха 14). Заменить эвристику моделью позже — замена одной реализации порта, остальное не меняется (тот же приём, что в §20).
+
+### 6.19. Next Best Action — модуль `actions` (Фаза 2, Веха 13)
+
+```kotlin
+package tallyvane.actions.domain
+
+/** Действие получает скор по той же формуле, что в issue #4 Part VII. */
+interface ActionScorer {
+    fun score(candidate: ActionCandidate): ScoredAction
+}
+
+data class ActionCandidate(
+    val kind: ActionKind,               // apply, request_referral, follow_up, prepare_interview, review_offer, skip
+    val subject: ActionSubject,
+    val successProbability: Percent,
+    val opportunityValue: Percent,
+    val urgency: Urgency,
+    val userPreferenceFit: Percent,
+    val requiredEffort: Duration,
+)
+
+data class ScoredAction(
+    val candidate: ActionCandidate,
+    val priority: Score0to100,
+    val explanation: List<ScoreReason>,
+)
+
+/** Раздел 12.9: Focus — одно дело; Energy Mode — топ действий в пределах бюджета времени. */
+interface NextBestActionEngine {
+    suspend fun top(userId: UserId, budget: Duration?, limit: Int): List<ScoredAction>
+}
+```
+
+`ActionCandidate` собирается из кандидатов `reminders` (уже существующих, §6.5) и новых кандидатов от `opportunity` («подать», «запросить referral», «проверить предложение»). `ReminderRule` не меняется и не знает о существовании `actions` — `actions` читает готовые `ReminderCandidate` через контракт `reminders`, оценивает их наравне с остальными и отдаёт единый список. Ничего в `reminders` не переписывается. `NextBestActionEngine` — политика, питающая уже существующий экран Focus (§12.9, ADR-027), а не новый экран рядом с ним; решение и отвергнутая альтернатива — [ADR-038](#22-журнал-архитектурных-решений).
+
+**Не знает.** Как конкретно будет нарисована карточка — это `widgets/next-action-card` на фронтенде (§12.5).
+
+### 6.20. Личные эксперименты — модуль `experiments` (Фаза 2, Веха 15)
+
+```kotlin
+package tallyvane.experiments.domain
+
+interface ExperimentAnalyzer {
+    /** Честная статистика, а не «на глаз». Небольшие выборки — сознательно широкий интервал. */
+    fun analyze(control: OutcomeSample, variant: OutcomeSample): ExperimentVerdict
+}
+
+data class ExperimentVerdict(
+    val controlRate: Percent,
+    val variantRate: Percent,
+    val confidence: Confidence,     // low, moderate, high — не псевдоточный p-value на n=12
+    val recommendation: String,
+)
+```
+
+Осознанно нет `high` confidence на выборках меньше пороговой величины: `ExperimentAnalyzer` — чистая функция, покрытая табличными тестами на граничные размеры выборки, чтобы не поощрять «уверенные» выводы из трёх подач.
+
+### 6.21. Голос пользователя — модуль `voice` (Фаза 2, Веха 16)
+
+```kotlin
+package tallyvane.voice.application.port
+
+interface StyleEditRecorder {
+    /** Вызывается тем модулем, который показал черновик и получил правку перед отправкой. */
+    suspend fun recordEdit(context: DraftContext, original: String, edited: String)
+}
+```
+
+```kotlin
+package tallyvane.voice.contract
+
+interface StyleProfileProvider {
+    suspend fun profileFor(userId: UserId): StyleProfile?
+}
+
+data class StyleProfile(
+    val directness: Percent,
+    val formality: Percent,
+    val warmth: Percent,
+    val verbosity: Percent,
+    val avoidPhrases: List<String>,
+    val preferredPhrases: List<String>,
+)
+```
+
+`contacts` и `resume` вызывают `StyleEditRecorder.recordEdit` в момент, когда пользователь отправляет сообщение или сохраняет буллет, если текст отличается от того, что предложил LLM — само сравнение живёт в вызывающем модуле, `voice` получает уже готовую пару «было/стало». `StyleProfileProvider` читается синхронно теми же модулями перед следующей генерацией черновика. Профиль пересчитывается пакетно, не на каждую правку — цена LLM-анализа стиля неоправданна при разнице в одном слове.
+
+### 6.22. Геймификация — модуль `gamification` (Фаза 2, Веха 17)
+
+```kotlin
+package tallyvane.gamification.application
+
+/** Проекция, не хранимый счётчик. Тот же приём, что state_projection в applications (ADR-001). */
+interface WeeklyQualityScore {
+    suspend fun forWeek(userId: UserId, week: WeekOf): WeeklyScoreView
+}
+
+data class WeeklyScoreView(
+    val points: Int,
+    val target: Int,
+    val breakdown: List<QualityPointsEntry>,   // "high-fit application +10", "referral request +15" …
+)
+```
+
+Очки за низкокачественное поведение (спам-подачи) не существуют как категория: `QualityPointsEntry` строится по белому списку типов событий из §9.2/§9.4, а не по их количеству. Добавить новую поощряемую категорию — строка в этом списке, без миграции.
+
+### 6.23. Матрица компонентов
 
 | Компонент | Модуль | Зависит от портов и контрактов | Не знает о |
 | --- | --- | --- | --- |
@@ -995,6 +1306,13 @@ interface ProcessRunner { suspend fun run(command: Command, timeout: Duration): 
 | `GenerateResume` | `resume` | `ResumeRenderer`, `AtsReadabilityValidator`, `BlobStore` | Typst, PDFBox |
 | `PublishPage` | `content` | `ContentWriter`, `BlockSchemaProvider`, `EventPublisher`, `OutboxWriter` | Next.js, кэше, HTTP |
 | `UploadMedia` | `content` | `MediaProcessor`, `BlobStore`, `MediaWriter` | Форматах изображений, бинарниках |
+| `CareerInterviewer` | `career` | `LlmProvider`, `ExperienceBlockWriter` | Вакансиях, matching |
+| `HybridMatchScorer` | `matching` | `EmbeddingIndex`, `EmbeddingProvider`, `career.contract.CareerGraph` значением | Предпочтениях, деньгах |
+| `OpportunityScorer` | `opportunity` | значения от `matching`, `compensation`, `preferences` | Хранении, HTTP |
+| `NextBestActionEngine` | `actions` | `reminders.contract`, `opportunity.contract`, `ActionScorer` | Каналах доставки, вёрстке карточки |
+| `ExperimentAnalyzer` | `experiments` | значения `OutcomeSample` | Хранении, UI |
+| `StyleEditRecorder` | `voice` | `EventWriter`-подобный порт своей схемы | Содержимом сообщения, о котором не спросили |
+| `WeeklyQualityScore` | `gamification` | подписка на события прочих модулей | Правилах напоминаний, скоринге |
 
 ---
 
@@ -1171,6 +1489,31 @@ erDiagram
     media_assets ||--o{ media_derivatives : resized_to
 ```
 
+**Фаза 2** добавляет отдельный граф вокруг `experience_blocks`, не трогая связи выше:
+
+```mermaid
+erDiagram
+    users ||--o{ experience_blocks : owns
+    experience_blocks ||--o{ experience_results : quantified_by
+    experience_blocks ||--o{ experience_evidence : supported_by
+    experience_blocks ||--o{ graph_edges : connects
+    experience_blocks ||--o{ block_embeddings : embedded_as
+    jobs ||--o| job_embeddings : embedded_as
+    jobs ||--o{ job_block_matches : matched_against
+    experience_blocks ||--o{ job_block_matches : matched_in
+    jobs ||--o| opportunity_scores : scored_as
+    users ||--|| preference_profiles : has
+    users ||--o{ hard_constraints : sets
+    users ||--o{ action_log : sees
+    users ||--o{ experiments : runs
+    experiments ||--o{ observations : produces
+    users ||--|| style_profiles : has
+    users ||--o{ style_edits : produces
+    resume_versions ||--o| experience_blocks : may_reference
+```
+
+`resume_versions` может ссылаться на `experience_blocks` (через необязательный `source_block_id` в `resume.bullets`, §8.13), но не обязана — существующие буллеты Фазы 1 работают без единой правки.
+
 ### 8.3. Схема `identity`
 
 ```sql
@@ -1286,12 +1629,16 @@ create table jobs.job_snapshots (
 );
 
 create table jobs.job_requirements (
-    id       uuid primary key,
-    user_id  uuid not null references identity.users(id) on delete cascade,
-    job_id   uuid not null references jobs.jobs(id) on delete cascade,
-    kind     text not null check (kind in ('must','nice')),
-    text     text not null,
-    position smallint not null
+    id         uuid primary key,
+    user_id    uuid not null references identity.users(id) on delete cascade,
+    job_id     uuid not null references jobs.jobs(id) on delete cascade,
+    kind       text not null check (kind in ('must','nice')),
+    text       text not null,
+    position   smallint not null,
+    -- Колонки ниже добавлены в Фазе 2 (Веха 12) отдельной миграцией добавления,
+    -- существующие строки Фазы 1 получают приоритет 'important' и уверенность 'unknown' по умолчанию.
+    priority   text not null default 'important' check (priority in ('critical','important','nice','low')),
+    confidence text not null default 'unknown' check (confidence in ('high','medium','low','unknown'))
 );
 
 create table jobs.job_tech_tags (
@@ -1714,7 +2061,230 @@ create table reminders.deliveries (
 );
 ```
 
-### 8.10. Индексы
+### 8.13. Схема `career` (Фаза 2, Веха 10)
+
+```sql
+create schema career;
+
+create table career.experience_blocks (
+    id           uuid primary key,
+    user_id      uuid not null references identity.users(id) on delete cascade,
+    situation    text not null,
+    actions      text[] not null default '{}',
+    ownership    text,
+    domains      text[] not null default '{}',
+    technologies text[] not null default '{}',
+    skills       text[] not null default '{}',
+    confidence   text not null default 'medium' check (confidence in ('high','medium','low')),
+    source       text not null check (source in ('conversational_interview','manual','imported')),
+    created_at   timestamptz not null default now(),
+    updated_at   timestamptz not null default now(),
+    archived_at  timestamptz
+);
+
+create table career.experience_results (
+    id         uuid primary key,
+    user_id    uuid not null references identity.users(id) on delete cascade,
+    block_id   uuid not null references career.experience_blocks(id) on delete cascade,
+    metric     text not null,
+    before_value text,
+    after_value  text,
+    position   smallint not null
+);
+
+create table career.experience_evidence (
+    id           uuid primary key,
+    user_id      uuid not null references identity.users(id) on delete cascade,
+    block_id     uuid not null references career.experience_blocks(id) on delete cascade,
+    document_id  uuid references documents.documents(id) on delete set null,
+    url          text,
+    note         text
+);
+
+create table career.graph_edges (
+    id         uuid primary key,
+    user_id    uuid not null references identity.users(id) on delete cascade,
+    from_block uuid not null references career.experience_blocks(id) on delete cascade,
+    edge_kind  text not null check (edge_kind in ('demonstrates_skill','used_technology','in_domain','impacted','supported_by')),
+    to_value   text not null,
+    unique (from_block, edge_kind, to_value)
+);
+```
+
+`experience_blocks` — прямой аналог `resume.experiences`/`resume.bullets` (§8.7), но атомарный и без готовой формулировки: `situation`/`actions`/`ownership` — факты, а не текст буллета. `resume.bullets` в Фазе 2 получает необязательную колонку `source_block_id` (миграция добавления, без разрушения существующих буллетов, которые останутся без привязки) — резюме продолжает работать даже для блоков, никогда не проходивших через `career`.
+
+`graph_edges` хранит связи как `(блок, тип связи, значение)` вместо отдельной сущности графа: `to_value` — это имя навыка, домена или технологии, а не отдельная таблица узлов. Обоснование — [ADR-034](#22-журнал-архитектурных-решений).
+
+### 8.14. Схема `preferences` (Фаза 2, Веха 10)
+
+```sql
+create schema preferences;
+
+create table preferences.profiles (
+    user_id                    uuid primary key references identity.users(id) on delete cascade,
+    compensation_min_cents     bigint,
+    compensation_target_cents  bigint,
+    max_commute_minutes        smallint,
+    preferred_office_days_min  smallint,
+    preferred_office_days_max  smallint,
+    remote_preference          text check (remote_preference in ('required','preferred','acceptable','avoid')),
+    relocation_acceptable      boolean not null default false,
+    target_roles               text[] not null default '{}',
+    target_domains              text[] not null default '{}',
+    company_size_min           integer,
+    company_size_max           integer,
+    early_stage_preference     text check (early_stage_preference in ('preferred','acceptable','avoid')),
+    updated_at                 timestamptz not null default now()
+);
+
+create table preferences.hard_constraints (
+    id       uuid primary key,
+    user_id  uuid not null references identity.users(id) on delete cascade,
+    facet    text not null check (facet in ('office_days','relocation','remote_mode','company_size','compensation_floor')),
+    rule     jsonb not null
+);
+```
+
+`hard_constraints` отделена от `profiles`, потому что жёсткие ограничения имеют иную семантику отказа (§6.16: нарушение исключает вакансию, а не снижает скор) и должны читаться списком, а не полями строки, чтобы добавление нового вида ограничения не требовало миграции схемы.
+
+### 8.15. Схема `matching` (Фаза 2, Веха 12)
+
+```sql
+create extension if not exists vector;
+
+create schema matching;
+
+create table matching.job_embeddings (
+    job_id     uuid primary key references jobs.jobs(id) on delete cascade,
+    user_id    uuid not null references identity.users(id) on delete cascade,
+    embedding  vector(1536) not null,
+    model      text not null,
+    computed_at timestamptz not null default now()
+);
+
+create table matching.block_embeddings (
+    block_id    uuid primary key references career.experience_blocks(id) on delete cascade,
+    user_id     uuid not null references identity.users(id) on delete cascade,
+    embedding   vector(1536) not null,
+    model       text not null,
+    computed_at timestamptz not null default now()
+);
+
+create table matching.job_block_matches (
+    job_id      uuid not null references jobs.jobs(id) on delete cascade,
+    block_id    uuid not null references career.experience_blocks(id) on delete cascade,
+    user_id     uuid not null references identity.users(id) on delete cascade,
+    score       smallint not null check (score between 0 and 100),
+    tier        text not null check (tier in ('highly_relevant','relevant','weak','not_relevant')),
+    explanation jsonb not null default '[]',
+    computed_at timestamptz not null default now(),
+    primary key (job_id, block_id)
+);
+```
+
+`vector(1536)` — расширение `pgvector` внутри того же PostgreSQL 17, не отдельный сервис (см. НФТ §1.5 и [ADR-035](#22-журнал-архитектурных-решений)). `job_block_matches` — материализованный результат пайплайна из §6.17, а не таблица, которую читают напрямую при показе: пересчёт запускается по `JobUpdated`/`ExperienceBlockUpdated`, а не при каждом открытии карточки.
+
+### 8.16. Схема `opportunity` (Фаза 2, Веха 12)
+
+```sql
+create schema opportunity;
+
+create table opportunity.scores (
+    job_id            uuid primary key references jobs.jobs(id) on delete cascade,
+    user_id           uuid not null references identity.users(id) on delete cascade,
+    total             smallint not null check (total between 0 and 100),
+    career_fit        smallint not null check (career_fit between 0 and 100),
+    compensation      smallint not null check (compensation between 0 and 100),
+    lifestyle         smallint not null check (lifestyle between 0 and 100),
+    location          smallint not null check (location between 0 and 100),
+    career_growth     smallint not null check (career_growth between 0 and 100),
+    interview_odds    smallint not null check (interview_odds between 0 and 100),
+    personal_interest smallint not null check (personal_interest between 0 and 100),
+    recommendation    text not null check (recommendation in ('strong_apply','apply','consider','skip')),
+    explanation       jsonb not null default '[]',
+    computed_at       timestamptz not null default now()
+);
+```
+
+Таблица — проекция, как `applications.state_projection` (§8.5): её можно стереть и пересчитать из `matching`, `compensation`, `preferences` заново, ничего не потеряв. `explanation` хранит список `+`/`−` пунктов в формате issue #4 Part XVIII, отдаётся фронтенду без дополнительной генерации текста на чтении.
+
+### 8.17. Схема `actions` (Фаза 2, Веха 13)
+
+```sql
+create schema actions;
+
+create table actions.action_log (
+    id          uuid primary key,
+    user_id     uuid not null references identity.users(id) on delete cascade,
+    kind        text not null check (kind in ('apply','request_referral','follow_up','prepare_interview','review_offer','skip')),
+    subject_type text not null check (subject_type in ('job','application','contact')),
+    subject_id  uuid not null,
+    priority    smallint not null check (priority between 0 and 100),
+    status      text not null default 'recommended' check (status in ('recommended','accepted','dismissed','completed')),
+    recommended_at timestamptz not null default now(),
+    resolved_at timestamptz
+);
+```
+
+Вставка только на `recommended`, дальнейшие переходы — `update` статуса той же строки, а не новые события в чужом журнале: `actions` не пишет в `applications.events` (запрет соединений и чужих таблиц, §4.6), а публикует `ActionAccepted`/`ActionDismissed`/`ActionCompleted`, которые слушают `analytics` и `gamification`.
+
+### 8.18. Схема `experiments` (Фаза 2, Веха 15)
+
+```sql
+create schema experiments;
+
+create table experiments.experiments (
+    id           uuid primary key,
+    user_id      uuid not null references identity.users(id) on delete cascade,
+    hypothesis   text not null,
+    control_label text not null,
+    variant_label text not null,
+    started_at   timestamptz not null default now(),
+    concluded_at timestamptz,
+    verdict      jsonb
+);
+
+create table experiments.observations (
+    id            uuid primary key,
+    experiment_id uuid not null references experiments.experiments(id) on delete cascade,
+    arm          text not null check (arm in ('control','variant')),
+    application_id uuid references applications.applications(id) on delete set null,
+    outcome      text not null check (outcome in ('response','no_response')),
+    recorded_at  timestamptz not null default now()
+);
+```
+
+### 8.19. Схема `voice` (Фаза 2, Веха 16)
+
+```sql
+create schema voice;
+
+create table voice.style_edits (
+    id          uuid primary key,
+    user_id     uuid not null references identity.users(id) on delete cascade,
+    context     text not null check (context in ('follow_up','connection_note','resume_bullet','cover_letter')),
+    original    text not null,
+    edited      text not null,
+    observed_at timestamptz not null default now()
+);
+
+create table voice.style_profiles (
+    user_id           uuid primary key references identity.users(id) on delete cascade,
+    directness        smallint check (directness between 0 and 100),
+    formality         smallint check (formality between 0 and 100),
+    warmth            smallint check (warmth between 0 and 100),
+    verbosity         smallint check (verbosity between 0 and 100),
+    avoid_phrases     text[] not null default '{}',
+    preferred_phrases text[] not null default '{}',
+    recomputed_at     timestamptz not null default now()
+);
+```
+
+`style_profiles` пересчитывается пакетно из накопленных `style_edits` (§6.21), не хранится как «истина, редактируемая построчно» — это чтобы правило «facts vs representations» (§6.15) применялось и здесь: сырые правки — факты, профиль — их производная, которую можно перестроить с нуля.
+
+`gamification` не получает собственной схемы: очки — это запрос по существующим событиям `applications`, `contacts`, `actions` (§6.22, [ADR-039](#22-журнал-архитектурных-решений)), а не таблица для записи.
+
+### 8.20. Индексы
 
 ```sql
 create index jobs_user_captured   on jobs.jobs (user_id, captured_at desc) where deleted_at is null;
@@ -1732,21 +2302,38 @@ create index comms_next_step_due  on contacts.communications (user_id, next_step
 create index outbox_pending       on platform.outbox_messages (available_at) where delivered_at is null;
 create index pages_published      on content.pages (kind, published_at desc) where published_revision_id is not null;
 create index blocks_by_kind       on content.blocks (kind);
+
+-- Фаза 2
+create index career_blocks_user      on career.experience_blocks (user_id) where archived_at is null;
+create index career_edges_from       on career.graph_edges (from_block, edge_kind);
+create index matching_job_embedding  on matching.job_embeddings using hnsw (embedding vector_cosine_ops);
+create index matching_block_embedding on matching.block_embeddings using hnsw (embedding vector_cosine_ops);
+create index matching_matches_job    on matching.job_block_matches (job_id, score desc);
+create index opportunity_user_total  on opportunity.scores (user_id, total desc);
+create index actions_user_status     on actions.action_log (user_id, status, priority desc)
+    where status = 'recommended';
+create index experiments_user        on experiments.experiments (user_id, started_at desc);
+create index voice_edits_user_context on voice.style_edits (user_id, context, observed_at desc);
 ```
 
 Полнотекстовый поиск по архиву вакансий, текстам резюме и контенту — через колонку `tsvector` с индексом GIN, обновляемую триггером.
 
-### 8.11. Инварианты уровня базы
+Индексы `hnsw` над `vector` — часть расширения `pgvector` (§8.15), тот же механизм CREATE INDEX, что и для остальных индексов; отдельного движка или конфигурации не требуется.
+
+### 8.21. Инварианты уровня базы
 
 - Запрет изменения и удаления в журнале событий через триггер.
 - Запрет удаления документа, на который ссылается подача.
 - Согласованность владельца между связанными строками — составные внешние ключи вместо простых, чтобы физически исключить связывание чужих записей.
 - Политики видимости строк, ограничивающие выборку текущим пользователем из сессионной переменной.
 - Опубликованная версия страницы обязана принадлежать этой же странице.
+- **Фаза 2:** жёсткое ограничение из `preferences.hard_constraints`, нарушенное вакансией, обязано форсировать `opportunity.scores.recommendation = 'skip'` — проверяется не триггером, а контрактным сьютом `OpportunityScorer` (§18.1), потому что решение доменное, а не целостности данных.
 
-### 8.12. Миграции
+### 8.22. Миграции
 
 Flyway, каталог миграций принадлежит модулю, `platform:persistence` собирает их в общий поток и применяет в порядке версий. Миграция никогда не редактируется после слияния. Разрушающие изменения разбиваются на пары «добавить новое — переключить код — удалить старое» в разных релизах. Каждая проверяется в CI на пустой и на заполненной базе.
+
+Миграции Фазы 2 подчиняются тому же правилу и тому же каталогу-на-модуль; `create extension if not exists vector` — часть первой миграции модуля `matching`, а не отдельная ручная операция на проде.
 
 ---
 
@@ -1783,7 +2370,25 @@ Flyway, каталог миграций принадлежит модулю, `pl
 | `content.published` | page | Страница опубликована | api |
 | `content.unpublished` | page | Страница снята с публикации | api |
 
-Тип — строка вида `агрегат.действие` в прошедшем времени. Новые типы добавляются без миграции схемы; политика вывода статуса игнорирует незнакомые типы, что делает расширение обратно совместимым.
+**Добавляется в Фазе 2** — интеграционные события модулей §6.15–6.22, публикуются через `platform:events`, а не пишутся в `applications.events` (это не журнал заявок):
+
+| Тип | Субъект | Смысл | Источник |
+| --- | --- | --- | --- |
+| `experience_block.added` | experience_block | Новый факт карьеры сохранён | interview, manual |
+| `experience_block.updated` | experience_block | Факт уточнён | interview, manual |
+| `experience_block.archived` | experience_block | Факт скрыт из подбора | manual |
+| `preferences.updated` | preferences | Изменены предпочтения по вакансиям | manual |
+| `job.matched` | job | Пересчитан semantic match с Career Graph | system |
+| `opportunity.scored` | job | Пересчитан Opportunity Score | system |
+| `action.recommended` | action | Действие вошло в Next Best Action | system |
+| `action.accepted` | action | Пользователь начал рекомендованное действие | manual |
+| `action.dismissed` | action | Пользователь отклонил рекомендацию | manual |
+| `action.completed` | action | Рекомендованное действие выполнено | manual |
+| `experiment.started` | experiment | Личный эксперимент запущен | manual |
+| `experiment.concluded` | experiment | Эксперимент завершён с вердиктом | system |
+| `style.edit_observed` | style_edit | Правка AI-черновика зафиксирована | contacts, resume |
+
+Тип — строка вида `агрегат.действие` в прошедшем времени. Новые типы добавляются без миграции схемы; политика вывода статуса игнорирует незнакомые типы, что делает расширение обратно совместимым. Событие журнала `application.submitted` и интеграционное событие `action.completed`, например, могут произойти в одной транзакции: `actions` слушает `ApplicationSubmitted`, находит соответствующую рекомендацию и закрывает её сам — это не требует новой сущности в `applications`.
 
 ### 9.3. Вывод статуса
 
@@ -1976,6 +2581,71 @@ sequenceDiagram
 
 Описана в разделе [7.3](#73-мгновенная-публикация).
 
+### 10.8. Скоринг вакансии и Next Best Action (Фаза 2, Веха 12–13)
+
+```mermaid
+sequenceDiagram
+    participant J as jobs (JobUpdated)
+    participant M as matching:application
+    participant E as EmbeddingIndex (pgvector)
+    participant L as LlmProvider
+    participant O as opportunity:application
+    participant C as compensation.contract
+    participant P as preferences.contract
+    participant A as actions:application
+    participant U as Консоль
+
+    J->>M: событие JobUpdated
+    M->>M: извлечение требований с приоритетом (§8.4)
+    M->>E: nearestTo(embedding вакансии, career-блоки, limit=20)
+    E-->>M: топ-20 блоков по сходству
+    M->>L: rerank топ-20 (одна вызов на вакансию, бюджет §6.3)
+    L-->>M: HybridMatchScorer.score по каждому блоку
+    M->>M: сохранить job_block_matches, опубликовать JobMatched
+    O->>M: читать лучшие матчи синхронно
+    O->>C: evaluate() — life-adjusted компенсация
+    O->>P: evaluate() — жёсткие/мягкие предпочтения
+    O->>O: OpportunityScorer.score — чистая функция
+    O->>O: сохранить opportunity.scores, опубликовать OpportunityScored
+    A->>O: читать score синхронно при формировании списка
+    A->>A: ActionScorer.score вместе с кандидатами reminders
+    U->>A: GET /api/v1/actions/next?energy=20m
+    A-->>U: топ действий с объяснением, каждое ≤ бюджета энергии
+```
+
+При недоступности LLM `matching` не падает: пайплайн отдаёт результат по keyword/taxonomy и pgvector-сходству без rerank, `MatchResult.explanation` помечает вакансию как посчитанную с низкой уверенностью — тот же принцип деградации, что в захвате вакансии (§10.1).
+
+### 10.9. Разговорное интервью Career Memory (Фаза 2, Веха 10)
+
+```mermaid
+sequenceDiagram
+    participant U as Пользователь
+    participant W as career:web
+    participant CI as CareerInterviewer
+    participant L as LlmProvider
+    participant EW as ExperienceBlockWriter
+
+    U->>W: Открывает "Расскажи о своём опыте"
+    W->>CI: nextQuestion(пустой контекст)
+    CI-->>W: Question: "Расскажи про проект, которым гордишься"
+    U->>W: Свободный текст ответа
+    W->>CI: nextQuestion(context с ответом)
+    CI->>L: извлечь структуру и найти пробелы (FactGap)
+    L-->>CI: черновик блока + список недостающих фактов
+    alt есть значимый пробел
+        CI-->>W: Question: "Насколько ускорился pipeline?"
+        U->>W: "Было 40 минут, стало 7"
+    else достаточно фактов
+        CI-->>W: ExtractedBlock(draft, confidence)
+        W->>U: Показать черновик блока на подтверждение
+        U->>W: Подтвердить или отредактировать
+        W->>EW: add(NewExperienceBlock)
+        EW-->>W: ExperienceBlockId
+    end
+```
+
+Интервью никогда не создаёт блок без явного подтверждения пользователем — черновик виден до сохранения, в точности как ATS-предупреждение в §10.4 не позволяет сохранить резюме, потерявшее данные при рендере: система предлагает, пользователь подтверждает факт.
+
 ---
 
 ## 11. HTTP API
@@ -2055,6 +2725,42 @@ POST   /api/v1/settings/calendar-token/rotate
 GET    /calendar/{token}.ics                 Публичный фид, вне /api
 POST   /api/v1/ingest/email                  Вебхук почты
 GET    /api/v1/health
+```
+
+### 11.3.1. Эндпоинты Фазы 2
+
+`GET /api/v1/today` расширяется существующим модулем `applications`/новым `actions` без изменения формы ответа для потребителя Фазы 1: поле `actions` в ответе раньше было списком напоминаний, теперь — списком `ScoredAction`, где напоминания — один из видов кандидата, не единственный. Обратная совместимость проверяется контрактным тестом на снимке ответа Фазы 1.
+
+```
+GET    /api/v1/career/blocks                 Список Experience Blocks
+POST   /api/v1/career/blocks                 Добавление вручную
+PATCH  /api/v1/career/blocks/{id}
+DELETE /api/v1/career/blocks/{id}             Архивация, не физическое удаление
+GET    /api/v1/career/graph                  Граф для экрана Skills/Impact view (§12.9)
+POST   /api/v1/career/interview/turns        Один шаг разговорного интервью
+
+GET    /api/v1/preferences
+PUT    /api/v1/preferences                   Слияние, как и остальные PATCH (§11.1)
+
+GET    /api/v1/jobs/{id}/matches             Топ Experience Blocks под вакансию с объяснением
+POST   /api/v1/jobs/{id}/matches/recompute   Принудительный пересчёт
+
+GET    /api/v1/jobs/{id}/opportunity-score   Компоненты и объяснение
+POST   /api/v1/jobs/{id}/opportunity-score/recompute
+
+GET    /api/v1/actions/next                  ?energy=5m|20m|1h — см. Energy Mode, §12.9
+POST   /api/v1/actions/{id}/accept
+POST   /api/v1/actions/{id}/dismiss
+POST   /api/v1/actions/{id}/complete
+
+GET    /api/v1/analytics/insights            Диагноз узкого места воронки, текстовые выводы (§10.8 использует)
+
+GET    /api/v1/experiments
+POST   /api/v1/experiments
+POST   /api/v1/experiments/{id}/observe
+POST   /api/v1/experiments/{id}/conclude
+
+GET    /api/v1/gamification/week             WeeklyScoreView текущей недели
 ```
 
 ### 11.4. Публичные эндпоинты контента
@@ -2264,6 +2970,18 @@ src/entities/job/
 
 **`app`** — в каждом приложении свой: провайдеры запросов, темы, строк и реестра блоков; глобальные стили; конфигурация. Состав реестра блоков идентичен в обоих (оба должны уметь показать любой тип блока), поэтому строка регистрации повторяется дословно в обоих композиционных корнях — сознательное, маленькое дублирование ради того, чтобы каждое приложение оставалось независимо собираемым.
 
+### 12.5.1. Дополнение слайсов в Фазе 2
+
+Все слайсы ниже — в `frontend-web`, потому что относятся к консоли, не к публичному сайту и не к админке; ни `frontend-admin`, ни `content-kit` не меняются.
+
+**`entities`** (добавляются к списку выше): `experience-block`, `career-graph-node`, `preference-profile`, `opportunity-score`, `scored-action`, `experiment`, `style-profile`.
+
+**`features`**: `capture-career-story` (разговорное интервью, §10.9), `edit-experience-block`, `set-preferences`, `review-job-match` (принять/отклонить матч блока к вакансии вручную), `review-opportunity-score`, `pick-next-action` (принять/отложить/выполнить рекомендацию), `run-experiment`, `compare-offers`, `set-energy-budget`.
+
+**`widgets`**: `next-action-card` — тот же визуальный контракт, что уже описан для Focus (§12.9, ADR-027), просто с реальным `ScoredAction` вместо только `ReminderCandidate`; `opportunity-score-panel` (разбор по компонентам с `+`/`−`, §6.18); `career-graph-view` (Skills/Impact/Timeline views из issue #4 Part II, §8.13); `career-interview-panel` (пошаговый диалог, §10.9); `energy-picker` (три кнопки — см. ниже); `weekly-quality-widget` (геймификация); `offer-comparison-table` (life-adjusted компенсация, расширяет `compensation` §6.6); `experiment-card`.
+
+**`views`**: `career-memory` (онбординг и дальнейшее пополнение), `opportunity-detail` (разбор скора одной вакансии), `experiments`, `offer-comparison`. Экран `today` не получает нового `view` — он расширяется существующим `today-actions` (см. §12.9), это одна из немногих сознательных модификаций уже существующего слайса, а не добавление нового.
+
 ### 12.6. Реестр блоков как композиционный корень фронтенда
 
 Типы блоков — слайсы слоя `widgets` в `content-kit`, и по правилу изоляции они не видят друг друга, а `block-renderer` не видит их. Разрешается это ровно так же, как на бэкенде: через инверсию зависимости и сборку в корне — теперь в корне каждого из двух приложений, а не одного.
@@ -2341,6 +3059,124 @@ Focus — **не Full с меньшим числом полей, а отдель
 **Взаимодействие.** Никаких модальных окон: редактирование на месте, создание — выдвижная панель. Автосохранение через 400 мс после последнего нажатия клавиши, оптимистично, с откатом при ошибке. Тёмная тема по умолчанию. Базовая типографика 16 пикселей, вертикальный ритм кратен восьми, не более трёх смысловых блоков на экране. Командная палитра и переходы с клавиатуры.
 
 **Цвет.** Фирменного акцента нет: кнопка основного действия монохромная. Цвет в интерфейсе появляется только там, где несёт статус, поэтому янтарное «требует внимания» читается мгновенно — ему нечему мешать. Обоснование и отменённое предыдущее решение — в [ADR-029](#22-журнал-архитектурных-решений).
+
+### 12.9.1. Экраны Фазы 2
+
+Ничего из перечисленного не вводит новый визуальный язык: три уровня глубины, монохромный акцент, два действия на карточке, быстрые действия на двух поверхностях (ADR-027–030) остаются в силе без исключений. Ниже — как в них вписываются новые сигналы.
+
+**Focus получает второй источник довода.** Раньше карточка на Focus строилась только из `ReminderCandidate`; теперь источник — единый список `ScoredAction` (§6.19), где напоминание — один из видов кандидата, а не единственный. Форма карточки не меняется: одна причина, до двух кнопок.
+
+```text
+Доброе утро.
+Сегодня стоит сделать две вещи.
+────────────────────────────
+ВЫСОКИЙ ЭФФЕКТ · 4 мин
+Stripe молчит 7 дней. Другие отвечали за 9.
+Короткий follow-up сейчас скорее оправдан.
+[ Написать follow-up ]  [ Отложить ]
+────────────────────────────
+ОТЛИЧНЫЙ МАТЧ · 8 мин
+Anthropic · Product Engineer
+94% · $210–280k · Remote · опубликована 3 часа назад
+6 сильных блоков опыта уже подходят.
+[ Подготовить подачу ]  [ Скип ]
+────────────────────────────
+Больше на сегодня ничего не назрело.
+```
+
+Кнопка «Скип» — не отказ от вакансии молча: она пишет `ActionDismissed` с причиной и, если решение принято `preferences.hard_constraints`, показывает то же объяснение, что и в панели Opportunity Score (issue #4 Part XXV: «SKIP» с явной причиной, а не тихое исчезновение карточки).
+
+**Energy Mode — три кнопки перед списком, не отдельный экран.** Виджет `energy-picker` в верхней части Focus:
+
+```text
+Сколько времени есть сейчас?
+[ 😵 5 мин ]   [ 🙂 20 мин ]   [ 🔥 1 час ]
+```
+
+Выбор передаётся параметром `energy` в `GET /api/v1/actions/next` (§11.3.1) — список фильтруется под бюджет, начиная с наивысшего приоритета. При «5 мин» Focus показывает одну карточку вместо двух; при «1 час» — до пяти, отсортированных по приоритету, каждая со своей оценкой времени. Выбор не сохраняется как настройка — вопрос актуален каждый раз заново, тем же принципом, каким отвергнут глобальный переключатель подробности (§12.9).
+
+**Opportunity Score — раскрытие на карточке вакансии, а не отдельный процент.** В «Карточке вакансии» (§12.9) появляется панель `opportunity-score-panel`:
+
+```text
+ВАША ОЦЕНКА ВОЗМОЖНОСТИ
+████████████████░░ 86
+
+Career Fit          94    Компенсация        91
+Lifestyle            82    Локация            73
+Career Growth        96    Interview Odds     77
+Personal Interest    89
+
+Оценочная компенсация на руки:  $14.1k/мес
+Коммьют:                        2ч 40м/неделю
+Оценка усилий на подачу:        7 минут
+
+Рекомендация: ПОДАТЬСЯ
+
++ Сильные доказательства distributed systems
++ Компенсация выше цели
++ Полностью remote
+− Referral сейчас недоступен
+```
+
+Компоненты и `+`/`−`-объяснение приходят готовыми из `opportunity.scores.explanation` (§8.16) — фронтенд не генерирует текст, только раскладывает уже посчитанные пункты, тем же приёмом, что и `AtsReport` в §6.7.
+
+**Career Memory — разговор, а не форма.** Экран `career-memory` открывается пустым, с одной кнопкой «Рассказать о проекте», а не таблицей с двадцатью полями:
+
+```text
+Расскажи про последний проект, которым ты гордишься.
+
+[                                                    ]
+[  свободный текст, без ограничения длины            ]
+[                                                    ]
+
+[ Продолжить ]
+```
+
+После ответа `career-interview-panel` задаёт один уточняющий вопрос за раз (§10.9), и только в конце показывает черновик блока целиком на подтверждение — кнопки `[ Сохранить ]` и `[ Уточнить ]`, не «Сохранить» и «Отмена»: отклонённый черновик всегда предлагает уточнение, а не тихо исчезает. Отдельная вкладка `career-graph-view` даёt три пере­ключаемых представления без изменения данных — Timeline, Skills, Impact (issue #4 Part II) — тем же паттерном переключения, что и «Пайплайн» между таблицей и доской.
+
+**Экран сравнения предложений.** `offer-comparison` — таблица `offer-comparison-table`, где колонка — предложение, а не вакансия из пайплайна:
+
+```text
+                    Offer A            Offer B
+Заголовок           $245k              $205k
+На руки в год       $151k              $157k
+Time-adjusted       $71/час            $89/час
+Коммьют             45 мин/день        0
+Формат              Onsite 5д          Remote
+────────────────────────────────────────────
+Рекомендация: Offer B выгоднее с учётом налогов, времени и формата.
+```
+
+Расширяет уже существующий движок компенсации (§6.6) — новых расчётных примитивов не вводится, только сопоставление двух `CompensationBreakdown` рядом и перевод в $/час через отдельную чистую функцию `LifeAdjustedValue.of(breakdown, hoursPerWeek)`.
+
+**Геймификация — виджет, а не отдельный экран.** `weekly-quality-widget` на Full-доске «Сегодня»:
+
+```text
+НА ЭТОЙ НЕДЕЛЕ
+Цель: 100
+✓ 3 подачи с высоким fit        +30
+✓ 2 запроса referral            +30
+✓ 1 follow-up рекрутеру         +10
+○ Follow-up с Sarah             +10
+90 / 100
+```
+
+Виджет никогда не показывает призыв «подай еще» — при достижении цели последняя строка заменяется на «На сегодня достаточно», то же решение, что уже принято для Focus (§12.9: система имеет право сказать, что дел не осталось).
+
+**Эксперименты.** `experiments` — список карточек `experiment-card`, каждая с гипотезой, контролем/вариантом и вердиктом с явным уровнем уверенности:
+
+```text
+ГИПОТЕЗА
+Referral перед подачей повышает отклик.
+
+Контроль: холодные подачи        11%
+Вариант: сначала referral         27%
+Уверенность: умеренная (n=14)
+
+Рекомендация: приоритизировать referral для компаний уровня A.
+```
+
+Уровень уверенности выводится текстом, а не процентом — намеренно, чтобы не создавать псевдоточность на малых выборках (§6.20).
 
 ### 12.10. Дизайн-токены: движок и конвейер
 
@@ -2930,6 +3766,26 @@ Typst и cwebp — не контейнеры, а статические бина
 
 **Включить биллинг.** Модуль `billing` по общему шаблону и порт проверки доступа, вызываемый в use case платных возможностей. Мультитенантность и модель возможностей уже заложены.
 
+### Рецепты Фазы 2
+
+**Добавить новый сигнал в Opportunity Score.** Новое поле в `OpportunityComponents`, взвешивание в `OpportunityScorer.score` (§6.18), табличный тест на граничные случаи. `matching`, `actions` и фронтенд не меняются: `OpportunityScoreResult.explanation` — уже открытый список причин, панель на экране (§12.9.1) рендерит его как есть, без знания о конкретных компонентах.
+
+**Добавить новый вид рёбра Career Graph.** Значение в `EdgeKind`, строки `graph_edges` со значением этого типа (§8.13). Ни таблица, ни `CareerGraph.neighborsOf`, ни обход CTE не меняются — рёбра нового вида просто начинают возвращаться там же, где и остальные.
+
+**Добавить новый жёсткий или мягкий критерий предпочтений.** Значение `PreferenceConstraint.Hard` или `.Soft` в конфигурации профиля (§6.16). `PreferenceEvaluation.evaluate` не меняется: критерии — данные, а не код, ветвящийся по типу.
+
+**Добавить новый источник сигнала для Next Best Action.** Ещё один поставщик `ActionCandidate` рядом с `reminders` и `opportunity`, зарегистрированный в композиции `NextBestActionEngine` (§6.19). `ActionScorer` не знает, откуда пришёл кандидат, и оценивает его той же формулой.
+
+**Заменить эвристику `interviewOdds` на модель.** Реализация того же порта в `opportunity:infrastructure`, обученная на накопленной истории `experiments`/`analytics` (Веха 14). `OpportunityScorer`, вызывающий его код, и вся цепочка выше не меняются — то же самое разделение порт/адаптер, что и для `LlmProvider` (ADR-010, §20).
+
+**Добавить новый тип личного эксперимента.** Значение в перечне видов эксперимента и правило сопоставления подач с control/variant в `experiments:application`. `ExperimentAnalyzer.analyze` — чистая функция от `OutcomeSample`, она уже не знает о видах экспериментов.
+
+**Сменить провайдера эмбеддингов.** Реализация `EmbeddingProvider` (§6.17) и одна строка в композиционном корне. `EmbeddingIndex`, `HybridMatchScorer` и всё, что выше в пайплайне, продолжают работать с новыми векторами — размерность фиксируется миграцией (§8.15), а не кодом.
+
+**Добавить новую поощряемую категорию в геймификацию.** Строка в белом списке `QualityPointsEntry` (§6.22, §9.2/§9.4). Ни схема, ни `WeeklyQualityScore` не меняются — категория — это фильтр по уже существующим событиям, а не новая таблица.
+
+**Продать Фазу 2 отдельно от Фазы 1.** Модель возможностей (`identity`, ADR-005) уже различает включённые для тенанта функции; Career Memory, matching и Opportunity Score регистрируются как отдельная возможность, проверяемая тем же портом, что и биллинг из этого раздела. Экраны Фазы 1 не замечают отсутствия возможности — они просто не видят новых элементов управления.
+
 ---
 
 ## 21. План реализации
@@ -2981,6 +3837,30 @@ Typst и cwebp — не контейнеры, а статические бина
 ### После первой версии
 
 Модуль `mailbox` с импортом писем и классификацией; генерация cover letter и черновиков сообщений; статистика по шаблонам; расширенный налоговый режим с 1099 и C2C; экспорт резюме в DOCX; второй язык; мобильный клиент; биллинг.
+
+### Фаза 2. Вехи 10–18
+
+Начало Фазы 2 требует отдельного, зафиксированного решения превратить инструмент в продукт (§1.4) — она не начинается автоматически по завершении Фазы 1 и после раздела «После первой версии» выше. Пока такого решения нет, Фаза 1 используется владельцем как личный инструмент в производственном режиме, а Вехи 10–18 остаются проектом, а не расписанием. Порядок внутри Фазы 2 продиктован тем же принципом, что и в Фазе 1: каждая веха должна опираться на данные, накопленные предыдущей, а не на воображаемые.
+
+**Веха 10. Career Memory и предпочтения.** Модули `career` и `preferences` целиком (§6.15–6.16, §8.13–8.14). Разговорное интервью, атомарные Experience Blocks, факты без представлений (ADR-033), жёсткие и мягкие критерии предпочтений. Экраны: онбординг Career Memory, вкладка Timeline экрана Career Graph (§12.9.1). На выходе — фактическая база, без которой нечего сопоставлять и нечего оценивать; вся Фаза 2 дальше читает эти данные, ничего в них не меняя.
+
+**Веха 11. Эмбеддинги и наполнение графа.** Расширение `pgvector` в PostgreSQL (§8.22), фоновая задача, прогоняющая уже накопленные Experience Blocks и активные вакансии через `EmbeddingProvider` и заполняющая `career.graph_edges` связями «навык», «домен», «технология», извлечёнными из блоков интервьюером Вехи 10. Пользователю видимых изменений нет: это инфраструктурная веха, готовящая данные для Вехи 12, — вкладки Skills и Impact экрана Career Graph открываются по её итогам.
+
+**Веха 12. Semantic matching и Opportunity Score.** Модули `matching` и `opportunity` целиком (§6.17–6.18, §8.15–8.16). Гибридный пайплайн сопоставления (ADR-036), explainable-композит скора (ADR-037), жёсткое исключение по предпочтениям. Экраны: панель разбора Opportunity Score с `+`/`−` причинами (§12.9.1). Сценарий целиком — §10.8.
+
+**Веха 13. Next Best Action и Energy Mode.** Модуль `actions` целиком (§6.19, §8.17). Политика, питающая существующий экран Focus без замены его оболочки (ADR-038), объединяющая кандидатов `reminders` и `opportunity` в один список. Экраны: обновлённые карточки Focus с кнопками по типу действия, трёхкнопочный выбор Energy Mode (§12.9.1). **С этой вехи Next Best Action работает по-настоящему**, а не как заглушка на статичных `ReminderCandidate`.
+
+**Веха 14. Outcome Learning.** Без нового модуля: подписка `opportunity` на исходы (`application.rejected`, `interview.scheduled`, `offer.received` — уже существующие интеграционные события `applications`, §9.2) и поправка эвристики `interviewOdds` по накопленной истории конкретного пользователя. Расширяет разбор отказов `analytics` (§6.11) тем же материалом. Отдельного экрана нет — эффект виден как более точное `interviewOdds` в уже существующей панели Opportunity Score.
+
+**Веха 15. Личные эксперименты.** Модуль `experiments` целиком (§6.20, §8.18). Честная статистика с текстовым уровнем доверия, а не псевдоточный p-value. Экраны: карточка эксперимента (§12.9.1).
+
+**Веха 16. Голос пользователя.** Модуль `voice` целиком (§6.21, §8.19). Запись правок черновиков из `contacts` и `resume` без изменения этих модулей изнутри — только вызов `StyleEditRecorder` в точке, где черновик уже показан пользователю. Пакетный пересчёт профиля. Видимого экрана нет: эффект — в том, что предлагаемый текст сообщений и буллетов постепенно перестаёт звучать «как LLM».
+
+**Веха 17. Геймификация.** Модуль `gamification` целиком (§6.22). Проекция очков по белому списку событий, виджет недельного качества (§12.9.1). Ничего не пишет и ничего не читает синхронно — не может задержать ни один существующий сценарий.
+
+**Веха 18. Сравнение офферов.** Новый экран и эндпоинт (§11.3.1) над уже существующими `compensation` и `opportunity` — без нового модуля: сведение нескольких предложений в одну таблицу с life-adjusted компенсацией (§6.6) и полным разбором Opportunity Score рядом. Капстоун Фазы 2: демонстрирует, что весь накопленный слой данных отвечает на завершающий вопрос поиска работы, а не только на «куда подать дальше».
+
+После Вехи 18 набор из «После первой версии» выше остаётся актуальным независимо от того, состоялась Фаза 2 или нет: обе очереди backlog’а не пересекаются по модулям и не блокируют друг друга.
 
 ---
 
@@ -3066,6 +3946,24 @@ Typst и cwebp — не контейнеры, а статические бина
 
 Отвергнуты: билд с одним `SURFACE`-флагом окружения и проверкой `Host` в `proxy.ts` — не даёт реальной изоляции кода, только фильтрует запросы к тому же графу модулей; VPN вместо Cloudflare Access для сети админки — добавляет вторую платформу в эксплуатацию, которую весь выбор VPS с самого начала стремился не заводить; отдельный хост `api.*` с CORS — решает проблему, которой в системе никогда не было, ценой механизма, которого в ней никогда не было; один общий пакет вместо двух — заставил бы любого будущего потребителя дизайн-системы тянуть за собой систему блоков контента без причины. Полный разбор — [ADR-032](docs/adr/ADR-032-subdomain-split-and-admin-isolation.md).
 
+**ADR-033. Career Memory: факты отделены от представлений правилом, проверяемым машиной, а не соглашением.** Experience Block неизменяем и атомарен; сформулированный буллет резюме или фраза cover letter — производное представление, а не новая копия факта, и хранится как ссылка на блок плюс необязательный `override_text` (§8.7). Отвергнут вариант, где текст буллета редактируется напрямую и считается источником истины об опыте: это воспроизвело бы дефект, из-за которого статус подачи выводится, а не хранится (ADR-001) — факт и его текстовое воплощение расходятся, и через полгода непонятно, какому из двух верить. Правило закрыто тем же приёмом, что `no-llm-with-personal-data` (§17): у классов, формирующих текст, нет мутирующего доступа к `career.contract.ExperienceBlockWriter`, только к чтению — нарушение не проходит ревью, оно не компилируется.
+
+**ADR-034. Career Graph — реляционные связи в той же базе, а не отдельная графовая СУБД.** Обход соседей нужен на глубину одного-двух шагов, а объём рёбер одного пользователя — сотни, не миллионы. Отдельный графовый движок добавил бы вторую систему хранения при потолке в 2 ГБ и бюджете $15 в год ради свойства, которым Фаза 2 не пользуется. Таблица `(from_id, edge_kind, to_id)` в схеме `career` (§8.13) и рекурсивный CTE закрывают потребность Вехи 11 без нового сервиса. Если объём вырастет на порядки, замена — это новая реализация порта `CareerGraph`, а вызывающие `matching` и `opportunity` не заметят разницы.
+
+**ADR-035. pgvector внутри существующего PostgreSQL вместо отдельного векторного хранилища.** Тот же экземпляр PostgreSQL 17 уже работает и уже посчитан в бюджете Вех 0–9; расширение `vector` добавляет тип данных и HNSW-индекс без нового процесса, порта и пункта эксплуатации. Объём эмбеддингов одного пользователя (сотни вакансий, десятки блоков career) на порядки меньше, чем то, для чего строятся выделенные векторные базы. Решение зафиксировано как порт `EmbeddingIndex` (§6.17): если объём когда-нибудь потребует специализированного хранилища, меняется одна реализация, а не пайплайн `matching` целиком.
+
+**ADR-036. Гибридный пайплайн matching с дешёвым LLM-rerank только по топ-K.** Чистый семантический поиск пропускает жёсткие фактические требования («5+ лет», конкретная лицензия), которые эмбеддинг смешивает с общим смыслом текста; чистый keyword-поиск пропускает переформулировку тех же навыков другими словами. Комбинация retrieval через pgvector, rule-signals и узкого LLM-rerank только по уже отобранным кандидатам держит стоимость LLM предсказуемой и делает `HybridMatchScorer` детерминированной чистой функцией, а не частью, зависящей от недетерминированного вызова модели. Отвергнут вызов LLM на полный список вакансий и блоков сразу: непредсказуемая стоимость и время ответа, невозможность покрыть табличными тестами то, что зависит от температуры модели. Отвергнут отказ от LLM вовсе: issue #4 явно требует семантику, которую keyword-слой не даёт.
+
+**ADR-037. Opportunity Score — explainable-композит чистых функций, а не модель-чёрный ящик.** Та же философия объяснимости, что у `DefaultApplicationStatusPolicy` (§9.3): пользователь должен доверять рекомендации и понимать её причину, а не гадать, почему алгоритм решил именно так. `OpportunityScorer.score` покрывается табличными тестами на границы компонентов. Отвергнуто обучение скоринговой модели с первого дня Фазы 2: истории исходов ещё нет — она начинает накапливаться только к Вехе 14 (Outcome Learning), — а необъяснимый скор подрывал бы именно то доверие, ради отсутствия которого продукт и отвергает скрытые алгоритмы ATS, описанные в issue #4.
+
+**ADR-038. Next Best Action — политика, питающая существующий экран Focus, а не новый экран рядом с ним.** Focus уже отвечает на вопрос «что мне сейчас делать» (§12.9, ADR-027); домашний экран «следующее лучшее действие» из issue #4 оказался тем же самым вопросом. `NextBestActionEngine` заменяет источник данных карточки Focus (`ScoredAction` вместо одного `ReminderCandidate`), не заменяя саму оболочку экрана. Отвергнут отдельный домашний экран: он воспроизвёл бы визуальный язык Focus и заставил бы пользователя решать, на какой из двух «что мне делать» экранов смотреть — ровно то дублирование суждения, которое ADR-027 отверг в первой версии.
+
+**ADR-039. Очки геймификации — проекция из чужих событий, без собственной схемы и без хранимого счётчика.** Тот же приём, что `applications.state_projection` (ADR-001): хранимый счётчик рассинхронизируется с правилами начисления при их изменении и требует миграции для пересчёта истории; проекция по белому списку типов событий (§9.2/§9.4) пересчитывается по требованию и мгновенно отражает новое правило для всей истории. У модуля `gamification` по этой же причине нет ни контракта, ни домена — только `application`, `infrastructure`, `web`, той же формы, что у `analytics` (§4.5): решений, которые стоило бы выражать доменной моделью, здесь нет, только подсчёт по чужим фактам.
+
+**ADR-040. Границы против агрегации рынка вакансий не расширены в Фазе 2.** Issue #4 описывает «обнаружение скрытых возможностей», подразумевающее сканирование рынка целиком, а не только захваченных пользователем вакансий. Принято решение по умолчанию: Opportunity Score и Next Best Action в Фазе 2 продолжают считаться только над вакансиями, которые пользователь уже сам захватил через `capture` (Веха 2) — граница §1.3 не расширяется. Отвергнуто расширение `capture` до сканирования рынка: тот же риск блокировки аккаунта и нарушения условий использования, из-за которого серверный скрейпинг LinkedIn отвергнут в ADR-007, и прямой путь к тому, чтобы стать ещё одним агрегатором вакансий — именно тем классом продуктов, от которого issue #4 явно отталкивается. Если это решение потребуется пересмотреть, пересмотр — отдельный ADR с явным обоснованием, а не тихое расширение границы при реализации Вехи 12.
+
+**ADR-041. Стоимость Фазы 2 — отдельная бюджетная строка сверх бюджета Фазы 1.** Эмбеддинги, LLM-rerank и разговорный онбординг Career Memory добавляют вызовы модели сверх уже посчитанной стадии извлечения из Фазы 1. Цель — не больше примерно $0.01 на одну адаптацию резюме под вакансию, дешёвая модель по умолчанию, тот же декоратор бюджета из `platform:llm`, что и в Фазе 1 (ADR-010), без новой инфраструктуры. Стоимость вынесена отдельной строкой НФТ (§1.5), чтобы решение о запуске Фазы 2 принималось с видимой ценой, а не поглощалось незаметно в бюджете $15 в год, посчитанном для Вех 0–9.
+
 ### Зафиксированные противоречия и их разрешение
 
 **Локальный запуск против доступа с любого устройства.** Разрешено в пользу постоянно работающего сервера на VPS с доступом через туннель.
@@ -3145,3 +4043,31 @@ Typst и cwebp — не контейнеры, а статические бина
 **Бюджет исключений** — предельное количество помеченных аннотацией нарушений архитектурных правил во всём коде.
 
 **Правило удобства работодателя** — норма ряда штатов, позволяющая облагать доход удалённого сотрудника по месту нахождения работодателя.
+
+### Термины Фазы 2
+
+**Career Memory** — накопленная база фактов об опыте пользователя (Experience Blocks), собранная разговорным интервью и не зависящая от конкретной вакансии или резюме.
+
+**Experience Block** — атомарный неизменяемый факт об опыте: ситуация, действия, измеримый результат, теги навыков и технологий. Источник истины; не путать с его текстовыми представлениями (буллетами, фразами cover letter).
+
+**Facts vs representations** — принцип: факты (Experience Block) неизменяемы и хранятся один раз, а любой сгенерированный текст на их основе — производное представление, которое ссылается на факт и никогда не пишется обратно в него (ADR-033).
+
+**Career Graph** — сеть связей между Experience Blocks, навыками, доменами и технологиями, выраженная как реляционные рёбра `(from_id, edge_kind, to_id)` в той же базе, а не как отдельная графовая СУБД (ADR-034).
+
+**Semantic matching** — сопоставление вакансии и опыта пользователя, комбинирующее keyword/taxonomy-слой, векторный поиск через `pgvector` и точечный LLM-rerank по немногим лучшим кандидатам (ADR-035, ADR-036).
+
+**Opportunity Score** — составной, полностью объяснимый скор вакансии из нескольких прозрачных компонентов (соответствие опыту, компенсация, образ жизни, локация, карьерный рост, шансы на интервью, личный интерес), а не скрытая модель (ADR-037).
+
+**Next Best Action** — рекомендация одного следующего действия по всем захваченным вакансиям и контактам сразу, питающая существующий экран Focus, а не отдельный домашний экран (ADR-038).
+
+**Energy Mode** — выбор пользователем бюджета времени («5 минут», «20 минут», «час»), по которому Next Best Action отбирает действия, укладывающиеся в этот бюджет.
+
+**Outcome Learning** — поправка эвристик Opportunity Score (в первую очередь `interviewOdds`) по накопленной истории реальных исходов конкретного пользователя, без обучения отдельной модели на старте Фазы 2.
+
+**Личный эксперимент** — сознательно варьируемый элемент подачи (формулировка сообщения, время отправки и подобное), сравниваемый по исходам control- и variant-групп с честным, текстовым, а не псевдоточным уровнем доверия.
+
+**Голос (Voice)** — профиль стиля пользователя (прямота, формальность, теплота, многословность, избегаемые и предпочитаемые фразы), выведенный из правок, которые пользователь вносит в предложенные LLM черновики, и применяемый к последующим черновикам.
+
+**Геймификация (weekly quality score)** — очки за качественное поведение в поиске работы за неделю, вычисляемые как проекция по белому списку типов событий, а не хранимый счётчик (ADR-039).
+
+**Хардфильтр предпочтений** — жёсткое ограничение профиля предпочтений, нарушение которого исключает вакансию из рекомендаций независимо от прочих сигналов, в отличие от мягкого предпочтения, которое только взвешивает скор.
