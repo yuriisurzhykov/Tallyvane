@@ -1,0 +1,15 @@
+---
+description: Points to the component-authoring skill when creating or editing React components in frontend-web, frontend-admin, packages/frontend-shared, or packages/content-kit.
+globs: frontend-web/src/**/*.tsx,frontend-admin/src/**/*.tsx,packages/*/src/**/*.tsx
+alwaysApply: false
+---
+
+# Component authoring
+
+Before creating a new React component, or substantially changing an existing
+one's props API or composition shape — in `frontend-web/src`, `frontend-admin/src`,
+`packages/frontend-shared/src`, or `packages/content-kit/src` (per ADR-032) —
+read and follow
+[.cursor/skills/component-authoring/SKILL.md](../skills/component-authoring/SKILL.md).
+
+Do not duplicate that guidance here — this rule only points to it.

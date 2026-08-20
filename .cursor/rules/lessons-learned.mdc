@@ -1,0 +1,216 @@
+---
+description: The rules-log file for all the lessons learned during working on this project.
+---
+
+## Lesson catalog — bugs already hit here
+
+### Design tokens and Tailwind v4
+
+- **Import order in `frontend-web/app/globals.css` is load-bearing.** The generated
+  tokens declare the `--ds-*` properties; the adapter maps them onto the names
+  Tailwind's `@theme` reads. Reverse the two and every `var(--ds-*)` in the
+  adapter points at a property that does not exist yet — which CSS resolves to
+  nothing, **silently**, producing a page with no colours and no error anywhere.
+- **Clearing a namespace (`--spacing-*: initial`) also removes Tailwind's bare
+  multiplier**, and that is the point rather than a side effect. With the
+  multiplier alive, `p-<n>` resolves for *any* n, so `p-7` renders a value
+  belonging to no scale. Without it, only registered roles produce a utility and
+  anything else produces nothing at all.
+- **`--spacing-<key>` is consulted BEFORE `--container-<key>` for the whole
+  width family** (`w-`, `max-w-`, `min-w-`, `basis-`) — undocumented, widely
+  reported as
+  [tailwindlabs/tailwindcss#16047](https://github.com/tailwindlabs/tailwindcss/issues/16047).
+  A design system with `sm`/`md`/`lg` spacing keys silently hijacks `max-w-md`
+  into a 40px value, which shows up as an element collapsing to zero width, not
+  as anything that looks like a scale problem. This repo is immune by
+  construction: spacing roles are named by job (`stack-tight`, `section-gap`),
+  and a job name cannot collide with a container name. **Keep it that way** —
+  the day someone adds `--spacing-md`, the bug returns.
+- **`z-10` and `z-50` survive anything the theme does.** Tailwind builds bare
+  numeric `z-*` arithmetically without consulting the theme, so clearing the
+  namespace does not remove them and named layers only get added alongside. CSS
+  cannot close this; the ESLint rule `no-unnamed-z-index-class` is the only
+  place left where it can be closed.
+- **No class-facing name may resolve to a primitive** — the invariant the whole
+  token architecture rests on. The adapter is the only place a token is given a
+  class name, so it is the only place the boundary can be broken; register
+  `--color-x: var(--ds-color-neutral-700)` and the project has `bg-x` forever.
+  The generator checks this on every run against the exact list of variables the
+  primitive tiers emitted, **because role and primitive cannot be told apart by
+  name shape** — both compile to `--ds-color-*`.
+- **A contrast decision must be made against the worst surface, not the
+  obvious one.** Muted text is tightest on the *inset* surface, which is the
+  lightest of the dark set, not on the darkest one. Measuring against the
+  darkest gives an answer that is comfortably wrong.
+- **Contrast thresholds move with font size, so the type scale and the palette
+  are one problem, not two.** APCA drops its requirement at 15px and again at
+  18px; the original 11–32 scale sat on the strict side of both jumps, which
+  made three distinguishable levels of grey text arithmetically impossible. The
+  fix was the type scale (now 15–36), not the colours.
+
+### React, Server Components and hydration
+
+- **A `"use client"` module is an opaque client reference, and only its
+  COMPONENT exports cross the boundary correctly.** A plain constant exported
+  from one arrives as `undefined` on the server — so server code reading a
+  storage key from a provider module calls `localStorage.getItem(undefined)`,
+  reads a key literally named `"undefined"`, and breaks with no error anywhere.
+  Constants shared across the boundary go in a **directive-free file** of their
+  own (`theme/provider/constants.ts`); that file's lack of `"use client"` is
+  load-bearing, not untidiness.
+- **State that lives outside React is read with `useSyncExternalStore`, not
+  copied in with an effect.** The first version of the theme provider used an
+  effect after mount. That does remove the hydration mismatch, but it costs a
+  full re-render of the tree and leaves the wrong theme on screen until it runs.
+  `useSyncExternalStore` exists for exactly this shape: server snapshot during
+  hydration, live value immediately after, with React aware the two differ on
+  purpose.
+- **Nothing a test can wait for corresponds to a React effect.** `networkidle`
+  tracks the network and nothing else. Any correctness that depends on an effect
+  having run is therefore untestable *and* user-visible as a flash — which is
+  why the theme is applied by a synchronous inline `<script>` in `<head>` that
+  runs before hydration and before the first paint. The root element needs
+  `suppressHydrationWarning` alongside it, because the script mutates the DOM
+  before React compares it to the server's output.
+- **Strict Mode remounts in development and resets the root element's class
+  list to what React manages**, wiping what that inline script set. A
+  `useLayoutEffect` restores it before the browser paints; a passive effect lets
+  the wrong theme flash back in. This is the one place an effect is right —
+  writing a class onto an element React does not own is a side effect, not
+  derived state.
+- A cookie read on the server was considered for theme and rejected: it opts the
+  route out of static rendering, and cookie-varying HTML in a shared cache is
+  how one reader's preference gets served to everyone.
+
+### Vitest and Testing Library
+
+- **`fireEvent.click`'s default `MouseEvent.detail: 0` is indistinguishable
+  from a real Enter/Space key activation to code that branches on it** (Base
+  UI's menu internals do — a real mouse click highlights nothing until an
+  arrow key is pressed, a keyboard-equivalent activation pre-highlights the
+  first item). A jsdom test asserting "click behavior" can therefore silently
+  exercise the keyboard path instead — caught only because a Playwright run
+  against real Chromium disagreed with the passing jsdom test. Pass
+  `{ detail: 1 }` explicitly when the distinction matters.
+
+### Playwright and the accessibility suites
+
+- **`webServer.url` must point at a route that actually exists.** Probing `/`
+  when the app has no root page means the readiness check 404s until it times
+  out, and the failure reads like a build failure, sending you to debug the
+  wrong thing entirely.
+- **Seed state with `addInitScript` before `goto`, never by waiting.**
+  `addInitScript` runs ahead of every script the page owns, including the
+  pre-hydration one. A suite that instead waits for the provider's effects lands
+  inside that window at random and produces a flake that looks exactly like a
+  visual regression.
+- **One APCA threshold for all text is wrong** and produces a wall of false
+  failures that discredits the whole check. APCA levels are per use case — body
+  text, prominent text, spot-readable — and a disabled control is *supposed* to
+  sit at the bottom one.
+- **axe `incomplete` is not a pass.** A pair axe could not measure is an unknown
+  pair, not a passing one, and it stays silent unless the spec fails on it
+  explicitly.
+- **Two specs attaching results under the same attachment name collide** in the
+  reporter and become indistinguishable. WCAG and APCA are deliberately separate
+  suites — so either can be removed without touching the other — and they need
+  separate attachment names to stay that way.
+- **`exactOptionalPropertyTypes` forbids assigning `undefined`** to an optional
+  property. Use conditional spreading (`...(cond ? { key: value } : {})`) rather
+  than assigning `undefined` and hoping.
+
+### Lint, architecture rules and the toolchain
+
+- **pnpm resolves a workspace package as a symlink to its source, not into
+  `node_modules`.** A dependency-cruiser rule matching `node_modules/<pkg>`
+  therefore never fires — the rule looks correct, reports nothing, and gives
+  false confidence. Match the relative source path instead, and always verify a
+  new rule by deliberately breaking it once.
+- **ESLint 10:** `eslint-plugin-import` does not support it; use
+  `eslint-plugin-import-x`, the maintained fork.
+- **`eslint-plugin-boundaries` v7** renamed most of its config: `element-types`
+  → `dependencies`, `rules` → `policies`, `mode: "full"` → `partialMatch: false`,
+  and string selectors → objects. The old shape still runs, emitting a wall of
+  deprecation warnings rather than failing.
+- **Type-aware rules must be scoped to files a tsconfig actually covers.**
+  Applying `recommendedTypeChecked` project-wide makes the flat config's own
+  `.mjs` files explode, since nothing type-checks them.
+- **Steiger:** an empty FSD segment fails `fsd/public-api` — give it an
+  `index.ts`, not a `.gitkeep`. `providers` is a banned segment name.
+- **Generated output must be excluded from every checker**, not just from git:
+  the compiled token tree, `.next/`, `playwright-report/`, `test-results/`.
+- **The FSD layer cannot be named `pages/`** — it collides with Next.js's legacy
+  Pages Router auto-detection. This repo uses `views/`, applied at scaffolding
+  time; do not "fix" it back.
+
+### Local development on Windows
+
+- The shell is **PowerShell**, not bash. `&&` works in modern PowerShell but
+  quoting rules differ; paths containing spaces need double quotes.
+- A dev server that accepts connections but never responds to any request,
+  including static ones, after many rapid restarts is stale process or socket
+  state, not a code bug. Kill all `node` processes, clear `.next/`, retry on a
+  fresh port before assuming the code broke.
+
+---
+
+## Known traps — real, but not yet hit here
+
+Carried from the author's other Next.js project. These are verified facts about
+the tools rather than guesses, and each one costs hours to diagnose cold. They
+are kept separate so nobody mistakes them for archaeology of *this* codebase.
+
+### Next.js
+
+- **`middleware.ts` is renamed to `proxy.ts`** in Next.js 16 — `export function
+  proxy()`, not `middleware()`. The `config`/`matcher` export is unchanged.
+- **Turbopack refuses to resolve `tsconfig.json` `paths` pointing outside the
+  project directory**, failing with `Module not found`. The fix is a real
+  workspace package imported by name — which is already how
+  `packages/design-tokens` is wired here, so follow that precedent rather than
+  reaching for `paths`.
+- **`transpilePackages` compiles a package separately per execution context.**
+  Server Components and Route Handlers are different bundles, so an error class
+  thrown in one fails `instanceof` in the other despite being the same source
+  file. Check `error.name` — a plain string survives the boundary.
+- **`backdrop-filter`, `filter`, `transform`, `perspective` and `will-change` on
+  an ancestor create a containing block for `position: fixed` descendants**, so
+  a "fixed" modal nested inside a blurred header collapses into that header's
+  box. Portal overlays, drawers and modals to `document.body`; never assume the
+  caller avoided nesting you inside a filtered ancestor.
+- **Next silently prerenders a page with no dynamic APIs at build time**, baking
+  a database query result into static HTML that never updates until the next
+  rebuild. Add `export const dynamic = "force-dynamic"` to any route whose
+  content can change without a redeploy.
+
+### Testing
+
+Relevant the moment Vitest is set up — see
+`.cursor/plans/testing-coverage-gaps.plan.md`.
+
+- **`@testing-library/react`'s automatic `cleanup()` only registers itself if it
+  detects a global `afterEach`** (`test.globals: true`). Without that, register
+  it explicitly in the setup file, or tests using `screen` start finding
+  elements left over from the previous test — reported as "multiple elements
+  found", which looks like a component bug and is not.
+- **`vi.useFakeTimers()` already fakes `requestAnimationFrame`**, in the same
+  timer group as `setTimeout`. A manual `vi.stubGlobal("requestAnimationFrame",
+  …)` gets silently overwritten whether it is called before or after, and simply
+  never fires — no error, the callback just vanishes. Drive it with
+  `vi.advanceTimersToNextFrame()` instead.
+- **Advancing fake timers that trigger a React state update must itself be
+  wrapped in `act()`**, or `renderHook`'s `result.current` still reads the
+  pre-update value afterwards. Looks exactly like "the hook does not work".
+- **Test the security invariant directly, not the happy path** — render markdown
+  containing a raw `<script>` and assert it never becomes a live DOM node,
+  rather than only asserting that `**bold**` becomes `<strong>`.
+
+### Dependency hygiene
+
+- **Audit `dependencies` against what a package's entry points actually
+  import**, not against what feels like a runtime concern. A CLI-only or
+  test-only tool in `dependencies` survives a production install for no reason.
+- An exact version pin in one workspace member can force a second nested copy of
+  a dependency instead of deduping — the classic cause of "two React instances",
+  where hooks throw because render happens through one copy and hooks resolve
+  through another. Diagnose with `pnpm why <package>`.
