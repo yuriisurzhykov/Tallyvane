@@ -7,6 +7,16 @@
   "engines": {
     "node": ">=22.12.0"
   },
+  "scripts": {
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build",
+    "typecheck": "tsc --noEmit",
+    "test:a11y": "pnpm run build-storybook && playwright test --project=desktop a11y.spec.ts",
+    "test:contrast": "pnpm run build-storybook && playwright test --project=desktop contrast-wcag.spec.ts contrast-apca.spec.ts",
+    "test:visual": "pnpm run build-storybook && playwright test --project=desktop --project=tablet --project=mobile visual.spec.ts",
+    "test:visual:update": "pnpm run build-storybook && playwright test --update-snapshots visual.spec.ts",
+    "test:e2e": "pnpm run build-storybook && playwright test"
+  },
   "dependencies": {
     "frontend-shared": "workspace:*",
     "react": "^19.2.8",
@@ -20,8 +30,10 @@
     "@types/node": "^26.2.0",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
+    "http-server": "^14.1.1",
     "postcss": "^8.5.26",
     "storybook": "^10.5.9",
+    "tailwindcss": "^4.3.3",
     "typescript": "^5.9.3"
   }
 }

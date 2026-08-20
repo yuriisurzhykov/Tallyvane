@@ -1,26 +1,18 @@
 name: Accept Visual Baselines
 
-# Comment `/update-snapshots <module>` on a pull request to accept a workspace
-# member's new baseline screenshots, for when the visual check fails because
-# the page genuinely changed rather than because it broke — e.g.
-# `/update-snapshots frontend-web` or `/update-snapshots packages/frontend-shared`.
-# The regenerated images are pushed to the pull request's own branch, which
-# re-triggers the normal check — so nobody needs a local Linux container to
-# produce images matching CI's renderer.
+# Comment `/update-snapshots <module>` on a pull request to accept its new
+# baseline screenshots, for when the visual check fails because the page or
+# component genuinely changed rather than because it broke. The regenerated
+# images are pushed to the pull request's own branch, which re-triggers the
+# normal check — so nobody needs a local Linux container to produce images
+# matching CI's renderer.
 #
-# `<module>` is required and this workflow has no opinion on what it names: it
-# is whatever workspace member the comment says, and `regenerate-baselines`
-# (below) fails loudly, the normal `pnpm` way, if that member has no
-# `test:visual:update` script. Nothing here hardcodes which apps have a visual
-# suite today, so a second one (frontend-admin, packages/frontend-shared, ...)
-# getting one tomorrow is a comment syntax choice, not a workflow change.
-#
-# The regenerate-and-commit mechanics live in
-# `.github/actions/regenerate-baselines` rather than inline here, on purpose:
-# this file's job is deciding WHO may ask and WHICH module they asked for —
-# what happens once that's decided is a reusable action's job, callable by any
-# future workflow that also needs to regenerate and push a module's baselines
-# without duplicating these steps.
+# `<module>` names the workspace member to regenerate — `frontend-web`,
+# `packages/storybook`, and (once it has a visual suite of its own)
+# `frontend-admin`. This workflow does not hardcode that list: it resolves
+# and validates the argument in `baseline-request-guard.mjs`, then runs
+# whatever `pnpm run test:visual:update` means inside that one directory.
+# Adding a fourth workspace member with a visual suite is not a change here.
 #
 # It is also the only place baselines are ever written. The check itself never
 # regenerates them, because a suite that rewrites its own expectation on failure
@@ -50,6 +42,9 @@ on:
 jobs:
   guard:
     # `issue_comment` fires for plain issues too, hence the first condition.
+    # The `/update-snapshots` substring check here is only a cheap pre-filter
+    # to avoid running the job on unrelated comments — the script itself does
+    # the real parsing and validation of the module argument.
     if: >
       github.event.issue.pull_request != null &&
       contains(github.event.comment.body, '/update-snapshots') &&
@@ -85,10 +80,6 @@ jobs:
           REPOSITORY: ${{ github.repository }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           COMMENT_ID: ${{ github.event.comment.id }}
-          # Passed through `env`, never interpolated into a `run:` step's own
-          # text — a comment body is attacker-reachable text, and only `env`
-          # keeps it as inert data instead of letting it become part of a
-          # generated shell script.
           COMMENT_BODY: ${{ github.event.comment.body }}
 
   update-snapshots:
@@ -110,12 +101,15 @@ jobs:
         with:
           module: ${{ needs.guard.outputs.module }}
 
-      - name: Regenerate and commit baselines
-        id: baselines
-        uses: ./.github/actions/regenerate-baselines
-        with:
-          module: ${{ needs.guard.outputs.module }}
-          head-ref: ${{ needs.guard.outputs.head_ref }}
+      - name: Regenerate baselines
+        working-directory: ${{ needs.guard.outputs.module }}
+        run: pnpm run test:visual:update
+
+      - name: Commit and push
+        id: commit
+        run: bash .github/scripts/commit-baselines.sh "${{ needs.guard.outputs.module }}/tests/visual-snapshots"
+        env:
+          HEAD_REF: ${{ needs.guard.outputs.head_ref }}
 
       - name: Report the outcome
         if: ${{ always() }}
@@ -126,5 +120,5 @@ jobs:
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           JOB_STATUS: ${{ job.status }}
-          BASELINES_CHANGED: ${{ steps.baselines.outputs.changed }}
+          BASELINES_CHANGED: ${{ steps.commit.outputs.changed }}
           MODULE: ${{ needs.guard.outputs.module }}

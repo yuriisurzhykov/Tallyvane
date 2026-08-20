@@ -8,10 +8,17 @@ name: Visual & Accessibility Tests
 # can never fail. It would rewrite the expectation to match whatever the code
 # now produces and report success, which is the one outcome a regression suite
 # must not be able to reach. Baselines are accepted deliberately instead, from
-# the pull request, through the `/update-snapshots` command in
+# the pull request, through the `/update-snapshots <module>` command in
 # accept-visual-baselines.yml — so by the time a branch merges its baselines are
 # already right, and this run on the default branch is a confirmation rather
 # than a place that writes back to the repository.
+#
+# One job per workspace member with its own suite, run as a matrix rather than
+# a single job hardcoded to one directory — see
+# docs/frontend/02-component-testing-architecture.md for why the checking
+# logic itself (packages/test-kit) does not belong to any one of them.
+# `frontend-admin` joins this matrix the same way once it has a visual suite
+# of its own; nothing else here changes.
 
 on:
   pull_request:
@@ -29,21 +36,35 @@ concurrency:
 
 jobs:
   test:
-    name: Browser suites
+    name: Browser suites (${{ matrix.name }})
     runs-on: ubuntu-latest
+    strategy:
+      # One module's failure should not hide whether the other passed —
+      # they check unrelated things (an app's own pages versus every Tier 0
+      # component in isolation).
+      fail-fast: false
+      matrix:
+        include:
+          - module: frontend-web
+            name: frontend-web
+          - module: packages/storybook
+            name: storybook
     steps:
       - uses: actions/checkout@v7
 
       - uses: ./.github/actions/prepare-workspace
       - uses: ./.github/actions/setup-playwright
         with:
-          module: frontend-web
+          module: ${{ matrix.module }}
 
       # Playwright builds and starts the app itself, through the `webServer`
       # entry in its config, so there is no separate build step to keep in step
-      # with it.
+      # with it. For `packages/storybook`, `test:e2e` builds the static
+      # Storybook output first and only then runs Playwright against it — see
+      # that package's own `playwright.config.ts` for why the build cannot
+      # happen inside `webServer` here.
       - name: Run suites
-        working-directory: frontend-web
+        working-directory: ${{ matrix.module }}
         run: pnpm run test:e2e
 
       # `!cancelled()` rather than `always()`: a run someone stopped on purpose
@@ -53,26 +74,29 @@ jobs:
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v7
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.name }}
           # The report carries the diff images beside their baselines, which is
           # the only form in which a visual failure is legible at all.
           path: |
-            frontend-web/playwright-report
-            frontend-web/test-results
+            ${{ matrix.module }}/playwright-report
+            ${{ matrix.module }}/test-results
           retention-days: 14
 
       - name: Build the pull-request comment
         if: ${{ !cancelled() && github.event_name == 'pull_request' }}
         run: >
           node .github/scripts/format-summary.mjs
-          frontend-web/test-results/summary.json
+          ${{ matrix.module }}/test-results/summary.json
           "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          frontend-web/pr-comment.md
+          ${{ matrix.module }}/pr-comment.md
 
-      # Sticky, so a branch pushed five times carries one comment showing the
-      # current state rather than five showing its history.
+      # A distinct `header` per module, so `frontend-web`'s and `storybook`'s
+      # comments are two separate sticky comments rather than one overwriting
+      # the other — the same reasoning that keeps the WCAG and APCA suites in
+      # separate files: each failure should name which question it answers.
       - name: Comment on the pull request
         if: ${{ !cancelled() && github.event_name == 'pull_request' }}
         uses: marocchino/sticky-pull-request-comment@v3
         with:
-          path: frontend-web/pr-comment.md
+          header: ${{ matrix.name }}
+          path: ${{ matrix.module }}/pr-comment.md

@@ -1,0 +1,10 @@
+/**
+ * The exact chain `frontend-web/app/globals.css` uses, in the exact order.
+ * Order is load-bearing: the generated tokens declare the `--ds-*` custom
+ * properties; the adapter maps them onto the names Tailwind's `@theme` reads.
+ * Reversing the two leaves every `var(--ds-*)` in the adapter pointing at a
+ * property that does not exist yet, which CSS resolves to nothing, silently.
+ */
+@import "tailwindcss";
+@import "frontend-shared/ui/theme/generated/tokens.css";
+@import "frontend-shared/ui/theme/adapters/tailwind.css";

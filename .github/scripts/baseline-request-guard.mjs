@@ -40,8 +40,7 @@ async function commentUsage(owner, repo, issueNumber, reason) {
         body: {
             body: `\`/update-snapshots\` was ignored — ${reason}\n\n`
                 + "Usage: `/update-snapshots <module>`, where `<module>` is the workspace member "
-                + "whose baselines should be regenerated, e.g. `frontend-web`, `frontend-admin`, or "
-                + "`packages/frontend-shared`.",
+                + "whose baselines should be regenerated, e.g. `frontend-web` or `packages/storybook`.",
         },
     });
 }
