@@ -135,6 +135,8 @@
     --ds-motion-scale-highlight: 1.02;
     --ds-layout-64: 4rem;
     --ds-layout-240: 15rem;
+    --ds-layout-256: 16rem;
+    --ds-layout-448: 28rem;
     --ds-layout-1280: 80rem;
     --ds-layout-1600: 100rem;
     --ds-z-0: 0;
@@ -169,6 +171,8 @@
     --ds-semantic-control-height-sm: 2rem;
     --ds-semantic-control-height-md: 2.5rem;
     --ds-semantic-control-height-lg: 3rem;
+    --ds-semantic-control-icon: 1rem;
+    --ds-semantic-control-box: 1.25rem;
     --ds-semantic-z-background: 0;
     --ds-semantic-z-content: 10;
     --ds-semantic-z-sidebar: 20;
@@ -267,6 +271,13 @@
     --ds-component-status-badge-dot-size: 0.5rem;
     --ds-component-timeline-connector-color: hsl(0 0% 100% / 12%);
     --ds-component-timeline-connector-width: 1px;
+    --ds-component-scroll-area-thickness: 0.5rem;
+    --ds-component-switch-track-width: 2.5rem;
+    --ds-component-switch-track-height: 1.5rem;
+    --ds-component-switch-thumb-size: 1rem;
+    --ds-component-switch-thumb-travel: 1rem;
+    --ds-component-drawer-width: 28rem;
+    --ds-component-file-drop-filename-max-width: 16rem;
     color-scheme: dark;
 }
 

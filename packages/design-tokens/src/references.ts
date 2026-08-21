@@ -106,9 +106,15 @@ const PLAIN_HSL = /^hsl\(\s*([\d.]+)\s+([\d.]+)%\s+([\d.]+)%\s*(?:\/\s*[\d.]+%\s
  * `hsl()` string despite DS001 — never silently producing a wrong color.
  */
 function withAlpha(resolvedColor: string, percent: string): string {
-    const match = resolvedColor.match(PLAIN_HSL);
-    if (!match) return `color-mix(in srgb, ${ resolvedColor } ${ percent }%, transparent)`;
+    const match = PLAIN_HSL.exec(resolvedColor);
+    const fallback = `color-mix(in srgb, ${ resolvedColor } ${ percent }%, transparent)`;
+    if (!match) return fallback;
     const [, h, s, l] = match;
+    // `PLAIN_HSL` has exactly three mandatory capture groups, so a successful
+    // match always carries all three — this guard exists because
+    // `RegExpExecArray`'s type cannot state that, not because it is expected
+    // to ever actually be missing one.
+    if (h === undefined || s === undefined || l === undefined) return fallback;
     return `hsl(${ h } ${ s }% ${ l }% / ${ percent }%)`;
 }
 
@@ -136,6 +142,13 @@ export function resolveTree<T extends TokenTree>(tree: T, registry: Registry): T
             result[key] = value;
         } else if (Array.isArray(value)) {
             result[key] = value.map((item) => (item && typeof item === "object" ? resolveTree(item as TokenTree, registry) : item));
+            // `value &&`, not just `typeof value === "object"`: `TokenTree`'s
+            // own type has no `null`/`boolean` leaf, but real callers elsewhere
+            // in this package do pass one through (see `references.test.ts`'s
+            // "passes a boolean/null leaf through untouched" case) — `typeof
+            // null === "object"` in JS, so without this guard a `null` leaf
+            // would reach `resolveTree(null, ...)` and throw on `Object.entries`.
+            // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- real per the comment above, not provable from TokenTree's declared type
         } else if (value && typeof value === "object") {
             result[key] = resolveTree(value as TokenTree, registry);
         } else {
@@ -146,7 +159,7 @@ export function resolveTree<T extends TokenTree>(tree: T, registry: Registry): T
 }
 
 /** Walks a tree collecting every referenced dotted path (without resolving them) — the raw material the usage-graph and reference validators both build on. */
-export function collectReferences(node: unknown, refs: Set<string> = new Set()): Set<string> {
+export function collectReferences(node: unknown, refs = new Set<string>()): Set<string> {
     if (typeof node === "string") {
         const alphaMatch = matchAlphaCall(node);
         if (alphaMatch) {

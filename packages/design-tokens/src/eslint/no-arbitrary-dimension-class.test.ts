@@ -3,6 +3,7 @@
 import { Linter } from "eslint";
 import { describe, expect, it } from "vitest";
 import rule from "./no-arbitrary-dimension-class";
+import { onlyMessage } from "./test-helpers";
 
 const linter = new Linter();
 
@@ -29,9 +30,8 @@ describe("no-arbitrary-dimension-class", () => {
     });
 
     it("flags a bare literal even with a Tailwind responsive/state modifier", () => {
-        const messages = lint('const x = <nav className="sm:gap-[28px]" />;');
-        expect(messages).toHaveLength(1);
-        expect(messages[0]!.message).toContain('"sm:gap-[28px]"');
+        const message = onlyMessage(lint('const x = <nav className="sm:gap-[28px]" />;'));
+        expect(message).toContain('"sm:gap-[28px]"');
     });
 
     it("does NOT flag a fluid clamp()/calc()/min() expression — real, already-approved cases from the migration", () => {
@@ -84,6 +84,11 @@ describe("no-arbitrary-dimension-class", () => {
 
     it("does not crash and does not false-match on a clsx object keyed by a plain identifier shorthand", () => {
         expect(lint('const x = <div className={cn({ [dynamicKey]: active })} />;')).toHaveLength(0);
+    });
+
+    it("flags a constructed arbitrary class `` `w-[${n}px]` `` that no single quasi matches", () => {
+        expect(lint("const n = 26; const x = <div className={`w-[${n}px]`} />;")).toHaveLength(1);
+        expect(onlyMessage(lint("const n = 26; const x = <div className={`w-[${n}px]`} />;"))).toContain("w-[");
     });
 
     it("ignores a non-className attribute even with the same-looking string", () => {

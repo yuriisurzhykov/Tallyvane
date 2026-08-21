@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "hooks": {
+    "beforeShellExecution": [
+      {
+        "command": ".cursor/hooks/enforce-frontend-commands.mjs",
+        "matcher": "pnpm|npm|yarn|npx|node_modules",
+        "failClosed": false
+      }
+    ]
+  }
+}

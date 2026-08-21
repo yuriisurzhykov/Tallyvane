@@ -33,6 +33,9 @@ nothing above this component has any reason to know or drive whether the
 password is currently masked, since it's a purely local rendering detail
 orthogonal to the field's actual value.
 
+The Eye/EyeOff glyphs use `h-(--control-icon) w-(--control-icon)`, not
+Lucide `size={n}`.
+
 ## SOLID
 
 Single responsibility: the visibility toggle and its layout over `Input`,

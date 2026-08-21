@@ -20,8 +20,8 @@ width and the thumb's position internally from the current value — this
 component supplies only the rail thickness (`h-inline-tight`, an actual
 registered spacing role used for its real height, not borrowed the way
 `Dot`'s `size-inline` borrows one for a diameter), the thumb diameter
-(`1.25rem`, the same tokenless constant as `Checkbox`'s/`Radio`'s own box
-size), and tokens for each part's `data-*` state.
+(`var(--control-box)`, the same role as `Checkbox`'s/`Radio`'s box),
+and tokens for each part's `data-*` state.
 
 `Value` is fixed to `number` in this component's own exported type, not
 passed through as a type parameter the way `Radio`'s is: Base UI's real

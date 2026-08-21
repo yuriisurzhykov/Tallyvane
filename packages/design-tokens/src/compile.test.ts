@@ -12,6 +12,12 @@ const color = definePrimitives({
 
 const colorContract = defineContract({ category: "color", required: ["surfacePrimary", "interactivePrimary"] });
 
+/** Every value read through this helper below is a real assertion's own expected value — genuinely required for the test to mean anything, thrown rather than asserted so a real regression (the theme/kind actually missing) fails with a clear message instead of `undefined` quietly reaching `toBe`. */
+function required<T>(value: T | undefined, description: string): T {
+    if (value === undefined) throw new Error(`Expected ${ description } to be defined`);
+    return value;
+}
+
 function baseInput(components: CompilerInput["components"]): CompilerInput {
     const darkTheme = defineTheme(colorContract, { surfacePrimary: "{color.neutral.950}", interactivePrimary: "{color.brand.500}" });
     const lightTheme = defineTheme(colorContract, { surfacePrimary: "{color.neutral.0}", interactivePrimary: "{color.brand.500}" });
@@ -71,8 +77,9 @@ describe("compileDesignTokens — the plan's worked example", () => {
         };
 
         const result = compileDesignTokens(input);
-        expect(result.resolved.dark!.color.decorativeAccent).toBe("hsl(255 100% 82%)");
-        expect(result.resolved.dark!.component.codeBlock).toEqual({ keyword: "hsl(255 100% 82%)" });
+        const dark = required(result.resolved.dark, "resolved.dark");
+        expect(dark.color.decorativeAccent).toBe("hsl(255 100% 82%)");
+        expect(dark.component.codeBlock).toEqual({ keyword: "hsl(255 100% 82%)" });
         expect(result.css).toContain("--ds-color-decorative-accent: hsl(255 100% 82%)");
         expect(result.css).toContain("--ds-component-code-block-keyword: hsl(255 100% 82%)");
     });
@@ -136,8 +143,8 @@ describe("compileDesignTokens — generic output shape", () => {
         expect(result.css).toContain(".theme-light {");
         expect(result.css).toContain("color-scheme: dark;");
         expect(result.css).toContain("color-scheme: light;");
-        expect(result.resolved.dark!.color.surfacePrimary).toBe("hsl(219 25% 5%)");
-        expect(result.resolved.light!.color.surfacePrimary).toBe("hsl(219 0% 100%)");
+        expect(required(result.resolved.dark, "resolved.dark").color.surfacePrimary).toBe("hsl(219 25% 5%)");
+        expect(required(result.resolved.light, "resolved.light").color.surfacePrimary).toBe("hsl(219 0% 100%)");
         expect(result.warnings.some((w) => w.includes('DS101 Optional global-semantic token "{theme.color.decorativeAccent}"'))).toBe(true);
     });
 
@@ -197,7 +204,8 @@ describe("compileDesignTokens — generic output shape", () => {
             composites: [gradients],
         };
         const result = compileDesignTokens(input);
-        expect(result.resolved.dark!.composite.gradient!.brand).toBe("linear-gradient(135deg, hsl(20 94% 61%) 0%, hsl(255 100% 82%) 100%)");
+        const gradient = required(required(result.resolved.dark, "resolved.dark").composite.gradient, "composite.gradient");
+        expect(gradient.brand).toBe("linear-gradient(135deg, hsl(20 94% 61%) 0%, hsl(255 100% 82%) 100%)");
         expect(result.css).toContain("--ds-gradient-brand: linear-gradient(135deg, hsl(20 94% 61%) 0%, hsl(255 100% 82%) 100%);");
     });
 
@@ -220,7 +228,8 @@ describe("compileDesignTokens — generic output shape", () => {
             composites: [shadows],
         };
         const result = compileDesignTokens(input);
-        expect(result.resolved.dark!.composite.shadow!.card).toBe("0px 4px 8px 0px hsl(219 25% 5%)");
+        const shadow = required(required(result.resolved.dark, "resolved.dark").composite.shadow, "composite.shadow");
+        expect(shadow.card).toBe("0px 4px 8px 0px hsl(219 25% 5%)");
         expect(result.css).toContain("--ds-shadow-card: 0px 4px 8px 0px hsl(219 25% 5%);");
     });
 
@@ -262,7 +271,8 @@ describe("compileDesignTokens — generic output shape", () => {
                 hover: { duration: "{motion.duration.fast}", easing: "{motion.easing.standard}" },
             })], { motion: definePrimitives({ duration: { fast: "120ms" }, easing: { standard: "ease-out" } }) }),
         );
-        expect(result.resolved.dark!.composite.transition!.hover).toEqual({ duration: "120ms", easing: "ease-out" });
+        const transition = required(required(result.resolved.dark, "resolved.dark").composite.transition, "composite.transition");
+        expect(transition.hover).toEqual({ duration: "120ms", easing: "ease-out" });
         expect(result.css).toContain("--ds-transition-hover-duration: 120ms;");
         expect(result.css).toContain("--ds-transition-hover-easing: ease-out;");
     });
@@ -293,7 +303,8 @@ describe("compileDesignTokens — generic output shape", () => {
         // as text. Harmless for CSS, which parses it either way, but worth
         // pinning down here — a non-CSS consumer reading `resolved.ts` gets the
         // string and would silently fail a `typeof value === "number"` guard.
-        expect(result.resolved.dark!.composite.textStyle!.body).toEqual({ size: "1rem", weight: "400" });
+        const textStyle = required(required(result.resolved.dark, "resolved.dark").composite.textStyle, "composite.textStyle");
+        expect(textStyle.body).toEqual({ size: "1rem", weight: "400" });
         expect(result.css).toContain("--ds-text-style-body-size: 1rem;");
         expect(result.css).toContain("--ds-text-style-body-weight: 400;");
     });

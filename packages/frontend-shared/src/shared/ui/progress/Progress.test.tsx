@@ -38,8 +38,8 @@ describe("Progress", () => {
 
     it("sizes the indicator's width from the value/max ratio", () => {
         const { container } = render(<Progress label="Weekly goal" value={ 30 } max={ 100 }/>);
-        const indicator = container.querySelector(".bg-interactive-primary") as HTMLElement;
-        expect(indicator.style.width).toBe("30%");
+        const indicator = container.querySelector<HTMLElement>(".bg-interactive-primary");
+        expect(indicator?.style.width).toBe("30%");
     });
 
     it("reports complete once value reaches max", () => {

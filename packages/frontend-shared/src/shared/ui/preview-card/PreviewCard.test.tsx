@@ -58,7 +58,7 @@ describe("PreviewCard", () => {
      * directly in `Tooltip.test.tsx`'s own investigation). Untestable here
      * for the same reason; would need a real browser to verify.
      */
-    it.skip("opens on keyboard focus — needs a real browser; jsdom's :focus-visible never matches", () => {});
+    it.skip("opens on keyboard focus — needs a real browser; jsdom's :focus-visible never matches", () => undefined);
 
     it("closes on Escape", async () => {
         renderPreviewCard();

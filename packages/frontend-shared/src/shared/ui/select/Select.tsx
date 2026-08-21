@@ -5,6 +5,7 @@ import { Select as BaseSelect } from "@base-ui/react/select";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { Separator } from "../separator";
 import { Text } from "../text";
+import { CONTROL_ICON_CLASS } from "../../lib";
 
 export type SelectSize = "sm" | "md" | "lg";
 
@@ -102,7 +103,7 @@ export interface SelectIconProps {
 function Icon({ className }: SelectIconProps) {
     return (
         <BaseSelect.Icon className={ ["shrink-0 text-text-muted", className].filter(Boolean).join(" ") }>
-            <ChevronsUpDown size={ 16 }/>
+            <ChevronsUpDown className={CONTROL_ICON_CLASS}/>
         </BaseSelect.Icon>
     );
 }
@@ -193,7 +194,7 @@ function Item({ children, className, ...rest }: SelectItemProps) {
         <BaseSelect.Item className={ [ITEM_CLASS, className].filter(Boolean).join(" ") } { ...rest }>
             <span className="flex w-4 shrink-0 items-center justify-center">
                 <BaseSelect.ItemIndicator>
-                    <Check size={ 14 }/>
+                    <Check className={CONTROL_ICON_CLASS}/>
                 </BaseSelect.ItemIndicator>
             </span>
             <BaseSelect.ItemText className="flex-1 text-left">{ children }</BaseSelect.ItemText>

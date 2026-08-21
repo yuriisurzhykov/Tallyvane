@@ -6,6 +6,7 @@ import { ChevronDown, X } from "lucide-react";
 import { IconButton } from "../icon-button";
 import { Separator } from "../separator";
 import { Text } from "../text";
+import { CONTROL_ICON_CLASS } from "../../lib";
 
 export type AutocompleteSize = "sm" | "md" | "lg";
 
@@ -127,25 +128,12 @@ export interface AutocompleteIconButtonOwnProps {
     readonly className?: string;
 }
 
-const ICON_SIZE = 16;
-
-/**
- * Composes this package's own `IconButton` via `render`, the same
- * `tone="ghost"` choice `Combobox.tsx`'s own `Trigger`/`Clear` make for the
- * same reason. No explicit `aria-label` needed at the
- * `BaseAutocomplete.Trigger`/`Clear` level — verified by reading
- * `AutocompleteTrigger.mjs` (and, for `Clear`, the literally-shared
- * `ComboboxClear.mjs` `Combobox.tsx`'s own README already checked) directly:
- * neither sets its own internal `aria-label` default, so there is no
- * competing default for `IconButton`'s own `aria-label={label}` to lose to,
- * unlike `NumberField.Increment`/`Decrement` in this same batch.
- */
 function Trigger({ label, children, className }: AutocompleteIconButtonOwnProps) {
     return (
         <BaseAutocomplete.Trigger
             render={
                 <IconButton label={ label } tone="ghost" size="sm" className={ className }>
-                    { children ?? <ChevronDown size={ ICON_SIZE }/> }
+                    { children ?? <ChevronDown className={CONTROL_ICON_CLASS}/> }
                 </IconButton>
             }
         />
@@ -157,7 +145,7 @@ function Clear({ label, children, className }: AutocompleteIconButtonOwnProps) {
         <BaseAutocomplete.Clear
             render={
                 <IconButton label={ label } tone="ghost" size="sm" className={ className }>
-                    { children ?? <X size={ ICON_SIZE }/> }
+                    { children ?? <X className={CONTROL_ICON_CLASS}/> }
                 </IconButton>
             }
         />

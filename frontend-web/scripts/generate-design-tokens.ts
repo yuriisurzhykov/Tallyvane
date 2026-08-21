@@ -38,6 +38,13 @@ const ADAPTERS_DIR = path.join(THEME_DIR, "adapters");
 const REFERENCED_VARIABLE = /var\(\s*(--ds-[a-z0-9-]+)/g;
 const DECLARED_VARIABLE = /^\s*(--ds-[a-z0-9-]+)\s*:/gm;
 
+/** Both regexes above have exactly one, always-matching capture group — `RegExpMatchArray`'s index signature still widens it to `string | undefined`, since TS cannot see that guarantee from the pattern itself. */
+function requiredCapture(match: RegExpMatchArray, index: number): string {
+    const value = match[index];
+    if (value === undefined) throw new Error(`Expected capture group ${String(index)} to be present in "${match[0]}"`);
+    return value;
+}
+
 /**
  * Fails the build if an adapter gives a primitive a class-facing name.
  *
@@ -65,14 +72,14 @@ async function auditAdapters(
     }
     // Everything the compiler actually declared, taken from the generated
     // stylesheet rather than rebuilt here, so the two cannot drift.
-    const declared = new Set([...css.matchAll(DECLARED_VARIABLE)].map((match) => match[1] as string));
+    const declared = new Set([...css.matchAll(DECLARED_VARIABLE)].map((match) => requiredCapture(match, 1)));
 
     const violations: string[] = [];
     for (const file of await readdir(ADAPTERS_DIR)) {
         if (!file.endsWith(".css")) continue;
         const contents = await readFile(path.join(ADAPTERS_DIR, file), "utf8");
         for (const match of contents.matchAll(REFERENCED_VARIABLE)) {
-            const name = match[1] as string;
+            const name = requiredCapture(match, 1);
             const category = owner.get(name);
             if (category) {
                 violations.push(`${file}: ${name} is a ${category} primitive — expose the semantic role instead`);

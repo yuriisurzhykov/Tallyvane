@@ -20,6 +20,8 @@ instead."
 its two overloaded signatures (grouped items vs. flat) carry no
 `Multiple`/selection-mode generic at all, since free-form text has no
 "several selected values" concept to guard against.
+Chevron and clear glyphs use `h-(--control-icon) w-(--control-icon)`, not
+Lucide `size={n}`.
 
 ### Base UI's own package already treats this as "Combobox, minus a few parts"
 

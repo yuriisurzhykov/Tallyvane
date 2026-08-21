@@ -20,9 +20,10 @@
     "arch": "pnpm --recursive --if-present run arch",
     "typecheck": "pnpm --recursive --if-present run typecheck",
     "test": "pnpm --recursive --if-present run test",
-    "verify": "pnpm run typecheck && pnpm run lint && pnpm run arch && pnpm run test",
-    "tokens:generate": "pnpm --filter tallyvane-frontend-web run tokens:generate",
-    "tokens:check": "pnpm --filter tallyvane-frontend-web run tokens:check"
+    "build": "pnpm --recursive --if-present run build",
+    "verify": "pnpm run typecheck && pnpm run lint && pnpm run arch && pnpm run test && pnpm run build",
+    "tokens:generate": "pnpm --recursive --if-present run tokens:generate",
+    "tokens:check": "pnpm --recursive --if-present run tokens:check"
   },
   "//": "Workspace root. Holds no source of its own — only the scripts that fan out across packages.",
   "devDependencies": {

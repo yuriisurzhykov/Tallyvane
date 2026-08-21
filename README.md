@@ -63,11 +63,27 @@ one of them is what you need:
 | `pnpm lint` | ESLint: layer matrix, import cycles, public-API sidesteps, raw colours and dimensions in markup, unnamed stacking layers |
 | `pnpm arch` | Committed token artefacts against a fresh compile, Feature-Sliced rules, the file-level dependency graph |
 | `pnpm test` | Unit tests |
+| `pnpm build` | `next build`, across every app that defines one |
 
 Types run first on purpose: everything after them reads types, and a type error
 otherwise produces a wall of unrelated failures that costs more to read than to
-prevent.
+prevent. `build` runs last: it is the slowest of the five, so a cheaper check
+fails first and the expensive one never has to run against code that was
+already known-bad.
 
-`pnpm --filter tallyvane-frontend-web run graph` writes the dependency graph
+Every one of these is a repo-wide fan-out (`pnpm --recursive --if-present run
+<script>`) — nothing here ever needs a `--filter`. Scoping a check to a single
+package (a Playwright suite, `build-storybook`, `graph`) always uses
+`pnpm --filter "./<path>" run <script>`, never a bare package name and never
+`cd`.
+
+These are the commands a human runs directly. A Cursor agent working in this
+repo runs the same checks through `node .cursor/cli/agent-check.mjs
+<action> [--package <path>]` instead — a hook denies it calling `pnpm`
+directly — and gets back a compact pass/fail digest rather than the full raw
+tool output. See [.cursor/rules/frontend-command-harness.mdc](.cursor/rules/frontend-command-harness.mdc)
+for the full matrix and why both the path-based scoping and the wrapper exist.
+
+`pnpm --filter "./frontend-web" run graph` writes the dependency graph
 in DOT form, which is the cheapest way to see architectural drift — a picture
 gets looked at, a rule list does not.

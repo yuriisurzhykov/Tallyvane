@@ -3,6 +3,7 @@
 import { Linter } from "eslint";
 import { describe, expect, it } from "vitest";
 import rule from "./no-raw-color-value";
+import { onlyMessage } from "./test-helpers";
 
 const linter = new Linter();
 
@@ -16,10 +17,9 @@ function lint(code: string) {
 
 describe("no-raw-color-value", () => {
     it("flags a hex color literal on a color-bearing style property", () => {
-        const messages = lint('const x = <div style={{ color: "#e8743a" }} />;');
-        expect(messages).toHaveLength(1);
-        expect(messages[0]!.message).toContain('"color"');
-        expect(messages[0]!.message).toContain("#e8743a");
+        const message = onlyMessage(lint('const x = <div style={{ color: "#e8743a" }} />;'));
+        expect(message).toContain('"color"');
+        expect(message).toContain("#e8743a");
     });
 
     it("flags rgb()/hsl()/oklch() the same way", () => {
@@ -41,10 +41,9 @@ describe("no-raw-color-value", () => {
     });
 
     it("flags a raw color hidden inside a template literal value, with the exact property/value in the message", () => {
-        const messages = lint('const x = <div style={{ color: `#e8743a` }} />;');
-        expect(messages).toHaveLength(1);
-        expect(messages[0]!.message).toContain('"color"');
-        expect(messages[0]!.message).toContain("#e8743a");
+        const message = onlyMessage(lint('const x = <div style={{ color: `#e8743a` }} />;'));
+        expect(message).toContain('"color"');
+        expect(message).toContain("#e8743a");
     });
 
     it("does not flag a template literal whose value isn't a raw color (a var() reference)", () => {

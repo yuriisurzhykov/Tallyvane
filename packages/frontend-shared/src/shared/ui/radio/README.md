@@ -23,12 +23,9 @@ Radio deliberately activates on Space only — its own `onKeyDown` calls
 form doesn't get treated as a click, matching native
 `<input type="radio">` semantics.
 
-`1.25rem` for the outer ring is the same literal, same reasoning, as
-`Checkbox`'s own `BOX_SIZE` — see that file's comment on why it is a named
-constant instead of a token, and why the two files each keep their own
-copy rather than sharing an import. The inner dot (`0.625rem`, exactly
-half) is sized to read clearly inside the ring without visually touching
-its border.
+The outer ring is `--control-box`, the same role `Checkbox` and `Slider`
+read. The inner dot is `calc(var(--control-box) / 2)`. Named rem constants
+used to be the lint exemption; that hole is closed.
 
 Generic over `Value` (defaulting to `string`, the common case — work mode,
 seniority), left unconstrained rather than narrowed to `extends string`

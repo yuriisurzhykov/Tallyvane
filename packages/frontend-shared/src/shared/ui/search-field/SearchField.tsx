@@ -1,6 +1,7 @@
 import { useEffect, useRef, type ChangeEventHandler } from "react";
 import { Search, X } from "lucide-react";
 import { Input, type InputProps } from "../input";
+import { CONTROL_ICON_CLASS, mergeStyle } from "../../lib";
 
 export interface SearchFieldOwnProps {
     readonly value: string;
@@ -40,16 +41,11 @@ export interface SearchFieldOwnProps {
  */
 export type SearchFieldProps = SearchFieldOwnProps & Omit<InputProps, "type" | "value" | "onChange" | "defaultValue">;
 
-const ICON_SIZE = 16;
-
 /**
- * No spacing role names "room for a leading/trailing glyph inside a text
- * field" — same one-off-constant exception `ScrollArea`'s
- * `SCROLLBAR_THICKNESS` and `TextArea`'s `MIN_HEIGHT` already take. Both
- * sides use the same value: a 16px glyph, `inline` (8px) clear of the
- * field's own edge, and `inline-tight` (4px) clear of the typed text.
+ * Glyph plus twice `--spacing-inline` (edge padding and the gap before
+ * typed text) — a calc over tokens, not a pre-summed 2rem.
  */
-const ICON_INSET = "2rem";
+const ICON_INSET = "calc(var(--control-icon) + 2 * var(--spacing-inline))";
 
 /**
  * Tier 0 — text input with a clear affordance and debounce, per
@@ -94,8 +90,8 @@ export function SearchField({
      * the way listing it as a dependency would.
      */
     useEffect(() => {
-        pendingTimeoutRef.current = setTimeout(() => onSearchRef.current(value), debounceMs);
-        return () => clearTimeout(pendingTimeoutRef.current);
+        pendingTimeoutRef.current = setTimeout(() => { onSearchRef.current(value); }, debounceMs);
+        return () => { clearTimeout(pendingTimeoutRef.current); };
     }, [value, debounceMs]);
 
     function handleClear() {
@@ -120,7 +116,7 @@ export function SearchField({
 
     return (
         <div className={["relative", className].filter(Boolean).join(" ")}>
-            <Search size={ICON_SIZE} className="pointer-events-none absolute top-1/2 left-inline -translate-y-1/2 text-text-muted" />
+            <Search className={`pointer-events-none absolute top-1/2 left-inline -translate-y-1/2 text-text-muted ${CONTROL_ICON_CLASS}`} />
             <Input
                 {...rest}
                 ref={inputRef}
@@ -129,7 +125,7 @@ export function SearchField({
                 role="searchbox"
                 value={value}
                 onChange={onChange}
-                style={{ ...style, paddingInlineStart: ICON_INSET, ...(value ? { paddingInlineEnd: ICON_INSET } : {}) }}
+                style={mergeStyle(style, { paddingInlineStart: ICON_INSET, ...(value ? { paddingInlineEnd: ICON_INSET } : {}) })}
             />
             {value ? (
                 <button
@@ -138,7 +134,7 @@ export function SearchField({
                     onClick={handleClear}
                     className="absolute top-1/2 right-inline -translate-y-1/2 rounded-control p-inline-tight text-text-muted transition-hover hover:bg-surface-row-hover hover:text-text-primary focus-visible:focus-ring"
                 >
-                    <X size={ICON_SIZE} />
+                    <X className={CONTROL_ICON_CLASS} />
                 </button>
             ) : null}
         </div>

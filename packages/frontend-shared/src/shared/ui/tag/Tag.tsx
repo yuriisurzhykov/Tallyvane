@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { X } from "lucide-react";
+import { CONTROL_ICON_CLASS } from "../../lib";
 
 export type TagTone = "neutral" | "info" | "attention" | "success" | "danger";
 
@@ -14,8 +15,6 @@ export interface TagProps {
     readonly removeLabel: string;
     readonly className?: string;
 }
-
-const ICON_SIZE = 16;
 
 /**
  * Wash plus a real border, one step past `Badge`'s own `subtle` treatment:
@@ -85,7 +84,7 @@ export function Tag({ tone = "neutral", children, onRemove, removeLabel, classNa
         <span className={ classNames }>
             { children }
             <button type="button" aria-label={ removeLabel } onClick={ onRemove } className={ REMOVE_BUTTON_CLASS }>
-                <X size={ ICON_SIZE } aria-hidden="true"/>
+                <X aria-hidden="true" className={CONTROL_ICON_CLASS}/>
             </button>
         </span>
     );

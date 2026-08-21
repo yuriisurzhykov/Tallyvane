@@ -87,7 +87,7 @@ function getGridCells(): Promise<HTMLElement[]> {
 
 function cellAt(cells: HTMLElement[], rowIndex: number, columnIndex: number): HTMLElement {
     const cell = cells[rowIndex * COLUMN_COUNT + columnIndex];
-    if (!cell) throw new Error(`No cell at row ${rowIndex}, column ${columnIndex}`);
+    if (!cell) throw new Error(`No cell at row ${String(rowIndex)}, column ${String(columnIndex)}`);
     return cell;
 }
 

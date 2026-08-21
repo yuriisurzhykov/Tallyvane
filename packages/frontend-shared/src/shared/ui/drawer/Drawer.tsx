@@ -26,25 +26,11 @@ function DrawerRoot<Payload = unknown>({ swipeDirection = "right", ...props }: D
 }
 
 /**
- * A genuinely tokenless numeric — no semantic spacing role names "how wide a
- * drawer is" any more than one names "how thick a scrollbar is"
- * (`ScrollArea.tsx`'s own `SCROLLBAR_THICKNESS`), and this batch's brief
- * forbids adding one. One visual treatment, no size variant, until a real
- * call site needs a second width.
- */
-const DRAWER_WIDTH = "28rem";
-
-/**
- * An inline style, not a `fixed inset-0` class pair: `inset-0` reads from
- * Tailwind's bare `--spacing` multiplier, which the adapter clears on
- * purpose (`tailwind.css`: "so a system with sm/md/lg spacing keys... Without
- * it, only the roles below produce a utility and **anything else produces
- * nothing**") — confirmed live, not assumed, by rendering this component in
- * a real browser and finding the Viewport's computed `top`/`right`/`bottom`/
- * `left` all still `auto`, `inset-0` having compiled to nothing at all. `0`
- * is not a semantic spacing decision to name a token for; it is geometry
- * ("cover the exact viewport"), the same class of exception `Grid.tsx`'s own
- * `columns` inline style already documents.
+ * Width is `--ds-component-drawer-width`. A layout *role* with one
+ * consumer would trip DS102; the component token is the shape that rule
+ * asks for. `inset: 0` stays a numeric zero — geometry that covers the
+ * viewport, not a spacing decision, and `inset-0` compiles to nothing
+ * because the adapter clears Tailwind's bare `--spacing` multiplier.
  */
 const FULL_VIEWPORT_STYLE = { position: "fixed", inset: 0 } as const;
 
@@ -77,7 +63,7 @@ function DrawerPopup({ className, children, ...rest }: DrawerPopupProps) {
                     ]
                         .filter(Boolean)
                         .join(" ")}
-                    style={{ width: DRAWER_WIDTH }}
+                    style={{ width: "var(--ds-component-drawer-width)" }}
                     {...rest}
                 >
                     {children}

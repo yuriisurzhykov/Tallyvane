@@ -144,7 +144,7 @@ describe("Tabs", () => {
 
             fireEvent.keyDown(profileTab, { key: "ArrowRight" });
 
-            await waitFor(() => expect(document.activeElement).toBe(settingsTab));
+            await waitFor(() => { expect(document.activeElement).toBe(settingsTab); });
             expect(settingsTab).toHaveAttribute("aria-selected", "false");
             expect(profileTab).toHaveAttribute("aria-selected", "true");
         });
@@ -178,7 +178,7 @@ describe("Tabs", () => {
 
             fireEvent.keyDown(profileTab, { key: "ArrowLeft" });
 
-            await waitFor(() => expect(document.activeElement).toBe(billingTab));
+            await waitFor(() => { expect(document.activeElement).toBe(billingTab); });
         });
 
         /**
@@ -199,7 +199,7 @@ describe("Tabs", () => {
 
             fireEvent.keyDown(settingsTab, { key: "ArrowRight" });
 
-            await waitFor(() => expect(document.activeElement).toBe(billingTab));
+            await waitFor(() => { expect(document.activeElement).toBe(billingTab); });
             fireEvent.click(billingTab);
             expect(billingTab).toHaveAttribute("aria-selected", "false");
         });
@@ -212,10 +212,10 @@ describe("Tabs", () => {
             settingsTab.focus();
 
             fireEvent.keyDown(settingsTab, { key: "End" });
-            await waitFor(() => expect(document.activeElement).toBe(billingTab));
+            await waitFor(() => { expect(document.activeElement).toBe(billingTab); });
 
             fireEvent.keyDown(billingTab, { key: "Home" });
-            await waitFor(() => expect(document.activeElement).toBe(profileTab));
+            await waitFor(() => { expect(document.activeElement).toBe(profileTab); });
         });
 
         it("switches to ArrowDown/ArrowUp instead of ArrowLeft/ArrowRight when orientation is vertical", async () => {
@@ -228,7 +228,7 @@ describe("Tabs", () => {
             expect(document.activeElement).toBe(profileTab);
 
             fireEvent.keyDown(profileTab, { key: "ArrowDown" });
-            await waitFor(() => expect(document.activeElement).toBe(settingsTab));
+            await waitFor(() => { expect(document.activeElement).toBe(settingsTab); });
         });
     });
 });

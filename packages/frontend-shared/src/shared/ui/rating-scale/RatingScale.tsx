@@ -52,13 +52,6 @@ type RatingScaleUncontrolledProps = RatingScaleBaseProps & {
 
 export type RatingScaleProps = RatingScaleControlledProps | RatingScaleUncontrolledProps;
 
-/**
- * Same box size as `Checkbox`'s/`Radio`'s own — see `Checkbox.tsx`'s
- * comment on why this is a named constant rather than a token, and why
- * each file keeps its own copy.
- */
-const DOT_SIZE = "1.25rem";
-
 const DOT_CLASS_NAME =
     "inline-flex shrink-0 rounded-pill border-2 border-border-strong transition-hover hover:border-interactive-primary focus-visible:focus-ring data-[disabled]:cursor-not-allowed data-[disabled]:opacity-60";
 
@@ -147,7 +140,7 @@ export function RatingScale({ label, getValueLabel, disabled, className, ...rest
             value={ value }
             aria-label={ getValueLabel(value) }
             className={ [DOT_CLASS_NAME, value <= currentValue ? DOT_FILLED_CLASS_NAME : ""].filter(Boolean).join(" ") }
-            style={ { width: DOT_SIZE, height: DOT_SIZE } }
+            style={ { width: "var(--control-box)", height: "var(--control-box)" } }
         />
     ));
 
@@ -159,7 +152,7 @@ export function RatingScale({ label, getValueLabel, disabled, className, ...rest
                 disabled={ disabled }
                 className={ groupClassName }
                 value={ toInternalValue(value) }
-                onValueChange={ (next, eventDetails) => onValueChange(toPublicValue(next), eventDetails) }
+                onValueChange={ (next, eventDetails) => { onValueChange(toPublicValue(next), eventDetails); } }
             >
                 { dots }
             </BaseRadioGroup>
@@ -173,7 +166,7 @@ export function RatingScale({ label, getValueLabel, disabled, className, ...rest
             disabled={ disabled }
             className={ groupClassName }
             defaultValue={ toInternalValue(defaultValue) }
-            onValueChange={ (next) => setUncontrolledValue(next) }
+            onValueChange={ (next) => { setUncontrolledValue(next); } }
         >
             { dots }
         </BaseRadioGroup>

@@ -1,4 +1,4 @@
-import type { DragEvent, MouseEvent } from "react";
+import type { MouseEvent } from "react";
 import { useRef, useState } from "react";
 import { FileText, Upload, X } from "lucide-react";
 import { VisuallyHidden } from "../visually-hidden";
@@ -6,6 +6,8 @@ import { Text } from "../text";
 import { Truncate } from "../truncate";
 import { Button } from "../button";
 import { IconButton } from "../icon-button";
+import { CONTROL_ICON_CLASS } from "../../lib";
+import { useDragTracking } from "./use-drag-tracking";
 
 export interface FileDropProps {
     /** The primary instruction shown inside the drop zone, e.g. "Drag and drop your résumé here". This component holds no copy of its own (`COMPONENTS.md` §12) — wording and localisation are the caller's. */
@@ -39,20 +41,7 @@ export interface FileDropProps {
 const CLASS_NAME =
     "flex flex-col items-center justify-center gap-stack-tight rounded-card border-2 border-dashed border-border-default bg-surface-inset p-section-gap text-center transition-hover data-[dragging-over]:border-interactive-primary data-[dragging-over]:bg-interactive-primary-subtle data-[disabled]:cursor-not-allowed data-[disabled]:opacity-60";
 
-const ICON_SIZE = 24;
-const CLEAR_ICON_SIZE = 14;
-
-/**
- * Genuinely tokenless geometry, the same class of exception as
- * `Drawer.tsx`'s `DRAWER_WIDTH`: no spacing role names "how wide a
- * filename gets before it truncates", and a bare Tailwind scale class
- * (`max-w-48`) would not even work here regardless — this adapter clears
- * Tailwind's bare `--spacing` multiplier on purpose
- * (`theme/adapters/tailwind.css`), so an unregistered step like `48`
- * compiles to nothing at all, the same trap `Drawer.tsx`'s own README
- * documents finding for `inset-0`.
- */
-const FILENAME_MAX_WIDTH = "16rem";
+const DROP_ICON_CLASS = `text-text-muted h-[calc(var(--control-icon)*1.5)] w-[calc(var(--control-icon)*1.5)]`;
 
 /**
  * Tier 0 — the drop zone and file selection only, single file. Upload
@@ -83,16 +72,8 @@ const FILENAME_MAX_WIDTH = "16rem";
  * input's own click bubbles through), not a third redundant tab stop for
  * an already keyboard-reachable action.
  *
- * Drag state is tracked with a counter, not a boolean flipped on every
- * `dragenter`/`dragleave`: both events fire again for every child element
- * the pointer crosses while still inside the drop zone (the icon, the
- * instruction text, the Browse button), so a naive boolean flickers the
- * active-drag styling off the moment the pointer enters any of them. The
- * counter only reaches zero, and only then clears the active styling, once
- * the pointer has actually left every nested element — verified in
- * `FileDrop.test.tsx` by dispatching a `dragenter`/`dragleave` pair on a
- * child before the real `drop`, not assumed from reading this comment
- * alone.
+ * Drag-state tracking lives in `useDragTracking` (colocated in this same
+ * directory) — see that file for why it's a counter, not a boolean.
  */
 export function FileDrop({
                              label,
@@ -104,8 +85,6 @@ export function FileDrop({
                              className
                          }: FileDropProps) {
     const inputRef = useRef<HTMLInputElement>(null);
-    const dragDepthRef = useRef(0);
-    const [isDraggingOver, setIsDraggingOver] = useState(false);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
     function openFileDialog() {
@@ -119,41 +98,6 @@ export function FileDrop({
         onFileChange(file);
     }
 
-    function handleDragEnter(event: DragEvent<HTMLDivElement>) {
-        if (disabled) return;
-        event.preventDefault();
-        dragDepthRef.current += 1;
-        setIsDraggingOver(true);
-    }
-
-    function handleDragOver(event: DragEvent<HTMLDivElement>) {
-        if (disabled) return;
-        // Required for `drop` to fire at all — a `dragover` with no handler
-        // (or one that doesn't prevent the default) tells the browser this
-        // is not a valid drop target.
-        event.preventDefault();
-    }
-
-    function handleDragLeave(event: DragEvent<HTMLDivElement>) {
-        if (disabled) return;
-        event.preventDefault();
-        dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
-        if (dragDepthRef.current === 0) {
-            setIsDraggingOver(false);
-        }
-    }
-
-    function handleDrop(event: DragEvent<HTMLDivElement>) {
-        if (disabled) return;
-        event.preventDefault();
-        dragDepthRef.current = 0;
-        setIsDraggingOver(false);
-        const file = event.dataTransfer.files[0] ?? null;
-        if (file) {
-            selectFile(file);
-        }
-    }
-
     function handleClear(event: MouseEvent) {
         // The clear button sits inside the drop zone `<div>`, whose own
         // `onClick` re-opens the file dialog — without this, clearing a
@@ -164,6 +108,13 @@ export function FileDrop({
             inputRef.current.value = "";
         }
     }
+
+    const { isDraggingOver, handleDragEnter, handleDragOver, handleDragLeave, handleDrop } = useDragTracking(
+        disabled,
+        (file) => {
+            if (file) selectFile(file);
+        },
+    );
 
     return (
         <div
@@ -184,7 +135,7 @@ export function FileDrop({
                         aria-label={ browseLabel }
                         { ...(accept ? { accept } : {}) }
                         disabled={ disabled }
-                        onChange={ (event) => selectFile(event.target.files?.[0] ?? null) }
+                        onChange={ (event) => { selectFile(event.target.files?.[0] ?? null); } }
                         // `HTMLInputElement.click()` dispatches a real, bubbling
                         // click event — without this, opening the dialog via
                         // `openFileDialog`'s own `inputRef.current.click()` call
@@ -197,51 +148,72 @@ export function FileDrop({
                         // Found empirically: a first draft of `FileDrop.test.tsx`
                         // recorded the input's `click()` firing twice per real
                         // click, not once.
-                        onClick={ (event) => event.stopPropagation() }
+                        onClick={ (event) => { event.stopPropagation(); } }
                     />
                 }
             />
             { selectedFile ? (
-                <>
-                    <FileText size={ ICON_SIZE } aria-hidden="true" className="text-text-muted"/>
-                    <div className="flex items-center gap-inline-tight">
-                        {/* `Truncate` takes no `style` prop (see its own README) — the width cap lives on this plain wrapper instead, which `Truncate`'s own `overflow-hidden` then clips against. */ }
-                        <div style={ { maxWidth: FILENAME_MAX_WIDTH } }>
-                            <Truncate fullValue={ selectedFile.name }>
-                                <Text variant="small" color="primary">
-                                    { selectedFile.name }
-                                </Text>
-                            </Truncate>
-                        </div>
-                        <IconButton label={ clearLabel } tone="ghost" size="sm" disabled={ disabled }
-                                    onClick={ handleClear }>
-                            <X size={ CLEAR_ICON_SIZE } aria-hidden="true"/>
-                        </IconButton>
-                    </div>
-                </>
+                <SelectedFileView file={ selectedFile } clearLabel={ clearLabel } disabled={ disabled } onClear={ handleClear } />
             ) : (
-                <>
-                    <Upload size={ ICON_SIZE } aria-hidden="true" className="text-text-muted"/>
-                    <Text variant="small" color="muted">
-                        { label }
-                    </Text>
-                    <Button
-                        tone="neutral"
-                        size="sm"
-                        disabled={ disabled }
-                        onClick={ (event) => {
-                            // The button sits inside the drop zone `<div>`, whose
-                            // own `onClick` also calls `openFileDialog` — without
-                            // this, one Browse click would call it twice (once
-                            // here, once more from bubbling to the zone).
-                            event.stopPropagation();
-                            openFileDialog();
-                        } }
-                    >
-                        { browseLabel }
-                    </Button>
-                </>
+                <BrowsePrompt label={ label } browseLabel={ browseLabel } disabled={ disabled } onBrowse={ openFileDialog } />
             ) }
         </div>
+    );
+}
+
+function SelectedFileView({ file, clearLabel, disabled, onClear }: {
+    readonly file: File;
+    readonly clearLabel: string;
+    readonly disabled: boolean;
+    readonly onClear: (event: MouseEvent) => void;
+}) {
+    return (
+        <>
+            <FileText aria-hidden="true" className={DROP_ICON_CLASS}/>
+            <div className="flex items-center gap-inline-tight">
+                {/* `Truncate` takes no `style` prop (see its own README) — the width cap lives on this plain wrapper instead, which `Truncate`'s own `overflow-hidden` then clips against. */ }
+                <div style={ { maxWidth: "var(--ds-component-file-drop-filename-max-width)" } }>
+                    <Truncate fullValue={ file.name }>
+                        <Text variant="small" color="primary">
+                            { file.name }
+                        </Text>
+                    </Truncate>
+                </div>
+                <IconButton label={ clearLabel } tone="ghost" size="sm" disabled={ disabled } onClick={ onClear }>
+                    <X aria-hidden="true" className={CONTROL_ICON_CLASS}/>
+                </IconButton>
+            </div>
+        </>
+    );
+}
+
+function BrowsePrompt({ label, browseLabel, disabled, onBrowse }: {
+    readonly label: string;
+    readonly browseLabel: string;
+    readonly disabled: boolean;
+    readonly onBrowse: () => void;
+}) {
+    return (
+        <>
+            <Upload aria-hidden="true" className={DROP_ICON_CLASS}/>
+            <Text variant="small" color="muted">
+                { label }
+            </Text>
+            <Button
+                tone="neutral"
+                size="sm"
+                disabled={ disabled }
+                onClick={ (event) => {
+                    // The button sits inside the drop zone `<div>`, whose own
+                    // `onClick` also calls `openFileDialog` — without this, one
+                    // Browse click would call it twice (once here, once more
+                    // from bubbling to the zone).
+                    event.stopPropagation();
+                    onBrowse();
+                } }
+            >
+                { browseLabel }
+            </Button>
+        </>
     );
 }

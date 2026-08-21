@@ -54,6 +54,21 @@ export const resolved = {
             "timelineConnector": {
                 "color": "hsl(0 0% 100% / 12%)",
                 "width": "1px"
+            },
+            "scrollArea": {
+                "thickness": "0.5rem"
+            },
+            "switch": {
+                "trackWidth": "2.5rem",
+                "trackHeight": "1.5rem",
+                "thumbSize": "1rem",
+                "thumbTravel": "1rem"
+            },
+            "drawer": {
+                "width": "28rem"
+            },
+            "fileDrop": {
+                "filenameMaxWidth": "16rem"
             }
         },
         "composite": {
@@ -187,6 +202,21 @@ export const resolved = {
             "timelineConnector": {
                 "color": "hsl(0 0% 0% / 12%)",
                 "width": "1px"
+            },
+            "scrollArea": {
+                "thickness": "0.5rem"
+            },
+            "switch": {
+                "trackWidth": "2.5rem",
+                "trackHeight": "1.5rem",
+                "thumbSize": "1rem",
+                "thumbTravel": "1rem"
+            },
+            "drawer": {
+                "width": "28rem"
+            },
+            "fileDrop": {
+                "filenameMaxWidth": "16rem"
             }
         },
         "composite": {

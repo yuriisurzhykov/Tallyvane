@@ -10,15 +10,9 @@ export interface ScrollAreaProps {
 }
 
 /**
- * No spacing role names "scrollbar thickness" — every registered role names a
- * *meaning* (icon-to-label gap, card padding), and this task's brief forbids
- * adding a new one (no edits under `theme/**`). An inline style constant is
- * the same exception `Grid` takes for its column count: a genuinely tokenless
- * numeric, never a colour.
- */
-const SCROLLBAR_THICKNESS = "0.5rem";
-
-/**
+ * Thickness is `--ds-component-scroll-area-thickness`. Named constants are
+ * no longer a lint exemption.
+ *
  * Tier 0 — a scroll container with styled bars, so an inner scroll region
  * never looks like a bare browser default. One visual treatment; no variant
  * prop, per the brief this was built against.
@@ -29,10 +23,10 @@ export function ScrollArea({ children, className }: ScrollAreaProps) {
             <BaseScrollArea.Viewport className="h-full w-full" data-testid="scroll-area-viewport">
                 {children}
             </BaseScrollArea.Viewport>
-            <BaseScrollArea.Scrollbar orientation="vertical" className="bg-surface-inset" style={{ width: SCROLLBAR_THICKNESS }}>
+            <BaseScrollArea.Scrollbar orientation="vertical" className="bg-surface-inset" style={{ width: "var(--ds-component-scroll-area-thickness)" }}>
                 <BaseScrollArea.Thumb className="w-full rounded-pill bg-border-strong" />
             </BaseScrollArea.Scrollbar>
-            <BaseScrollArea.Scrollbar orientation="horizontal" className="bg-surface-inset" style={{ height: SCROLLBAR_THICKNESS }}>
+            <BaseScrollArea.Scrollbar orientation="horizontal" className="bg-surface-inset" style={{ height: "var(--ds-component-scroll-area-thickness)" }}>
                 <BaseScrollArea.Thumb className="h-full rounded-pill bg-border-strong" />
             </BaseScrollArea.Scrollbar>
             <BaseScrollArea.Corner className="bg-surface-inset" />

@@ -8,7 +8,7 @@ import { Field } from "../field";
 function ControlledSearchField(props: Omit<SearchFieldProps, "value" | "onChange"> & { readonly initialValue?: string }) {
     const { initialValue = "", ...rest } = props;
     const [value, setValue] = useState(initialValue);
-    return <SearchField {...rest} value={value} onChange={(event) => setValue(event.target.value)} />;
+    return <SearchField {...rest} value={value} onChange={(event) => { setValue(event.target.value); }} />;
 }
 
 describe("SearchField", () => {

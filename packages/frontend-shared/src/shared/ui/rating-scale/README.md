@@ -16,7 +16,8 @@ language or the same controlled/uncontrolled footgun independently.
 
 Five dots in a row, deliberately not digits and not stars: visually
 related to `Dot` (a solid filled circle carrying meaning), the same reading
-a printed 1–5 Likert scale gets on paper. **Not a cumulative fill** — this
+a printed 1–5 Likert scale gets on paper. Each dot is `--control-box`, the
+same role as `Checkbox`/`Radio`/`Slider`. **Not a cumulative fill** — this
 was a real judgment call, since the confirmed brief said "toggleable dots"
 without spelling out whether choosing 4 should also visually fill 1–3
 (the star-rating convention). A star's fill-up-to-N reads as a public,

@@ -24,17 +24,17 @@ export interface PercentFieldRootOwnProps {
  * reasoning as `MoneyField.Root`'s own identical choice: a real value transformation at this
  * boundary earns a crisp typed contract that `NumberField.tsx`'s own bare re-export doesn't need.
  */
-export type PercentFieldControlled = {
+export interface PercentFieldControlled {
     readonly value: number | null;
     readonly onValueChange: (value: number | null, eventDetails: BaseNumberField.Root.ChangeEventDetails) => void;
     readonly defaultValue?: never;
-};
+}
 
-export type PercentFieldUncontrolled = {
+export interface PercentFieldUncontrolled {
     readonly defaultValue?: number;
     readonly value?: never;
     readonly onValueChange?: never;
-};
+}
 
 export type PercentFieldRootProps = PercentFieldRootOwnProps &
     (PercentFieldControlled | PercentFieldUncontrolled) &
@@ -92,12 +92,12 @@ function Root({
             { ...(value !== undefined ? { value: value === null ? null : basisPointsToRatio(value) } : {}) }
             { ...(defaultValue !== undefined ? { defaultValue: basisPointsToRatio(defaultValue) } : {}) }
             { ...(onValueChange
-                ? { onValueChange: (ratio: number | null, eventDetails: BaseNumberField.Root.ChangeEventDetails) => onValueChange(ratioToBasisPoints(ratio), eventDetails) }
+                ? { onValueChange: (ratio: number | null, eventDetails: BaseNumberField.Root.ChangeEventDetails) => { onValueChange(ratioToBasisPoints(ratio), eventDetails); } }
                 : {}) }
             { ...(onValueCommitted
                 ? {
                     onValueCommitted: (ratio: number | null, eventDetails: BaseNumberField.Root.CommitEventDetails) =>
-                        onValueCommitted(ratioToBasisPoints(ratio), eventDetails),
+                        { onValueCommitted(ratioToBasisPoints(ratio), eventDetails); },
                 }
                 : {}) }
         />

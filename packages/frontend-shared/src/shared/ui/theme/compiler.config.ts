@@ -12,7 +12,7 @@ import {
 import { border, color, dimension, layout, motion, radius, typography, zIndex } from "./tokens";
 import { darkTheme, lightTheme } from "./themes";
 import { borderRole, controlRole, layoutRole, radiusRole, spacingRole, typographyRole, zIndexRole } from "./semantic";
-import { statusBadgeTokens, timelineConnectorTokens } from "./components";
+import { statusBadgeTokens, timelineConnectorTokens, scrollAreaTokens, switchTokens, drawerTokens, fileDropTokens } from "./components";
 import { shadows, textStyles, transitions } from "./composites";
 
 /**
@@ -57,7 +57,7 @@ const compilerInput: CompilerInput = {
         control: controlRole,
         z: zIndexRole,
     },
-    components: [statusBadgeTokens, timelineConnectorTokens],
+    components: [statusBadgeTokens, timelineConnectorTokens, scrollAreaTokens, switchTokens, drawerTokens, fileDropTokens],
     composites: [shadows, textStyles, transitions],
 };
 

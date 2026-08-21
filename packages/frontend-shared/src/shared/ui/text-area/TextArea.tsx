@@ -14,17 +14,12 @@ export interface TextAreaOwnProps {
 export type TextAreaProps = TextAreaOwnProps & Omit<ComponentProps<"textarea">, "className">;
 
 /**
- * ~3 lines of `text-body` (1.625rem line-height) plus this component's own
- * vertical padding (`py-inline-tight`, 0.25rem each side) and its 1px border
- * — `3 × 1.625rem + 2 × 0.25rem + 2 × 1px = 5.5rem` exactly, under Tailwind's
- * preflight `box-sizing: border-box`. No spacing role names "how tall an
- * empty textarea starts", so this is a derived, one-off constant in the same
- * spirit as `Truncate`'s line-clamp count or `ScrollArea`'s scrollbar
- * thickness — referenced by identifier (not a literal in the JSX below) so
- * it stays exempt from `no-raw-dimension-value` for the same structural
- * reason `ScrollArea.tsx`'s `SCROLLBAR_THICKNESS` already is.
+ * Three lines of `text-body` plus this component's vertical padding
+ * (`py-inline-tight`) and hairline border — a `calc()` over tokens, not a
+ * pre-summed rem figure. `field-sizing: content` still grows from this floor.
  */
-const MIN_HEIGHT = "5.5rem";
+const MIN_HEIGHT =
+    "calc(3 * var(--ds-text-body-line) + 2 * var(--ds-semantic-spacing-inline-tight) + 2 * var(--ds-border-hairline))";
 
 const CLASS_NAME =
     "w-full field-sizing-content resize-y rounded-control border border-border-default bg-surface-inset px-inline py-inline-tight text-body text-text-primary placeholder:text-text-muted transition-hover focus-visible:focus-ring aria-invalid:border-status-danger disabled:cursor-not-allowed disabled:opacity-60";

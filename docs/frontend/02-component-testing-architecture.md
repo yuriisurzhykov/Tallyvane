@@ -283,8 +283,8 @@ flowchart TD
     StoryFile["Button.stories.tsx - только пропсы и args"]
     StoryFile --> Registered["Storybook сканирует файлы по маске из .storybook/main.ts, регистрирует историю под id actions-button--primary"]
 
-    Registered --> DevPath["Локально: pnpm --filter tallyvane-storybook run storybook"]
-    Registered --> BuildPath["В CI: pnpm --filter tallyvane-storybook run build-storybook"]
+    Registered --> DevPath["Локально: pnpm --filter './packages/storybook' run storybook"]
+    Registered --> BuildPath["В CI: pnpm --filter './packages/storybook' run build-storybook"]
 
     DevPath --> DevServer["Dev-сервер на :6006, сайдбар строится сам из поля title"]
     DevServer --> Iframe1["Клик по истории рендерит Button с этими args внутри iframe, обёрнутый в ThemeProvider из preview.tsx"]
@@ -323,10 +323,10 @@ flowchart TD
 ### 9.4. ...прогнать проверки локально
 
 ```bash
-pnpm --filter tallyvane-frontend-web run test:a11y
-pnpm --filter tallyvane-frontend-web run test:visual
-pnpm --filter tallyvane-storybook run test:a11y
-pnpm --filter tallyvane-storybook run test:visual
+pnpm --filter "./frontend-web" run test:a11y
+pnpm --filter "./frontend-web" run test:visual
+pnpm --filter "./packages/storybook" run test:a11y
+pnpm --filter "./packages/storybook" run test:visual
 ```
 
 Локально сгенерированный `--update-snapshots` не годится как источник истины из-за разницы в рендеринге шрифтов между ОС (раздел 3) — годится только чтобы посмотреть глазами.

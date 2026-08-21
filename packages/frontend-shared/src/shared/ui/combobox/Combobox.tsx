@@ -6,6 +6,7 @@ import { Check, ChevronDown, X } from "lucide-react";
 import { IconButton } from "../icon-button";
 import { Separator } from "../separator";
 import { Text } from "../text";
+import { CONTROL_ICON_CLASS } from "../../lib";
 
 export type ComboboxSize = "sm" | "md" | "lg";
 
@@ -27,7 +28,7 @@ export type ComboboxSize = "sm" | "md" | "lg";
  * whole feature rather than one prop pairing) is safer than documenting "do
  * not pass `multiple`" and hoping.
  */
-export type ComboboxRootProps<Value> = Omit<BaseCombobox.Root.Props<Value, false>, "multiple">;
+export type ComboboxRootProps<Value> = Omit<BaseCombobox.Root.Props<Value>, "multiple">;
 
 function Root<Value>(props: ComboboxRootProps<Value>) {
     return <BaseCombobox.Root { ...props } />;
@@ -162,28 +163,12 @@ export interface ComboboxIconButtonOwnProps {
     readonly className?: string;
 }
 
-const ICON_SIZE = 16;
-
-/**
- * Composes this package's own `IconButton` via `render` — the exact
- * `<BasePopover.Close render={<IconButton .../>} />` shape `Popover.tsx`'s
- * own `PopoverClose` established. `tone="ghost"` (not `Popover.tsx`'s
- * `"neutral"` NumberField.Increment/Decrement use): a combobox's own trigger
- * and clear affordance are secondary to typing, the same reasoning
- * `PasswordField`'s visibility toggle already uses `ghost` for. No explicit
- * `aria-label` needed at the `BaseCombobox.Trigger`/`Clear` level the way
- * `NumberField.Increment`/`Decrement` require it — verified by reading
- * `ComboboxTrigger.mjs`/`ComboboxClear.mjs` directly: neither part sets its
- * own internal `aria-label` default the way Base UI's number-field stepper
- * buttons do, so there is no competing default for `IconButton`'s own
- * `aria-label={label}` to lose to.
- */
 function Trigger({ label, children, className }: ComboboxIconButtonOwnProps) {
     return (
         <BaseCombobox.Trigger
             render={
                 <IconButton label={ label } tone="ghost" size="sm" className={ className }>
-                    { children ?? <ChevronDown size={ ICON_SIZE }/> }
+                    { children ?? <ChevronDown className={CONTROL_ICON_CLASS}/> }
                 </IconButton>
             }
         />
@@ -195,7 +180,7 @@ function Clear({ label, children, className }: ComboboxIconButtonOwnProps) {
         <BaseCombobox.Clear
             render={
                 <IconButton label={ label } tone="ghost" size="sm" className={ className }>
-                    { children ?? <X size={ ICON_SIZE }/> }
+                    { children ?? <X className={CONTROL_ICON_CLASS}/> }
                 </IconButton>
             }
         />
@@ -318,7 +303,7 @@ function Item({ children, className, ...rest }: ComboboxItemProps) {
         <BaseCombobox.Item className={ [ITEM_CLASS, className].filter(Boolean).join(" ") } { ...rest }>
             <span className="flex w-4 shrink-0 items-center justify-center">
                 <BaseCombobox.ItemIndicator>
-                    <Check size={ 14 }/>
+                    <Check className={CONTROL_ICON_CLASS}/>
                 </BaseCombobox.ItemIndicator>
             </span>
             <span className="flex-1 text-left">{ children }</span>

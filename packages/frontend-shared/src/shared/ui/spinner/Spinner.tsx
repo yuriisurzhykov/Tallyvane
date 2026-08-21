@@ -32,9 +32,8 @@ export interface SpinnerProps {
  * text line) — verified by checking Button's own vertical padding
  * (`py-inline` inside a `h-(--control-height-sm)` box) rather than assumed
  * safe. The ratio was chosen so the "md" step — Button's own default size —
- * lands on 16px, the icon size already established elsewhere in this
- * package (`SearchField`'s `ICON_SIZE`, `IconButton.stories.tsx`'s
- * `PlaceholderIcon`), rather than an arbitrary fraction.
+ * lands on 16px, the same step `--control-icon` resolves to, rather than
+ * an arbitrary fraction.
  */
 const SIZE_DIAMETER: Record<SpinnerSize, string> = {
     sm: "calc(var(--control-height-sm) / 2.5)",

@@ -19,15 +19,15 @@ Thin styling wrapper over `@base-ui/react/switch`'s `Switch.Root` +
 semantics are entirely Base UI's, verified against the installed
 `SwitchRoot.d.ts`.
 
-Track (`2.5rem × 1.5rem`) and thumb (`1rem`) are genuinely tokenless
-geometry, the same class of exception `Drawer.tsx`'s `DRAWER_WIDTH` and
-`ScrollArea.tsx`'s `SCROLLBAR_THICKNESS` already take — chosen so the
-numbers land on clean values against the registered spacing roles used
-for the rest of the track: track height minus twice the inset padding
+Track and thumb sizes are `--ds-component-switch-*` tokens (track
+2.5rem × 1.5rem, thumb and travel 1rem). A named rem constant used to
+be the lint exemption; that hole is closed. The numbers still add up
+against the registered spacing roles used for the rest of the track:
+track height minus twice the inset padding
 (`p-inline-tight`, an actual registered token used here for its literal
 padding meaning, not borrowed the way `Dot`'s `size-inline` borrows a
 spacing role for a diameter) leaves exactly the thumb size, and the
-remaining horizontal room is exactly `1rem` of travel.
+remaining horizontal room is exactly the travel token.
 
 The thumb slides via `transform: translateX(...)` rather than a
 `justify-start`/`justify-end` flip on the track — a real, considered

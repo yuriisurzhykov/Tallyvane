@@ -64,7 +64,7 @@ describe("Tooltip", () => {
      * report rather than added speculatively, per the task's own guidance to
      * only add a dedicated Playwright spec for a real, found gap.
      */
-    it.skip("opens on keyboard focus — needs a real browser; jsdom's :focus-visible never matches", () => {});
+    it.skip("opens on keyboard focus — needs a real browser; jsdom's :focus-visible never matches", () => undefined);
 
     it("closes on Escape", async () => {
         renderTooltip();

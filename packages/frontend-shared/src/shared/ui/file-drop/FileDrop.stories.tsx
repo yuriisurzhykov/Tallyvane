@@ -27,8 +27,7 @@ export const Idle: Story<FileDropProps> = {
         browseLabel: "Browse files",
         clearLabel: "Remove selected file",
         accept: ".pdf,.doc,.docx",
-        onFileChange: () => {
-        },
+        onFileChange: () => undefined,
     },
 };
 
@@ -38,7 +37,6 @@ export const Disabled: Story<FileDropProps> = {
         browseLabel: "Browse files",
         clearLabel: "Remove selected file",
         disabled: true,
-        onFileChange: () => {
-        },
+        onFileChange: () => undefined,
     },
 };

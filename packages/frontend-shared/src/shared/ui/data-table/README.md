@@ -188,12 +188,13 @@ This ships exactly one fixed row height (`ROW_HEIGHT_PX = 32`) rather than a
 arbitrary: it equals `--control-height-sm` (`dimension.8`, `2rem`) at the
 default root font size — the same height role `Select`'s `sm` trigger
 already uses, chosen because "dense" is this component's own explicit
-requirement. It is a plain number, not a token reference, because
-`useVirtualizer`'s own position math needs a real JS pixel value no CSS
-custom property can supply — the same "genuinely tokenless numeric, needed
-for JS math" exception `ScrollArea.tsx`'s `SCROLLBAR_THICKNESS` and
-`Grid.tsx`'s `columns` prop already document, not a new pattern invented
-here. Real CSS/JS drift (a non-default root font size, browser zoom) is
+requirement. Painted row height is `var(--control-height-sm)`. The JS
+number `ROW_HEIGHT_PX` exists only for `useVirtualizer.estimateSize`,
+which cannot read a CSS variable — [ADR-042](../../../../../../docs/adr/ADR-042-virtualizer-row-height-js-pixels.md).
+A named rem constant is no longer a lint exemption. Header sort glyphs use
+`h-(--control-icon)` rather than Lucide `size={14}`. `Grid.tsx`'s `columns`
+prop remains a count, not a CSS length. Real CSS/JS drift (a non-default
+root font size, browser zoom) is
 corrected automatically the moment a row actually mounts, via the same
 `measureElement` wiring described above.
 

@@ -105,7 +105,10 @@ means for that call site.
 Single responsibility: the drop zone, drag-state tracking, and file
 selection — nothing about what happens to the file afterward, matching the
 "presenter, not the mutation" split every Tier 0/1 component in this ladder
-holds to. Dependency inversion: the real interaction machinery this
+holds to. Filename truncation width is `--ds-component-file-drop-filename-max-width`.
+The drop-zone glyph is `calc(var(--control-icon) * 1.5)`; the clear glyph
+uses `--control-icon`. Named rem constants used to be the lint exemption;
+that hole is closed. Dependency inversion: the real interaction machinery this
 component *does* reuse (line-clamping the filename, the clear button's
 accessible name) comes from `Truncate`/`IconButton`, composed rather than
 reimplemented.

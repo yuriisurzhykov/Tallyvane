@@ -63,7 +63,8 @@ Default glyphs are `lucide-react`'s `Plus`/`Minus` — the same reasoning
 `PasswordField.tsx` already used to pick `Eye`/`EyeOff` from the same,
 already-installed dependency rather than waiting on `COMPONENTS.md` §13's
 still-open `Icon` API decision, since a plus/minus pair is a near-universal
-glyph unlikely to be revisited once that decision lands. Each stepper button
+glyph unlikely to be revisited once that decision lands. They are sized with
+`h-(--control-icon) w-(--control-icon)`, not Lucide `size={n}`. Each stepper button
 requires a `label` string prop, mirroring `IconButton`'s own "an icon-only
 control with no name is not a valid button" rule exactly — this is `COMPONENTS.md`
 §12's "copy arrives as props below Tier 3" applied to the one piece of English

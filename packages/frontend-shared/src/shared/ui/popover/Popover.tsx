@@ -101,11 +101,11 @@ export type PopoverArrowProps = Omit<BasePopover.Arrow.Props, "className"> & { r
  * The tip's own `width`/`height` are an inline style, not `size-2`: that
  * class reads from the same cleared `--spacing` multiplier `Drawer.tsx`'s
  * own `FULL_VIEWPORT_STYLE` documents, and compiles to nothing under it —
- * confirmed live by rendering, not re-verified independently here. `0.5rem`
- * matches Tailwind's own un-clearable default step for `2` exactly, so this
- * is not a new value, only the same one written where it still resolves.
+ * confirmed live by rendering, not re-verified independently here.
+ * `var(--spacing-inline)` is the spacing role for that same 0.5rem step,
+ * written where the class still resolves.
  */
-const ARROW_TIP_STYLE = { width: "0.5rem", height: "0.5rem" } as const;
+const ARROW_TIP_STYLE = { width: "var(--spacing-inline)", height: "var(--spacing-inline)" } as const;
 
 /** A small rotated square, borderless on the two edges that meet the panel — the standard "speech bubble" tip. */
 export function PopoverArrow({ className, ...rest }: PopoverArrowProps) {

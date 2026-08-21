@@ -40,12 +40,12 @@ name for it, the same class of exception `Grid.tsx`'s own `columns` prop
 already documents. `packages/storybook/tests/e2e/drawer-keyboard.spec.ts`
 is what actually caught this; the equivalent Vitest suite could not have.
 
-## Why the width is a plain constant
+## Why the width is a component token
 
-No semantic spacing role names "how wide a drawer is" any more than one
-names "how thick a scrollbar is" (`ScrollArea.tsx`'s own precedent). `28rem`
-is a plain inline-style constant, one visual treatment, until a real call
-site needs a second width.
+No semantic layout *role* names "how wide a drawer is" — a global role with
+one consumer would trip DS102. Width is `--ds-component-drawer-width`
+(`28rem`, from layout primitive `448`). A named rem constant used to be
+the lint exemption; that hole is closed.
 
 ## SOLID and fault tolerance
 

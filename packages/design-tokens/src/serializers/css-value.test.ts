@@ -87,7 +87,7 @@ describe("hslStringToRgb01", () => {
     // well-known conversions (every browser's own color picker agrees),
     // not approximated — a real golden-value sweep, not just "doesn't crash."
     it("converts every 60°-spaced primary/secondary hue to its exact known RGB, sweeping every hueToChannel branch", () => {
-        const cases: Array<[string, [number, number, number]]> = [
+        const cases: [string, [number, number, number]][] = [
             ["hsl(60 100% 50%)", [1, 1, 0]], // yellow
             ["hsl(120 100% 50%)", [0, 1, 0]], // green
             ["hsl(180 100% 50%)", [0, 1, 1]], // cyan

@@ -20,6 +20,8 @@ way: for a real local list, Base UI's own default `contains` match runs
 against the `items` prop with zero configuration; for a remote, server-searched
 list, the caller supplies `filteredItems` (or drives `useFilter`) directly —
 both are already-shipped Base UI features, not something layered on here.
+Chevron, clear, and selected-item check glyphs use `h-(--control-icon)
+w-(--control-icon)`, not Lucide `size={n}`.
 
 ### The one real narrowing of Base UI's own API: no `multiple`
 

@@ -66,7 +66,14 @@ describe("ToastRegion", () => {
                     <button onClick={() => actions.add({ title: "First" })}>Fire First</button>
                     <button onClick={() => actions.add({ title: "Second" })}>Fire Second</button>
                     <button onClick={() => actions.add({ title: "Third" })}>Fire Third</button>
-                    <button onClick={() => actions.close(state.toasts.find((t) => t.title === "Second")!.id)}>Close Second</button>
+                    <button
+                        onClick={() => {
+                            const second = state.toasts.find((t) => t.title === "Second");
+                            if (second) actions.close(second.id);
+                        }}
+                    >
+                        Close Second
+                    </button>
                 </>
             );
         }
@@ -125,7 +132,8 @@ describe("ToastRegion", () => {
         fireEvent.click(screen.getByText("Fire Saved"));
         await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
 
-        const closeButton = document.querySelector('[aria-label="Dismiss"]') as HTMLElement;
+        const closeButton = document.querySelector<HTMLElement>('[aria-label="Dismiss"]');
+        if (!closeButton) throw new Error('no element matched [aria-label="Dismiss"]');
         closeButton.focus();
         fireEvent.focusIn(closeButton);
 
@@ -224,7 +232,8 @@ describe("ToastRegion", () => {
             </ToastRegion>,
         );
 
-        capturedManager!.add({ title: "Fired from outside React" });
+        if (!capturedManager) throw new Error("manager was not captured");
+        capturedManager.add({ title: "Fired from outside React" });
 
         await waitFor(() => {
             expect(screen.getByText("Fired from outside React")).toBeInTheDocument();

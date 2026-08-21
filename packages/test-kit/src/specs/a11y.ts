@@ -86,7 +86,7 @@ function formatViolations(violations: readonly AxeViolation[]): string {
     if (violations.length === 0) return "";
     const lines = violations.map((violation) => {
         const where = violation.nodes.map((node) => node.target.join(" ")).join(", ");
-        return `- [${violation.impact}] ${violation.id}: ${violation.help} (${where})`;
+        return `- [${String(violation.impact)}] ${violation.id}: ${violation.help} (${where})`;
     });
     return `Accessibility violations found:\n${lines.join("\n")}`;
 }

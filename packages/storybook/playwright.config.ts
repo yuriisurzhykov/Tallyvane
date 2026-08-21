@@ -9,7 +9,7 @@ import {
 
 /** Distinct from frontend-web's 3100 and Storybook's own dev-server default of 6006, so none of the three ever collide on one machine. */
 const PORT = 6007;
-const LOCAL_BASE_URL = `http://localhost:${ PORT }`;
+const LOCAL_BASE_URL = `http://localhost:${ String(PORT) }`;
 
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? LOCAL_BASE_URL;
 
@@ -43,7 +43,7 @@ export default defineConfig({
         ? {}
         : {
             webServer: {
-                command: `pnpm exec http-server storybook-static -p ${ PORT } -s`,
+                command: `pnpm exec http-server storybook-static -p ${ String(PORT) } -s`,
                 // A real static file that only exists once the build actually
                 // ran, not the origin — the same reasoning frontend-web's own
                 // config already applies to `/storybook`.

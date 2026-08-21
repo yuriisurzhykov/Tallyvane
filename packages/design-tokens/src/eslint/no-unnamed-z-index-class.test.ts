@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { Linter } from "eslint";
 import rule from "./no-unnamed-z-index-class";
+import { onlyMessage } from "./test-helpers";
 
 const linter = new Linter();
 
@@ -18,9 +19,8 @@ function lint(code: string) {
 
 describe("no-unnamed-z-index-class", () => {
     it("flags a numeric stacking utility", () => {
-        const messages = lint('const x = <div className="z-50" />;');
-        expect(messages).toHaveLength(1);
-        expect(messages[0]!.message).toContain("z-50");
+        const message = onlyMessage(lint('const x = <div className="z-50" />;'));
+        expect(message).toContain("z-50");
     });
 
     it("flags an arbitrary stacking utility, which is the escalation the rule exists to stop", () => {

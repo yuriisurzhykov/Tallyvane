@@ -1,5 +1,6 @@
 import type { RadioRootProps as BaseRadioRootProps } from "@base-ui/react/radio";
 import { Radio as BaseRadio } from "@base-ui/react/radio";
+import { mergeStyle } from "../../lib";
 
 export interface RadioOwnProps {
     /** Layout and position only — see `COMPONENTS.md` §11. */
@@ -17,18 +18,6 @@ export interface RadioOwnProps {
  * string-conversion layer either place.
  */
 export type RadioProps<Value = string> = RadioOwnProps & Omit<BaseRadioRootProps<Value>, "className">;
-
-/**
- * Same reasoning, and the same literal value, as `Checkbox`'s own
- * `BOX_SIZE` — see that file's comment. Kept as an independent constant
- * here rather than a shared import: these are separate Tier 0 primitives,
- * and the coincidence of size is a deliberate visual choice, not a
- * dependency between the two files.
- */
-const BOX_SIZE = "1.25rem";
-
-/** Roughly half the outer circle — a filled dot that reads clearly inside the ring without touching its edge. */
-const DOT_SIZE = "0.625rem";
 
 const CIRCLE_CLASS_NAME =
     "inline-flex shrink-0 items-center justify-center rounded-pill border border-border-default bg-surface-inset transition-hover focus-visible:focus-ring data-[checked]:border-interactive-primary aria-invalid:border-status-danger data-[disabled]:cursor-not-allowed data-[disabled]:opacity-60";
@@ -54,12 +43,12 @@ export function Radio<Value = string>({ className, style, ...props }: RadioProps
     return (
         <BaseRadio.Root
             className={ [CIRCLE_CLASS_NAME, className].filter(Boolean).join(" ") }
-            style={ { ...style, width: BOX_SIZE, height: BOX_SIZE } }
+            style={ mergeStyle(style, { width: "var(--control-box)", height: "var(--control-box)" }) }
             { ...props }
         >
             <BaseRadio.Indicator
                 className="rounded-pill bg-interactive-primary"
-                style={ { width: DOT_SIZE, height: DOT_SIZE } }
+                style={ { width: "calc(var(--control-box) / 2)", height: "calc(var(--control-box) / 2)" } }
                 keepMounted={ false }
             />
         </BaseRadio.Root>

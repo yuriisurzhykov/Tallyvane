@@ -1,12 +1,13 @@
 import { defineContract } from "design-token-engine";
 
 /**
- * The missing control-height scale. `Button`, `IconButton`, `Input` and every
- * other interactive control need a height, and nothing in this tree named one
- * before now — sizes existed only as a mention in `COMPONENTS.md`, with no
- * token backing it.
+ * Control geometry: three heights plus the two sizes every small interactive
+ * control shares — the glyph inside a trigger (`icon`) and the box of a
+ * checkbox / radio / slider-thumb / rating-dot (`box`). Heights existed only
+ * as a mention in `COMPONENTS.md` before the first scale; `icon`/`box` closed
+ * the named-constant hole that used to stand in for those two measures.
  */
 export const controlContract = defineContract({
     category: "control",
-    required: ["heightSm", "heightMd", "heightLg"],
+    required: ["heightSm", "heightMd", "heightLg", "icon", "box"],
 });

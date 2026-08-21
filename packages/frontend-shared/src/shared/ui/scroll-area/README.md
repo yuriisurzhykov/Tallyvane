@@ -20,13 +20,11 @@ Base UI.
 Wraps Base UI's `ScrollArea` (ADR-031): `Root`/`Viewport`/`Scrollbar`/`Thumb`/
 `Corner` all keep their real behavior, and this file supplies only tokens —
 `bg-surface-inset` for both scrollbar tracks and the corner, `bg-border-strong`
-on the pill-shaped thumbs. `SCROLLBAR_THICKNESS` (`0.5rem`) is a plain
-inline-style constant, not a spacing token, because no registered spacing
-role names "how thick a scrollbar is" any more than one names "how wide a
-drawer is" (`Drawer.tsx`'s own precedent for the same class of exception) —
-it's a named identifier rather than a raw literal specifically so it stays a
-deliberate, reviewable exemption from `no-raw-dimension-value` rather than
-an invisible one. No `variant` prop exists because none was asked for by
+on the pill-shaped thumbs. Thickness is `--ds-component-scroll-area-thickness`
+(the scroll-area component token, 0.5rem). A named rem constant used to be
+the lint exemption so `no-raw-dimension-value` would not see a literal;
+that hole is closed — the value is a token, not an identifier holding a
+hardcode. No `variant` prop exists because none was asked for by
 this batch's brief; a second visual treatment is a decision for whenever a
 real call site needs one, not now.
 
@@ -42,22 +40,13 @@ by default — sized to its content rather than the viewport — so every
 ancestor up that chain had the same "grow to fit children" behavior, and
 `h-full` had nothing to be a percentage *of*.
 
-The fix, in `packages/storybook/.storybook/preview.css`, is a real
-viewport-height anchor, not a workaround at the story level: `html { height:
-100dvh }` is the one genuine break-out to the real viewport this chain
-needs (`dvh` over `vh` — identical on desktop, correct if this is ever
-opened somewhere with dynamic browser chrome), and `body`/`#storybook-root {
-height: 100% }` carries that real, resolved size down instead of
-re-measuring the viewport at each level. `preview.tsx`'s own decorator
-wrapper adds one more `h-full` div on top of that for the same reason, so
-the chain reaches all the way from the real viewport down to wherever a
-story is actually rendered. Only once every link in that chain resolves to a
-real pixel height does the story's own `h-full` finally have a real box to
-be 100% of — and only then does Base UI's overflow detection see real,
-non-zero `scrollHeight`/`clientHeight` values to compute against, which is
-also what lets it size the thumb proportionally to how much of the content
-is actually visible, rather than reporting "no overflow" against a box that
-simply grew to swallow all of it.
+A later draft stretched `html`/`body`/`#storybook-root` to `100dvh` so
+`h-full` would resolve. That worked for this story and also stretched every
+other story's canvas to near-viewport size — a real, measured screenshot
+cost. Reverted. The height now lives on this story's own decorator as
+`.story-scroll-canvas` in `preview.css`: a `calc()` over existing layout
+roles, not a named rem constant (those are no longer a lint exemption) and
+not a global viewport chain.
 
 `ScrollArea.test.tsx` cannot exercise any of this: jsdom never computes real
 box geometry, so `scrollHeight`/`scrollWidth` are always `0` regardless of

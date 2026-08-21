@@ -178,7 +178,20 @@ export default [
     // type checker, and applying them to a plain `.mjs` file — this config
     // among them — fails outright rather than degrading, because no tsconfig
     // covers it.
-    ...tseslint.configs.recommendedTypeChecked.map((config) => ({ ...config, files: TS_FILES })),
+    //
+    // `strictTypeChecked` supersedes `recommendedTypeChecked` (it already
+    // contains `recommended` + `recommended-type-checked` + `strict`, per
+    // typescript-eslint's own docs), and `stylisticTypeChecked` likewise
+    // already contains the non-type-checked `stylistic` config. Neither adds
+    // a duplicate of the other. Together they are this workspace's mechanical
+    // proxy for the parts of SOLID a linter can actually see: `no-deprecated`,
+    // `no-unnecessary-condition` and `no-non-null-assertion` close the escape
+    // hatches that would otherwise let an unsound override slip past as `any`
+    // (Liskov substitution is enforced structurally by `tsc` itself; these
+    // rules stop `any`/`!` from quietly opting back out of that), and
+    // `consistent-type-definitions` keeps object contracts as `interface`.
+    ...tseslint.configs.strictTypeChecked.map((config) => ({ ...config, files: TS_FILES })),
+    ...tseslint.configs.stylisticTypeChecked.map((config) => ({ ...config, files: TS_FILES })),
 
     {
         files: TS_FILES,
@@ -203,6 +216,66 @@ export default [
             "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
             eqeqeq: ["error", "always", { null: "ignore" }],
             "no-console": ["error", { allow: ["warn", "error"] }],
+
+            /**
+             * Open/Closed: a switch over a discriminated union or enum is
+             * exactly the "closed for modification" seam OCP describes — a
+             * new member added anywhere else is caught here rather than
+             * silently falling through. Not paired with core `default-case`:
+             * a mandatory `default` clause would silently swallow the exact
+             * new-member case this rule exists to surface, defeating it.
+             */
+            "@typescript-eslint/switch-exhaustiveness-check": ["error", { considerDefaultExhaustiveForUnions: true }],
+            /**
+             * Interface Segregation, one level down from a type: a class
+             * that doesn't say which of its members are its actual contract
+             * leaks its whole shape as if all of it were public.
+             */
+            "@typescript-eslint/explicit-member-accessibility": "error",
+        },
+    },
+
+    /**
+     * SRP and ISP proxies. Neither rule below needs type information, so
+     * they run on plain JS (`**\/*.{js,mjs,cjs}`) as well as TS — a CI
+     * script or a config file can still grow into a god function. A class or
+     * function that has crossed one of these thresholds is not automatically
+     * wrong, but it is exactly the shape a responsibility creeping in looks
+     * like, and a parameter list past four is usually asking for a narrower
+     * interface rather than a fatter one.
+     */
+    {
+        files: [...TS_FILES, "**/*.{js,mjs,cjs}"],
+        rules: {
+            complexity: ["error", 15],
+            "max-depth": ["error", 4],
+            "max-params": ["error", 4],
+            "max-lines-per-function": ["error", { max: 80, skipBlankLines: true, skipComments: true, IIFEs: true }],
+            "max-lines": ["error", { max: 300, skipBlankLines: true, skipComments: true }],
+            "max-classes-per-file": ["error", 1],
+        },
+    },
+
+    /**
+     * `max-lines-per-function`, `max-lines` and `max-classes-per-file` all
+     * measure the shape of a *unit of responsibility* — which is exactly the
+     * wrong lens for a test file. A `describe` block is one JS function
+     * wrapping as many `it` cases as the suite needs, and a mock class
+     * declared inline (a fake `Image`, a fake reporter double) is test
+     * fixture, not a second responsibility living in the same module. Both
+     * are legitimate shapes for a test to take, not the SRP/ISP smell these
+     * three rules exist to catch in real code, so test/story files are
+     * exempted from exactly these three — not from the rest of the proxy
+     * set, which still applies (a test *function* that's needlessly
+     * complex, or a test file that repeats a giant inline class string, is
+     * still worth flagging).
+     */
+    {
+        files: ["**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}", "**/*.stories.tsx"],
+        rules: {
+            "max-lines-per-function": "off",
+            "max-lines": "off",
+            "max-classes-per-file": "off",
         },
     },
 
@@ -219,7 +292,15 @@ export default [
     // Design-token governance. Scoped to where markup lives, because these
     // rules are about literals written into JSX and inline styles.
     {
-        files: ["frontend-web/**/*.tsx", "frontend-admin/**/*.tsx", "packages/frontend-shared/**/*.tsx"],
+        files: [
+            "frontend-web/**/*.tsx",
+            "frontend-admin/**/*.tsx",
+            "packages/frontend-shared/**/*.tsx",
+            // content-kit is empty scaffolding today, but every public
+            // content block it will hold renders real markup — the same
+            // token discipline has to hold there once it does.
+            "packages/content-kit/**/*.tsx",
+        ],
         ignores: [
             // The one place literal colours and dimensions ARE the content.
             "packages/frontend-shared/src/shared/ui/theme/**",
@@ -235,6 +316,90 @@ export default [
             // it, so clearing the namespace changes nothing and the check has
             // to happen where the class is written.
             "design-tokens/no-unnamed-z-index-class": "error",
+            "design-tokens/no-raw-icon-size": "error",
+        },
+    },
+
+    /**
+     * Component-reuse governance: the other half of "shared/ui or nothing".
+     * The design-token block above stops a literal colour or size from
+     * reaching a class name; this block stops the element that class name
+     * would sit on from being written raw in the first place. JSX itself
+     * already marks the distinction this rule reads — an intrinsic element
+     * (`button`, `div`) starts lowercase, a component (`Button`) does not —
+     * so one selector catches every raw tag without enumerating them, and
+     * cannot go stale as new primitives are added.
+     *
+     * Scoped to each app's `src/` rather than its whole tree on purpose:
+     * Next's routing directory (`frontend-web/app/**`) is a sibling of
+     * `src/`, not inside it, and the root `layout.tsx` there *must* render
+     * raw `<html>`/`<body>`, exactly as `opengraph-image.tsx` *must* build
+     * raw JSX for `ImageResponse`. That is the same "routes vs FSD app
+     * layer" split `appBoundariesBlock` already draws, reused here instead
+     * of re-deriving it as an `ignores` pattern.
+     */
+    {
+        files: [
+            "frontend-web/src/**/*.tsx",
+            "frontend-admin/src/**/*.tsx",
+            "packages/frontend-shared/src/shared/**/*.tsx",
+            "packages/content-kit/src/**/*.tsx",
+        ],
+        ignores: [
+            // Where the primitives are actually implemented — the one place
+            // a raw element is the content, not a violation of the rule.
+            "packages/frontend-shared/src/shared/ui/**",
+        ],
+        rules: {
+            "no-restricted-syntax": ["error", {
+                selector: "JSXOpeningElement[name.type='JSXIdentifier'][name.name=/^[a-z]/]",
+                message:
+                    "Raw JSX elements are banned outside packages/frontend-shared/src/shared/ui — use the matching shared/ui primitive, or add one there if it doesn't exist yet (see COMPONENTS.md).",
+            }],
+        },
+    },
+
+    /**
+     * Vendor-primitive governance: the Dependency Inversion half of the same
+     * rule. `frontend-shared` is the one package that depends on Base UI,
+     * TanStack Table/Virtual and Lucide directly (per its own package.json
+     * comment); everywhere else is meant to depend on its wrapper instead of
+     * the concrete library. `frontend-shared` is simply absent from this
+     * block's `files`, so no `ignores` entry is needed to carve it back out.
+     */
+    {
+        files: [
+            "frontend-web/src/**/*.{ts,tsx}",
+            "frontend-admin/src/**/*.{ts,tsx}",
+            "packages/content-kit/src/**/*.{ts,tsx}",
+        ],
+        rules: {
+            "no-restricted-imports": ["error", {
+                paths: [
+                    {
+                        name: "@base-ui/react",
+                        message: "Import Base UI primitives only from packages/frontend-shared — every primitive is wrapped there exactly once (ADR-031).",
+                    },
+                    {
+                        name: "@tanstack/react-table",
+                        message: "Use frontend-shared's DataTable instead of importing TanStack Table directly.",
+                    },
+                    {
+                        name: "@tanstack/react-virtual",
+                        message: "Use frontend-shared's DataTable instead of importing TanStack Virtual directly.",
+                    },
+                    {
+                        name: "lucide-react",
+                        message: "Route icons through frontend-shared's Icon component, not a direct lucide-react import.",
+                    },
+                ],
+                patterns: [
+                    {
+                        group: ["@base-ui/react/*"],
+                        message: "Import Base UI primitives only from packages/frontend-shared.",
+                    },
+                ],
+            }],
         },
     },
 

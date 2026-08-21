@@ -187,6 +187,8 @@
     --control-height-sm: var(--ds-semantic-control-height-sm);
     --control-height-md: var(--ds-semantic-control-height-md);
     --control-height-lg: var(--ds-semantic-control-height-lg);
+    --control-icon: var(--ds-semantic-control-icon);
+    --control-box: var(--ds-semantic-control-box);
 
     /* --------------------------------------------------------------------
      * STACKING ORDER

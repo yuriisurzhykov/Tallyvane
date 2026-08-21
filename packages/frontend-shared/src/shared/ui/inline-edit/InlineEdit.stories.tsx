@@ -52,7 +52,7 @@ function DisplayDemo() {
             renderEditor={({ value: editorValue, onChange }) => (
                 <Input
                     value={editorValue}
-                    onChange={(event) => onChange(event.target.value)}
+                    onChange={(event) => { onChange(event.target.value); }}
                     autoFocus
                     aria-label="Edit job title"
                 />
@@ -87,7 +87,7 @@ function EditingDemo() {
                 renderEditor={({ value: editorValue, onChange }) => (
                     <Input
                         value={editorValue}
-                        onChange={(event) => onChange(event.target.value)}
+                        onChange={(event) => { onChange(event.target.value); }}
                         autoFocus
                         aria-label="Edit job title"
                     />
@@ -118,7 +118,7 @@ function SaveSucceedsDemo() {
             renderEditor={({ value: editorValue, onChange }) => (
                 <Input
                     value={editorValue}
-                    onChange={(event) => onChange(event.target.value)}
+                    onChange={(event) => { onChange(event.target.value); }}
                     autoFocus
                     aria-label="Edit job title"
                 />
@@ -167,7 +167,7 @@ function SaveFailsAndRetriesDemo() {
             renderEditor={({ value: editorValue, onChange }) => (
                 <Input
                     value={editorValue}
-                    onChange={(event) => onChange(event.target.value)}
+                    onChange={(event) => { onChange(event.target.value); }}
                     autoFocus
                     aria-label="Edit job title"
                 />

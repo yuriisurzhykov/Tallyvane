@@ -5,6 +5,7 @@ import { Combobox as BaseCombobox } from "@base-ui/react/combobox";
 import { X } from "lucide-react";
 import { Combobox } from "../combobox";
 import type { TagTone } from "../tag";
+import { CONTROL_ICON_CLASS } from "../../lib";
 
 export type MultiSelectSize = "sm" | "md" | "lg";
 
@@ -165,7 +166,6 @@ function Chip({ tone = "neutral", children, className, ...rest }: MultiSelectChi
 
 /** The exact same `REMOVE_BUTTON_CLASS` string `Tag.tsx` uses for its own dismiss button — same sizing rationale (WCAG 2.2's 24×24 CSS px target on a ~24px-tall chip, too small for `IconButton`'s own 32px-minimum square). */
 const REMOVE_BUTTON_CLASS = "rounded-control p-inline-tight text-current opacity-70 transition-hover hover:opacity-100 focus-visible:focus-ring";
-const ICON_SIZE = 16;
 
 export interface MultiSelectChipRemoveProps {
     /** The accessible name — an icon-only control with no name is not a valid button, same rule `Tag`'s own `removeLabel` and every other icon-only control in this package enforce. Named `label`, not `removeLabel`, to match this package's other icon-only-button convention (`NumberField.Increment`/`Decrement`, `Combobox.Trigger`/`Clear`) — `Chip`/`ChipRemove` are two separate composable parts, architecturally closer to those than to `Tag`'s own single fused component. */
@@ -185,7 +185,7 @@ function ChipRemove({ label, children, className }: MultiSelectChipRemoveProps) 
     return (
         <BaseCombobox.ChipRemove aria-label={ label }
                                  className={ [REMOVE_BUTTON_CLASS, className].filter(Boolean).join(" ") }>
-            { children ?? <X size={ ICON_SIZE } aria-hidden="true"/> }
+            { children ?? <X className={CONTROL_ICON_CLASS} aria-hidden="true"/> }
         </BaseCombobox.ChipRemove>
     );
 }

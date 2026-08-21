@@ -12,7 +12,7 @@ import {
  * server someone left running on the same machine.
  */
 const PORT = 3100;
-const LOCAL_BASE_URL = `http://localhost:${ PORT }`;
+const LOCAL_BASE_URL = `http://localhost:${ String(PORT) }`;
 
 /** Escape hatch for pointing the suite at an already-deployed URL instead of building locally. Unset by default. */
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? LOCAL_BASE_URL;
@@ -55,7 +55,7 @@ export default defineConfig({
         ? {}
         : {
             webServer: {
-                command: `pnpm run build && pnpm exec next start -p ${ PORT }`,
+                command: `pnpm run build && pnpm exec next start -p ${ String(PORT) }`,
                 // A route that exists, not the origin. There is no page at `/`
                 // yet, and Playwright reads the 404 as "not up" and waits out
                 // the whole timeout — a three-minute hang whose message says

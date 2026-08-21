@@ -37,10 +37,10 @@ describe("Skeleton", () => {
     });
 
     it("merges a caller-provided style with its own animation, for a call site sizing it to real content", () => {
-        const { container } = render(<Skeleton style={ { width: 240, height: 20 } }/>);
+        const { container } = render(<Skeleton style={{ width: "var(--control-height-lg)", height: "var(--control-height-sm)" }}/>);
         const skeleton = container.querySelector("div") as HTMLElement;
-        expect(skeleton.style.width).toBe("240px");
-        expect(skeleton.style.height).toBe("20px");
+        expect(skeleton.style.width).toBe("var(--control-height-lg)");
+        expect(skeleton.style.height).toBe("var(--control-height-sm)");
         expect(skeleton.style.animation).toContain("skeleton-pulse");
     });
 });

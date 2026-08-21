@@ -15,7 +15,7 @@
  * Read-only: it changes nothing and is not part of any check. Run it while
  * tuning, throw the output away.
  *
- *   pnpm --filter tallyvane-frontend exec tsx scripts/contrast-table.ts
+ *   pnpm --filter "./frontend-web" exec tsx scripts/contrast-table.ts
  */
 import { calcAPCA, fontLookupAPCA } from "apca-w3";
 import { hslStringToRgb01, hslStringToRgbString } from "design-token-engine";
@@ -29,12 +29,15 @@ const WEIGHT = 400;
 /** WCAG 2.2 AA for text below the large-text threshold, which both reference sizes are. */
 const WCAG_AA = 4.5;
 
-/** sRGB relative luminance, per WCAG 2's own definition — the piecewise gamma curve, not a plain power. */
+/** The piecewise gamma curve itself, applied to one channel at a time so the tuple below never needs to round-trip through `Array#map` (which would widen `readonly [number, number, number]` to a plain `number[]`, losing the length TypeScript could otherwise guarantee at the three index reads that follow). */
+function toLinear(channel: number): number {
+    return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+}
+
+/** sRGB relative luminance, per WCAG 2's own definition. */
 function relativeLuminance(hsl: string): number {
-    const linear = hslStringToRgb01(hsl).map((channel) =>
-        channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4,
-    );
-    return 0.2126 * linear[0]! + 0.7152 * linear[1]! + 0.0722 * linear[2]!;
+    const [r, g, b] = hslStringToRgb01(hsl);
+    return 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
 }
 
 function wcagRatio(foreground: string, background: string): number {
@@ -64,7 +67,7 @@ function table(title: string, background: string, candidates: [string, string][]
     for (const [name, hsl] of candidates) {
         const { lc, minSize } = apcaMinimumSize(hsl, background);
         const ratio = wcagRatio(hsl, background);
-        const min = minSize === Infinity ? "never" : `${ minSize }px`;
+        const min = minSize === Infinity ? "never" : `${ String(minSize) }px`;
 
         console.log(
             "  " +
@@ -84,6 +87,13 @@ const neutrals = Object.entries(color.neutral as Record<string, string>).map(
     ([step, hsl]) => [`neutral.${ step }`, hsl] as [string, string],
 );
 
+/** `roles` is a plain index signature to TypeScript, but every one of these role names is guaranteed present by the token contract — a genuine "cannot actually be missing" case, thrown rather than asserted so a real drift still fails loudly instead of reading `undefined` as a colour string. */
+function requiredRole(roles: Record<string, string>, role: string): string {
+    const value = roles[role];
+    if (value === undefined) throw new Error(`Missing color role "${ role }"`);
+    return value;
+}
+
 /**
  * Text on a page, on a card, and on the inset wells inside them — the three
  * grounds any body text can land on. A role has to clear the darkest of them,
@@ -92,7 +102,7 @@ const neutrals = Object.entries(color.neutral as Record<string, string>).map(
 for (const theme of ["dark", "light"] as const) {
     const roles = resolved[theme].color as Record<string, string>;
     for (const surface of ["surfacePrimary", "surfaceElevated", "surfaceInset"] as const) {
-        table(`${ theme } · ${ surface }`, roles[surface]!, neutrals);
+        table(`${ theme } · ${ surface }`, requiredRole(roles, surface), neutrals);
     }
 }
 
@@ -107,7 +117,7 @@ const extremes = neutrals.filter(([name]) => name === "neutral.0" || name === "n
 console.log("\n\n=== Text on a solid status fill ===");
 for (const status of ["statusSuccess", "statusDanger", "statusAttention", "statusInfo"] as const) {
     // Shared between themes, so measuring one is measuring both.
-    table(status, (resolved.dark.color as Record<string, string>)[status]!, extremes);
+    table(status, requiredRole(resolved.dark.color, status), extremes);
 }
 
 /**
@@ -134,7 +144,7 @@ for (const lc of SAMPLE_CONTRASTS) {
     const lookup = fontLookupAPCA(lc);
     const cells = WEIGHTS.map((weight) => {
         const size = lookup[weight / 100] ?? Infinity;
-        return (size > 0 && size < 200 ? `${ size }px` : "never").padStart(9);
+        return (size > 0 && size < 200 ? `${ String(size) }px` : "never").padStart(9);
     });
     console.log(String(lc).padStart(7) + "  " + cells.join(""));
 }

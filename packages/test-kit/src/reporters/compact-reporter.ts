@@ -20,7 +20,7 @@ export default class CompactReporter implements Reporter {
     private skipped = 0;
     private readonly startedAt = Date.now();
 
-    onTestEnd(test: TestCase, result: TestResult): void {
+    public onTestEnd(test: TestCase, result: TestResult): void {
         if (result.status === "passed") {
             this.passed += 1;
             return;
@@ -31,18 +31,18 @@ export default class CompactReporter implements Reporter {
         }
         this.failed += 1;
 
-        const location = `${path.relative(process.cwd(), test.location.file)}:${test.location.line}`;
+        const location = `${path.relative(process.cwd(), test.location.file)}:${String(test.location.line)}`;
         const reason = firstLine(result.errors[0]?.message) ?? result.status;
         // eslint-disable-next-line no-console -- this reporter's entire job is printing to the terminal.
         console.log(`✗ ${location} › ${test.titlePath().filter(Boolean).join(" > ")} — ${reason}`);
     }
 
-    onEnd(result: FullResult): void {
+    public onEnd(result: FullResult): void {
         const seconds = ((Date.now() - this.startedAt) / 1000).toFixed(1);
         const icon = result.status === "passed" ? "✓" : "✗";
         // eslint-disable-next-line no-console -- see above.
         console.log(
-            `${icon} ${this.passed} passed, ${this.failed} failed, ${this.skipped} skipped (${seconds}s). ` +
+            `${icon} ${String(this.passed)} passed, ${String(this.failed)} failed, ${String(this.skipped)} skipped (${seconds}s). ` +
                 "Full detail: test-results/summary.json, or the HTML report (`playwright show-report`).",
         );
     }
@@ -66,5 +66,16 @@ const ANSI_ESCAPE_PATTERN = /\u001b\[[0-9;]*m/g;
 
 function firstLine(message: string | undefined): string | null {
     if (!message) return null;
-    return message.replaceAll(ANSI_ESCAPE_PATTERN, "").split("\n")[0]?.trim() || null;
+    // A ternary, not `?? null`: an all-ANSI/whitespace message trims down to
+    // an empty (falsy, not nullish) string, which must fall back to `null`
+    // the same as a missing message does — `??` would let the empty string
+    // through and print a reason-less `— ` in the report.
+    const line = message.replaceAll(ANSI_ESCAPE_PATTERN, "").split("\n")[0]?.trim();
+    // Not `line ?? null`, despite the rule's own suggestion: `line`'s type is
+    // `string | undefined`, and an empty string is falsy but not nullish —
+    // `??` would let it through, which is exactly the bug the comment above
+    // exists to prevent. The rule's "a ? a : b" heuristic doesn't account for
+    // a non-nullish falsy value on the left, so its suggestion is unsound here.
+    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- see comment above
+    return line ? line : null;
 }
