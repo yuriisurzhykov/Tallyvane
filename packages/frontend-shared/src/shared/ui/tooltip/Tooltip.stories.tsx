@@ -22,6 +22,14 @@ interface StoryMeta {
 
 interface Story {
     readonly render: () => React.ReactElement;
+    /**
+     * No visible text at rest — the popup only renders on hover/focus, which
+     * a static render never triggers, and every trigger here is an
+     * icon-only `IconButton` named via `aria-label`. Opts out of the APCA
+     * suite's text-contrast check, which has nothing to measure in this
+     * closed state.
+     */
+    readonly tags?: readonly string[];
 }
 
 const meta: StoryMeta = {
@@ -37,6 +45,7 @@ export const Default: Story = {
             <Tooltip.Popup>Archive job</Tooltip.Popup>
         </Tooltip.Root>
     ),
+    tags: ["no-visible-text"],
 };
 
 export const WithArrow: Story = {
@@ -49,6 +58,7 @@ export const WithArrow: Story = {
             </Tooltip.Popup>
         </Tooltip.Root>
     ),
+    tags: ["no-visible-text"],
 };
 
 /** Wrapping several triggers in one `Provider` means only the first hover in the row pays the full open delay. */
@@ -68,4 +78,5 @@ export const SharedDelayAcrossARow: Story = {
             </div>
         </Tooltip.Provider>
     ),
+    tags: ["no-visible-text"],
 };

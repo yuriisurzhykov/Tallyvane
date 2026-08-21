@@ -15,6 +15,8 @@ interface StoryMeta<TProps> {
 
 interface Story<TProps> {
     readonly args: TProps;
+    /** No visible text — a bare dot has no `label`. Opts out of the APCA suite's text-contrast check, which has nothing to measure here. */
+    readonly tags?: readonly string[];
 }
 
 const meta: StoryMeta<DotProps> = {
@@ -23,10 +25,11 @@ const meta: StoryMeta<DotProps> = {
 };
 export default meta;
 
-export const Neutral: Story<DotProps> = { args: { tone: "neutral" } };
-export const Info: Story<DotProps> = { args: { tone: "info" } };
-export const Attention: Story<DotProps> = { args: { tone: "attention" } };
-export const Success: Story<DotProps> = { args: { tone: "success" } };
-export const Danger: Story<DotProps> = { args: { tone: "danger" } };
+export const Neutral: Story<DotProps> = { args: { tone: "neutral" }, tags: ["no-visible-text"] };
+export const Info: Story<DotProps> = { args: { tone: "info" }, tags: ["no-visible-text"] };
+export const Attention: Story<DotProps> = { args: { tone: "attention" }, tags: ["no-visible-text"] };
+export const Success: Story<DotProps> = { args: { tone: "success" }, tags: ["no-visible-text"] };
+export const Danger: Story<DotProps> = { args: { tone: "danger" }, tags: ["no-visible-text"] };
 
-export const WithLabel: Story<DotProps> = { args: { tone: "danger", label: "Overdue" } };
+// `label` is wired through `VisuallyHidden` (`Dot.tsx`'s own comment) — never visible, screen-reader-only, so this story has no visible text to check either.
+export const WithLabel: Story<DotProps> = { args: { tone: "danger", label: "Overdue" }, tags: ["no-visible-text"] };

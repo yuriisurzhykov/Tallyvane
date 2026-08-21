@@ -26,11 +26,16 @@
  * `tokens/typography.ts`'s `family.sans`/`family.mono` reference
  * `var(--font-ibm-plex-sans)`/`var(--font-ibm-plex-mono)` — variables
  * `next/font/google` sets on `<html>` in the two real Next.js apps
- * (`app/fonts.ts`). Storybook has no `next/font`; `preview-head.html` loads
- * the same two faces from Google Fonts instead, and this maps the same two
- * custom property names onto the loaded family so the token reference
- * resolves exactly as it does in the real apps, rather than special-casing
- * Storybook's own font-family output.
+ * (`app/fonts.ts`). Storybook has no `next/font`; `preview.tsx` instead
+ * imports the same two faces self-hosted from `@fontsource/ibm-plex-sans`/
+ * `@fontsource/ibm-plex-mono`, and this maps the same two custom property
+ * names onto the loaded family so the token reference resolves exactly as
+ * it does in the real apps. This used to load from Google's CDN instead
+ * (`preview-head.html`, now removed) — that CDN request raced against a
+ * ~100ms `display=optional` grace period, so a page load sometimes rendered
+ * the real font and sometimes the fallback depending on network timing,
+ * which is what made a visual-regression baseline captured on a slow race
+ * mismatch every deterministic, self-hosted render since.
  */
 :root {
     --font-ibm-plex-sans: "IBM Plex Sans";

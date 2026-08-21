@@ -2,6 +2,20 @@ import * as React from "react";
 import type { Preview } from "@storybook/react-vite";
 import type { ThemeId } from "frontend-shared/ui/theme";
 import { ThemeProvider, useTheme } from "frontend-shared/ui/theme";
+/**
+ * Self-hosted, matching `frontend-web/app/fonts.ts`'s own weight/subset
+ * selection exactly (`typography.weight`'s full scale for sans; mono's sole
+ * consumer, `textStyles.numeric`, only ever sets regular). Each import names
+ * a single `latin-<weight>.css` file — Fontsource also ships an unqualified
+ * `<weight>.css` covering every subset (cyrillic, greek, vietnamese, ...) in
+ * one file via `unicode-range`, but the `latin-`-prefixed one is the literal
+ * match for "latin only", not just an equivalent way to get there.
+ */
+import "@fontsource/ibm-plex-sans/latin-400.css";
+import "@fontsource/ibm-plex-sans/latin-500.css";
+import "@fontsource/ibm-plex-sans/latin-600.css";
+import "@fontsource/ibm-plex-sans/latin-700.css";
+import "@fontsource/ibm-plex-mono/latin-400.css";
 import "./preview.css";
 
 /**

@@ -7,3 +7,5 @@
  */
 export { cn } from "./utils";
 export { isSafeRelativePath } from "./safe-relative-path";
+export { DEFAULT_AUTOSAVE_DEBOUNCE_MS, useDebouncedAutosave } from "./use-debounced-autosave";
+export type { AutosaveStatus, UseDebouncedAutosaveOptions, UseDebouncedAutosaveResult } from "./use-debounced-autosave";

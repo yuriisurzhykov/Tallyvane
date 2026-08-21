@@ -159,16 +159,50 @@ export async function collectTextSamples(page: Page): Promise<TextSample[]> {
                 .trim();
         }
 
+        /**
+         * `aria-hidden="true"`, on the element or an ancestor, takes it out of
+         * the accessibility tree unconditionally — screen readers skip it
+         * regardless of what CSS does to it visually. `role="presentation"`/
+         * `role="none"` is deliberately NOT included here, even though an
+         * earlier version of this function treated it the same way: found the
+         * hard way on `Meter`/`Progress`, whose real, visible `Label` element
+         * carries `role="presentation"` too — not because its text is inert,
+         * but because the value is exposed through the meter/progressbar's
+         * own `aria-labelledby` instead, so the label element itself needs no
+         * independent role. Excluding every `role="presentation"` element
+         * would have skipped that real, on-screen label along with the
+         * genuinely inert one below.
+         */
+        function isAccessibilityHidden(element: Element): boolean {
+            return element.closest('[aria-hidden="true"]') !== null;
+        }
+
         const samples: unknown[] = [];
         for (const element of Array.from(document.body.querySelectorAll("*"))) {
             const text = ownText(element);
             if (!text) continue;
 
+            if (isAccessibilityHidden(element)) continue;
+
             const style = getComputedStyle(element);
             if (style.visibility === "hidden" || style.display === "none" || Number(style.opacity) === 0) continue;
 
             const rect = element.getBoundingClientRect();
-            if (rect.width === 0 || rect.height === 0) continue;
+            /**
+             * `<= 1`, not `=== 0`: the real bug this widens to catch. Both
+             * Tailwind's `sr-only` (`VisuallyHidden`'s own technique) and Base
+             * UI's internal announcement-workaround span (found on
+             * `Progress`/`Meter` — a `role="presentation"` `<span>x</span>`
+             * clipped to a 1×1px box) render at 1×1px rather than 0×0,
+             * deliberately, so an old Safari that ignored zero-size elements
+             * still picked them up. Contrast is a question about a rendered
+             * pixel's colour against its background; a box too small to show
+             * any glyph has no such pixel to ask the question about, whether
+             * it is clipped via a utility class or an inline style — this
+             * check does not care which technique produced the tiny box, only
+             * that nothing legible could ever appear inside one.
+             */
+            if (rect.width <= 1 || rect.height <= 1) continue;
 
             const background = effectiveBackground(element);
             const rawForeground = parse(style.color);

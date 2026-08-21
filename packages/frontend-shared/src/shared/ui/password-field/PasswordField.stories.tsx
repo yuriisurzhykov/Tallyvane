@@ -15,6 +15,8 @@ interface StoryMeta<TProps> {
 
 interface Story<TProps> {
     readonly args: TProps;
+    /** No visible text — named via `aria-label`; the show/hide toggle's own labels are `aria-label`s on an icon-only button too. Opts out of the APCA suite's text-contrast check, which has nothing to measure here. */
+    readonly tags?: readonly string[];
 }
 
 const TOGGLE_LABELS = { showPasswordLabel: "Show password", hidePasswordLabel: "Hide password" };
@@ -27,12 +29,15 @@ export default meta;
 
 export const Default: Story<PasswordFieldProps> = {
     args: { "aria-label": "Password", ...TOGGLE_LABELS },
+    tags: ["no-visible-text"],
 };
 
 export const Invalid: Story<PasswordFieldProps> = {
     args: { "aria-label": "Password", "aria-invalid": "true", defaultValue: "short", ...TOGGLE_LABELS },
+    tags: ["no-visible-text"],
 };
 
 export const Disabled: Story<PasswordFieldProps> = {
     args: { "aria-label": "Password", disabled: true, defaultValue: "Cannot be edited", ...TOGGLE_LABELS },
+    tags: ["no-visible-text"],
 };

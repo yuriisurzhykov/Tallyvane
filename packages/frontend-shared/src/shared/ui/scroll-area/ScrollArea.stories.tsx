@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import * as React from "react";
 import { ScrollArea } from "./ScrollArea";
+import { Text } from "../text";
 
 /** See `Logo.stories.tsx` for why this local shape stands in for CSF3's real types. */
 interface StoryMeta {
@@ -47,7 +48,7 @@ export const Default: Story = {
         children: (
             <div className="flex flex-col gap-inline">
                 {Array.from({ length: 45 }, (_, index) => (
-                    <p key={index}>Row {index + 1}</p>
+                    <Text key={index} variant="body">Row {index + 1}</Text>
                 ))}
             </div>
         ),

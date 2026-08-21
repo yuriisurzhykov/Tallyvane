@@ -16,6 +16,8 @@ interface StoryMeta<TProps> {
 
 interface Story<TProps> {
     readonly args: TProps;
+    /** No visible text — named via `aria-label`, and the clear button's own label is `aria-label`-only too. Opts out of the APCA suite's text-contrast check, which has nothing to measure here. */
+    readonly tags?: readonly string[];
 }
 
 /**
@@ -41,16 +43,20 @@ export default meta;
 
 export const Default: Story<ControlledSearchFieldProps> = {
     args: { "aria-label": "Search jobs", onSearch: () => {}, clearLabel: "Clear search" },
+    tags: ["no-visible-text"],
 };
 
 export const WithValue: Story<ControlledSearchFieldProps> = {
     args: { "aria-label": "Search jobs", initialValue: "staff engineer", onSearch: () => {}, clearLabel: "Clear search" },
+    tags: ["no-visible-text"],
 };
 
 export const Invalid: Story<ControlledSearchFieldProps> = {
     args: { "aria-label": "Search jobs", "aria-invalid": "true", onSearch: () => {}, clearLabel: "Clear search" },
+    tags: ["no-visible-text"],
 };
 
 export const Disabled: Story<ControlledSearchFieldProps> = {
     args: { "aria-label": "Search jobs", disabled: true, onSearch: () => {}, clearLabel: "Clear search" },
+    tags: ["no-visible-text"],
 };

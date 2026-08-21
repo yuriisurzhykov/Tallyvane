@@ -67,10 +67,21 @@ export const SCREENSHOT_EXPECT_OPTIONS = {
  * The HTML report is for a person looking at a failed diff; the summary is
  * for a script deciding what to say about the run. Both always, because the
  * digest costs nothing and a local run benefits from it the same way CI does.
+ *
+ * The live-progress reporter differs by environment, and not for taste: CI's
+ * `github` annotates the run itself and produces no separate terminal
+ * scrollback to worry about, but locally, `list` prints one line per test —
+ * unreadable the moment a suite crosses a few hundred, which every one of
+ * this repo's own contrast/a11y suites already does. `compact-reporter`
+ * prints nothing for a pass and one line per failure; `summary.json`
+ * (written locally too, not just in CI) and the HTML report still carry
+ * everything `list` used to show.
  */
 export function createReporters(): ReporterDescription[] {
     return [
-        ...(process.env.CI ? [["github"] as ReporterDescription] : [["list"] as ReporterDescription]),
+        process.env.CI
+            ? (["github"] as ReporterDescription)
+            : (["test-kit/reporters/compact-reporter"] as ReporterDescription),
         ["html", { open: "never" }] as ReporterDescription,
         ["test-kit/reporters/summary-reporter"] as ReporterDescription,
     ];

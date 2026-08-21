@@ -15,6 +15,8 @@ interface StoryMeta<TProps> {
 
 interface Story<TProps> {
     readonly args: TProps;
+    /** No visible text — `placeholder` is an attribute, not rendered DOM text, and there is no `defaultValue` here to render as one. Opts out of the APCA suite's text-contrast check, which has nothing to measure here. */
+    readonly tags?: readonly string[];
 }
 
 const meta: StoryMeta<TextAreaProps> = {
@@ -25,6 +27,7 @@ export default meta;
 
 export const Empty: Story<TextAreaProps> = {
     args: { placeholder: "Tell us why you're a good fit…", "aria-label": "Cover letter" },
+    tags: ["no-visible-text"],
 };
 
 export const GrowsWithContent: Story<TextAreaProps> = {

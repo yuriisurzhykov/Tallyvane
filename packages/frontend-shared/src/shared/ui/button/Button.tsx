@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
-import { Button as BaseButton } from "@base-ui/react/button";
 import type { ButtonProps as BaseButtonProps } from "@base-ui/react/button";
+import { Button as BaseButton } from "@base-ui/react/button";
+import { Spinner } from "../spinner";
 
 export type ButtonTone = "primary" | "neutral" | "ghost" | "danger";
 export type ButtonSize = "sm" | "md" | "lg";
@@ -63,33 +64,6 @@ const TONE_CLASS: Record<ButtonTone, string> = {
 };
 
 /**
- * The rotating ring is a `<style>` element with its own `@keyframes`, not
- * Tailwind's `animate-spin` utility: the adapter clears `--animate-*` to
- * `initial` (`theme/adapters/tailwind.css`) the same way it clears every
- * other namespace, so a theme-keyed `animate-spin` class would silently
- * resolve to nothing rather than fail loudly. A `<style>` tag with an
- * inline `animation` shorthand needs no theme key at all, and is excluded
- * from the accessible-name computation like any `<style>`/`<script>`, so it
- * cannot leak into the button's label.
- *
- * Placeholder per this component's `loading` contract — swap for the real
- * `Spinner` (COMPONENTS.md's "Status and feedback" row) once it exists, the
- * same "swap this in later" marker `Logo.tsx` already uses for its wordmark.
- */
-function LoadingIndicator() {
-    return (
-        <>
-            <style>{"@keyframes button-loading-spin { to { transform: rotate(360deg); } }"}</style>
-            <span
-                aria-hidden="true"
-                className="inline-block size-inline shrink-0 rounded-pill border-2 border-current border-t-transparent"
-                style={{ animation: "button-loading-spin 0.6s linear infinite" }}
-            />
-        </>
-    );
-}
-
-/**
  * Tier 0 — behaviour is Base UI's real `Button` primitive (ADR-031):
  * keyboard activation (Enter/Space) and disabled semantics both work
  * correctly even when `render` swaps the element for a non-`<button>` (an
@@ -98,28 +72,28 @@ function LoadingIndicator() {
  * public surface (`tone`, `size`, `loading`, icon slots) on top of it.
  */
 export function Button({
-    tone,
-    size = "md",
-    loading = false,
-    leadingIcon,
-    trailingIcon,
-    children,
-    className,
-    disabled = false,
-    ...rest
-}: ButtonProps) {
+                           tone,
+                           size = "md",
+                           loading = false,
+                           leadingIcon,
+                           trailingIcon,
+                           children,
+                           className,
+                           disabled = false,
+                           ...rest
+                       }: ButtonProps) {
     const isDisabled = disabled || loading;
 
     return (
         <BaseButton
-            disabled={isDisabled}
-            className={[BASE_CLASS, SIZE_CLASS[size], TONE_CLASS[tone], className].filter(Boolean).join(" ")}
-            {...(loading ? { "aria-busy": true as const } : {})}
-            {...rest}
+            disabled={ isDisabled }
+            className={ [BASE_CLASS, SIZE_CLASS[size], TONE_CLASS[tone], className].filter(Boolean).join(" ") }
+            { ...(loading ? { "aria-busy": true as const } : {}) }
+            { ...rest }
         >
-            {loading ? <LoadingIndicator /> : leadingIcon}
-            {children}
-            {loading ? null : trailingIcon}
+            { loading ? <Spinner size={ size }/> : leadingIcon }
+            { children }
+            { loading ? null : trailingIcon }
         </BaseButton>
     );
 }

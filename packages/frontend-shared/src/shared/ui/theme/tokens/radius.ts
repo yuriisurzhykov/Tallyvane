@@ -5,8 +5,10 @@ import { definePrimitives } from "design-token-engine";
  * generosity is part of the warm character, and it is the one place the design
  * spends softness freely.
  *
- * There are no circles in this system apart from avatars and status dots, so
- * `full` is reserved for those.
+ * `full` is reserved for round shapes: true circles (avatars, status dots)
+ * and pills/capsules on a non-square box (the `pill` role, `Badge`/`Tag`'s
+ * own shape) — anything where the intent is "as round as this box allows",
+ * not a fixed corner softness.
  */
 export const radius = definePrimitives({
     sm: "0.375rem",
