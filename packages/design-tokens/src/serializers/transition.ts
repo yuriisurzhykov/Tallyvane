@@ -12,10 +12,10 @@
  * pre-assembled shorthand cannot be taken apart, and omitting the property from
  * it silently means `all`.
  */
-export type Transition = {
+export interface Transition {
     readonly duration: string;
     readonly easing: string;
-};
+}
 
 /**
  * Values arrive here already resolved, so a missing half means the recipe was
@@ -27,7 +27,7 @@ export type Transition = {
 export function validateTransitions(transitions: Readonly<Record<string, Transition>>): void {
     for (const [name, transition] of Object.entries(transitions)) {
         for (const field of ["duration", "easing"] as const) {
-            if (typeof transition?.[field] !== "string") {
+            if (typeof transition[field] !== "string") {
                 throw new Error(`Transition "${name}" is missing its ${field}`);
             }
         }

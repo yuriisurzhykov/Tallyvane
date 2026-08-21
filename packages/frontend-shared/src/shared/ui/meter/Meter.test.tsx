@@ -31,8 +31,8 @@ describe("Meter", () => {
 
     it("sizes the indicator's width from the value/min/max ratio", () => {
         const { container } = render(<Meter label="Value" value={ 25 } min={ 0 } max={ 100 }/>);
-        const indicator = container.querySelector(".bg-interactive-primary") as HTMLElement;
-        expect(indicator.style.width).toBe("25%");
+        const indicator = container.querySelector<HTMLElement>(".bg-interactive-primary");
+        expect(indicator?.style.width).toBe("25%");
     });
 
     it("has no low/high/optimum sub-range attributes — Base UI's Meter does not implement the native <meter>'s sub-ranges", () => {

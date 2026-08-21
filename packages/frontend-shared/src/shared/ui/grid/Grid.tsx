@@ -32,7 +32,7 @@ export function Grid({ columns, gap, children, className }: GridProps) {
     return (
         <div
             className={["grid", GAP_CLASS_NAME[gap], className].filter(Boolean).join(" ")}
-            style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+            style={{ gridTemplateColumns: `repeat(${ String(columns) }, minmax(0, 1fr))` }}
         >
             {children}
         </div>

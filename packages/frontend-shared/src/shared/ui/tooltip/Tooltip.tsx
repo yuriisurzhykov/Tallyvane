@@ -59,8 +59,8 @@ const ARROW_OFFSET_CLASS =
 
 export type TooltipArrowProps = Omit<BaseTooltip.Arrow.Props, "className"> & { readonly className?: string };
 
-/** See `Popover.tsx`'s own `ARROW_TIP_STYLE` for why this is an inline style rather than `size-1.5` — 0.375rem matches that class's own un-clearable value. */
-const ARROW_TIP_STYLE = { width: "0.375rem", height: "0.375rem" } as const;
+/** See `Popover.tsx`'s own `ARROW_TIP_STYLE` for why this is an inline style rather than `size-1.5` — `var(--radius-chip)` is the role for that class's own un-clearable 0.375rem step. */
+const ARROW_TIP_STYLE = { width: "var(--radius-chip)", height: "var(--radius-chip)" } as const;
 
 /**
  * Same tip shape as `Popover.Arrow` — see it for the reasoning. `z-tooltip`

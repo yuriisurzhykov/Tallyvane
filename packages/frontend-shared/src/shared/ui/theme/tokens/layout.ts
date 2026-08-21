@@ -16,6 +16,8 @@ import { definePrimitives } from "design-token-engine";
 export const layout = definePrimitives({
     64: "4rem",
     240: "15rem",
+    256: "16rem",
+    448: "28rem",
     1280: "80rem",
     1600: "100rem",
 });

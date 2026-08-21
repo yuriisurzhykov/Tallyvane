@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isClassNameAttribute, isStyleAttribute, propertyKeyName, walkForStrings } from "./ast-helpers";
+import { isClassNameAttribute, isStyleAttribute, propertyKeyName, walkForStrings, walkForTemplateLiterals } from "./ast-helpers";
 
 // Direct unit tests, not just through the 4 rules that consume this module —
 // some AST shapes (a non-JSXAttribute node, a name-less attribute) never
@@ -64,7 +64,7 @@ describe("propertyKeyName", () => {
 });
 
 describe("walkForStrings", () => {
-    it("does nothing (no crash) for a null/undefined node", () => {
+    it("does nothing for a null/undefined node", () => {
         const seen: string[] = [];
         walkForStrings(null, (v) => seen.push(v));
         walkForStrings(undefined, (v) => seen.push(v));
@@ -135,6 +135,24 @@ describe("walkForStrings", () => {
     it("does nothing for an unrecognized node type (the default branch)", () => {
         const seen: string[] = [];
         walkForStrings({ type: "Identifier", name: "someVar" }, (v) => seen.push(v));
+        expect(seen).toEqual([]);
+    });
+});
+
+describe("walkForTemplateLiterals", () => {
+    it("visits a TemplateLiteral node itself, including nested in a call", () => {
+        const seen: string[] = [];
+        walkForTemplateLiterals(
+            { type: "CallExpression", arguments: [{ type: "TemplateLiteral", quasis: [{ value: { raw: "w-[" } }, { value: { raw: "px]" } }], expressions: [{}] }] },
+            (template) => seen.push(template.quasis.map((quasi: { value: { raw: string } }) => quasi.value.raw).join("")),
+        );
+        expect(seen).toEqual(["w-[px]"]);
+    });
+
+    it("does nothing for a null node or a non-template identifier", () => {
+        const seen: any[] = [];
+        walkForTemplateLiterals(null, (node) => seen.push(node));
+        walkForTemplateLiterals({ type: "Identifier", name: "x" }, (node) => seen.push(node));
         expect(seen).toEqual([]);
     });
 });

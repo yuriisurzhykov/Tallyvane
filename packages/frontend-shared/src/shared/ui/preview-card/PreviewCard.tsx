@@ -64,7 +64,7 @@ const ARROW_OFFSET_CLASS =
 export type PreviewCardArrowProps = Omit<BasePreviewCard.Arrow.Props, "className"> & { readonly className?: string };
 
 /** See `Popover.tsx`'s own `ARROW_TIP_STYLE` for why this is an inline style rather than `size-2`. */
-const ARROW_TIP_STYLE = { width: "0.5rem", height: "0.5rem" } as const;
+const ARROW_TIP_STYLE = { width: "var(--spacing-inline)", height: "var(--spacing-inline)" } as const;
 
 /** Same tip shape as `Popover.Arrow` — see it for the reasoning. */
 export function PreviewCardArrow({ className, ...rest }: PreviewCardArrowProps) {

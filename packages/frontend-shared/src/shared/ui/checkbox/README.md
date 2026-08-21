@@ -24,16 +24,10 @@ emits and maps them onto tokens — a visible border and inset background at
 rest, a solid `interactive-primary` fill with an `text-on-accent` glyph on
 top once checked or indeterminate.
 
-`1.25rem` for the box is a genuinely tokenless numeric — no spacing role
-names "how big a checkbox is" any more than one names "how thick a
-scrollbar is" (`ScrollArea.tsx`'s own `SCROLLBAR_THICKNESS`) — set as a
-named module constant, referenced by identifier rather than inlined, so it
-stays exempt from `no-raw-dimension-value` for the same structural reason
-`TextArea.tsx`'s `MIN_HEIGHT` already is. The same `1.25rem` is repeated
-(each file owning its own copy, not a shared import — these are
-independent Tier 0 primitives) in `Radio`'s box and `Slider`'s thumb, so
-this batch's small interactive controls read as one coherent size rather
-than three unrelated guesses.
+The box is `--control-box` (1.25rem), the same role `Radio`'s ring,
+`Slider`'s thumb and `RatingScale`'s dots read. A named rem constant used
+to be the lint exemption; that hole is closed. The glyphs are sized with
+`h-(--control-icon) w-(--control-icon)` rather than Lucide `size={14}`.
 
 The tick and dash glyphs (`lucide-react`'s `Check`/`Minus` — already a
 regular dependency of this package, used the same direct way

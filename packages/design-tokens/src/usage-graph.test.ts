@@ -32,11 +32,11 @@ describe("findPrimitiveBoundaryCrossings — DS201/202", () => {
     // above passes codeBlock before skillCard, which is ALSO alphabetical
     // order, so removing `.sort()` there would never have been caught.
     it("sorts a violation's consumer list alphabetically, not by insertion order", () => {
-        const violations = findPrimitiveBoundaryCrossings([
+        const [violation] = findPrimitiveBoundaryCrossings([
             { namespace: "component:zebra", tree: { keyword: "{color.accent.purple}" } },
             { namespace: "component:apple", tree: { decorativeAccent: "{color.accent.purple}" } },
         ]);
-        expect(violations[0]!.consumers).toEqual(["component:apple", "component:zebra"]);
+        expect(violation?.consumers).toEqual(["component:apple", "component:zebra"]);
     });
 
     // Two DIFFERENT crossing primitive paths, inserted in reverse-alphabetical
@@ -59,7 +59,7 @@ describe("findPrimitiveBoundaryCrossings — DS201/202", () => {
             { namespace: "composite:gradients", tree: { hero: { color: "{color.cyan.500}" } } },
         ]);
         expect(violations).toHaveLength(1);
-        expect(violations[0]!.consumers).toEqual(["component:card", "composite:gradients"]);
+        expect(violations[0]?.consumers).toEqual(["component:card", "composite:gradients"]);
     });
 
     it("never flags a theme/semantic reference — those are primitive->global edges, not a boundary crossing", () => {

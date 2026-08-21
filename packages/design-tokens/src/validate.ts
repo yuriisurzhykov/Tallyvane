@@ -61,8 +61,6 @@ export function checkOptionalKeyParity(trees: Readonly<Record<string, TokenTree>
     return warnings;
 }
 
-const HSL_COLOR = /^hsl\(/;
-
 /**
  * DS001 (primitive side, color-specific) — every color primitive leaf must
  * be a real `hsl()` string, never a hex/rgb/oklch literal or a bare number.
@@ -78,7 +76,7 @@ export function validateColorPrimitiveFormat(node: unknown, path: readonly strin
         if (key.startsWith("__")) continue;
         const currentPath = [...path, key];
         if (typeof value === "string") {
-            if (!HSL_COLOR.test(value)) {
+            if (!value.startsWith("hsl(")) {
                 throw new TokenValidationError(`DS001 color primitive "${currentPath.join(".")}" is not a valid hsl() string: "${value}"`);
             }
         } else if (value && typeof value === "object" && !Array.isArray(value)) {
@@ -109,7 +107,7 @@ export function validateNoRawColorLiterals(node: unknown, path: readonly string[
     }
     if (typeof node === "number" || node == null) return;
     if (Array.isArray(node)) {
-        node.forEach((item, index) => validateNoRawColorLiterals(item, [...path, String(index)]));
+        node.forEach((item, index) => { validateNoRawColorLiterals(item, [...path, String(index)]); });
         return;
     }
     if (typeof node === "object") {
@@ -136,7 +134,7 @@ export function validateNoRawColorLiterals(node: unknown, path: readonly string[
  */
 export function validateColorFieldsDeep(node: unknown, path: readonly string[] = []): void {
     if (Array.isArray(node)) {
-        node.forEach((item, index) => validateColorFieldsDeep(item, [...path, String(index)]));
+        node.forEach((item, index) => { validateColorFieldsDeep(item, [...path, String(index)]); });
         return;
     }
     if (node && typeof node === "object") {

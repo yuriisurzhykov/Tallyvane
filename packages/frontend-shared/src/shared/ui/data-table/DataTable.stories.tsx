@@ -19,16 +19,6 @@ interface Story {
     readonly render: () => React.ReactElement;
 }
 
-/**
- * A local, self-contained height — the same `ScrollArea.stories.tsx`
- * exemption for `no-raw-dimension-value` (a literal in a `style` prop, not
- * a named constant): comfortably tall enough to show several rows of the
- * small-dataset stories without needing the real page viewport.
- */
-const STORY_VIEWPORT_HEIGHT = "24rem";
-/** Taller, so the large-dataset story reads as a real scrollable pipeline table rather than a token-sized demo box. */
-const LARGE_STORY_VIEWPORT_HEIGHT = "32rem";
-
 interface Person {
     readonly id: string;
     readonly name: string;
@@ -58,7 +48,7 @@ function generatePeople(count: number): Person[] {
     const locations = ["London", "New York", "Boston", "Cambridge", "Manchester", "Hampton"];
     return Array.from({ length: count }, (_, index) => ({
         id: String(index),
-        name: `Person ${index + 1}`,
+        name: `Person ${String(index + 1)}`,
         role: roles[index % roles.length] ?? "Engineer",
         location: locations[index % locations.length] ?? "London",
         yearsOfExperience: (index % 30) + 1,
@@ -86,7 +76,7 @@ export default meta;
 
 export const SmallDataset: Story = {
     render: () => (
-        <div style={{ height: STORY_VIEWPORT_HEIGHT }}>
+        <div className="story-scroll-canvas">
             <DataTable.Root data={PEOPLE} columns={PEOPLE_COLUMNS_WITH_BADGE} getRowId={(row) => row.id} aria-label="People">
                 <DataTable.Header />
                 <DataTable.Body />
@@ -108,7 +98,7 @@ export const SmallDataset: Story = {
  */
 export const LargeVirtualizedDataset: Story = {
     render: () => (
-        <div style={{ height: LARGE_STORY_VIEWPORT_HEIGHT }}>
+        <div className="story-scroll-canvas-tall">
             <DataTable.Root data={LARGE_DATASET} columns={PEOPLE_COLUMNS} getRowId={(row) => row.id} aria-label="1000-row pipeline">
                 <DataTable.Header />
                 <DataTable.Body />
@@ -120,7 +110,7 @@ export const LargeVirtualizedDataset: Story = {
 /** Click "Name" or "Years" to sort — "Location" has `enableSorting: false` and renders no sort affordance at all, unlike "Role", which is sortable but starts unsorted (`aria-sort="none"`, not omitted). */
 export const WithSorting: Story = {
     render: () => (
-        <div style={{ height: STORY_VIEWPORT_HEIGHT }}>
+        <div className="story-scroll-canvas">
             <DataTable.Root data={PEOPLE} columns={PEOPLE_COLUMNS} getRowId={(row) => row.id} aria-label="People, sortable">
                 <DataTable.Header />
                 <DataTable.Body />
@@ -131,7 +121,7 @@ export const WithSorting: Story = {
 
 export const WithRowExpansion: Story = {
     render: () => (
-        <div style={{ height: STORY_VIEWPORT_HEIGHT }}>
+        <div className="story-scroll-canvas">
             <DataTable.Root
                 data={PEOPLE}
                 columns={PEOPLE_COLUMNS_WITH_BADGE}

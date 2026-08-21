@@ -28,17 +28,17 @@ export interface MoneyFieldRootOwnProps {
  * skip it because, unlike that bare re-export, it performs a real value transformation of
  * its own (cents ↔ dollars) and deserves a crisp typed contract at that boundary.
  */
-export type MoneyFieldControlled = {
+export interface MoneyFieldControlled {
     readonly value: number | null;
     readonly onValueChange: (value: number | null, eventDetails: BaseNumberField.Root.ChangeEventDetails) => void;
     readonly defaultValue?: never;
-};
+}
 
-export type MoneyFieldUncontrolled = {
+export interface MoneyFieldUncontrolled {
     readonly defaultValue?: number;
     readonly value?: never;
     readonly onValueChange?: never;
-};
+}
 
 export type MoneyFieldRootProps = MoneyFieldRootOwnProps &
     (MoneyFieldControlled | MoneyFieldUncontrolled) &
@@ -94,12 +94,12 @@ function Root({
             { ...(value !== undefined ? { value: value === null ? null : centsToDollars(value) } : {}) }
             { ...(defaultValue !== undefined ? { defaultValue: centsToDollars(defaultValue) } : {}) }
             { ...(onValueChange
-                ? { onValueChange: (dollars: number | null, eventDetails: BaseNumberField.Root.ChangeEventDetails) => onValueChange(dollarsToCents(dollars), eventDetails) }
+                ? { onValueChange: (dollars: number | null, eventDetails: BaseNumberField.Root.ChangeEventDetails) => { onValueChange(dollarsToCents(dollars), eventDetails); } }
                 : {}) }
             { ...(onValueCommitted
                 ? {
                     onValueCommitted: (dollars: number | null, eventDetails: BaseNumberField.Root.CommitEventDetails) =>
-                        onValueCommitted(dollarsToCents(dollars), eventDetails),
+                        { onValueCommitted(dollarsToCents(dollars), eventDetails); },
                 }
                 : {}) }
         />

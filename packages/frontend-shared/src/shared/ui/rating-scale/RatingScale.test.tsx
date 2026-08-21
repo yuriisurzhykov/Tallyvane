@@ -3,14 +3,14 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { fireEvent } from "@testing-library/dom";
 import { RatingScale } from "./RatingScale";
 
-const getValueLabel = (value: number) => `${ value } of 5`;
+const getValueLabel = (value: number) => `${ String(value) } of 5`;
 
 describe("RatingScale", () => {
     it("renders five dots by role and name", () => {
         render(<RatingScale label="Interest level" getValueLabel={ getValueLabel }/>);
 
         for (const value of [1, 2, 3, 4, 5]) {
-            expect(screen.getByRole("radio", { name: `${ value } of 5` })).toBeInTheDocument();
+            expect(screen.getByRole("radio", { name: `${ String(value) } of 5` })).toBeInTheDocument();
         }
     });
 
@@ -18,7 +18,7 @@ describe("RatingScale", () => {
         render(<RatingScale label="Interest level" getValueLabel={ getValueLabel }/>);
 
         for (const value of [1, 2, 3, 4, 5]) {
-            expect(screen.getByRole("radio", { name: `${ value } of 5` })).not.toBeChecked();
+            expect(screen.getByRole("radio", { name: `${ String(value) } of 5` })).not.toBeChecked();
         }
     });
 
@@ -27,10 +27,10 @@ describe("RatingScale", () => {
         expect(screen.getByRole("radio", { name: "3 of 5" })).toBeChecked();
 
         for (const value of [1, 2, 3]) {
-            expect(screen.getByRole("radio", { name: `${ value } of 5` })).toHaveClass("bg-interactive-primary");
+            expect(screen.getByRole("radio", { name: `${ String(value) } of 5` })).toHaveClass("bg-interactive-primary");
         }
         for (const value of [4, 5]) {
-            expect(screen.getByRole("radio", { name: `${ value } of 5` })).not.toHaveClass("bg-interactive-primary");
+            expect(screen.getByRole("radio", { name: `${ String(value) } of 5` })).not.toHaveClass("bg-interactive-primary");
         }
     });
 
@@ -50,7 +50,7 @@ describe("RatingScale", () => {
         // The visual fill is cumulative, unlike `checked` — dots 1 through 4
         // read as selected, only 5 stays a plain ring.
         for (const value of [1, 2, 3, 4]) {
-            expect(screen.getByRole("radio", { name: `${ value } of 5` })).toHaveClass("bg-interactive-primary");
+            expect(screen.getByRole("radio", { name: `${ String(value) } of 5` })).toHaveClass("bg-interactive-primary");
         }
         expect(screen.getByRole("radio", { name: "5 of 5" })).not.toHaveClass("bg-interactive-primary");
     });
@@ -68,7 +68,7 @@ describe("RatingScale", () => {
         // rather than silently locking into uncontrolled mode (see this
         // component's own comment on Base UI's `useControlled`).
         for (const value of [1, 2, 3, 4, 5]) {
-            expect(screen.getByRole("radio", { name: `${ value } of 5` })).not.toBeChecked();
+            expect(screen.getByRole("radio", { name: `${ String(value) } of 5` })).not.toBeChecked();
         }
     });
 
@@ -82,7 +82,7 @@ describe("RatingScale", () => {
 
         expect(screen.getByRole("radio", { name: "4 of 5" })).toBeChecked();
         for (const value of [1, 2, 3, 4]) {
-            expect(screen.getByRole("radio", { name: `${ value } of 5` })).toHaveClass("bg-interactive-primary");
+            expect(screen.getByRole("radio", { name: `${ String(value) } of 5` })).toHaveClass("bg-interactive-primary");
         }
         expect(screen.getByRole("radio", { name: "5 of 5" })).not.toHaveClass("bg-interactive-primary");
     });

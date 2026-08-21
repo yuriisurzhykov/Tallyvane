@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { Input, type InputProps, type InputSize } from "../input";
 import { IconButton } from "../icon-button";
+import { CONTROL_ICON_CLASS, mergeStyle } from "../../lib";
 
 export interface PasswordFieldOwnProps {
     /** Accessible name for the toggle while the password is hidden — announces the action the click performs, not the current state. */
@@ -13,17 +14,10 @@ export interface PasswordFieldOwnProps {
 /** `type` is owned by this component's own visibility state — a caller cannot override what `Input` beneath it renders as. */
 export type PasswordFieldProps = PasswordFieldOwnProps & Omit<InputProps, "type">;
 
-const ICON_SIZE = 16;
-
 /**
- * No spacing role names "room for a trailing icon button" — same exception
- * `ScrollArea`'s `SCROLLBAR_THICKNESS` and `TextArea`'s `MIN_HEIGHT` already
- * take, referenced by identifier rather than written inline so it stays
- * exempt from `no-raw-dimension-value` for the same structural reason theirs
- * are. `calc()` over the control-height role already used for `Input`'s and
- * `IconButton`'s own sizing (never a bare literal) means the reserved space
- * tracks whichever `size` the caller picks, plus one `inline-tight` gap so
- * the caret never sits flush against the glyph.
+ * `calc()` over the control-height role already used for `Input`'s and
+ * `IconButton`'s own sizing, plus one `inline-tight` gap so the caret never
+ * sits flush against the glyph. Tracks whichever `size` the caller picks.
  */
 function toggleInsetFor(size: InputSize): string {
     return `calc(var(--control-height-${size}) + var(--spacing-inline-tight))`;
@@ -46,16 +40,16 @@ export function PasswordField({ showPasswordLabel, hidePasswordLabel, size = "md
 
     return (
         <div className={["relative", className].filter(Boolean).join(" ")}>
-            <Input {...rest} size={size} type={visible ? "text" : "password"} style={{ ...style, paddingInlineEnd: toggleInsetFor(size) }} />
+            <Input {...rest} size={size} type={visible ? "text" : "password"} style={mergeStyle(style, { paddingInlineEnd: toggleInsetFor(size) })} />
             <IconButton
                 tone="ghost"
                 size={size}
                 label={visible ? hidePasswordLabel : showPasswordLabel}
                 aria-pressed={visible}
-                onClick={() => setVisible((current) => !current)}
+                onClick={() => { setVisible((current) => !current); }}
                 className="absolute top-1/2 right-0 -translate-y-1/2"
             >
-                {visible ? <EyeOff size={ICON_SIZE} /> : <Eye size={ICON_SIZE} />}
+                {visible ? <EyeOff className={CONTROL_ICON_CLASS} /> : <Eye className={CONTROL_ICON_CLASS} />}
             </IconButton>
         </div>
     );

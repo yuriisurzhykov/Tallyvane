@@ -18,13 +18,6 @@ export interface SliderOwnProps {
  */
 export type SliderProps = SliderOwnProps & Omit<BaseSliderRootProps<number>, "className">;
 
-/**
- * Same reasoning, same literal value, as `Checkbox`'s/`Radio`'s own box
- * size — see `Checkbox.tsx`'s comment on why this is a named constant
- * rather than a token, and why each file keeps its own copy.
- */
-const THUMB_SIZE = "1.25rem";
-
 const CONTROL_CLASS_NAME =
     "relative flex w-full touch-none items-center py-inline-tight data-[disabled]:cursor-not-allowed data-[disabled]:opacity-60";
 
@@ -87,7 +80,7 @@ export function Slider({
                     <BaseSlider.Indicator className={ INDICATOR_CLASS_NAME }/>
                     <BaseSlider.Thumb
                         className={ THUMB_CLASS_NAME }
-                        style={ { width: THUMB_SIZE, height: THUMB_SIZE } }
+                        style={ { width: "var(--control-box)", height: "var(--control-box)" } }
                         { ...(ariaLabel ? { "aria-label": ariaLabel } : {}) }
                         { ...(ariaLabelledBy ? { "aria-labelledby": ariaLabelledBy } : {}) }
                     />

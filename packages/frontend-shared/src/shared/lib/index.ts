@@ -7,5 +7,8 @@
  */
 export { cn } from "./utils";
 export { isSafeRelativePath } from "./safe-relative-path";
+export { mergeStyle } from "./merge-style";
+export type { BaseUIStyle } from "./merge-style";
+export { CONTROL_ICON_CLASS } from "./control-icon-class";
 export { DEFAULT_AUTOSAVE_DEBOUNCE_MS, useDebouncedAutosave } from "./use-debounced-autosave";
 export type { AutosaveStatus, UseDebouncedAutosaveOptions, UseDebouncedAutosaveResult } from "./use-debounced-autosave";

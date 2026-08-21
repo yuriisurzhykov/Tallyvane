@@ -24,9 +24,9 @@ every call site is what keeps a spacing decision from silently defaulting to
 whatever role happened to be convenient. `columns` is the one inline style
 (`gridTemplateColumns: repeat(${columns}, minmax(0, 1fr))`), because no
 token in the system names an arbitrary column count the way `gap` tokens
-name a spacing role — the same class of exception `ScrollArea`'s
-`SCROLLBAR_THICKNESS` and `Drawer`'s width constant take for their own
-genuinely tokenless numerics. Simple enough that there's no wrong turn here.
+name a spacing role — the same class of exception as a column *count*,
+which is not a CSS length. Drawer width and scrollbar thickness are
+tokens now; this `columns` number is still a count. Simple enough that there's no wrong turn here.
 
 ## SOLID
 

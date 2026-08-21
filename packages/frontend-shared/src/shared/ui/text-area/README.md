@@ -19,13 +19,12 @@ property is simply ignored rather than cascade-blocking, leaving the fixed
 manual-resize affordance respectively — so the control is never actually
 broken on those browsers, just non-auto-growing.
 
-`MIN_HEIGHT` (`5.5rem`) is a derived, one-off constant, not a token: three
-lines of `text-body` line-height plus this component's own vertical padding
-and border, computed once and referenced by identifier — the same "genuinely
-tokenless numeric" exemption from `no-raw-dimension-value` that
-`ScrollArea.tsx`'s `SCROLLBAR_THICKNESS` and `Truncate`'s line-clamp count
-already use, since no spacing role in this system names "how tall an empty
-textarea starts."
+`min-height` is a `calc()` over `--ds-text-body-line`,
+`--ds-semantic-spacing-inline-tight` and `--ds-border-hairline` — three
+lines of body text plus this component's padding and hairline border, not
+a pre-summed rem figure. A named constant used to be the lint exemption;
+that hole is closed. `Truncate`'s line-clamp count remains a JS integer
+because it is a count, not a CSS length.
 
 A late, deliberate correction to `COMPONENTS.md`: this component's `Env`
 column originally guessed `client`, on the assumption that auto-growing

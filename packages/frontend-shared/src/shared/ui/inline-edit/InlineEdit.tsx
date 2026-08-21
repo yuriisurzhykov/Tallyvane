@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState, type FocusEvent, type KeyboardEvent, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { cn, useDebouncedAutosave } from "../../lib";
 import { VisuallyHidden } from "../visually-hidden";
+import { useEditingSession } from "./use-editing-session";
 
 export interface InlineEditEditorRenderProps<T> {
     readonly value: T;
@@ -80,20 +81,10 @@ const ERROR_CLASS = "border border-status-danger";
  * the user typed regardless of how long the save actually takes to confirm.
  */
 export function InlineEdit<T>({ value, onSave, onError, renderValue, renderEditor, editLabel, debounceMs, className }: InlineEditProps<T>) {
-    const [isEditing, setIsEditing] = useState(false);
     const [localValue, setLocalValue] = useState(value);
     const previousValueRef = useRef(value);
     const valueBeforeEditRef = useRef(value);
-    const triggerRef = useRef<HTMLButtonElement>(null);
-    const containerRef = useRef<HTMLDivElement>(null);
-    /** Guards against Enter/Escape's own synchronous exit *and* the blur that unmounting the focused editor triggers both reaching `handleCommit`/`handleCancel` for the same exit. */
-    const exitHandledRef = useRef(false);
-    const retryRef = useRef<() => void>(() => {});
-
-    if (!Object.is(previousValueRef.current, value)) {
-        previousValueRef.current = value;
-        if (!isEditing) setLocalValue(value);
-    }
+    const retryRef = useRef<() => void>(() => undefined);
 
     const { status, retry, flush } = useDebouncedAutosave<T>({
         value: localValue,
@@ -101,7 +92,7 @@ export function InlineEdit<T>({ value, onSave, onError, renderValue, renderEdito
             try {
                 await onSave(next);
             } catch (error) {
-                onError?.(error, () => retryRef.current());
+                onError?.(error, () => { retryRef.current(); });
                 throw error;
             }
         },
@@ -109,68 +100,37 @@ export function InlineEdit<T>({ value, onSave, onError, renderValue, renderEdito
     });
     retryRef.current = retry;
 
-    const wasEditingRef = useRef(isEditing);
-    useEffect(() => {
-        if (wasEditingRef.current && !isEditing) {
-            triggerRef.current?.focus();
-        }
-        wasEditingRef.current = isEditing;
-    }, [isEditing]);
+    const session = useEditingSession({
+        onCommit: flush,
+        onCancel: () => { setLocalValue(valueBeforeEditRef.current); },
+    });
+
+    if (!Object.is(previousValueRef.current, value)) {
+        previousValueRef.current = value;
+        if (!session.isEditing) setLocalValue(value);
+    }
 
     function startEditing() {
         valueBeforeEditRef.current = localValue;
-        exitHandledRef.current = false;
-        setIsEditing(true);
+        session.startEditing();
     }
 
-    function handleCommit() {
-        if (exitHandledRef.current) return;
-        exitHandledRef.current = true;
-        flush();
-        setIsEditing(false);
-    }
-
-    function handleCancel() {
-        if (exitHandledRef.current) return;
-        exitHandledRef.current = true;
-        setLocalValue(valueBeforeEditRef.current);
-        setIsEditing(false);
-    }
-
-    function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-        if (event.key === "Enter") {
-            event.preventDefault();
-            event.stopPropagation();
-            handleCommit();
-        } else if (event.key === "Escape") {
-            event.preventDefault();
-            event.stopPropagation();
-            handleCancel();
-        }
-    }
-
-    function handleBlur(event: FocusEvent<HTMLDivElement>) {
-        const next = event.relatedTarget;
-        if (next && containerRef.current?.contains(next)) return;
-        handleCommit();
-    }
-
-    if (isEditing) {
+    if (session.isEditing) {
         return (
             <div
-                ref={containerRef}
-                onKeyDown={handleKeyDown}
-                onBlur={handleBlur}
+                ref={session.containerRef}
+                onKeyDown={session.handleKeyDown}
+                onBlur={session.handleBlur}
                 {...(className ? { className } : {})}
             >
-                {renderEditor({ value: localValue, onChange: setLocalValue, commit: handleCommit, cancel: handleCancel })}
+                {renderEditor({ value: localValue, onChange: setLocalValue, commit: session.commit, cancel: session.cancel })}
             </div>
         );
     }
 
     return (
         <button
-            ref={triggerRef}
+            ref={session.triggerRef}
             type="button"
             onClick={startEditing}
             className={cn(TRIGGER_CLASS, status === "error" && ERROR_CLASS, className)}

@@ -114,7 +114,7 @@ export function useDebouncedAutosave<T>({ value, onSave, debounceMs = DEFAULT_AU
         setStatus("pending");
         setError(undefined);
         timeoutRef.current = setTimeout(attemptSave, debounceMs);
-        return () => clearTimeout(timeoutRef.current);
+        return () => { clearTimeout(timeoutRef.current); };
     }, [value, debounceMs, attemptSave]);
 
     const retry = useCallback(() => {

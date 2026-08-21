@@ -11,7 +11,7 @@ export { toKebabCase };
  * PRIMITIVE trees (never passed through `resolveTree`), which still carry
  * their own `__kind` tag.
  */
-export function flattenScalars(node: unknown, path: readonly string[] = []): Array<[string[], string | number]> {
+export function flattenScalars(node: unknown, path: readonly string[] = []): [string[], string | number][] {
     if (typeof node === "string" || typeof node === "number") return [[[...path], node]];
     if (!node || typeof node !== "object" || Array.isArray(node)) return [];
     return Object.entries(node)
@@ -34,7 +34,7 @@ export function cssVariableName(prefix: readonly string[], path: readonly string
 const HSL_PATTERN = /^hsl\(\s*([\d.]+)\s+([\d.]+)%\s+([\d.]+)%\s*(?:\/\s*([\d.]+)%\s*)?\)$/;
 
 export function parseHslString(hsl: string): { h: number; s: number; l: number; a: number } {
-    const match = hsl.match(HSL_PATTERN);
+    const match = HSL_PATTERN.exec(hsl);
     if (!match) {
         throw new Error(`Not a resolvable hsl() string: "${hsl}" (a color-mix() result can't feed a WebGL/Mermaid adapter — resolve to a plain step instead)`);
     }
@@ -64,6 +64,13 @@ export function hslStringToRgb01(hsl: string): readonly [number, number, number]
 
 export function hslStringToRgbString(hsl: string): string {
     const { a } = parseHslString(hsl);
-    const [r, g, b] = hslStringToRgb01(hsl).map((c) => Math.round(c * 255));
-    return a === 1 ? `rgb(${r}, ${g}, ${b})` : `rgba(${r}, ${g}, ${b}, ${a})`;
+    // Destructured straight out of the tuple and rounded individually,
+    // rather than round-tripped through `.map` (which would widen
+    // `readonly [number, number, number]` to a plain `number[]`, undoing the
+    // exact tuple typing this destructure already has).
+    const [r, g, b] = hslStringToRgb01(hsl);
+    const r255 = Math.round(r * 255);
+    const g255 = Math.round(g * 255);
+    const b255 = Math.round(b * 255);
+    return a === 1 ? `rgb(${ String(r255) }, ${ String(g255) }, ${ String(b255) })` : `rgba(${ String(r255) }, ${ String(g255) }, ${ String(b255) }, ${ String(a) })`;
 }

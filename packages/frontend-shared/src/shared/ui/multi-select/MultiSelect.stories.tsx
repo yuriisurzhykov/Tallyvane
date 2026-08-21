@@ -23,7 +23,7 @@ const US_STATES = ["California", "New York", "Texas", "Washington", "Colorado"];
 
 function TagPicker({ items, defaultValue }: { readonly items: readonly string[]; readonly defaultValue: string[] }) {
     const [value, setValue] = useState<string[]>(defaultValue);
-    const inputId = `multiselect-${ items[0] }`;
+    const inputId = `multiselect-${ items[0] ?? "empty" }`;
 
     return (
         <MultiSelect.Root items={ items } value={ value } onValueChange={ setValue }>
@@ -89,7 +89,7 @@ const TONES = ["neutral", "info", "attention", "success", "danger"] as const;
  */
 export const Tones: Story = {
     render: () => (
-        <MultiSelect.Root items={ TONES } value={ [] } onValueChange={ () => {} }>
+        <MultiSelect.Root items={ TONES } value={ [] } onValueChange={ () => undefined }>
             <MultiSelect.Chips className="flex-wrap">
                 { TONES.map((tone) => (
                     <MultiSelect.Chip key={ tone } tone={ tone }>

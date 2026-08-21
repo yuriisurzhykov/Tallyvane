@@ -85,17 +85,35 @@ export interface ContrastFinding extends TextSample {
  * Known limits, stated rather than hidden: background images, gradients, blend
  * modes and ancestor `opacity` are not accounted for. None appear in this
  * design, but a page that grows one will be measured optimistically.
+ *
+ * Both this function and the callback it passes to `page.evaluate` below
+ * are exempted from `max-lines-per-function` (see the comment on the
+ * `page.evaluate` call). `page.evaluate` serializes that callback to a
+ * string and runs it inside the browser page, not in Node — it can close
+ * over `knownStyles` (passed explicitly as evaluate's second argument) and
+ * nothing else. Every helper inside it has to live in that same closure for
+ * exactly that reason: pulling `parse`/`over`/`effectiveBackground`/etc. out
+ * to module scope would compile fine but throw a `ReferenceError` at
+ * runtime, since a Node-defined function is never part of what gets sent
+ * across the page boundary. The length here is that sandboxing constraint,
+ * not an unfactored responsibility — narrowly exempted rather than split
+ * apart in a way that would break.
  */
+// eslint-disable-next-line max-lines-per-function -- see doc comment above
 export async function collectTextSamples(page: Page): Promise<TextSample[]> {
+    // eslint-disable-next-line max-lines-per-function -- see doc comment above
     return page.evaluate((knownStyles: string[]) => {
         interface Rgba { r: number; g: number; b: number; a: number }
 
         function parse(value: string): Rgba | null {
             const match = /rgba?\(([^)]+)\)/.exec(value);
-            if (!match) return null;
-            const parts = match[1]!.split(/[,\s/]+/).filter(Boolean).map(Number);
+            const captured = match?.[1];
+            if (captured === undefined) return null;
+            const parts = captured.split(/[,\s/]+/).filter(Boolean).map(Number);
             if (parts.length < 3 || parts.slice(0, 3).some(Number.isNaN)) return null;
-            return { r: parts[0]!, g: parts[1]!, b: parts[2]!, a: parts.length > 3 ? parts[3]! : 1 };
+            const [r, g, b, a] = parts;
+            if (r === undefined || g === undefined || b === undefined) return null;
+            return { r, g, b, a: a ?? 1 };
         }
 
         /** Standard source-over compositing. */
@@ -112,9 +130,11 @@ export async function collectTextSamples(page: Page): Promise<TextSample[]> {
                 const colour = parse(getComputedStyle(node).backgroundColor);
                 if (colour && colour.a > 0) layers.push(colour);
             }
-            let result: Rgba = { r: 255, g: 255, b: 255, a: 1 };
-            for (let i = layers.length - 1; i >= 0; i -= 1) result = over(layers[i]!, result);
-            return result;
+            // `reduceRight`, not a manual reverse `for` loop: it walks the same
+            // last-to-first order without ever indexing `layers` by a computed
+            // position, which is what needed a non-null assertion before.
+            const opaque: Rgba = { r: 255, g: 255, b: 255, a: 1 };
+            return layers.reduceRight((result, layer) => over(layer, result), opaque);
         }
 
         /**
@@ -209,7 +229,7 @@ export async function collectTextSamples(page: Page): Promise<TextSample[]> {
             if (!rawForeground) continue;
             const foreground = over(rawForeground, background);
 
-            const rgb = (c: Rgba) => `rgb(${Math.round(c.r)}, ${Math.round(c.g)}, ${Math.round(c.b)})`;
+            const rgb = (c: Rgba) => `rgb(${String(Math.round(c.r))}, ${String(Math.round(c.g))}, ${String(Math.round(c.b))})`;
             samples.push({
                 selector: describe(element),
                 text: text.slice(0, 60),
@@ -255,7 +275,7 @@ export function formatFindings(findings: readonly ContrastFinding[]): string {
             `- ${finding.selector}`,
             `    "${finding.text}"`,
             `    ${finding.foreground} on ${finding.background}`,
-            `    Lc ${finding.lc}, needs Lc ${finding.requiredLc} (${purpose}, ${finding.fontSize}px/${finding.fontWeight})`,
+            `    Lc ${String(finding.lc)}, needs Lc ${String(finding.requiredLc)} (${purpose}, ${String(finding.fontSize)}px/${String(finding.fontWeight)})`,
         ].join("\n");
     });
     return `APCA contrast is insufficient:\n${lines.join("\n")}`;

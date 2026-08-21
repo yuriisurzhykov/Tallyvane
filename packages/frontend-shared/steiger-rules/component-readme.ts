@@ -41,7 +41,7 @@ const componentReadme = {
 
         const segments = getSegments(shared);
         const ui = segments.ui;
-        if (!ui || ui.type !== "folder") return { diagnostics };
+        if (ui?.type !== "folder") return { diagnostics };
 
         for (const child of ui.children) {
             if (child.type !== "folder") continue;

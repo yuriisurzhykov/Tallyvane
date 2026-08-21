@@ -38,6 +38,19 @@ description: The rules-log file for all the lessons learned during working on th
   The generator checks this on every run against the exact list of variables the
   primitive tiers emitted, **because role and primitive cannot be told apart by
   name shape** — both compile to `--ds-color-*`.
+- **A named constant holding `"26px"` is still a hardcoded dimension.**
+  `no-raw-dimension-value` used to inspect only a string literal inside
+  `style={{}}`, so `const BOX = "1.25rem"`, `N + "px"`, `` `${N}px` ``,
+  `mergeStyle`'s extra object, and an extracted `wrapperStyle` all slipped
+  through — and several component READMEs documented the named identifier as
+  the official exemption. An agent used that hole. The rule is now
+  fail-closed: it resolves same-file identifiers, treats imports as unknown
+  (flag), and the message asks for a token resource (`var(--…)` or a
+  Tailwind class), not another constant. Lucide `size={16}` is a third
+  channel (SVG attribute, not CSS) closed by `no-raw-icon-size`. The only
+  remaining silence is a complete `@architecture-exception` that names the
+  rule and an ADR (today: virtualizer `estimateSize`, ADR-042). The color
+  twin (`const C = "#fff"`) is the same hole and is not closed yet.
 - **A contrast decision must be made against the worst surface, not the
   obvious one.** Muted text is tightest on the *inset* surface, which is the
   lightest of the dark set, not on the darkest one. Measuring against the
@@ -289,6 +302,72 @@ description: The rules-log file for all the lessons learned during working on th
 - **The FSD layer cannot be named `pages/`** — it collides with Next.js's legacy
   Pages Router auto-detection. This repo uses `views/`, applied at scaffolding
   time; do not "fix" it back.
+- **`.cursor/hooks/enforce-frontend-commands.mjs` fails closed on at least one
+  otherwise-harmless command** (`git diff --stat` reproducibly returns "hook
+  returned no output" and gets blocked; `git status --short`/`git diff`
+  without `--stat` do not). Not yet root-caused — recorded here so the next
+  person hitting it does not re-diagnose from scratch. Work around it by using
+  a different git invocation rather than retrying the same one.
+- **A rule's own "always truthy" claim is only as good as the type it is
+  checked against, and a hand-widened `unknown`/`as` cast at a call site can
+  make the type lie.** `no-unnecessary-condition` flagged `value &&` as
+  redundant in `resolveTree`'s `typeof value === "object"` branch because
+  `TokenTree`'s declared leaf type has no `boolean`/`null` member — but a real
+  caller elsewhere in the package passes one through via `as unknown as
+  TokenTree` (`references.test.ts`'s own "passes a boolean/null leaf through
+  untouched" case), and `typeof null === "object"` in JS. Removing the guard
+  passed typecheck and lint, and only failed at `pnpm test` with `Cannot
+  convert undefined or null to object` — the guard came back, with an inline
+  `eslint-disable` citing the test by name, because the type is the thing
+  that's incomplete here, not the runtime check. **Run the actual test suite
+  after a "just removing a redundant check" lint fix — typecheck passing is
+  not evidence the check was truly redundant.**
+- **`no-invalid-void-type`'s `allowInGenericTypeArguments` does not apply to a
+  call expression's explicit type argument** (`fn<void>()`), only to a type
+  reference (`Promise<void>`) — a known, still-open upstream limitation
+  ([typescript-eslint#6340](https://github.com/typescript-eslint/typescript-eslint/issues/6340),
+  [#11997](https://github.com/typescript-eslint/typescript-eslint/issues/11997)).
+  A generic test helper called as `deferred<void>()` trips it regardless of
+  the option. Fixed by giving the helper's type parameter a `= void` default
+  and calling it as plain `deferred()` — the default never appears as a
+  literal `void` keyword at the call site, so the rule has nothing to flag,
+  and the fix reads as an improvement on its own merits besides.
+- **`prefer-nullish-coalescing` suggests `??` for any `x ? x : y` shape without
+  checking whether `x`'s type includes a non-nullish falsy value.** For
+  `x: string | undefined`, `x ? x : y` and `x ?? y` disagree exactly when `x`
+  is `""` — the ternary falls through to `y`, `??` does not. Taking the
+  rule's own suggestion here would have silently reintroduced a bug already
+  fixed on purpose (an empty-after-trim message printing as a blank reason
+  instead of falling back to the caller's default) — worth an inline
+  `eslint-disable` with the reason spelled out, not a mechanical accept.
+- **A headless library's `style`/`className` prop can be a plain value OR a
+  function of component state** (`@base-ui/react`'s `BaseUIComponentProps`:
+  `style?: CSSProperties | ((state: State) => CSSProperties | undefined)`,
+  same for `className`) — `no-misused-spread` flagging `{ ...style, width,
+  height }` here is a real bug catch, not noise: spreading a function copies
+  none of its own enumerable properties, so a caller's per-state style
+  callback silently vanishes and only the component's own additions survive.
+  Fixed once, generically, as `mergeStyle` in `shared/lib` (resolves the
+  caller's value first, static or not, then layers the fixed extras on top,
+  returning a function unconditionally since Base UI accepts that
+  natively) rather than five separate `typeof style === "function"` checks.
+- **`max-lines-per-function`/`max-lines`/`max-classes-per-file` measure the
+  shape of a *test file*, not a responsibility, when applied to `describe`/
+  `it` structure or an inline jsdom mock class — both are legitimate shapes a
+  test takes, not the smell these three rules exist to catch in real code.**
+  Exempt exactly these three rules for `*.test.{ts,tsx}`/`*.spec.{ts,tsx}`/
+  `*.stories.tsx`, not the rest of the proxy set (a genuinely complex test
+  *function*, or a real duplicated inline class string, is still worth
+  flagging).
+- **Splitting one long function into several smaller ones can just move the
+  line count to the file level instead of removing it.** Decomposing
+  `DesignSystemStorybook`'s 154-line body into 13 small section components
+  fixed `max-lines-per-function` but pushed the *file* over `max-lines` (310
+  of 300) — each new function's own boilerplate (signature, braces, JSDoc)
+  adds lines even as it removes complexity. Re-run the linter after a
+  decomposition rather than assuming a smaller function means a smaller
+  problem; the fix here was a second split, data into its own file and
+  section components into another, not reversing the first split.
 
 ### Local development on Windows
 

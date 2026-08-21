@@ -4,7 +4,7 @@ import { fireEvent } from "@testing-library/dom";
 import { describe, expect, it, vi } from "vitest";
 import { InlineEdit, type InlineEditEditorRenderProps, type InlineEditProps } from "./InlineEdit";
 
-function deferred<T>() {
+function deferred<T = void>() {
     let resolve!: (value: T) => void;
     let reject!: (reason: unknown) => void;
     const promise = new Promise<T>((res, rej) => {
@@ -18,7 +18,7 @@ function deferred<T>() {
 function TextEditor({ value, onChange, commit, cancel }: InlineEditEditorRenderProps<string>) {
     return (
         <>
-            <input aria-label="Job title" value={value} onChange={(event) => onChange(event.target.value)} />
+            <input aria-label="Job title" value={value} onChange={(event) => { onChange(event.target.value); }} />
             <button type="button" onClick={commit}>
                 Save
             </button>
@@ -189,7 +189,7 @@ describe("InlineEdit", () => {
         fireEvent.change(screen.getByLabelText("Job title"), { target: { value: "Senior Backend Engineer" } });
         fireEvent.keyDown(screen.getByLabelText("Job title"), { key: "Enter" });
 
-        await waitFor(() => expect(onError).toHaveBeenCalledTimes(1));
+        await waitFor(() => { expect(onError).toHaveBeenCalledTimes(1); });
         expect(onError.mock.calls[0]?.[0]).toBe(failure);
         // The exit was optimistic — the typed value still shows even though the save behind it failed.
         expect(screen.getByText("Senior Backend Engineer")).toBeInTheDocument();
@@ -213,7 +213,7 @@ describe("InlineEdit", () => {
         fireEvent.click(screen.getByRole("button", { name: "Backend Engineer Edit job title" }));
         fireEvent.change(screen.getByLabelText("Job title"), { target: { value: "Senior Backend Engineer" } });
         fireEvent.keyDown(screen.getByLabelText("Job title"), { key: "Enter" });
-        await waitFor(() => expect(onError).toHaveBeenCalledTimes(1));
+        await waitFor(() => { expect(onError).toHaveBeenCalledTimes(1); });
 
         const trigger = screen.getByRole("button", { name: "Senior Backend Engineer Edit job title" });
         expect(trigger).toHaveClass("border-status-danger");
@@ -234,7 +234,7 @@ describe("InlineEdit", () => {
         fireEvent.click(screen.getByRole("button", { name: "Backend Engineer Edit job title" }));
         fireEvent.change(screen.getByLabelText("Job title"), { target: { value: "Senior Backend Engineer" } });
         fireEvent.keyDown(screen.getByLabelText("Job title"), { key: "Enter" });
-        await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+        await waitFor(() => { expect(onSave).toHaveBeenCalledTimes(1); });
 
         fireEvent.click(screen.getByRole("button", { name: "Senior Backend Engineer Edit job title" }));
 
@@ -242,7 +242,7 @@ describe("InlineEdit", () => {
     });
 
     it("resolves onSave's own promise before any state update, guarding against an unmount race", async () => {
-        const { promise, resolve } = deferred<void>();
+        const { promise, resolve } = deferred();
         const onSave = vi.fn().mockReturnValue(promise);
         const { unmount } = render(<Harness initialValue="Backend Engineer" onSave={onSave} />);
 

@@ -131,7 +131,7 @@ export function useToast<Data extends object = Record<string, never>>(): {
         actions: {
             add: (options) => add(toBaseOptions(options)),
             close,
-            update: (id, options) => update(id, toBaseOptions(options as AddToastOptions<Data>)),
+            update: (id, options) => { update(id, toBaseOptions(options as AddToastOptions<Data>)); },
         },
         meta,
     };

@@ -34,9 +34,8 @@ custom property (so it is genuinely "via the control height roles," not a
 disconnected scale of its own), scaled by a fixed ratio (`/2.5`) rather than
 used at 1:1. The ratio was chosen, not guessed at random, so that the "md"
 step — `Button`'s own default size — lands on exactly 16px, which is
-already this package's established icon size in two other places
-(`SearchField.tsx`'s `ICON_SIZE`, `IconButton.stories.tsx`'s
-`PlaceholderIcon`). `sm` and `lg` land at 12.8px and 19.2px, proportionate
+already this package's established icon size (`--control-icon`, and
+`IconButton.stories.tsx`'s `PlaceholderIcon`). `sm` and `lg` land at 12.8px and 19.2px, proportionate
 neighbours of that same anchor.
 
 One consequence worth stating plainly: `Button`'s inline spinner is now

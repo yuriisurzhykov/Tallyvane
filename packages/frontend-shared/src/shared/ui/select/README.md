@@ -24,7 +24,8 @@ actively chosen from reads correctly as a brief, page-scroll-locking
 interaction, the same intent behind a native `<select>`'s own platform popup
 — unlike `Popover.tsx`'s own non-modal default, which is deliberately for a
 different kind of overlay ("anchored to a trigger, dismissed by clicking
-away," per the `z-popover` role's own stated intent).
+away," per the `z-popover` role's own stated intent). Check and chevron
+glyphs use `h-(--control-icon) w-(--control-icon)`, not Lucide `size={n}`.
 
 ### How much visual language is shared with `Menu`, and why
 

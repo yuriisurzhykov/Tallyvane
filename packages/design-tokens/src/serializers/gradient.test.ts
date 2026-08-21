@@ -54,17 +54,17 @@ describe("validateGradientStops", () => {
     const valid = () => ({ hero: { type: "linear" as const, angle: 0, stops: [{ color: "a", position: 0 }, { color: "b", position: 100 }] } });
 
     it("passes for ordered stops within range", () => {
-        expect(() => validateGradientStops(valid())).not.toThrow();
+        expect(() => { validateGradientStops(valid()); }).not.toThrow();
     });
 
     it("throws when a stop position is out of 0..100", () => {
-        expect(() => validateGradientStops({ hero: { type: "linear", angle: 0, stops: [{ color: "a", position: 101 }] } })).toThrow(/out of 0\.\.100/);
-        expect(() => validateGradientStops({ hero: { type: "linear", angle: 0, stops: [{ color: "a", position: -1 }] } })).toThrow(/out of 0\.\.100/);
+        expect(() => { validateGradientStops({ hero: { type: "linear", angle: 0, stops: [{ color: "a", position: 101 }] } }); }).toThrow(/out of 0\.\.100/);
+        expect(() => { validateGradientStops({ hero: { type: "linear", angle: 0, stops: [{ color: "a", position: -1 }] } }); }).toThrow(/out of 0\.\.100/);
     });
 
     it("throws when stops are out of order", () => {
         expect(() =>
-            validateGradientStops({ hero: { type: "linear", angle: 0, stops: [{ color: "a", position: 60 }, { color: "b", position: 40 }] } }),
+            { validateGradientStops({ hero: { type: "linear", angle: 0, stops: [{ color: "a", position: 60 }, { color: "b", position: 40 }] } }); },
         ).toThrow(/out-of-order stops/);
     });
 
@@ -74,16 +74,16 @@ describe("validateGradientStops", () => {
     // would.
     it("allows two consecutive stops at the exact same position (a hard edge)", () => {
         expect(() =>
-            validateGradientStops({ hero: { type: "linear", angle: 0, stops: [{ color: "a", position: 40 }, { color: "b", position: 40 }] } }),
+            { validateGradientStops({ hero: { type: "linear", angle: 0, stops: [{ color: "a", position: 40 }, { color: "b", position: 40 }] } }); },
         ).not.toThrow();
     });
 
     it("throws when a stop's opacity is out of 0..1, on EITHER side of the range", () => {
         expect(() =>
-            validateGradientStops({ hero: { type: "linear", angle: 0, stops: [{ color: "a", position: 0, opacity: 1.5 }] } }),
+            { validateGradientStops({ hero: { type: "linear", angle: 0, stops: [{ color: "a", position: 0, opacity: 1.5 }] } }); },
         ).toThrow(/opacity out of 0\.\.1/);
         expect(() =>
-            validateGradientStops({ hero: { type: "linear", angle: 0, stops: [{ color: "a", position: 0, opacity: -0.5 }] } }),
+            { validateGradientStops({ hero: { type: "linear", angle: 0, stops: [{ color: "a", position: 0, opacity: -0.5 }] } }); },
         ).toThrow(/opacity out of 0\.\.1/);
     });
 
@@ -91,13 +91,13 @@ describe("validateGradientStops", () => {
     // distinguishes `<`/`>` from `<=`/`>=` on both ends of the opacity check.
     it("accepts opacity at the exact 0 and 1 boundaries", () => {
         expect(() =>
-            validateGradientStops({ hero: { type: "linear", angle: 0, stops: [{ color: "a", position: 0, opacity: 0 }, { color: "b", position: 100, opacity: 1 }] } }),
+            { validateGradientStops({ hero: { type: "linear", angle: 0, stops: [{ color: "a", position: 0, opacity: 0 }, { color: "b", position: 100, opacity: 1 }] } }); },
         ).not.toThrow();
     });
 
     it("validates every layer of a layered gradient independently, naming which layer failed", () => {
         expect(() =>
-            validateGradientStops({
+            { validateGradientStops({
                 mesh: {
                     type: "layered",
                     layers: [
@@ -105,7 +105,7 @@ describe("validateGradientStops", () => {
                         { type: "radial", position: "0% 0%", stops: [{ color: "b", position: 200 }] },
                     ],
                 },
-            }),
+            }); },
         ).toThrow(/mesh\[1\]/);
     });
 });

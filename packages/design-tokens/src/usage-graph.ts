@@ -85,5 +85,5 @@ export function findSingleConsumerGlobals(consumers: readonly NamespacedTree[]):
 /** DS101 — a global-semantic role that no component/composite consumer references at all (warn, not error: a brand-new role may just not have a consumer YET). */
 export function findUnusedGlobalSemantics(definedPaths: readonly string[], consumers: readonly NamespacedTree[]): string[] {
     const map = buildConsumerReferenceMap(consumers);
-    return definedPaths.filter((path) => !map.has(path) || map.get(path)!.size === 0);
+    return definedPaths.filter((path) => (map.get(path)?.size ?? 0) === 0);
 }

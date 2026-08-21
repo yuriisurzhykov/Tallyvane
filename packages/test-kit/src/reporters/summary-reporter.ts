@@ -152,11 +152,11 @@ export default class SummaryReporter implements Reporter {
     private readonly entries: TestSummaryEntry[] = [];
     private readonly outputFile: string;
 
-    constructor(options: { readonly outputFile?: string } = {}) {
+    public constructor(options: { readonly outputFile?: string } = {}) {
         this.outputFile = options.outputFile ?? path.join("test-results", "summary.json");
     }
 
-    onTestEnd(test: TestCase, result: TestResult): void {
+    public onTestEnd(test: TestCase, result: TestResult): void {
         const axeRaw = readAttachment(result, AXE_ATTACHMENT);
         const wcagRaw = readAttachment(result, WCAG_CONTRAST_ATTACHMENT);
         const apcaRaw = readAttachment(result, APCA_ATTACHMENT);
@@ -180,7 +180,7 @@ export default class SummaryReporter implements Reporter {
         });
     }
 
-    onEnd(result: FullResult): void {
+    public onEnd(result: FullResult): void {
         const passed = this.entries.filter((entry) => entry.status === "passed").length;
         const skipped = this.entries.filter((entry) => entry.status === "skipped").length;
 

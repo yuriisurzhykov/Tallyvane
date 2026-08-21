@@ -32,7 +32,7 @@ type ControlledSearchFieldProps = Omit<SearchFieldProps, "value" | "onChange"> &
 
 function ControlledSearchField({ initialValue = "", ...rest }: ControlledSearchFieldProps) {
     const [value, setValue] = useState(initialValue);
-    return <SearchField {...rest} value={value} onChange={(event) => setValue(event.target.value)} />;
+    return <SearchField {...rest} value={value} onChange={(event) => { setValue(event.target.value); }} />;
 }
 
 const meta: StoryMeta<ControlledSearchFieldProps> = {
@@ -42,21 +42,21 @@ const meta: StoryMeta<ControlledSearchFieldProps> = {
 export default meta;
 
 export const Default: Story<ControlledSearchFieldProps> = {
-    args: { "aria-label": "Search jobs", onSearch: () => {}, clearLabel: "Clear search" },
+    args: { "aria-label": "Search jobs", onSearch: () => undefined, clearLabel: "Clear search" },
     tags: ["no-visible-text"],
 };
 
 export const WithValue: Story<ControlledSearchFieldProps> = {
-    args: { "aria-label": "Search jobs", initialValue: "staff engineer", onSearch: () => {}, clearLabel: "Clear search" },
+    args: { "aria-label": "Search jobs", initialValue: "staff engineer", onSearch: () => undefined, clearLabel: "Clear search" },
     tags: ["no-visible-text"],
 };
 
 export const Invalid: Story<ControlledSearchFieldProps> = {
-    args: { "aria-label": "Search jobs", "aria-invalid": "true", onSearch: () => {}, clearLabel: "Clear search" },
+    args: { "aria-label": "Search jobs", "aria-invalid": "true", onSearch: () => undefined, clearLabel: "Clear search" },
     tags: ["no-visible-text"],
 };
 
 export const Disabled: Story<ControlledSearchFieldProps> = {
-    args: { "aria-label": "Search jobs", disabled: true, onSearch: () => {}, clearLabel: "Clear search" },
+    args: { "aria-label": "Search jobs", disabled: true, onSearch: () => undefined, clearLabel: "Clear search" },
     tags: ["no-visible-text"],
 };

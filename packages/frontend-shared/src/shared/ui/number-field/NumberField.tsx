@@ -5,6 +5,7 @@ import { NumberField as BaseNumberField } from "@base-ui/react/number-field";
 import { Minus, Plus } from "lucide-react";
 import { IconButton } from "../icon-button";
 import { Text } from "../text";
+import { CONTROL_ICON_CLASS } from "../../lib";
 
 export type NumberFieldSize = "sm" | "md" | "lg";
 
@@ -187,8 +188,6 @@ export interface NumberFieldStepperOwnProps {
 export type NumberFieldIncrementProps = NumberFieldStepperOwnProps;
 export type NumberFieldDecrementProps = NumberFieldStepperOwnProps;
 
-const STEPPER_ICON_SIZE = 16;
-
 /**
  * Disabled dimming is applied here, not inside `IconButton`: `IconButton`
  * itself carries no `data-[disabled]` treatment of its own (it defers to
@@ -237,7 +236,7 @@ function Increment({ label, size, children, className }: NumberFieldStepperOwnPr
             render={
                 <IconButton label={ label } tone="neutral" size={ resolvedSize }
                             className={ [DISABLED_CLASS, className].filter(Boolean).join(" ") }>
-                    { children ?? <Plus size={ STEPPER_ICON_SIZE }/> }
+                    { children ?? <Plus className={CONTROL_ICON_CLASS}/> }
                 </IconButton>
             }
         />
@@ -255,7 +254,7 @@ function Decrement({ label, size, children, className }: NumberFieldStepperOwnPr
             render={
                 <IconButton label={ label } tone="neutral" size={ resolvedSize }
                             className={ [DISABLED_CLASS, className].filter(Boolean).join(" ") }>
-                    { children ?? <Minus size={ STEPPER_ICON_SIZE }/> }
+                    { children ?? <Minus className={CONTROL_ICON_CLASS}/> }
                 </IconButton>
             }
         />

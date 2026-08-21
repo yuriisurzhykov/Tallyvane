@@ -7,6 +7,41 @@
 > step, public entry points, a registry — is a separate task; until then this
 > copy is canonical and Portfolio-Website is the one that migrates.
 
+## 2026-08-21 — named-constant exemption closed; Lucide `size={n}` closed
+
+`no-raw-dimension-value` used to inspect only a **string literal** inside
+`style={{ width: "26px" }}`. A named constant (`const BOX = "1.25rem"`),
+`N + "px"`, `` `${N}px` ``, `mergeStyle`'s extra object, and an extracted
+`wrapperStyle` all slipped through — and several consuming-project READMEs
+documented the named identifier as the official exemption. An agent used
+that hole (`EXPAND_COLUMN_WIDTH_PX + "px"`). The value was still a
+hardcode; only the AST shape had changed.
+
+The rule is now fail-closed: it resolves same-file identifiers, treats an
+imported identifier as unknown (flag), walks `mergeStyle` arguments and
+extracted objects, flags React's unitless pixel numbers (`height: 32`), and
+allows only `var()`/`calc()`/`clamp()`/`min()`/`max()`, `ch`, runtime
+(parameter / call / member / `undefined`), and a complete
+`@architecture-exception` that names this rule and an ADR. The message
+says to use a token resource, not to extract a constant.
+`no-arbitrary-dimension-class` likewise flags `` `w-[${n}px]` ``, which no
+single template quasi used to match.
+
+`no-raw-icon-size` is a third rule for `lucide-react` `size={16}` /
+`size={CONST}` — an SVG attribute the style rule never sees. Replacement
+is a token class (`h-(--control-icon) w-(--control-icon)`).
+`Button size="sm"` is out of scope because that `size` is a variant name,
+not a pixel.
+
+The color twin (`const C = "#fff"`) is the same hole and is **not** closed
+in this pass.
+
+Worth recording because the previous exemption was not an accident of the
+regex — it was written into READMEs as the way to stay clean. Closing it
+without a token to point at would have left components with nowhere legal
+to put a length, which is why `--control-icon` / `--control-box` and the
+component tokens landed in the same change.
+
 ## 2026-08-18 — the vendoring immediately found a version it had never been checked against
 
 `package.json` declares `eslint: ^10.8.0`, but the install it actually type-checked

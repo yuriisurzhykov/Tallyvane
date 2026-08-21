@@ -64,6 +64,6 @@ describe("Switch", () => {
         const thumb = document.querySelector('[data-checked]:not([role="switch"])');
 
         expect(thumb).toHaveClass("data-[checked]:translate-x-(--switch-thumb-travel)");
-        expect((thumb as HTMLElement).style.getPropertyValue("--switch-thumb-travel")).toBe("1rem");
+        expect((thumb as HTMLElement).style.getPropertyValue("--switch-thumb-travel")).toBe("var(--ds-component-switch-thumb-travel)");
     });
 });

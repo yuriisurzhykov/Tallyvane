@@ -23,39 +23,78 @@ export function propertyKeyName(key: any): string | null {
     return null;
 }
 
+type StringVisitor = (value: string, node: any) => void;
+type NodeWalker = (node: any, visit: StringVisitor) => void;
+
+/**
+ * One small function per node shape instead of a `switch` — each is simple
+ * enough on its own to stay well under the complexity budget, and a new
+ * shape (should `walkForStrings` ever need one) is one added map entry, not
+ * a growing branch inside a single function.
+ */
+const WALKERS: Record<string, NodeWalker> = {
+    Literal(node, visit) {
+        if (typeof node.value === "string") visit(node.value, node);
+    },
+    JSXExpressionContainer(node, visit) {
+        walkForStrings(node.expression, visit);
+    },
+    TemplateLiteral(node, visit) {
+        for (const quasi of node.quasis) visit(quasi.value.raw, node);
+    },
+    CallExpression(node, visit) {
+        for (const arg of node.arguments) walkForStrings(arg, visit);
+    },
+    ConditionalExpression(node, visit) {
+        walkForStrings(node.consequent, visit);
+        walkForStrings(node.alternate, visit);
+    },
+    LogicalExpression(node, visit) {
+        walkForStrings(node.left, visit);
+        walkForStrings(node.right, visit);
+    },
+    ArrayExpression(node, visit) {
+        for (const element of node.elements) walkForStrings(element, visit);
+    },
+    ObjectExpression(node, visit) {
+        for (const property of node.properties) {
+            if (property.type === "Property") walkForStrings(property.key, visit);
+        }
+    },
+};
+
+const TEMPLATE_WALKERS: Record<string, (node: any, visit: (template: any) => void) => void> = {
+    JSXExpressionContainer(node, visit) {
+        walkForTemplateLiterals(node.expression, visit);
+    },
+    CallExpression(node, visit) {
+        for (const arg of node.arguments) walkForTemplateLiterals(arg, visit);
+    },
+    ConditionalExpression(node, visit) {
+        walkForTemplateLiterals(node.consequent, visit);
+        walkForTemplateLiterals(node.alternate, visit);
+    },
+    LogicalExpression(node, visit) {
+        walkForTemplateLiterals(node.left, visit);
+        walkForTemplateLiterals(node.right, visit);
+    },
+    ArrayExpression(node, visit) {
+        for (const element of node.elements) walkForTemplateLiterals(element, visit);
+    },
+};
+
 /** Walks a `className={...}` value for every string literal it could resolve to — through `cn()`/`clsx()`-style calls, ternaries, `&&`, arrays, and template literals. */
-export function walkForStrings(node: any, visit: (value: string, node: any) => void): void {
+export function walkForStrings(node: any, visit: StringVisitor): void {
     if (!node) return;
-    switch (node.type) {
-        case "Literal":
-            if (typeof node.value === "string") visit(node.value, node);
-            return;
-        case "JSXExpressionContainer":
-            walkForStrings(node.expression, visit);
-            return;
-        case "TemplateLiteral":
-            for (const quasi of node.quasis) visit(quasi.value.raw, node);
-            return;
-        case "CallExpression":
-            for (const arg of node.arguments) walkForStrings(arg, visit);
-            return;
-        case "ConditionalExpression":
-            walkForStrings(node.consequent, visit);
-            walkForStrings(node.alternate, visit);
-            return;
-        case "LogicalExpression":
-            walkForStrings(node.left, visit);
-            walkForStrings(node.right, visit);
-            return;
-        case "ArrayExpression":
-            for (const element of node.elements) walkForStrings(element, visit);
-            return;
-        case "ObjectExpression":
-            for (const property of node.properties) {
-                if (property.type === "Property") walkForStrings(property.key, visit);
-            }
-            return;
-        default:
-            return;
+    WALKERS[node.type]?.(node, visit);
+}
+
+/** Same tree as `walkForStrings`, but yields each TemplateLiteral node so a rule can see constructed `` `w-[${n}px]` `` holes that no single quasi matches. */
+export function walkForTemplateLiterals(node: any, visit: (template: any) => void): void {
+    if (!node) return;
+    if (node.type === "TemplateLiteral") {
+        visit(node);
+        return;
     }
+    TEMPLATE_WALKERS[node.type]?.(node, visit);
 }

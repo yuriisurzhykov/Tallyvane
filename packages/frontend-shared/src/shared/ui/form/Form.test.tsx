@@ -7,7 +7,7 @@ import { Input } from "../input";
 
 describe("Form", () => {
     it("fires its submission handler on submit", () => {
-        const onSubmit = vi.fn((event: React.FormEvent<HTMLFormElement>) => event.preventDefault());
+        const onSubmit = vi.fn((event: React.SyntheticEvent<HTMLFormElement>) => { event.preventDefault(); });
         render(
             <Form onSubmit={onSubmit}>
                 <button type="submit">Submit</button>

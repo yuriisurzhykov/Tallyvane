@@ -3,6 +3,7 @@
 import { Linter } from "eslint";
 import { describe, expect, it } from "vitest";
 import rule from "./no-arbitrary-color-class";
+import { onlyMessage } from "./test-helpers";
 
 const linter = new Linter();
 
@@ -16,9 +17,8 @@ function lint(code: string) {
 
 describe("no-arbitrary-color-class", () => {
     it("flags a hex color in an arbitrary bg- class", () => {
-        const messages = lint('const x = <div className="bg-[#e8743a]" />;');
-        expect(messages).toHaveLength(1);
-        expect(messages[0]!.message).toContain('"bg-[#e8743a]"');
+        const message = onlyMessage(lint('const x = <div className="bg-[#e8743a]" />;'));
+        expect(message).toContain('"bg-[#e8743a]"');
     });
 
     it("flags an hsl()/rgb() color across other color-bearing prefixes", () => {

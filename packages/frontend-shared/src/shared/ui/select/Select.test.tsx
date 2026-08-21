@@ -144,7 +144,7 @@ describe("Select", () => {
         it("transitions cleanly from uncontrolled to a freshly-controlled instance", () => {
             function Controlled() {
                 const [value, setValue] = useState("Remote");
-                return <BasicSelect value={ value } onValueChange={ (next) => setValue(next ?? "") }/>;
+                return <BasicSelect value={ value } onValueChange={ (next) => { setValue(next ?? ""); } }/>;
             }
 
             render(<Controlled/>);

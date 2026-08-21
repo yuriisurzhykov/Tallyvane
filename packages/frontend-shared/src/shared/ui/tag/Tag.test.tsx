@@ -14,8 +14,7 @@ describe("Tag", () => {
     describe.each(Object.entries(TONE_CLASS))('tone "%s"', (tone, expectedClass) => {
         it(`renders with its "${ expectedClass }" background`, () => {
             render(
-                <Tag tone={ tone as TagTone } onRemove={ () => {
-                } } removeLabel="Remove React">
+                <Tag tone={ tone as TagTone } onRemove={ () => undefined } removeLabel="Remove React">
                     React
                 </Tag>,
             );
@@ -25,8 +24,7 @@ describe("Tag", () => {
 
     it("defaults to the neutral tone when none is given", () => {
         render(
-            <Tag onRemove={ () => {
-            } } removeLabel="Remove React">
+            <Tag onRemove={ () => undefined } removeLabel="Remove React">
                 React
             </Tag>,
         );
@@ -35,8 +33,7 @@ describe("Tag", () => {
 
     it("reads its shape from the chip radius role, not Badge's pill", () => {
         render(
-            <Tag onRemove={ () => {
-            } } removeLabel="Remove React">
+            <Tag onRemove={ () => undefined } removeLabel="Remove React">
                 React
             </Tag>,
         );
@@ -45,8 +42,7 @@ describe("Tag", () => {
 
     it("renders a real, named dismiss button", () => {
         render(
-            <Tag onRemove={ () => {
-            } } removeLabel="Remove React">
+            <Tag onRemove={ () => undefined } removeLabel="Remove React">
                 React
             </Tag>,
         );
@@ -74,8 +70,7 @@ describe("Tag", () => {
 
     it("is a real, natively focusable button — keyboard activation is standard browser behaviour, not custom-implemented here", () => {
         render(
-            <Tag onRemove={ () => {
-            } } removeLabel="Remove React">
+            <Tag onRemove={ () => undefined } removeLabel="Remove React">
                 React
             </Tag>,
         );
@@ -86,8 +81,7 @@ describe("Tag", () => {
 
     it("carries the focus-visible ring utility on its dismiss button, required of every interactive component in this system", () => {
         render(
-            <Tag onRemove={ () => {
-            } } removeLabel="Remove React">
+            <Tag onRemove={ () => undefined } removeLabel="Remove React">
                 React
             </Tag>,
         );
@@ -96,8 +90,7 @@ describe("Tag", () => {
 
     it("merges a caller-provided className with its own classes", () => {
         render(
-            <Tag onRemove={ () => {
-            } } removeLabel="Remove React" className="ml-inline-tight">
+            <Tag onRemove={ () => undefined } removeLabel="Remove React" className="ml-inline-tight">
                 React
             </Tag>,
         );

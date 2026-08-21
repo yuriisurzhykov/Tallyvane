@@ -19,6 +19,7 @@
  *         "design-tokens/no-arbitrary-color-class": "error",
  *         "design-tokens/no-raw-dimension-value": "error",
  *         "design-tokens/no-arbitrary-dimension-class": "error",
+ *         "design-tokens/no-raw-icon-size": "error",
  *       },
  *     },
  *   ];
@@ -35,6 +36,7 @@ import noArbitraryDimensionClass from "./no-arbitrary-dimension-class.ts";
 import noRawColorValue from "./no-raw-color-value.ts";
 import noRawDimensionValue from "./no-raw-dimension-value.ts";
 import noUnnamedZIndexClass from "./no-unnamed-z-index-class.ts";
+import noRawIconSize from "./no-raw-icon-size.ts";
 
 const plugin = {
     meta: { name: "design-token-engine", version: "0.0.1" },
@@ -44,8 +46,16 @@ const plugin = {
         "no-raw-dimension-value": noRawDimensionValue,
         "no-arbitrary-dimension-class": noArbitraryDimensionClass,
         "no-unnamed-z-index-class": noUnnamedZIndexClass,
+        "no-raw-icon-size": noRawIconSize,
     },
 };
 
 export default plugin;
-export { noArbitraryColorClass, noArbitraryDimensionClass, noRawColorValue, noRawDimensionValue, noUnnamedZIndexClass };
+export {
+    noArbitraryColorClass,
+    noArbitraryDimensionClass,
+    noRawColorValue,
+    noRawDimensionValue,
+    noUnnamedZIndexClass,
+    noRawIconSize,
+};

@@ -8,7 +8,7 @@ import { DEFAULT_AUTOSAVE_DEBOUNCE_MS, useDebouncedAutosave } from "./use-deboun
  * `Promise.resolve()`/`Promise.reject()` mock cannot do — both settle before
  * the assertion ever runs.
  */
-function deferred<T>() {
+function deferred<T = void>() {
     let resolve!: (value: T) => void;
     let reject!: (reason: unknown) => void;
     const promise = new Promise<T>((res, rej) => {
@@ -152,7 +152,7 @@ describe("useDebouncedAutosave", () => {
     });
 
     it("flush() saves immediately, without waiting out the remaining debounce", async () => {
-        const { promise, resolve } = deferred<void>();
+        const { promise, resolve } = deferred();
         const onSave = vi.fn().mockReturnValue(promise);
         const { result, rerender } = renderHook(({ value }) => useDebouncedAutosave({ value, onSave }), {
             initialProps: { value: "a" },
@@ -190,8 +190,8 @@ describe("useDebouncedAutosave", () => {
      * the caller has already moved past.
      */
     it("a superseded in-flight save does not overwrite the status of a newer one", async () => {
-        const first = deferred<void>();
-        const second = deferred<void>();
+        const first = deferred();
+        const second = deferred();
         const onSave = vi.fn().mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
         const { result, rerender } = renderHook(({ value }) => useDebouncedAutosave({ value, onSave }), {
             initialProps: { value: "a" },

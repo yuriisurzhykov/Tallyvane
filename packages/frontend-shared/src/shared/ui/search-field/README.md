@@ -52,6 +52,10 @@ handler writes through the prototype's original, un-patched setter before
 dispatching a manual `input` event — otherwise React would treat the
 programmatic clear as a no-op and never call `onChange`.
 
+Leading/trailing inset for the glyphs is
+`calc(var(--control-icon) + 2 * var(--spacing-inline))`, not a pre-summed
+2rem. The glyphs themselves use `h-(--control-icon) w-(--control-icon)`.
+
 ## SOLID
 
 Single responsibility: debounce timing and the clear affordance, nothing

@@ -21,8 +21,7 @@ export const Neutral: Story<TagProps> = {
         tone: "neutral",
         removeLabel: "Remove React",
         children: "React",
-        onRemove: () => {
-        }
+        onRemove: () => undefined,
     }
 };
 export const Info: Story<TagProps> = {
@@ -30,8 +29,7 @@ export const Info: Story<TagProps> = {
         tone: "info",
         removeLabel: "Remove Remote",
         children: "Remote",
-        onRemove: () => {
-        }
+        onRemove: () => undefined,
     }
 };
 export const Attention: Story<TagProps> = {
@@ -39,8 +37,7 @@ export const Attention: Story<TagProps> = {
         tone: "attention",
         removeLabel: "Remove no visa sponsorship",
         children: "No visa sponsorship",
-        onRemove: () => {
-        }
+        onRemove: () => undefined,
     },
 };
 export const Success: Story<TagProps> = {
@@ -48,8 +45,7 @@ export const Success: Story<TagProps> = {
         tone: "success",
         removeLabel: "Remove must-have",
         children: "Must-have",
-        onRemove: () => {
-        }
+        onRemove: () => undefined,
     }
 };
 export const Danger: Story<TagProps> = {
@@ -57,7 +53,6 @@ export const Danger: Story<TagProps> = {
         tone: "danger",
         removeLabel: "Remove disqualifier",
         children: "Disqualifier",
-        onRemove: () => {
-        }
+        onRemove: () => undefined,
     }
 };

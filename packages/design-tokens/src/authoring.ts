@@ -29,7 +29,7 @@ import type {
  * fight TypeScript's index-signature variance rules on the way back OUT,
  * once it's stored in a generic container like `CompilerInput.primitives`.
  */
-export function definePrimitives<T extends TokenTree>(tree: T): PrimitiveLayer<TokenTree> {
+export function definePrimitives(tree: TokenTree): PrimitiveLayer<TokenTree> {
     return Object.freeze({ ...tree, __kind: "primitive" });
 }
 
@@ -54,23 +54,23 @@ export function defineContract<const TRequired extends readonly string[]>(config
  * `themes/index.ts`) — "theme" here names the common USE CASE, not a
  * distinct code path; a flat category just happens to call this once.
  */
-export function defineTheme<C extends Contract<string>, T extends RequiredShape<C>>(
+export function defineTheme<C extends Contract>(
     contract: C,
-    roles: T & Record<string, unknown>,
+    roles: RequiredShape<C> & Record<string, unknown>,
 ): SemanticLayer<TokenTree> {
-    const label = `defineTheme("${contract.category}")`;
+    const label = `defineTheme("${ contract.category }")`;
     assertRequiredKeys(roles, contract.required, label);
     validateNoSemanticToSemanticRefs(roles, label);
     return Object.freeze({ ...roles, __kind: "semantic", __category: contract.category });
 }
 
 /** No required contract at all, by design — every component decides its own shape freely; not writing one breaks nothing. */
-export function defineComponentTokens<T extends TokenTree>(namespace: string, tokens: T): ComponentLayer<TokenTree> {
+export function defineComponentTokens(namespace: string, tokens: TokenTree): ComponentLayer<TokenTree> {
     return Object.freeze({ ...tokens, __kind: "component", __namespace: namespace });
 }
 
 /** Composites (gradients/shadows/typography-styles/transitions) follow the same reference rules as global semantics (primitive or global-semantic only) but have no required-key contract — a project either has a `hero` gradient or it doesn't. */
-export function defineComposite<T extends TokenTree>(kind: string, recipe: T): CompositeLayer<TokenTree> {
+export function defineComposite(kind: string, recipe: TokenTree): CompositeLayer<TokenTree> {
     validateNoSemanticToSemanticRefsAllowed(recipe, kind);
     return Object.freeze({ ...recipe, __kind: "composite", __compositeKind: kind });
 }

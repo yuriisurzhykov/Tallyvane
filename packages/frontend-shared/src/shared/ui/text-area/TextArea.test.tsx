@@ -15,7 +15,9 @@ describe("TextArea", () => {
 
     it("sets a min-height floor for browsers without field-sizing support", () => {
         render(<TextArea aria-label="Cover letter" />);
-        expect(screen.getByRole("textbox").style.minHeight).toBe("5.5rem");
+        expect(screen.getByRole("textbox").style.minHeight).toBe(
+            "calc(3 * var(--ds-text-body-line) + 2 * var(--ds-semantic-spacing-inline-tight) + 2 * var(--ds-border-hairline))",
+        );
     });
 
     it("keeps native vertical resize as the fallback interaction", () => {
@@ -41,7 +43,9 @@ describe("TextArea", () => {
     it("merges a caller-supplied style with its own min-height default", () => {
         render(<TextArea aria-label="Cover letter" style={{ color: "inherit" }} />);
         const textarea = screen.getByRole("textbox");
-        expect(textarea.style.minHeight).toBe("5.5rem");
+        expect(textarea.style.minHeight).toBe(
+            "calc(3 * var(--ds-text-body-line) + 2 * var(--ds-semantic-spacing-inline-tight) + 2 * var(--ds-border-hairline))",
+        );
         expect(textarea.style.color).toBe("inherit");
     });
 

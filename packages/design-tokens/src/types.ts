@@ -8,9 +8,9 @@
 
 export type ScalarToken = string | number;
 
-export type TokenTree = {
+export interface TokenTree {
     readonly [key: string]: ScalarToken | TokenTree | readonly unknown[];
-};
+}
 
 /**
  * Every object produced by the authoring API (definePrimitives/defineTheme/

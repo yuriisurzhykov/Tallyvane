@@ -12,7 +12,7 @@ interface Story<TProps> {
     readonly tags?: readonly string[];
 }
 
-const getValueLabel = (value: number) => `${ value } of 5`;
+const getValueLabel = (value: number) => `${ String(value) } of 5`;
 
 const meta: StoryMeta<RatingScaleProps> = {
     title: "Inputs/RatingScale",

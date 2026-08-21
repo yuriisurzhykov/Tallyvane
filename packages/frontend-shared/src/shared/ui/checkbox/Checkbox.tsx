@@ -1,6 +1,7 @@
 import type { CheckboxRootProps as BaseCheckboxRootProps } from "@base-ui/react/checkbox";
 import { Checkbox as BaseCheckbox } from "@base-ui/react/checkbox";
 import { Check, Minus } from "lucide-react";
+import { CONTROL_ICON_CLASS, mergeStyle } from "../../lib";
 
 export interface CheckboxOwnProps {
     /** Layout and position only — see `COMPONENTS.md` §11. */
@@ -14,19 +15,6 @@ export interface CheckboxOwnProps {
  * second state mechanism added here, same as `Toggle`.
  */
 export type CheckboxProps = CheckboxOwnProps & Omit<BaseCheckboxRootProps, "className">;
-
-/**
- * No spacing role names "how big a checkbox is" any more than one names
- * "how thick a scrollbar is" (`ScrollArea.tsx`'s own `SCROLLBAR_THICKNESS`) —
- * a checkbox box is geometry, not a spacing decision. `1.25rem` reads
- * clearly next to `text-body`'s 1.125rem/`text-small`'s 1.0625rem label
- * text without dwarfing it, and the same constant is reused (each file
- * owning its own copy, per that precedent) for `Radio`'s box and
- * `Slider`'s thumb so this batch's small controls share one implied scale.
- */
-const BOX_SIZE = "1.25rem";
-
-const ICON_SIZE = 14;
 
 const BOX_CLASS_NAME =
     "group inline-flex shrink-0 items-center justify-center rounded-chip border border-border-default bg-surface-inset text-text-on-accent transition-hover focus-visible:focus-ring data-[checked]:border-interactive-primary data-[checked]:bg-interactive-primary data-[indeterminate]:border-interactive-primary data-[indeterminate]:bg-interactive-primary aria-invalid:border-status-danger data-[disabled]:cursor-not-allowed data-[disabled]:opacity-60";
@@ -63,12 +51,12 @@ export function Checkbox({ className, style, ...props }: CheckboxProps) {
     return (
         <BaseCheckbox.Root
             className={ [BOX_CLASS_NAME, className].filter(Boolean).join(" ") }
-            style={ { ...style, width: BOX_SIZE, height: BOX_SIZE } }
+            style={ mergeStyle(style, { width: "var(--control-box)", height: "var(--control-box)" }) }
             { ...props }
         >
             <BaseCheckbox.Indicator className="flex" keepMounted={ false }>
-                <Check size={ ICON_SIZE } aria-hidden="true" className="group-data-[indeterminate]:hidden"/>
-                <Minus size={ ICON_SIZE } aria-hidden="true" className="hidden group-data-[indeterminate]:block"/>
+                <Check aria-hidden="true" className={`${CONTROL_ICON_CLASS} group-data-[indeterminate]:hidden`}/>
+                <Minus aria-hidden="true" className={`${CONTROL_ICON_CLASS} hidden group-data-[indeterminate]:block`}/>
             </BaseCheckbox.Indicator>
         </BaseCheckbox.Root>
     );

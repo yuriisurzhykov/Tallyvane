@@ -65,8 +65,8 @@ square, `control`-height-sized real button (32px at its smallest) — the
 right weight for a toggle beside a field, heavier than a chip only ~24px
 tall can hold without the button dominating it. A real
 `<button type="button">`, a required `removeLabel` (mirroring
-`SearchField`'s `clearLabel` — Tier 0 owns no copy of its own), and a 16px
-glyph plus `p-inline-tight` on every side for the WCAG 2.2 24×24 CSS px hit
+`SearchField`'s `clearLabel` — Tier 0 owns no copy of its own), and a
+`--control-icon` glyph plus `p-inline-tight` on every side for the WCAG 2.2 24×24 CSS px hit
 target this project's component-authoring skill calls for at this scale —
 not a shortcut past the accessibility work.
 

@@ -44,7 +44,7 @@ function createMatchMediaStub(): (query: string) => MediaQueryList {
                 if (listener) listeners.delete(listener as (event: MediaQueryListEvent) => void);
             },
             dispatchEvent: (event) => {
-                listeners.forEach((listener) => listener(event as MediaQueryListEvent));
+                listeners.forEach((listener) => { listener(event as MediaQueryListEvent); });
                 return true;
             },
         };

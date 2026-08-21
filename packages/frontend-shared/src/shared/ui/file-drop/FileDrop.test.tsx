@@ -21,7 +21,9 @@ function dropZone(): HTMLElement {
     // The instructional text is only present in the idle state, which every
     // test starts from — a stable way to reach the drop zone `<div>` itself
     // without depending on a test id this component doesn't otherwise need.
-    return screen.getByText("Drag and drop your résumé here").closest("div")!;
+    const zone = screen.getByText("Drag and drop your résumé here").closest("div");
+    if (!zone) throw new Error("could not find the drop zone <div> ancestor");
+    return zone;
 }
 
 function makeFile(name: string, content = "file contents"): File {

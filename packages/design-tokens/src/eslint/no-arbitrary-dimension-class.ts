@@ -19,7 +19,7 @@
  * ReDoS finding on that shape — never repeated here from scratch.
  */
 import type { Rule } from "eslint";
-import { isClassNameAttribute, walkForStrings } from "./ast-helpers.ts";
+import { isClassNameAttribute, walkForStrings, walkForTemplateLiterals } from "./ast-helpers.ts";
 
 const DIMENSION_PREFIXES =
     "w|h|size|min-w|max-w|min-h|max-h|p|px|py|ps|pe|pt|pr|pb|pl|m|mx|my|ms|me|mt|mr|mb|ml|gap|gap-x|gap-y|space-x|space-y|top|right|bottom|left|start|end|inset|inset-x|inset-y|text|leading|tracking|rounded";
@@ -40,6 +40,15 @@ function findDimensionBearingArbitraryClasses(value: string): string[] {
     return value.split(/\s+/).filter((token) => DIMENSION_BEARING_ARBITRARY_CLASS.test(token));
 }
 
+/** `` `w-[${n}px]` `` reconstructs a bare-length arbitrary class that no single quasi (`w-[`, `px]`) matches on its own. */
+function isConstructedArbitraryDimension(template: any): boolean {
+    if (!template.expressions?.length) return false;
+    const alreadyReported = template.quasis.some((quasi: { value: { raw: string } }) => findDimensionBearingArbitraryClasses(quasi.value.raw).length > 0);
+    if (alreadyReported) return false;
+    const filled = template.quasis.map((quasi: { value: { raw: string } }) => quasi.value.raw).join("0");
+    return findDimensionBearingArbitraryClasses(filled).length > 0;
+}
+
 const rule: Rule.RuleModule = {
     meta: {
         type: "problem",
@@ -56,7 +65,7 @@ const rule: Rule.RuleModule = {
         return {
             JSXAttribute(node: any) {
                 if (!isClassNameAttribute(node)) return;
-                walkForStrings((node).value, (value, stringNode) => {
+                walkForStrings(node.value, (value, stringNode) => {
                     for (const match of findDimensionBearingArbitraryClasses(value)) {
                         context.report({
                             node: stringNode,
@@ -64,6 +73,14 @@ const rule: Rule.RuleModule = {
                             data: { match },
                         });
                     }
+                });
+                walkForTemplateLiterals(node.value, (template) => {
+                    if (!isConstructedArbitraryDimension(template)) return;
+                    context.report({
+                        node: template,
+                        messageId: "rawDimensionInArbitraryClass",
+                        data: { match: template.quasis.map((quasi: { value: { raw: string } }) => quasi.value.raw).join("${…}") },
+                    });
                 });
             },
         };

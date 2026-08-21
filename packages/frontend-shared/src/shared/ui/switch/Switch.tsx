@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 import type { SwitchRootProps as BaseSwitchRootProps } from "@base-ui/react/switch";
 import { Switch as BaseSwitch } from "@base-ui/react/switch";
+import { mergeStyle } from "../../lib";
 
 export interface SwitchOwnProps {
     /** Layout and position only — see `COMPONENTS.md` §11. */
@@ -14,22 +15,6 @@ export interface SwitchOwnProps {
  * added here, same as `Toggle`/`Checkbox`.
  */
 export type SwitchProps = SwitchOwnProps & Omit<BaseSwitchRootProps, "className">;
-
-/**
- * Genuinely tokenless geometry — no spacing role names "how big a switch
- * track is" any more than one names "how wide a drawer is"
- * (`Drawer.tsx`'s own `DRAWER_WIDTH`). Chosen so the numbers work out to
- * clean values with the registered spacing roles used for the rest of the
- * track below: track height minus twice the inset padding (`p-inline-tight`,
- * 0.25rem) leaves exactly `THUMB_SIZE`, and track width minus the thumb and
- * its insets leaves exactly `THUMB_TRAVEL` — no fractional pixel anywhere.
- */
-const TRACK_WIDTH = "2.5rem";
-const TRACK_HEIGHT = "1.5rem";
-/** Coincides with `--spacing-stack` (`{dimension.4}`, 1rem) but kept as its own named constant rather than the `size-stack` class: this is the switch's own geometry, not a borrowed layout gap, and a reviewer should not have to know the coincidence to read this file. */
-const THUMB_SIZE = "1rem";
-/** `TRACK_WIDTH − THUMB_SIZE − 2 × the track's own `p-inline-tight` inset = 1rem exactly. */
-const THUMB_TRAVEL = "1rem";
 
 const TRACK_CLASS_NAME =
     "inline-flex shrink-0 items-center rounded-pill border border-border-default bg-surface-inset p-inline-tight transition-hover focus-visible:focus-ring data-[checked]:border-interactive-primary data-[checked]:bg-interactive-primary aria-invalid:border-status-danger data-[disabled]:cursor-not-allowed data-[disabled]:opacity-60";
@@ -81,15 +66,15 @@ export function Switch({ className, style, ...props }: SwitchProps) {
     return (
         <BaseSwitch.Root
             className={ [TRACK_CLASS_NAME, className].filter(Boolean).join(" ") }
-            style={ { ...style, width: TRACK_WIDTH, height: TRACK_HEIGHT } }
+            style={ mergeStyle(style, { width: "var(--ds-component-switch-track-width)", height: "var(--ds-component-switch-track-height)" }) }
             { ...props }
         >
             <BaseSwitch.Thumb
                 className={ THUMB_CLASS_NAME }
                 style={ {
-                    width: THUMB_SIZE,
-                    height: THUMB_SIZE,
-                    "--switch-thumb-travel": THUMB_TRAVEL
+                    width: "var(--ds-component-switch-thumb-size)",
+                    height: "var(--ds-component-switch-thumb-size)",
+                    "--switch-thumb-travel": "var(--ds-component-switch-thumb-travel)"
                 } as CSSProperties }
             />
         </BaseSwitch.Root>

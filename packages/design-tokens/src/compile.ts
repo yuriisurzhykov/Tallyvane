@@ -37,7 +37,7 @@ export interface CompilerInput {
     /** category name -> primitive tree, e.g. `{ color, dimension, radius, typography, motion }`. */
     readonly primitives: Readonly<Record<string, PrimitiveLayer<TokenTree>>>;
     /** category name -> the contract that category's semantic layer(s) satisfy — used to keep DS101 from flagging every required role as "unused" (required roles are meant to be consumed by the Tailwind adapter, not by another token). */
-    readonly contracts: Readonly<Record<string, Contract<string>>>;
+    readonly contracts: Readonly<Record<string, Contract>>;
     /** theme name -> category name -> semantic tree — only categories WITH a theme axis belong here (color, for this project). */
     readonly themes: Readonly<Record<string, Readonly<Record<string, SemanticLayer<TokenTree>>>>>;
     /** category name -> semantic tree — categories with NO theme axis (radius, spacing, motion, typography). */
@@ -266,7 +266,7 @@ function serializeCompositesFor(
 
         for (const [name, value] of Object.entries(resolved)) entries[name] = value;
         for (const [path, value] of flattenScalars(resolved)) {
-            lines.push(`    ${cssVariableName([kind], path)}: ${value};`);
+            lines.push(`    ${cssVariableName([kind], path)}: ${String(value)};`);
         }
     }
     return { lines, byKind };
@@ -296,7 +296,7 @@ function serializeComponentsFor(components: readonly ComponentLayer<TokenTree>[]
         const resolved = resolveTree(component, registry);
         data[component.__namespace] = resolved;
         for (const [path, value] of flattenScalars(resolved)) {
-            lines.push(`    ${cssVariableName(["component", component.__namespace], path)}: ${value};`);
+            lines.push(`    ${cssVariableName(["component", component.__namespace], path)}: ${String(value)};`);
         }
     }
     return { lines, data };
@@ -317,7 +317,7 @@ function printFlatDeclarations(input: CompilerInput): { lines: string[]; primiti
             const name = cssVariableName([category], path);
             names.push(name);
             categoryNames.push(name);
-            lines.push(`    ${name}: ${value};`);
+            lines.push(`    ${name}: ${String(value)};`);
         }
     }
     // `["semantic", category]`, not `[category]` — found live: a flat category's
@@ -333,7 +333,7 @@ function printFlatDeclarations(input: CompilerInput): { lines: string[]; primiti
         for (const [path, value] of flattenScalars(resolved)) {
             const name = cssVariableName(["semantic", category], path);
             names.push(name);
-            lines.push(`    ${name}: ${value};`);
+            lines.push(`    ${name}: ${String(value)};`);
         }
     }
     return { lines, primitiveNames: names, primitivesByCategory };
@@ -370,7 +370,7 @@ export function compileDesignTokens(input: CompilerInput): CompileResult {
         const registry = buildRegistry(input, themeName);
         const colorTree = input.themes[themeName]?.color ?? {};
         const resolvedColor = resolveTree(colorTree, registry);
-        const colorLines = flattenScalars(resolvedColor).map(([path, value]) => `    ${cssVariableName(["color"], path)}: ${value};`);
+        const colorLines = flattenScalars(resolvedColor).map(([path, value]) => `    ${cssVariableName(["color"], path)}: ${String(value)};`);
         const { lines: compositeLines, byKind: compositeData } = serializeCompositesFor(input.composites, registry);
         const { lines: componentLines, data: componentData } = serializeComponentsFor(input.components, registry);
 

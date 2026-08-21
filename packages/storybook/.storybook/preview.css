@@ -51,8 +51,16 @@
  * stretch too, even a one-line `Dot`, which is why full-page screenshots of
  * nearly every component ballooned to near-viewport size regardless of how
  * little was actually rendered — a real, measured storage cost across
- * hundreds of stories, not a hypothetical one. `ScrollArea.stories.tsx` now
- * gives itself a local, self-contained height instead (a plain fixed-height
- * wrapper `decorator`), so only the one story that genuinely needs a real
- * height carries the cost of providing one.
+ * hundreds of stories, not a hypothetical one.
+ *
+ * Scroll demos that need a real height use `.story-scroll-canvas` /
+ * `.story-scroll-canvas-tall` — calc() over existing layout roles, not a
+ * new token and not a named rem constant in the story file.
  */
+.story-scroll-canvas {
+    height: calc(var(--layout-sidebar-expanded) + var(--layout-sidebar-collapsed) * 2);
+}
+
+.story-scroll-canvas-tall {
+    height: calc(2 * var(--layout-sidebar-expanded));
+}

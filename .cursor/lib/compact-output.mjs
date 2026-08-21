@@ -49,6 +49,55 @@ function isBlockBoundary(line) {
   return BLOCK_DIVIDER.test(line) || BARE_FILE_PATH_LINE.test(line) || BLOCK_TRIGGER.test(line);
 }
 
+/** eslint "stylish" bare path line — the new current-file context for indented findings under it, or null. */
+function matchBarePath(line) {
+  const barePath = line.match(BARE_FILE_PATH_LINE);
+  return barePath ? barePath[1] : null;
+}
+
+/** One `line:col  error  message` row indented under a bare path line already seen. */
+function matchIndentedFinding(line, currentFile) {
+  if (!currentFile) return null;
+  const indented = line.match(INDENTED_LINE_COL);
+  if (!indented) return null;
+  const [, lineNo, col, severity, message] = indented;
+  return `${currentFile}:${lineNo}:${col} — ${severity}: ${message.trim()}`;
+}
+
+/** A file reference with its line:col already inline (tsc/vitest/playwright/depcruise/next's own shape). */
+function matchInlineLocation(line) {
+  const inline = line.match(INLINE_FILE_LINE_COL);
+  if (!inline) return null;
+  const [, file, parenLine, parenCol, colonLine, colonCol] = inline;
+  const lineNo = parenLine ?? colonLine;
+  const col = parenCol ?? colonCol;
+  const location = col ? `${file}:${lineNo}:${col}` : `${file}:${lineNo}`;
+  const rest = line
+    .slice(inline.index + inline[0].length)
+    .replace(/^[:)]\s*/, "")
+    .trim();
+  return rest ? `${location} — ${rest}` : location;
+}
+
+/**
+ * Captures a `BLOCK_TRIGGER` header plus every following line verbatim — a
+ * diff, a stack trace, whatever the tool put there — until a divider, a new
+ * file block, another trigger, a location pointer that names where it
+ * happened, or the safety cap closes it.
+ */
+function captureBlock(lines, startIndex) {
+  const block = [lines[startIndex].trim()];
+  let j = startIndex + 1;
+  while (j < lines.length && block.length < MAX_BLOCK_LINES) {
+    const next = lines[j];
+    if (isBlockBoundary(next)) break;
+    block.push(next);
+    j += 1;
+    if (INLINE_FILE_LINE_COL.test(next)) break;
+  }
+  return { text: block.join("\n").trim(), nextIndex: j };
+}
+
 export function extractCompactFailures(rawOutput, { maxLines = 40 } = {}) {
   const lines = typeof rawOutput === "string" ? rawOutput.split(/\r?\n/) : [];
   const found = [];
@@ -58,52 +107,31 @@ export function extractCompactFailures(rawOutput, { maxLines = 40 } = {}) {
   while (i < lines.length) {
     const line = lines[i];
 
-    const barePath = line.match(BARE_FILE_PATH_LINE);
+    const barePath = matchBarePath(line);
     if (barePath) {
-      currentFile = barePath[1];
+      currentFile = barePath;
       i += 1;
       continue;
     }
 
-    const indented = currentFile && line.match(INDENTED_LINE_COL);
-    if (indented) {
-      const [, lineNo, col, severity, message] = indented;
-      found.push(`${currentFile}:${lineNo}:${col} — ${severity}: ${message.trim()}`);
+    const indentedFinding = matchIndentedFinding(line, currentFile);
+    if (indentedFinding) {
+      found.push(indentedFinding);
       i += 1;
       continue;
     }
 
-    const inline = line.match(INLINE_FILE_LINE_COL);
-    if (inline) {
-      const [, file, parenLine, parenCol, colonLine, colonCol] = inline;
-      const lineNo = parenLine ?? colonLine;
-      const col = parenCol ?? colonCol;
-      const location = col ? `${file}:${lineNo}:${col}` : `${file}:${lineNo}`;
-      const rest = line
-        .slice(inline.index + inline[0].length)
-        .replace(/^[:)]\s*/, "")
-        .trim();
-      found.push(rest ? `${location} — ${rest}` : location);
+    const inlineLocation = matchInlineLocation(line);
+    if (inlineLocation) {
+      found.push(inlineLocation);
       i += 1;
       continue;
     }
 
     if (BLOCK_TRIGGER.test(line)) {
-      // Capture the header plus every following line verbatim — a diff, a
-      // stack trace, whatever the tool put there — until a divider, a new
-      // file block, another trigger, a location pointer that names where it
-      // happened, or the safety cap closes it.
-      const block = [line.trim()];
-      let j = i + 1;
-      while (j < lines.length && block.length < MAX_BLOCK_LINES) {
-        const next = lines[j];
-        if (isBlockBoundary(next)) break;
-        block.push(next);
-        j += 1;
-        if (INLINE_FILE_LINE_COL.test(next)) break;
-      }
-      found.push(block.join("\n").trim());
-      i = j;
+      const { text, nextIndex } = captureBlock(lines, i);
+      found.push(text);
+      i = nextIndex;
       continue;
     }
 

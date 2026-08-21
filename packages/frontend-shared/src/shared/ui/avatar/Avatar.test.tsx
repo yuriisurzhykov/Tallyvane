@@ -15,25 +15,25 @@ import { Avatar } from "./Avatar";
  * with no stubbing at all.
  */
 class ImmediatelyLoadedImage {
-    onload: (() => void) | null = null;
-    onerror: (() => void) | null = null;
-    complete = false;
-    naturalWidth = 0;
-    crossOrigin: string | null = null;
+    public onload: (() => void) | null = null;
+    public onerror: (() => void) | null = null;
+    public complete = false;
+    public naturalWidth = 0;
+    public crossOrigin: string | null = null;
 
-    set src(_value: string) {
+    public set src(_value: string) {
         this.onload?.();
     }
 }
 
 class ImmediatelyFailingImage {
-    onload: (() => void) | null = null;
-    onerror: (() => void) | null = null;
-    complete = false;
-    naturalWidth = 0;
-    crossOrigin: string | null = null;
+    public onload: (() => void) | null = null;
+    public onerror: (() => void) | null = null;
+    public complete = false;
+    public naturalWidth = 0;
+    public crossOrigin: string | null = null;
 
-    set src(_value: string) {
+    public set src(_value: string) {
         this.onerror?.();
     }
 }
