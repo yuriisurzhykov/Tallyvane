@@ -89,11 +89,13 @@ an area it covers.
      one of them is a bug** — say which, and fix it in the same pass.
 4. **Never trust "should work."** Verify live, every time, before calling
    something done:
-   - `pnpm verify` runs everything CI runs, in CI's order. It is the floor, not
-     the ceiling.
-   - For anything touching the design system: `pnpm --filter tallyvane-frontend-web
-     exec playwright test` — the structural, WCAG and APCA suites all run in
-     both themes and will fail on a palette change that looks fine.
+   - `node .cursor/cli/agent-check.mjs verify` runs everything CI runs, in
+     CI's order. It is the floor, not the ceiling — see
+     `.cursor/rules/frontend-command-harness.mdc` for every other action and
+     why it's this command, not a direct `pnpm` invocation.
+   - For anything touching the design system: `node .cursor/cli/agent-check.mjs
+     test:e2e --package frontend-web` — the structural, WCAG and APCA suites
+     all run in both themes and will fail on a palette change that looks fine.
    - Quote **measured** numbers, never remembered ones.
      `frontend-web/scripts/contrast-table.ts` exists precisely so contrast claims
      can be checked in a second rather than recalled wrongly.

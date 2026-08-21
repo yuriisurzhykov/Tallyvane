@@ -1,0 +1,87 @@
+---
+description: The one script agents run for every build/test/lint/check action across frontend-web, frontend-admin and packages/* — a beforeShellExecution hook enforces this for real, so treat a denial as a correction, not an obstacle.
+alwaysApply: true
+---
+
+# Frontend command harness
+
+There is exactly one command to run any build/test/lint/check action across
+`frontend-web`, `frontend-admin` and `packages/*`:
+
+```
+node .cursor/cli/agent-check.mjs <action> [--package <path>] [-- <extra args>]
+node .cursor/cli/agent-check.mjs --help   # lists every <action> and whether it needs --package
+```
+
+Never call `pnpm`/`npm`/`yarn`/`npx` directly for one of these actions —
+`.cursor/hooks/enforce-frontend-commands.mjs` denies it, correctly formed or
+not, and names the exact wrapper command to use instead. This is not a style
+preference the agent is trusted to remember; it is enforced before the
+command runs.
+
+## Why a wrapper, not just a documented pnpm command
+
+Two problems a written convention alone doesn't solve:
+
+1. **The agent shouldn't be the one deciding how a check is invoked.** A menu
+   of "correct" pnpm forms per action is still a menu — a `--filter` by
+   package name instead of path is exactly the class of mistake
+   `.github/scripts/README.md` already documents as a real, shipped bug. A
+   single script removes the choice instead of hoping it's made correctly
+   every time.
+2. **Raw tool output is expensive.** `tsc`, `eslint`, `vitest`, `playwright`
+   and `next build` each produce their own verbose format, none of it meant
+   for a context window. The wrapper always writes the full output to a log
+   file and prints only a compact digest to stdout: `OK <action>` on
+   success, or a handful of `file:line — message` lines plus the log path on
+   failure.
+
+## What the wrapper does internally
+
+`.cursor/lib/actions.mjs` is the single source of truth both the wrapper and
+the hook read from — this is not duplicated between them:
+
+- **`repo-only`** actions (`lint`, `lint:fix`, `verify`) run `pnpm run
+  <action>` — only the root defines them; `--package` is rejected.
+- **`repo-or-package`** actions (`typecheck`, `arch`, `test`, `build`,
+  `tokens:generate`, `tokens:check`) run `pnpm run <action>` with no
+  `--package`, fanning out to every workspace member that defines it, or
+  `pnpm --filter "./<path>" run <action>` with one.
+- **`package-only`** actions (the browser suites — `test:e2e`, `test:visual`,
+  `test:visual:update`, `test:a11y`, `test:contrast`, `test:contrast:wcag`,
+  `test:contrast:apca`, `test:scoped`, `test:mutation`, `graph`, `storybook`,
+  `build-storybook`) require `--package <path>` — there is no root form.
+
+Package scoping is always by path (`--filter "./frontend-web"`, never
+`--filter tallyvane-frontend-web` or `cd frontend-web &&`), for a reason
+that's been measured, not assumed: `pnpm --filter "./frontend-web"`,
+`pnpm --filter tallyvane-frontend-web`, and `cd frontend-web && pnpm run`
+all took the same ~624ms for an equivalent no-op — pnpm resolves the whole
+workspace graph regardless of selector kind, so there's no performance case
+for name-based or `cd`-based scoping. There is a stability case against it: a
+`package.json` `name` routinely diverges from its folder (`frontend-web` →
+`tallyvane-frontend-web`, `packages/design-tokens` → `design-token-engine`,
+`packages/storybook` → `tallyvane-storybook`), which is exactly the bug
+`.github/scripts/README.md` documents. The `./` prefix is load-bearing, not
+cosmetic — `pnpm --filter frontend-web` (no leading `./`) and `pnpm --filter
+packages/storybook` both fail to match anything at all; verified directly,
+not assumed.
+
+## Examples
+
+```bash
+node .cursor/cli/agent-check.mjs verify
+node .cursor/cli/agent-check.mjs typecheck --package packages/frontend-shared
+node .cursor/cli/agent-check.mjs test:e2e --package frontend-web
+node .cursor/cli/agent-check.mjs test:scoped --package packages/storybook -- visual.spec.ts -g "Button"
+```
+
+## What the hook still allows unchanged
+
+Anything that isn't running one of the actions above through a package
+manager: `git`, `pnpm install`, `pnpm add`/`why`/`list`, dev servers
+(`pnpm run dev`, out of this harness's scope on purpose), and a narrowly
+scoped debug command like `npx eslint src/foo.ts` (one file, not a substitute
+for the real check). Only a bare, argument-less `npx eslint` / `npx tsc
+--noEmit` / `npx playwright test` / `node_modules/.bin/vitest` — standing in
+for the whole check — is denied.

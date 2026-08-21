@@ -66,9 +66,9 @@ Playwright suite.
 ## Consuming it
 
 ```bash
-pnpm --filter tallyvane-storybook run storybook        # dev server, :6006
-pnpm --filter tallyvane-storybook run build-storybook   # static output for CI
-pnpm --filter tallyvane-storybook run test:a11y         # builds, then checks every story
+pnpm --filter "./packages/storybook" run storybook        # dev server, :6006
+pnpm --filter "./packages/storybook" run build-storybook   # static output for CI
+pnpm --filter "./packages/storybook" run test:a11y         # builds, then checks every story
 ```
 
 Not part of the root `pnpm verify`/`pnpm test` fan-out, by the same

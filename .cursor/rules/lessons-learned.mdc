@@ -127,6 +127,144 @@ description: The rules-log file for all the lessons learned during working on th
   --update-snapshots`. Omitting the mode value keeps the default `changed`
   behaviour (rewrite mismatches, create missing) — the fix is only ordering,
   not a semantic change.
+- **`role="presentation"` does not mean "inert" — it means "no independent
+  role," which a fully real, visible, on-screen label can carry too.** Found
+  hitting a genuine false exclusion: `Meter.Label`/`Progress.Label` render
+  `role="presentation"` on themselves because the value is exposed through
+  the meter/progressbar's own `aria-labelledby` instead, not because the text
+  is decorative. A first version of the APCA text walker excluded every
+  `role="presentation"` element on the (wrong) assumption that it always
+  marks inert content, which silently dropped that real label from every
+  sample — the correct signal for "invisible, not just role-less" is the
+  rendered box's own size, not its role. Base UI's actually-inert
+  `role="presentation"` span (an internal, undocumented workaround
+  found on the same two components — a single character clipped to a near-1px
+  box, almost certainly to satisfy an assistive-tech announcement quirk that
+  needs non-empty text) is caught correctly by checking `rect.width <= 1 ||
+  rect.height <= 1` instead — which also, for free, covers Tailwind's
+  `sr-only` (a deliberate 1×1px box, not 0×0, so pre-2020 Safari didn't
+  ignore it), so one geometry check replaces what had been two separate,
+  narrower ones (a `role`-based check and a class-name-based check).
+- **WCAG 1.4.3 explicitly exempts "text that is part of an inactive user
+  interface component" from any contrast requirement, and axe-core already
+  implements exactly that exemption** — but only for the standard signals
+  (`disabled`, `aria-disabled="true"`, a disabled `<fieldset>` ancestor), not
+  a project's own custom `data-disabled` styling hook. A component that only
+  sets `data-disabled` for its `data-[disabled]:opacity-60` CSS gets flagged
+  by axe's `color-contrast` rule for text that the standard itself does not
+  require to pass — the fix is a real `aria-disabled="true"` alongside the
+  existing `data-*` attribute, which is not a test workaround but a genuine,
+  previously-missing accessibility signal in its own right. Confirmed by
+  computing the actual WCAG relative-luminance ratio at the real 60% opacity:
+  even the darkest text role in the palette lands under 3:1 once diluted that
+  much, so no colour choice alone could have satisfied the letter of the
+  rule — only the standard's own inactive-component exemption does.
+- **axe's `color-contrast` rule reports `incomplete`, not a pass, for an
+  `aria-hidden` element whose only text content is a character it cannot
+  classify as a letter** (e.g. a bare `+` or `→` used as a stand-in icon
+  glyph) — "Element content contains only non-text characters." A real SVG
+  icon has no text node for the rule to trip on at all; reach for the
+  project's own `PlaceholderIcon` convention rather than a Unicode/ASCII
+  glyph in a span whenever a story needs a stand-in icon.
+- **A headless library's compound part can require its full context even in
+  a "just show the static styling" story.** Base UI's `Combobox.Chip`
+  reads from `Combobox.Root`'s/`Chips`' internal state and throws
+  (`Base UI production error #22`) if rendered as a bare child of a plain
+  `<div>`, even though nothing about rendering five colour variants side by
+  side actually needs a real combobox. Wrap it in the real `Root`/`Chips`
+  pair with inert `items`/`value`/`onValueChange` rather than a plain
+  wrapper — the context requirement does not go away just because the demo
+  does not exercise selection.
+
+### Storybook and visual regression
+
+- **A `display=optional` Google Fonts CDN link makes a visual-regression
+  baseline depend on network timing to a third party, not on anything the
+  test controls.** `preview-head.html` loaded IBM Plex from
+  `fonts.googleapis.com` with `&display=optional`, which gives Chromium a
+  ~100ms grace period before permanently committing to the fallback font for
+  that page load — so whether a run rendered the real font or the fallback
+  came down to whether that one CDN fetch happened to win the race. Traced to
+  a real, currently-failing CI test
+  (`status-and-feedback-liveregion--polite`/`--assertive`, `mobile` project):
+  the committed baseline was almost certainly captured on a losing race, while
+  Windows locally, a generic Linux Docker container, and real `ubuntu-latest`
+  CI all rendered the real font consistently and disagreed with it. The same
+  signature (mobile-only, single theme, deterministic reflow) turned up a third
+  time on `inputs-textarea--grows-with-content @ dark` while verifying the fix —
+  one more stale baseline from the same cause, not a new one. Fixed by
+  self-hosting both faces via `@fontsource/ibm-plex-sans`/
+  `@fontsource/ibm-plex-mono` (the same self-hosted preference `next/font/
+  google` already gives the two real apps) and deleting `preview-head.html`
+  outright. This does not retroactively fix `feature/implement-rest-of-
+  components` (PR #6): that branch's own baseline for the same two stories
+  was captured against the old, non-deterministic render and needs its own
+  fresh `/update-snapshots` once it rebases onto this fix — accepting a new
+  baseline is a deliberate step for whoever owns that PR, not a side effect
+  of this one.
+
+### Base UI's Select/Combobox/Autocomplete family (verified while building them)
+
+- **A mouse click needs its `pointerdown` too.** Base UI's `Select.Item`
+  refuses a mouse-originated selection (`onClick`) unless a preceding
+  `onPointerDown` already flipped an internal `allowMouseSelectionRef` to
+  `true` — exactly what a real browser click sequence produces but a bare
+  `fireEvent.click` does not. Fire `fireEvent.pointerDown(option)` immediately
+  before `fireEvent.click(option)` in a test. The same family's `Enter`-to-select
+  is bound to each option's own real, roving `tabindex`, not a list-level
+  handler — dispatch it on the highlighted option itself, not the list
+  container (unlike `ArrowDown`/`Home`/`End`/typeahead, which a list-level
+  handler does own).
+- **`Combobox`'s/`Autocomplete`'s trigger opens on `mousedown`, and even
+  then, one animation frame late.** `useClick(..., { event: 'mousedown' })`
+  wraps the actual `store.setOpen(...)` call in `requestAnimationFrame`
+  (`floating-ui-react`'s own `useClick.mjs`). A test needs
+  `await waitFor(() => expect(screen.getByRole("listbox"))...)` after
+  `fireEvent.mouseDown(trigger)`; opening via typing or an arrow key applies
+  synchronously instead, through an unrelated code path.
+- **`fireEvent.change` is not a faithful simulation of real typing for this
+  family.** `ComboboxInput`'s own `onChange` only opens/filters the list on a
+  change whose native `InputEvent.inputType` is present and not
+  `'insertReplacementText'` — real typing always sets `inputType:
+  'insertText'`, but `fireEvent.change` dispatches a plain `Event` with no
+  `inputType` at all, which reads as "autofill-like" and is deliberately
+  ignored. Use `fireEvent.input(input, { target: { value }, inputType:
+  "insertText" })`.
+- **`Autocomplete`'s `ArrowDown` does not pre-highlight the first suggestion —
+  by design.** Floating UI's `useListNavigation` inside `AriaCombobox.mjs` sets
+  `focusItemOnOpen: false` whenever `selectionMode === 'none'` (always true for
+  `Autocomplete`, since free text has no selection) and `autoHighlight` is
+  unset, specifically so opening the list never visually implies a value the
+  user never chose. The *first* `ArrowDown` only opens the list; the *second*
+  moves the highlight to the first item. `Combobox` (`selectionMode: 'single'`)
+  does not have this gap — verify per component rather than assuming parity.
+- **A floating list marks the rest of the page `aria-hidden` while open, and a
+  plain native `<label>` is not exempt.** Floating UI's `markOthers` utility
+  (the standard WAI-ARIA combobox pattern's "hide irrelevant background
+  content while expanded") applies `aria-hidden="true"` to everything outside
+  the tracked reference/floating elements. A `Select.Label`/`Combobox.Label`
+  is tracked and stays exempt; a plain sibling `<label htmlFor>` — the
+  alternative Base UI's own forms guide offers for "input outside popup"
+  compositions — is not, so the input's *computed accessible name* goes blank
+  for as long as the popup is open, even though the input itself is unaffected.
+  `Field.Label` avoids that gap but introduces its own: its `aria-labelledby`
+  broadcasts to every labelable control inside the same `Field.Root`,
+  overwriting an icon-only sub-button's own distinct `aria-label` (per the
+  accessible-name-computation spec, `aria-labelledby` wins whenever both are
+  present). Hold a direct element reference captured before the popup opens
+  in a test, rather than re-querying by accessible name afterward.
+- **A stepper button's own default `aria-label` can beat your `IconButton`'s.**
+  `NumberField.Increment`/`Decrement` set `'aria-label': 'Increase'`/`'Decrease'`
+  into the props Base UI merges onto whatever `render` produces; that merge
+  happens *before* `IconButton`'s own `aria-label={label}` is computed inside
+  its own body, so by the time the two collide, Base UI's default already
+  arrived as an explicit incoming prop and wins. Set `aria-label` explicitly on
+  the outer Base UI part itself (`<BaseNumberField.Increment aria-label={label}
+  render={...}>`), which participates in the merge a step earlier, where an
+  explicit prop still beats Base UI's own internal default. Verified by
+  rendering and asserting the accessible name directly — `Select`'s/`Combobox`'s
+  own equivalent buttons carry no such internal default and need no such
+  extra step, confirmed the same way rather than assumed to differ.
 
 ### Lint, architecture rules and the toolchain
 

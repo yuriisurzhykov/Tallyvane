@@ -26,7 +26,7 @@ regenerated. This is what "gets its own component tokens, distinct from
 batch's own confirmed decision names.
 
 **What building it surfaced:** the token compiler's own DS201 validation
-failed the build the moment it existed — `pnpm --filter tallyvane-frontend-web
+failed the build the moment it existed — `pnpm --filter "./frontend-web"
 run tokens:check` reported *"Primitive `dimension.1`/`dimension.2` crosses
 component/composite domain boundaries"* between `component:statusBadge` and
 `component:tag`, because both wanted the same "tight label padding" and

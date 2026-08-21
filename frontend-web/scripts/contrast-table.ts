@@ -15,7 +15,7 @@
  * Read-only: it changes nothing and is not part of any check. Run it while
  * tuning, throw the output away.
  *
- *   pnpm --filter tallyvane-frontend exec tsx scripts/contrast-table.ts
+ *   pnpm --filter "./frontend-web" exec tsx scripts/contrast-table.ts
  */
 import { calcAPCA, fontLookupAPCA } from "apca-w3";
 import { hslStringToRgb01, hslStringToRgbString } from "design-token-engine";
