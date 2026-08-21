@@ -1,5 +1,5 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { seedTheme, THEMES, withThemeGlobal } from "../utils/theme";
 import type { PageEntry } from "../types";
 
@@ -39,13 +39,18 @@ export function defineWcagContrastSpecs(manifest: readonly PageEntry[]): void {
                 await page.waitForLoadState("networkidle");
 
                 const results = await new AxeBuilder({ page }).withRules([WCAG_AA_CONTRAST]).analyze();
+                const { kept, cleared } = await partitionVirtualizedScrollClipResults(page, results.incomplete);
 
                 // Its own attachment name, not the structural suite's `axe-results`.
                 // Both are axe violations, but the run summary reports them as
                 // separate lines — a broken landmark and an unreadable colour are
                 // different problems, and a single total hides which you have.
                 await testInfo.attach("wcag-contrast-results", {
-                    body: JSON.stringify({ violations: results.violations, incomplete: results.incomplete }, null, 2),
+                    body: JSON.stringify(
+                        { violations: results.violations, incomplete: kept, clearedAsVirtualizedScrollClip: cleared },
+                        null,
+                        2,
+                    ),
                     contentType: "application/json",
                 });
 
@@ -58,17 +63,89 @@ export function defineWcagContrastSpecs(manifest: readonly PageEntry[]): void {
                  * quiet failure mode of every contrast check: the elements hardest
                  * to measure are exactly the ones most likely to be wrong, and a
                  * suite that skips them reports green over unread text.
+                 *
+                 * `kept`, not `results.incomplete` — see
+                 * `partitionVirtualizedScrollClipResults` for the one, narrowly
+                 * scoped exception.
                  */
-                expect(
-                    [...results.violations, ...results.incomplete],
-                    formatViolations(results.violations, results.incomplete),
-                ).toEqual([]);
+                expect([...results.violations, ...kept], formatViolations(results.violations, kept)).toEqual([]);
             });
         }
     }
 }
 
 type AxeViolation = Awaited<ReturnType<AxeBuilder["analyze"]>>["violations"][number];
+type AxeNode = AxeViolation["nodes"][number];
+
+/**
+ * Clears axe's `elmPartiallyObscured` false positive for a virtualizer's
+ * overscan rows: `DataTable`'s `Body` (`data-virtualized-scroll-container`)
+ * keeps a few rows mounted past its own clipped bounds for scroll
+ * smoothness, so `elementFromPoint` sampling one of those rows' centers
+ * falls through to whatever sits behind the clip and axe misreads that as
+ * occlusion. Confirmed live, and confirmed not a real contrast defect: the
+ * APCA walker (`utils/apca.ts`, no `elementFromPoint` step) measures the
+ * same cells cleanly. Only clears a node when BOTH the messageKey matches
+ * and geometry confirms it sits outside a marked ancestor — never a generic
+ * "clipped by any scrollable ancestor" heuristic, so an unrelated
+ * `ScrollArea`/menu listbox is never affected.
+ */
+async function partitionVirtualizedScrollClipResults(
+    page: Page,
+    incomplete: readonly AxeViolation[],
+): Promise<{ readonly kept: readonly AxeViolation[]; readonly cleared: readonly AxeNode[] }> {
+    const kept: AxeViolation[] = [];
+    const cleared: AxeNode[] = [];
+
+    for (const violation of incomplete) {
+        const keptNodes: AxeNode[] = [];
+        for (const node of violation.nodes) {
+            if (await isVirtualizedScrollClipNode(page, node)) {
+                cleared.push(node);
+            } else {
+                keptNodes.push(node);
+            }
+        }
+        if (keptNodes.length > 0) kept.push({ ...violation, nodes: keptNodes });
+    }
+
+    return { kept, cleared };
+}
+
+function isElmPartiallyObscured(node: AxeNode): boolean {
+    return node.any.some(
+        (check) =>
+            check.id === "color-contrast" &&
+            (check.data as { messageKey?: string } | null)?.messageKey === "elmPartiallyObscured",
+    );
+}
+
+/** Fail-safe on a multi-part (cross-frame/shadow-DOM) selector — only a single, plain CSS selector string is ever cleared. */
+async function isVirtualizedScrollClipNode(page: Page, node: AxeNode): Promise<boolean> {
+    if (!isElmPartiallyObscured(node)) return false;
+    if (node.target.length !== 1) return false;
+
+    const selector = node.target[0];
+    if (typeof selector !== "string") return false;
+
+    return page.evaluate((sel: string) => {
+        const target = document.querySelector(sel);
+        if (!target) return false;
+
+        for (let ancestor = target.parentElement; ancestor; ancestor = ancestor.parentElement) {
+            if (!ancestor.hasAttribute("data-virtualized-scroll-container")) continue;
+            const targetRect = target.getBoundingClientRect();
+            const ancestorRect = ancestor.getBoundingClientRect();
+            return (
+                targetRect.top < ancestorRect.top ||
+                targetRect.bottom > ancestorRect.bottom ||
+                targetRect.left < ancestorRect.left ||
+                targetRect.right > ancestorRect.right
+            );
+        }
+        return false;
+    }, selector);
+}
 
 /**
  * Every offending element is listed, not just the rule. A contrast violation

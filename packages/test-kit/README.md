@@ -92,3 +92,53 @@ version this package's `peerDependencies` names; a second, independent copy
 resolved only inside `test-kit` would register tests through a module instance
 the consumer's own Playwright CLI never collects, which fails silently rather
 than loudly.
+
+## `src/cli/` — local iteration, not CI
+
+CI already scopes its own cost: `visual-tests.yml`'s matrix runs one job per
+consumer, and each job runs its whole suite exactly once. The problem these
+two scripts answer is different — a person, at their own keyboard, iterating
+on one component, re-running that same full suite (a `storybook build` of
+2500+ modules, then several hundred contrast/a11y checks across two themes)
+after every edit. That is real, measured local cost — CPU and wall-clock time
+on the one machine that also has to keep being usable for everything else —
+not a hypothetical one, and it is not something CI's own scoping touches at
+all: CI runs on GitHub's machines, on a schedule the local developer does not
+control and does not pay CPU for either way.
+
+- **`run-scoped.mjs`** wraps `playwright test` with a guardrail: it refuses to
+  run without `-g <pattern>` or an explicit `--all`, so "forgot to add a
+  filter" cannot silently become "ran the full suite again." It also lowers
+  `--workers` to 2 by default (still overridable) — more workers means more
+  simultaneous Chromium processes, which is the opposite of what "go easy on
+  this machine" asks for — and calls `free-ports.mjs` before and after, so an
+  interrupted run, or a leftover from an earlier ad-hoc debugging session,
+  never becomes the next run's silent problem.
+- **`free-ports.mjs`** kills whatever is listening on a given list of TCP
+  ports. By port, deliberately, not by matching a process name or command-line
+  substring: this repo's own `webServer` configs set `reuseExistingServer:
+  !process.env.CI` specifically so local iteration is fast, which is exactly
+  what turns a manually-started debug server (spun up by hand to poke at one
+  story in a browser, entirely outside any `pnpm run test:*` script) into an
+  orphan nothing else ever notices — found running several of those side by
+  side while diagnosing a real contrast failure live. A port is unambiguous
+  in a way a name/command match is not: this project's own dev-server ports
+  are a fixed, known list, so checking "is anything on port 6007" cannot
+  mistake an unrelated process (an editor's own language server, say) for one
+  of ours the way a text match against process names could on a machine
+  whose exact process list this script cannot predict.
+- **`reporters/compact-reporter.ts`** is `createReporters()`'s own local
+  (non-CI) choice now, replacing `list`. `list` prints one line per test
+  whether it passed or not — unreadable the moment a suite crosses a few
+  hundred, which every suite in this package already does. This one prints
+  nothing for a pass and exactly one line per failure
+  (`file:line › title — reason`, ANSI-stripped so a captured log does not
+  fill with raw escape codes); `SummaryReporter` still writes the full
+  `test-results/summary.json` digest alongside it for anyone who needs more
+  than one line, and the HTML report still has the rest.
+
+Wired into `packages/storybook`'s and `frontend-web`'s own `test:scoped`
+script — `pnpm run test:scoped -- <spec> -g "<pattern>"` — rather than a new,
+separate npm script per consumer for each of the three concerns above: one
+entry point is what actually makes "did you remember all three" not a thing
+to remember.
