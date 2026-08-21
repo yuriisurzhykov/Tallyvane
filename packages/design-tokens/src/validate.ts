@@ -89,7 +89,7 @@ export function validateColorPrimitiveFormat(node: unknown, path: readonly strin
 // position), so unlike `references.ts`'s `TOKEN_REFERENCE` this was never the
 // "many repeated positions" ReDoS shape — bounded to `{1,200}` anyway, for the
 // same "no unbounded scan inside braces" invariant everywhere in this package.
-const REFERENCE_LIKE = /^(\{[^}]{1,200}\}|alpha\(\{[^}]{1,200}\},\s*[\d.]+%\))$/;
+const REFERENCE_LIKE = /^(\{[^}]{1,200}}|alpha\(\{[^}]{1,200}},\s*[\d.]+%\))$/;
 
 /**
  * DS001 (semantic/component/composite side, color-specific for this pass —

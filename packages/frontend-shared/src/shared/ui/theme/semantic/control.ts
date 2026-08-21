@@ -1,5 +1,5 @@
 import { defineTheme } from "design-token-engine";
-import { controlContract } from "../contracts/control";
+import { controlContract } from "../contracts";
 
 /**
  * Control geometry: three heights plus the two sizes every small
