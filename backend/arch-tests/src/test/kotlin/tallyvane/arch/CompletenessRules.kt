@@ -38,6 +38,7 @@ internal fun registryOwnsBranching(scope: KoScope): List<String> {
         .withoutException("registry-owns-branching")
         .filterNot { file -> file.inLayer("registry") }
         .filter { file ->
-            file.text.contains("when") && kinds.any { kind -> file.text.contains(kind) }
+            val code = file.codeText()
+            code.contains("when") && kinds.any { kind -> code.contains(kind) }
         }.map { it.where() }
 }

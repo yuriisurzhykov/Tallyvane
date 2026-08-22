@@ -55,8 +55,7 @@ internal fun KoFileDeclaration.implementsSimpleName(simpleName: String): Boolean
 internal fun KoNameProvider.namedLikeFake(): Boolean =
     name == "Fake" || name.startsWith("Fake") || name.endsWith("Fake")
 
-internal fun isFrameworkAnnotation(name: String): Boolean =
-    name == "Serializable" ||
-        name == "Entity" ||
-        name == "Table" ||
-        FRAMEWORK_IMPORT_PREFIXES.any { name.startsWith(it) }
+internal fun isFrameworkAnnotation(name: String): Boolean = name == "Serializable" ||
+    name == "Entity" ||
+    name == "Table" ||
+    FRAMEWORK_IMPORT_PREFIXES.any { name.startsWith(it) }

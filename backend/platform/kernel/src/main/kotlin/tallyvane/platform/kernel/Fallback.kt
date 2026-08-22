@@ -43,7 +43,9 @@ import kotlin.coroutines.cancellation.CancellationException
  * Why not `kotlin.runCatching`, and why the constructor is
  * `@PublishedApi internal`: `backend/platform/kernel/README.md`.
  */
-public class Fallback<T> @PublishedApi internal constructor(
+public class Fallback<T>
+@PublishedApi
+internal constructor(
     /**
      * Successful values so far. Empty means every attempt failed; a
      * single-element list, including of `null`, is a success. A list
@@ -68,12 +70,11 @@ public class Fallback<T> @PublishedApi internal constructor(
      * The value of the first successful attempt, or [default] if every
      * attempt failed. A successful `null` is a value, not a failure.
      */
-    public fun orElse(default: T): T =
-        if (resolved.isEmpty()) {
-            default
-        } else {
-            resolved.first()
-        }
+    public fun orElse(default: T): T = if (resolved.isEmpty()) {
+        default
+    } else {
+        resolved.first()
+    }
 
     /**
      * Starts a [Fallback] chain. Callers write `Fallback { ... }`.
@@ -93,13 +94,12 @@ public class Fallback<T> @PublishedApi internal constructor(
          */
         @PublishedApi
         @Suppress("TooGenericExceptionCaught", "RethrowCaughtException", "SwallowedException")
-        internal inline fun <T> of(block: () -> T): Fallback<T> =
-            try {
-                Fallback(listOf(block()))
-            } catch (cancellation: CancellationException) {
-                throw cancellation
-            } catch (failure: Exception) {
-                Fallback(emptyList())
-            }
+        internal inline fun <T> of(block: () -> T): Fallback<T> = try {
+            Fallback(listOf(block()))
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (failure: Exception) {
+            Fallback(emptyList())
+        }
     }
 }

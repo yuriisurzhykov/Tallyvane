@@ -26,10 +26,7 @@ private fun scopeFromKotlinDirs(sourceSets: List<String>): KoScope {
 
 private fun relativeToRoot(dir: File): String = dir.relativeTo(konsistRoot()).invariantSeparatorsPath
 
-private fun kotlinDirs(
-    root: File,
-    sourceSets: List<String>,
-): List<File> {
+private fun kotlinDirs(root: File, sourceSets: List<String>): List<File> {
     val markers = sourceSets.map { set -> "/src/$set/kotlin" }
     return listOf("platform", "app", "modules")
         .map { File(root, it) }

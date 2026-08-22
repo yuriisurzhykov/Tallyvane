@@ -7,12 +7,7 @@ import com.lemonappdev.konsist.api.provider.KoContainingFileProvider
 import com.lemonappdev.konsist.api.provider.KoLocationProvider
 import java.io.File
 
-internal data class RecordedException(
-    val rule: String,
-    val reason: String,
-    val adr: String,
-    val location: String,
-)
+internal data class RecordedException(val rule: String, val reason: String, val adr: String, val location: String)
 
 internal fun KoFileDeclaration.isExempt(rule: String): Boolean = recordedExceptionOrNull()?.rule == rule
 
@@ -39,10 +34,7 @@ internal fun KoAnnotationProvider.recordedExceptionOrNull(): RecordedException? 
                 item.fullyQualifiedName == "tallyvane.platform.kernel.ArchitectureException"
         } ?: return null
 
-    fun argument(
-        name: String,
-        index: Int,
-    ): String {
+    fun argument(name: String, index: Int): String {
         val named = annotation.arguments.firstOrNull { it.name == name }?.value
         val positional = annotation.arguments.getOrNull(index)?.value
         return (named ?: positional).orEmpty().trim().trim('"', '\'')

@@ -34,6 +34,50 @@ Adding a rule:
 4. Run `./gradlew :arch-tests:test`. Both sides of the spec must pass: production
    clean, fixture dirty.
 
+## Why a text rule reads code, not the whole file
+
+Seven rules ask something no cheap PSI query answers — does this file mention
+`Instant.now`, concatenate a quoted `SELECT`, name a foreign schema — and they
+answer by scanning the file as text. Scanning `KoFileDeclaration.text` made the
+gate punish accurate documentation: `Clock.kt`'s KDoc explains why
+`kotlin.time.Clock.System` is banned and `IdGenerator.kt`'s explains why
+`UUID.randomUUID()` is, so `no-ambient-time` and `no-ambient-random` failed on
+the two port declarations for saying so.
+
+The first reading was that the exemption had simply broken —
+`implementsSimpleName("Clock")` asks Konsist for `classes()`, which never holds
+an `interface`, so a port's own file was never exempt. That much is true, and it
+is left alone on purpose: the predicate exists to exempt *implementations* of a
+port, which are classes and which it matches correctly. Widening it to interfaces
+would have hidden the real defect rather than removed it, because the next file
+whose comment names a banned call would fail the same way — and a rule that
+rewards vaguer documentation is worse than no rule.
+
+So `SourceText.kt` hands every text-scanning rule a `codeText()` view with
+comments stripped. String literals stay: `own-schema-only` reads schema names out
+of `"jobs.job"` and `no-sql-concat` matches a quoted `SELECT`, so blanking
+literals would disarm both. Two rules loosen as a consequence, deliberately —
+`no-hardcoded-product-name` and `registry-owns-branching` no longer fire on a
+comment, which is what they always meant.
+
+`codeWithoutComments` is a lexer, so it has its own spec: a string helper without
+tests fails silently and takes a whole gate down with it. It handles nested block
+comments, raw strings and escaped quotes, and stops short in one documented
+place — a comment inside a string template's interpolation counts as literal.
+Konsist exposes no comment-free view of a file, and a full Kotlin lexer here
+would be a second parser to keep alive.
+
+## The SOLID angle
+
+One reason to change `codeText()` — what counts as source a rule may inspect —
+and it lives in one file, so no rule restates it. The rules stay closed against
+that change: `noAmbientTime` names the concept, not the mechanics, and gained
+nothing to maintain when nested comments were handled. Interface segregation is
+why this is not a Konsist predicate on `KoFileDeclaration`'s many providers but a
+single extension returning a `String`, and why the pure `codeWithoutComments`
+is separate from the Konsist-bound `codeText()` — the lexer is testable without
+constructing a file declaration at all.
+
 Skipping a violation is `@ArchitectureException(rule, reason, adr)` from
 `platform:kernel`. The reason is at least forty characters, the ADR file must
 exist under `docs/adr/`, and the project-wide count is capped at ten. Raising
