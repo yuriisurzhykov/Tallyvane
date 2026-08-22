@@ -1,0 +1,30 @@
+complexity:
+  CyclomaticComplexMethod:
+    active: true
+    allowedComplexity: 12
+  NestedBlockDepth:
+    active: true
+    allowedDepth: 3
+  LongParameterList:
+    active: true
+    allowedFunctionParameters: 3
+    allowedConstructorParameters: 5
+  LargeClass:
+    active: true
+    allowedLines: 400
+    excludes:
+      - '**/src/test/**'
+  LongMethod:
+    active: true
+    allowedLines: 60
+    excludes:
+      - '**/src/test/**'
+  TooManyFunctions:
+    active: true
+    allowedFunctionsPerFile: 11
+    allowedFunctionsPerClass: 11
+    allowedFunctionsPerInterface: 11
+    allowedFunctionsPerObject: 11
+    allowedFunctionsPerEnum: 11
+    excludes:
+      - '**/src/test/**'

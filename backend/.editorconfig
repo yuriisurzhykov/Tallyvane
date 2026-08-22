@@ -1,0 +1,18 @@
+root = true
+
+[{*.kt,*.kts}]
+# ktlint's `intellij_idea` profile rejects a wrapped parameter list that ends
+# with a comma. `ktlint_official` is the profile that keeps trailing commas.
+ktlint_code_style = ktlint_official
+ktlint_standard_trailing-comma-on-declaration-site = enabled
+ktlint_standard_trailing-comma-on-call-site = enabled
+ij_kotlin_allow_trailing_comma = true
+ij_kotlin_allow_trailing_comma_on_call_site = true
+# detekt's WildcardImport is on by default; ktlint must not rewrite those imports into stars.
+ij_kotlin_name_count_to_use_star_import = 99
+ij_kotlin_name_count_to_use_star_import_for_members = 99
+ktlint_standard_no-wildcard-imports = enabled
+insert_final_newline = true
+indent_size = 4
+indent_style = space
+max_line_length = 120
