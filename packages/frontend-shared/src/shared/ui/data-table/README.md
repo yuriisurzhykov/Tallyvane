@@ -158,8 +158,13 @@ button each carry `tabIndex={0}` only while they are `state.activeCell`,
 When `renderExpandedRow` is supplied, `Row` prepends one synthetic
 leading cell — a `Collapsible.Trigger` with a `ChevronRight`/`ChevronDown`
 icon — before the caller's own columns, and `Header` prepends a matching
-blank header cell so every row's column count stays aligned. `aria-colcount`
-and every `aria-colindex` account for it. This was a real design choice: the
+blank `gridcell` so every row's column count stays aligned. It is not a
+`columnheader`: this column has no heading, and marking an empty cell as
+one fails axe `empty-table-header`. That rule also rejects `aria-label` on
+an otherwise empty header as the markup that still leaves the header
+blank. `aria-colcount` and every `aria-colindex` account for it.
+
+This was a real design choice: the
 alternative was making the caller build their own "expand" column via a
 normal `cell` render function, but the task's own wording — "compose
 `Collapsible.Root`/`Panel` around the caller's `renderExpandedRow(row)`

@@ -31,7 +31,13 @@ already symmetric; the checking logic itself was not.
 The reusable parts of `frontend-web/tests/e2e/` moved here as functions
 parameterized by a list, rather than files with the list baked in:
 
-- `defineA11ySpecs(manifest)` — structural accessibility (axe-core)
+- `defineA11ySpecs(manifest, options?)` — structural accessibility (axe-core).
+  Default surface is `"document"` (a real page). Isolated stories pass
+  `{ surface: "component" }`, which skips a closed list of page-scoped rules
+  owned here (`page-has-heading-one`, `landmark-one-main`, `bypass`,
+  `document-title`, `region`) rather than a free-form `disableRules` array the
+  consumer could drift. Remaining `violations[]` fail the test;
+  `axe-incomplete` is still attached and still does not fail.
 - `defineWcagContrastSpecs(manifest)` / `defineApcaContrastSpecs(manifest)` —
   kept as two functions, not one, for the same reason the original files were
   two specs: they answer different questions from different models, and
@@ -63,6 +69,20 @@ only ever covered Level AA criteria added in 2.2, and 2.2 also added two Level
 A criteria (3.2.6, 3.3.7) under a separate `wcag22a` tag, confirmed against
 Deque's own tag table. Whatever rule axe registers under it was silently never
 run before this.
+
+**A later correction, not a second architecture.** The first draft of
+`defineA11ySpecs` failed the build only on axe `critical`/`serious` and
+attached everything else. That produced a successful CI job with 1458
+structural findings — almost all `moderate` `landmark-one-main` and
+`page-has-heading-one` on isolated Storybook stories, counted in the PR
+comment and ignored by Playwright
+([PR #7](https://github.com/yuriisurzhykov/Tallyvane/pull/7)). Wrapping every
+story iframe in a fake `<main>`/`<h1>` would have silenced those two rules by
+pretending each Button is a page; skipping the page-scoped list on
+`surface: "component"` names the real mismatch instead. Remaining findings
+fail. `frontend-web` stays `defineA11ySpecs(pagesManifest)` — missing `<main>`
+or `h1` on a real page is now a failed test, which is the question those
+rules actually ask.
 
 ## What did not move here
 

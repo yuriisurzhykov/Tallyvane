@@ -40,13 +40,16 @@ already produces, not one maintained by hand — and turns it into the
 ```ts
 import { defineA11ySpecs } from "test-kit/specs/a11y";
 import { readStoryManifest } from "./story-manifest";
-defineA11ySpecs(readStoryManifest());
+defineA11ySpecs(readStoryManifest(), { surface: "component" });
 ```
 
 The same `defineA11ySpecs`/`defineWcagContrastSpecs`/`defineApcaContrastSpecs`/
-`defineVisualSpecs` that check `frontend-web`'s pages check every story here,
-unchanged — see `packages/test-kit/README.md` for why that logic lives
-neither there nor here.
+`defineVisualSpecs` that check `frontend-web`'s pages check every story here.
+The a11y call is the one exception that is not a bare list: stories are not
+pages, so `{ surface: "component" }` skips the page-scoped axe rules (owned
+in `test-kit`, not listed here) instead of wrapping every iframe in a fake
+`<main>`/`<h1>`. See `packages/test-kit/README.md` for why the rest of the
+checking logic lives neither there nor here.
 
 **One sequencing detail worth stating plainly**: Storybook has to be built
 *before* `playwright test` even starts, not inside its `webServer`.

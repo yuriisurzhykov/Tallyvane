@@ -98,7 +98,11 @@ export const pagesManifest = [
 
 **Доступность и контраст — разные файлы.** `a11y.spec.ts` исключает правила `color-contrast*`. Сломанный landmark и нечитаемая пара цветов — разные проблемы с разными владельцами. Контраст к тому же меряется двумя разными моделями (WCAG и APCA), которые иногда расходятся во мнении.
 
+**Оставшиеся structural `violations[]` проваливают сборку.** Первый черновик валил только axe `critical`/`serious` и прикладывал остальное: в PR #7 это дало successful job при 1458 `moderate` находках, почти все — `landmark-one-main` и `page-has-heading-one` на изолированных Storybook-стори. Фильтр по impact убран.
+
 **`axe-incomplete` не проваливает сборку.** Это не провал и не проход — "машина не смогла оценить". Результат прикладывается к отчёту, чтобы неизвестность осталась видимой, а не потерялась в зелёной галочке.
+
+**Storybook вызывает `defineA11ySpecs(manifest, { surface: "component" })`.** Изолированная стори — не страница: требовать `<main>` и `h1` у Button, или оборачивать каждую iframe в фейковые landmarks, подменяет вопрос. Закрытый список page-scoped правил (`page-has-heading-one`, `landmark-one-main`, `bypass`, `document-title`, `region`) живёт в `test-kit`, не у потребителя. Страницы (`frontend-web`, позже `frontend-admin`) остаются на дефолте `"document"`.
 
 **Обычная проверка никогда не запускается с `--update-snapshots`.** Проверка, которая сама переписывает своё ожидание при провале, не способна провалиться в принципе — и потому бесполезна как проверка.
 
@@ -148,10 +152,13 @@ sequenceDiagram
 
 ```ts
 // packages/test-kit/src/specs/a11y.ts
-export function defineA11ySpecs(manifest: readonly { name: string; path: string }[]) {
+export function defineA11ySpecs(
+    manifest: readonly { name: string; path: string }[],
+    options?: { readonly surface?: "document" | "component" },
+) {
     for (const entry of manifest) {
         for (const theme of THEMES) {
-            test(`${entry.name} @ ${theme} — a11y`, async ({ page }, testInfo) => { /* AxeBuilder, теги, blocking impact */ });
+            test(`${entry.name} @ ${theme} — a11y`, async ({ page }, testInfo) => { /* AxeBuilder, теги, remaining violations fail */ });
         }
     }
 }
@@ -171,8 +178,8 @@ defineA11ySpecs(pagesManifest);
 ```ts
 // packages/storybook/tests/e2e/a11y.spec.ts
 import { defineA11ySpecs } from "test-kit/specs/a11y";
-import { storyManifest } from "./story-manifest";
-defineA11ySpecs(storyManifest);
+import { readStoryManifest } from "./story-manifest";
+defineA11ySpecs(readStoryManifest(), { surface: "component" });
 ```
 
 ```ts
@@ -182,7 +189,7 @@ import { pagesManifest } from "./pages.manifest";
 defineA11ySpecs(pagesManifest);
 ```
 
-Три файла из трёх строк каждый, отличающихся только источником списка. Добавление `frontend-admin` в проверку не требует ни одной правки в `test-kit` или в двух других местах — только его собственный `pages.manifest.ts` и такой же трёхстрочный `.spec.ts`.
+Три файла из нескольких строк каждый, отличающихся источником списка; Storybook дополнительно передаёт `{ surface: "component" }`, потому что стори — не страница. Добавление `frontend-admin` в проверку не требует ни одной правки в `test-kit` или в двух других местах — только его собственный `pages.manifest.ts` и такой же `.spec.ts` с дефолтной поверхностью `"document"`.
 
 ### 5.3. CI
 

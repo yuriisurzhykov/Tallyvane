@@ -7,9 +7,12 @@ Four tools, four questions, no overlap:
 - **Gradle module graph vs `modules.yaml`** — who may depend on whom. An undeclared
   edge and a declared but unused one are both errors. MockK and Mockito
   coordinates are banned on every configuration, including test.
-- **ktlint** — official Kotlin style with trailing commas. ktlint's `intellij_idea`
-  profile rejects a wrapped parameter list that ends with a comma; `ktlint_official`
-  is the profile that keeps them. Plugin `org.jlleitschuh.gradle.ktlint`. Not
+- **ktlint** — official Kotlin style with trailing commas, on the `intellij_idea`
+  profile. The commas are not the profile's doing: `backend/.editorconfig` sets
+  `ij_kotlin_allow_trailing_comma` and both `ktlint_standard_trailing-comma-*`
+  rules by hand, and either profile enforces them. Why not `ktlint_official`,
+  which this record chose first, is below. Plugin
+  `org.jlleitschuh.gradle.ktlint`. Not
   `detekt-formatting`: that is a second ktlint, two reports for one edit.
   Style official ktlint does not cover lives in `build-logic/ktlint-rules`
   (`tallyvane` ruleset), loaded on the same `ktlintCheck` task. First rule:
@@ -66,6 +69,29 @@ Function and constructor limits are split for that reason.
 the day the port grows. `JobsFake` in `src/test` is the dummy (ADR-044).
 
 **detekt-formatting alongside ktlint.** Two ktlints.
+
+**`ktlint_official` as the profile.** This record chose it first, reasoning that
+`intellij_idea` rejects a wrapped parameter list ending in a comma. That
+reasoning was wrong, and it is corrected here rather than deleted: remove the
+trailing comma from `Fallback`'s constructor parameter under `intellij_idea` and
+ktlint answers `Missing trailing comma before ")"`. The comma never depended on
+the profile, because `backend/.editorconfig` sets those properties explicitly and
+a profile only supplies defaults for properties nobody set.
+
+What the profile does decide is the shape of a class whose primary constructor
+carries an annotation or a modifier. `ktlint_official` wraps such a constructor
+onto lines of its own and then indents the entire class body one level further,
+leaving the closing brace of the class at four spaces and its members at eight.
+`platform:kernel`'s `Fallback` is exactly that shape — its constructor is
+`@PublishedApi internal` so the inline chain can reach it (see that module's
+README) — so under `ktlint_official` there was no formatting of that file which
+ktlint would accept and a reader would recognise. Upstream declines to change it:
+ktlint #2138 is parked, #3193 is closed as intended, and switching profile is the
+escape both threads point at. IntelliJ formats the class a third way, so
+`ktlint_official` also guaranteed a reformat fight on every save.
+
+Paid once, measured: eleven files reformatted, most of them `arch-tests`, where
+an expression body now begins on the signature line instead of the line below.
 
 **Detekt 1.23.x.** Last 1.x stable is built against Gradle 8 / Kotlin 2.0.
 This tree is Gradle 9.7 and Kotlin 2.4.10; detekt 2.0.0-alpha.6 is the

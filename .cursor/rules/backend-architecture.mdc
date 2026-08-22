@@ -44,5 +44,7 @@ arch`, do not write it and then ask for an exception. An
 `@ArchitectureException` needs a forty-character reason, an existing ADR, and
 counts toward a budget of ten.
 
-Trailing commas stay on multiline parameter and argument lists. ktlint's
-profile is `ktlint_official` because `intellij_idea` rejects them.
+Trailing commas stay on multiline parameter and argument lists; `.editorconfig`
+sets them explicitly, so they hold under either ktlint profile. The profile is
+`intellij_idea` — `ktlint_official` indents a whole class body one level further
+when the primary constructor carries an annotation or a modifier (ADR-043).

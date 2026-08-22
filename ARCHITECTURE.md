@@ -3927,7 +3927,10 @@ pnpm arch           все проверки фронтенда
 ### 15.2. Бэкенд: ktlint, detekt и граф модулей
 
 **ktlint** держит official Kotlin style, включая trailing comma на многострочных списках. Профиль ktlint —
-`ktlint_official`: профиль `intellij_idea` отклоняет обёрнутый список параметров, который заканчивается запятой.
+`intellij_idea`. От профиля trailing comma не зависит: её задают явные свойства в `backend/.editorconfig`, и требуют
+её оба профиля. `ktlint_official` отвергнут потому, что уводит всё тело класса на лишний уровень отступа, когда у
+первичного конструктора есть аннотация или модификатор — разбор в
+[ADR-043](docs/adr/ADR-043-backend-static-analysis-stack.md).
 Плагин `org.jlleitschuh.gradle.ktlint`. `detekt-formatting` не подключаем: это второй ktlint и два отчёта на одну правку.
 
 **detekt** держит размер и сложность как SOLID-прокси. Пороги — Kotlin-набор, не копия ESLint: у функции и у конструктора

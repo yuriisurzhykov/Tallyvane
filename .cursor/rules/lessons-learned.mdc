@@ -380,15 +380,18 @@ description: The rules-log file for all the lessons learned during working on th
 
 ### Gradle included-build plugins
 
-- **A feature module's five Gradle projects (`contract` / `domain` /
-  `application` / `infrastructure` / `web`) are not a template for a Gradle
-  plugin.** `validateModuleGraph` has three jobs — parse `modules.yaml`,
-  snapshot the Gradle graph, compare — so three packages in one `:graph`
-  project (`manifest` / `rules` / `gradle`) are the seam. Extra Gradle
-  modules plus `explicitApi()` only existed to make `public` look
-  load-bearing; Kotlin's default is already public. The plugin class itself
-  lives at the package root (`tallyvane.gradle.graph.ModuleGraphPlugin`),
-  not under `.plugin`.
+- **A feature module's five Gradle projects are not a template for a Gradle
+  plugin, and neither is one package of nested types.** `tallyvane.graph`
+  stays one Gradle project (`ARCHITECTURE.md` §4.2). Inside it the cut is
+  `domain` / `application` / `infrastructure`, the same layer names as a
+  feature module, because those names say what may know YAML or Gradle.
+  `manifest` / `rules` / `gradle` looked like layers and were not: they
+  named a technology, so SnakeYAML still sat next to the comparison rules.
+  Flattening everything into one package to match an Android plugin's
+  vocabulary dump put `ModulesYaml.File` (a driver) on the port. Extra
+  Gradle modules (`:graph:domain`) plus `explicitApi()` only existed to
+  make `public` look load-bearing. The plugin class lives at the package
+  root (`tallyvane.gradle.graph.ModuleGraphPlugin`), not under `.plugin`.
 - **`kotlin-dsl`'s `Action { }` is a receiver lambda (`T.() -> Unit`), not
   SAM conversion.** `Action { graph -> graph.group = … }` therefore fails
   to compile in a `.gradle.kts` / kotlin-dsl source set. Binary plugin
@@ -396,6 +399,16 @@ description: The rules-log file for all the lessons learned during working on th
   the same `Action { graph -> }` form is the Java SAM and is the one to
   use there. Do not add `GraphTaskConvention`-style wrappers to dodge a
   receiver that is not on that classpath.
+- **A custom ktlint autocorrect must mutate the AST with `raw*` methods,
+  not `PsiElement.replace` / `KtPsiFactory`.** ktlint's dummy PSI does not
+  install IntelliJ's `treeCopyHandler`; those PSI APIs throw
+  `IllegalArgumentException: Missing extension point` the moment they run,
+  including under `ktlint-test`. `rawReplaceWithText` exists only on a
+  leaf (`BLOCK_COMMENT`, `EOL_COMMENT`). KDoc is a composite
+  `LazyParseablePsiElement` — replace the node with
+  `TreeElement.rawReplaceWithList`. Style that official ktlint does not
+  cover lives in `backend/build-logic/ktlint-rules`, not in detekt or
+  Konsist (ADR-043).
 
 ### Backend architecture
 
