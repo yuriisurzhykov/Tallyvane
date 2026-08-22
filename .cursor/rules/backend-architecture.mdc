@@ -1,0 +1,48 @@
+---
+description: Backend Kotlin architecture — layers, ports, fakes in src/test, no MockK; verify with ./gradlew arch
+globs: backend/**/*.kt
+alwaysApply: false
+---
+
+# Backend architecture
+
+Kotlin in this repo is a modular monolith. Read ARCHITECTURE.md §4 (layers),
+§5 (no utility code), §15 (what the machine checks) and §18.1 (how tests are
+shaped) before inventing a structure. `./gradlew arch` is the command; do not
+call Gradle task names by guess and do not wrap them in a second script.
+
+## Where new code goes
+
+A capability is `modules/<name>/{contract,domain,application,infrastructure,web}`.
+Neighbours see only `contract`. `domain` depends on `platform:kernel` and
+nothing else. `infrastructure` is adapters to the outside world (database,
+HTTP, disk) — not use cases and not routes. Only `app` wires implementations.
+
+If the same technical capability would be written twice, it belongs in
+`platform/<name>`, not copied into a feature module.
+
+## Ports and names
+
+An interface at a layer boundary is required. There is no `Foo` + `FooImpl`.
+The port is named for what the consumer needs (`JobWriter`), not for a
+technology. A production adapter lives in `*:infrastructure`, is `internal`,
+and is named by mechanism (`PostgresJobs`). It cannot be `Jobs.Postgres`: a
+nested type is compiled in the interface's module.
+
+I/O-free production implementations nest on the port: `Jobs.Cached`,
+`Jobs.Retrying`. `Jobs.Abstract` only when two adapters share a Template
+Method — not on every interface. A test double is a handwritten `JobsFake` in
+**`src/test`** of the module that owns the port, never a nested `Jobs.Fake` on
+the production type (that class file still ships in the jar) and never MockK
+or Mockito (they are banned on the classpath). The same placement holds for
+Gradle plugins under `build-logic/`. A new test does not import `io.mockk`.
+
+## What the machine already forbids
+
+Do not restate the Konsist catalogue here. If a shape would fail `./gradlew
+arch`, do not write it and then ask for an exception. An
+`@ArchitectureException` needs a forty-character reason, an existing ADR, and
+counts toward a budget of ten.
+
+Trailing commas stay on multiline parameter and argument lists. ktlint's
+profile is `ktlint_official` because `intellij_idea` rejects them.
