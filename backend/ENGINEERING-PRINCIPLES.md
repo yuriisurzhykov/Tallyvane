@@ -139,6 +139,39 @@ exception genuinely must be caught, the catch names the type it expects.
 `catch (e: Exception)` also swallows the bugs, and a swallowed bug is
 indistinguishable from a handled one.
 
+### A chain of fallbacks reads as a chain
+
+Nested `try`/`catch` turns a linear intent into an indented tree: every further
+fallback is written further right, and the reader has to unwind the nesting to
+find out what is attempted in which order. The same intent as a chain is one
+sentence, in reading order:
+
+```kotlin
+val zone = Fallback { ZoneId.of(preferred) }
+    .or { ZoneId.of(legacy) }
+    .orElse(ZoneOffset.ofHours(fixedOffset))
+```
+
+[`Fallback`](platform/kernel/src/main/kotlin/tallyvane/platform/kernel/Fallback.kt)
+in `platform:kernel` is the only place in the tree where this shape is
+implemented, and `kotlin.runCatching` is deliberately not it. `runCatching`
+catches every `Throwable`, `CancellationException` included, so a chain built
+on it lets a cancelled coroutine carry on running with a fallback value, and
+swallows `OutOfMemoryError` as though it were an alternative worth recovering
+from. `Fallback` rethrows cancellation, lets `Error` propagate, and treats only
+an `Exception` as a failed attempt.
+
+That one file is also the whole of the concession to the previous section's rule
+about naming the caught type. Catching `Exception` is broad on purpose there,
+because the alternative is every call site catching broadly on its own; the
+breadth is reviewed once, in one place, instead of spreading.
+
+The scope is narrow on purpose: local recovery that always ends in a value and
+never lets the failure leave the function. A failure that must reach the caller
+is a named sealed outcome for that operation — `FetchOutcome`, `LlmOutcome<T>`,
+`ProcessOutcome` — not a `Result` and not this class. Two competing result types
+in one codebase is worse than either of them alone.
+
 ### A message names the next action
 
 A diagnostic tells the reader what to do next, not merely what was observed.

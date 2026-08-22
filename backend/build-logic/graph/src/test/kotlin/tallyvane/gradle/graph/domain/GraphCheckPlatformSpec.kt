@@ -1,4 +1,4 @@
-package tallyvane.gradle.graph
+package tallyvane.gradle.graph.domain
 
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.collections.shouldBeEmpty
@@ -75,7 +75,7 @@ private fun twoPlatforms(): ModulesYaml =
     ModulesYamlFake(
         platforms =
             listOf(
-                Platform.FromManifest("kernel", emptyList()),
-                Platform.FromManifest("events", listOf("platform:kernel")),
+                Platform("kernel", emptyList()),
+                Platform("events", listOf("platform:kernel")),
             ),
     )

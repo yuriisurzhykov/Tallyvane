@@ -6,5 +6,6 @@ tasks.register("check") {
         ":graph:check",
         ":verification:check",
         ":root:check",
+        ":ktlint-rules:check",
     )
 }

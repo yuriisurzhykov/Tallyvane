@@ -1,8 +1,6 @@
-import org.gradle.api.artifacts.VersionCatalogsExtension
-import org.gradle.api.plugins.JavaPluginExtension
-import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
+import org.jlleitschuh.gradle.ktlint.KtlintExtension
 
 plugins {
     id("org.jetbrains.kotlin.jvm")
@@ -21,16 +19,22 @@ extensions.configure<KotlinJvmProjectExtension> {
     }
 }
 
+val libs = extensions.getByType<VersionCatalogsExtension>().named("libs")
+
+configure<KtlintExtension> {
+    version.set(libs.findVersion("ktlintEngine").get().requiredVersion)
+}
+
 detekt {
     buildUponDefaultConfig = true
     parallel = true
     config.setFrom(rootProject.layout.projectDirectory.file("config/detekt/detekt.yml"))
 }
 
-val libs = extensions.getByType<VersionCatalogsExtension>().named("libs")
 dependencies {
     testImplementation(libs.findLibrary("kotest-runner-junit5").get())
     testImplementation(libs.findLibrary("kotest-assertions-core").get())
+    add("ktlintRuleset", "tallyvane.gradle:ktlint-rules:0.0.0")
 }
 
 tasks.withType<Test>().configureEach {

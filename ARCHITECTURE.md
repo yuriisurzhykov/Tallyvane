@@ -384,7 +384,7 @@ API остаётся единственным честным контракто�
 ```
 backend/
 ├── settings.gradle.kts
-├── build-logic/                        included build: один Gradle-проект на плагин
+├── build-logic/                        included build: один Gradle-проект на плагин; ktlint-rules — ruleset, не плагин
 ├── platform/                           технические возможности, ноль бизнес-логики
 │   ├── kernel/                         Money, UserId, Slug, Clock, IdGenerator, Outcome
 │   ├── events/                         DomainEvent, EventPublisher, EventSubscriber
@@ -4891,7 +4891,8 @@ rule-signals и узкого LLM-rerank только по уже отобран�
 
 **ADR-042. Пиксельная оценка виртуализатора — число в JS, не CSS-переменная.** `estimateSize` у `@tanstack/react-virtual` обязан вернуть число CSS-пикселей; движок не читает custom property, поэтому семя высоты строки `DataTable` (`ROW_HEIGHT_PX`) остаётся JS-числом, хотя нарисованная строка идёт через `var(--control-height-sm)`. Число не освобождает `style={{}}`: CSS строки — токен, число живёт только как начальная оценка, `measureElement` поправляет дрейф. Тишина — полный `@architecture-exception` с ADR. Именованная константа, `n + "px"` и Lucide `size={16}` по-прежнему хардкод. Отвергнуто чтение `getComputedStyle` на рендере (форсирует layout и гоняется с первой отрисовкой). Отвергнута именованная константа как lint-исключение: агент уже обошёл ту дыру.
 
-**ADR-043. Статический анализ бэкенда — четыре инструмента, четыре вопроса.** ktlint (стиль, trailing comma), detekt
+**ADR-043. Статический анализ бэкенда — четыре инструмента, четыре вопроса.** ktlint (стиль, trailing comma;
+правила, которых нет в official set, — `build-logic/ktlint-rules`), detekt
 (размер и сложность с Kotlin-порогами, не копией ESLint), Konsist (именованные правила §15.3), сверка графа Gradle с
 `modules.yaml`. MockK и Mockito запрещены на classpath; двойник — рукописный `Fake` в `src/test` (ADR-044). `detekt-formatting` отвергнут как
 второй ktlint. Полный разбор — [ADR-043](docs/adr/ADR-043-backend-static-analysis-stack.md).

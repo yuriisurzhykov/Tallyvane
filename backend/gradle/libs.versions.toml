@@ -5,6 +5,9 @@ kotlin = "2.4.10"
 # Static analysis
 detekt = "2.0.0-alpha.6"
 ktlint = "14.2.0"
+# Engine the Gradle plugin runs. Plugin 14.2.0 defaults to 1.5.0; pin it
+# so the custom ruleset compiles against the same API the worker loads.
+ktlintEngine = "1.5.0"
 
 # Testing
 kotest = "6.2.4"
@@ -12,6 +15,9 @@ konsist = "0.17.3"
 
 # YAML
 snakeyaml = "2.4"
+
+# Logging
+slf4j = "2.0.17"
 
 [libraries]
 # Gradle.
@@ -28,8 +34,16 @@ kotest-assertions-core = { group = "io.kotest", name = "kotest-assertions-core",
 # Konsist
 konsist = { group = "com.lemonappdev", name = "konsist", version.ref = "konsist" }
 
+# ktlint engine (the linter, not the Gradle plugin)
+ktlint-cli-ruleset-core = { group = "com.pinterest.ktlint", name = "ktlint-cli-ruleset-core", version.ref = "ktlintEngine" }
+ktlint-rule-engine-core = { group = "com.pinterest.ktlint", name = "ktlint-rule-engine-core", version.ref = "ktlintEngine" }
+ktlint-test = { group = "com.pinterest.ktlint", name = "ktlint-test", version.ref = "ktlintEngine" }
+
 # SnakeYAML
 snakeyaml = { group = "org.yaml", name = "snakeyaml", version.ref = "snakeyaml" }
+
+# slf4j
+slf4j-nop = { group = "org.slf4j", name = "slf4j-nop", version.ref = "slf4j" }
 
 [plugins]
 # Kotlin

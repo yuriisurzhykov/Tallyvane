@@ -1,4 +1,4 @@
-package tallyvane.gradle.graph
+package tallyvane.gradle.graph.domain
 
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.shouldBe
@@ -11,10 +11,10 @@ class IncludedProjectsWiredSpec :
                 IncludedProjects.Wired(
                     included = setOf(":platform:kernel"),
                     dependencies = mapOf(":platform:kernel" to emptySet()),
-                    wiredCoordinates = listOf("${original.projectPath()}\t${original.group()}"),
+                    wiredCoordinates = listOf("${original.projectPath}\t${original.group}"),
                 )
             val decoded = wired.coordinates().single()
-            decoded.projectPath() shouldBe original.projectPath()
-            decoded.group() shouldBe original.group()
+            decoded.projectPath shouldBe original.projectPath
+            decoded.group shouldBe original.group
         }
     })

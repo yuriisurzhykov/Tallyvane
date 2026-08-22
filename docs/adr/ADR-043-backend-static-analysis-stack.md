@@ -11,6 +11,10 @@ Four tools, four questions, no overlap:
   profile rejects a wrapped parameter list that ends with a comma; `ktlint_official`
   is the profile that keeps them. Plugin `org.jlleitschuh.gradle.ktlint`. Not
   `detekt-formatting`: that is a second ktlint, two reports for one edit.
+  Style official ktlint does not cover lives in `build-logic/ktlint-rules`
+  (`tallyvane` ruleset), loaded on the same `ktlintCheck` task. First rule:
+  every KDoc is the multiline form — `kdoc-wrapping` only forbids sharing a
+  line with other code.
 - **detekt** — size and complexity as SOLID proxies, with Kotlin-native
   thresholds, not the frontend ESLint numbers. Function parameters and
   constructor parameters are different knobs: a use case constructor holding

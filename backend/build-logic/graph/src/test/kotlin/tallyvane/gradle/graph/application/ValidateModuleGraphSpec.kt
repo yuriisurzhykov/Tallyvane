@@ -1,24 +1,30 @@
-package tallyvane.gradle.graph
+package tallyvane.gradle.graph.application
 
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldContain
+import tallyvane.gradle.graph.domain.Feature
+import tallyvane.gradle.graph.domain.Finding
+import tallyvane.gradle.graph.domain.IncludedProjects
+import tallyvane.gradle.graph.domain.IncludedProjectsFake
+import tallyvane.gradle.graph.domain.ModulesYaml
+import tallyvane.gradle.graph.domain.ModulesYamlFake
+import tallyvane.gradle.graph.domain.Platform
 
-class GraphCheckRunnerSpec :
+class ValidateModuleGraphSpec :
     StringSpec({
         "empty platform graph matching the manifest is clean" {
-            GraphCheckRunner.Base(platformOnly(), kernelOnly()).runAll().shouldBeEmpty()
+            ValidateModuleGraph(platformOnly(), kernelOnly()).findings().shouldBeEmpty()
         }
 
         "planned module included in Gradle is a finding" {
-            GraphCheckRunner
-                .Base(
-                    platformOnly(planned = setOf("jobs")),
-                    IncludedProjectsFake(
-                        paths = setOf(":platform:kernel", ":modules:jobs:domain"),
-                        dependencies = mapOf(":platform:kernel" to emptySet()),
-                    ),
-                ).runAll()
+            ValidateModuleGraph(
+                platformOnly(planned = setOf("jobs")),
+                IncludedProjectsFake(
+                    paths = setOf(":platform:kernel", ":modules:jobs:domain"),
+                    dependencies = mapOf(":platform:kernel" to emptySet()),
+                ),
+            ).findings()
                 .shouldContain(
                     Finding(
                         "Planned module jobs is included as :modules:jobs:domain — " +
@@ -28,40 +34,37 @@ class GraphCheckRunnerSpec :
         }
 
         "undeclared feature edge is a finding" {
-            GraphCheckRunner
-                .Base(jobsDomain(), jobsWithoutKernel())
-                .runAll()
+            ValidateModuleGraph(jobsDomain(), jobsWithoutKernel())
+                .findings()
                 .shouldContain(Finding("Undeclared dependency: :modules:jobs:domain -> :platform:http"))
         }
 
         "missing required platform edge on a feature is a finding" {
-            GraphCheckRunner
-                .Base(
-                    jobsDomain(),
-                    IncludedProjectsFake(
-                        paths = setOf(":platform:kernel", ":modules:jobs:domain"),
-                        dependencies =
-                            mapOf(
-                                ":platform:kernel" to emptySet(),
-                                ":modules:jobs:domain" to emptySet(),
-                            ),
-                    ),
-                ).runAll()
+            ValidateModuleGraph(
+                jobsDomain(),
+                IncludedProjectsFake(
+                    paths = setOf(":platform:kernel", ":modules:jobs:domain"),
+                    dependencies =
+                        mapOf(
+                            ":platform:kernel" to emptySet(),
+                            ":modules:jobs:domain" to emptySet(),
+                        ),
+                ),
+            ).findings()
                 .shouldContain(
                     Finding("Declared but unused dependency: :modules:jobs:domain -> :platform:kernel"),
                 )
         }
 
         "mockk coordinate is a finding" {
-            GraphCheckRunner
-                .Base(
-                    platformOnly(),
-                    IncludedProjectsFake(
-                        paths = setOf(":platform:kernel"),
-                        dependencies = mapOf(":platform:kernel" to emptySet()),
-                        coordinates = listOf(IncludedProjects.Coordinate(":arch-tests", "io.mockk")),
-                    ),
-                ).runAll()
+            ValidateModuleGraph(
+                platformOnly(),
+                IncludedProjectsFake(
+                    paths = setOf(":platform:kernel"),
+                    dependencies = mapOf(":platform:kernel" to emptySet()),
+                    coordinates = listOf(IncludedProjects.Coordinate(":arch-tests", "io.mockk")),
+                ),
+            ).findings()
                 .shouldContain(Finding("Banned coordinate io.mockk in :arch-tests"))
         }
     })
@@ -69,14 +72,14 @@ class GraphCheckRunnerSpec :
 private fun platformOnly(planned: Set<String> = emptySet()): ModulesYaml =
     ModulesYamlFake(
         planned = planned,
-        platforms = listOf(Platform.FromManifest("kernel", emptyList())),
+        platforms = listOf(Platform("kernel", emptyList())),
         layerAllow = mapOf("domain" to listOf("platform:kernel")),
     )
 
 private fun jobsDomain(): ModulesYaml =
     ModulesYamlFake(
-        platforms = listOf(Platform.FromManifest("kernel", emptyList())),
-        features = listOf(Feature.FromManifest("jobs", listOf("domain"), emptyList())),
+        platforms = listOf(Platform("kernel", emptyList())),
+        features = listOf(Feature("jobs", listOf("domain"), emptyList())),
         layerAllow = mapOf("domain" to listOf("platform:kernel")),
     )
 

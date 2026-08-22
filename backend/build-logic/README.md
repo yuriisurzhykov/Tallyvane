@@ -1,12 +1,14 @@
 # build-logic
 
-An included build with **one Gradle project per plugin**.
+An included build with **one Gradle project per plugin**, plus `:ktlint-rules`
+for style official ktlint does not cover.
 
 ```
 conventions/     tallyvane.kotlin-module and siblings (precompiled scripts)
-graph/           tallyvane.graph — nested ports in one package, Task in tasks/
+graph/           tallyvane.graph — domain / application / infrastructure packages, Task in tasks/
 verification/    tallyvane.verification
 root/            tallyvane.root — applies graph + verification
+ktlint-rules/    tallyvane ktlint ruleset — style official ktlint does not cover
 ```
 
 A plugin class lives at the root of that plugin's package
@@ -25,7 +27,9 @@ dependencies {
 ```
 
 Binary plugins are for rules this repository owns. Graph internals:
-[graph/README.md](graph/README.md).
+[graph/README.md](graph/README.md). ktlint ruleset:
+[ktlint-rules/README.md](ktlint-rules/README.md). `tallyvane.kotlin-module`
+puts that JAR on `ktlintRuleset`.
 
 ## Why an included build rather than a root `subprojects` block
 
