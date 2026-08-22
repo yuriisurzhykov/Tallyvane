@@ -78,10 +78,7 @@ jobs:
         run: chmod +x ./gradlew
         working-directory: backend
 
-      # There is nothing to compile yet — no module declares a source set. The
-      # job exists to prove the wrapper resolves and the module graph is
-      # consistent, so that the day a module appears it lands on a pipeline
-      # that already works rather than one nobody has ever run.
-      - name: Resolve the project graph
-        run: ./gradlew projects --no-daemon
+      # Wrapper, module graph vs modules.yaml, ktlint, detekt, and Konsist.
+      - name: Architecture verification
+        run: ./gradlew arch --no-daemon
         working-directory: backend

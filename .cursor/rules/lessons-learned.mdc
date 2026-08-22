@@ -378,6 +378,34 @@ description: The rules-log file for all the lessons learned during working on th
   state, not a code bug. Kill all `node` processes, clear `.next/`, retry on a
   fresh port before assuming the code broke.
 
+### Gradle included-build plugins
+
+- **A feature module's five Gradle projects (`contract` / `domain` /
+  `application` / `infrastructure` / `web`) are not a template for a Gradle
+  plugin.** `validateModuleGraph` has three jobs — parse `modules.yaml`,
+  snapshot the Gradle graph, compare — so three packages in one `:graph`
+  project (`manifest` / `rules` / `gradle`) are the seam. Extra Gradle
+  modules plus `explicitApi()` only existed to make `public` look
+  load-bearing; Kotlin's default is already public. The plugin class itself
+  lives at the package root (`tallyvane.gradle.graph.ModuleGraphPlugin`),
+  not under `.plugin`.
+- **`kotlin-dsl`'s `Action { }` is a receiver lambda (`T.() -> Unit`), not
+  SAM conversion.** `Action { graph -> graph.group = … }` therefore fails
+  to compile in a `.gradle.kts` / kotlin-dsl source set. Binary plugin
+  sources on `java-gradle-plugin` + `kotlin-jvm` do not get that helper, so
+  the same `Action { graph -> }` form is the Java SAM and is the one to
+  use there. Do not add `GraphTaskConvention`-style wrappers to dodge a
+  receiver that is not on that classpath.
+
+### Backend architecture
+
+- **A nested `Jobs.Fake` in `src/main` is production code.** Kotlin compiles it
+  to `Jobs$Fake.class` in the published jar, so every consumer of the port
+  ships a test double. The double is `JobsFake` in that module's `src/test`.
+  `Cached` / `Retrying` still nest: they are production. Konsist
+  `no-fake-in-main` (ADR-044) is the gate; `fake-is-nested` was the opposite
+  mistake.
+
 ---
 
 ## Known traps — real, but not yet hit here
