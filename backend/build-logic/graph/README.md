@@ -5,22 +5,33 @@ compares that file to the real Gradle project graph. An undeclared edge and
 a declared but unused one are both errors. MockK and Mockito coordinates are
 banned on every configuration, including test.
 
-The plugin class sits at the module package root:
-`tallyvane.gradle.graph.ModuleGraphPlugin`. Everything else is one of three
-jobs, as packages in this same Gradle project — not as subprojects.
+The plugin class sits at the package root:
+`tallyvane.gradle.graph.ModuleGraphPlugin`. Vocabulary is nested types on
+ports, in the same package. Gradle Task subclasses live under `tasks/`.
 
 ```
-ModuleGraphPlugin.kt   Plugin<Project>
-manifest/              modules.yaml → ModuleManifest (SnakeYAML stays here)
-rules/                 ModuleManifest + ProjectGraph → GraphFinding
-gradle/                Task, snapshot of the Gradle build, configuration-cache wiring
+ModuleGraphPlugin.kt     Plugin<Project> — register the task, accept a snapshot
+ModulesYaml.kt           interface + File (SnakeYAML stays inside File)
+Feature.kt               port + FromManifest
+Platform.kt              port + FromManifest
+IncludedProjects.kt      interface + Snapshot (live Gradle) + Wired (@Input)
+GraphCheck.kt            interface + Planned, Platforms, Features, Banned
+GraphCheckRunner.kt      interface + Base(yaml, projects)
+Finding.kt               a check result
+tasks/
+  ValidateModuleGraphTask.kt
 ```
 
-`rules` does not import YAML or `org.gradle.api.Project`. The task loads the
-manifest, accepts a `ProjectGraph` snapshot, and calls `ValidateModuleGraph`.
-The four checks (planned modules, platform edges, feature edges, banned
-coordinates) are separate types; they are not a registry, because the set is
-fixed.
+`ModulesYaml.File` reads the YAML. `Feature` and `Platform` are their own
+ports (`FromManifest` on each), not nested types on the yaml file: a
+`Feature` is not a kind of `ModulesYaml`, and formatting a Gradle path is
+not a reason to construct one. `IncludedProjects.Snapshot` walks the
+Gradle build. `GraphCheckRunner.Base` holds both and runs the nested checks.
+The task exists because configuration cache needs serializable `@Input`
+values: `accept` writes them, `Wired` rebuilds the same port at execution.
+
+Test doubles are `ModulesYamlFake` and `IncludedProjectsFake` in `src/test`,
+not nested on the production types (ADR-044).
 
 Applying `id("tallyvane.graph")` registers `validateModuleGraph`.
 `tallyvane.root` applies this plugin and `tallyvane.verification`.

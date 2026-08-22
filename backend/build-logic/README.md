@@ -4,7 +4,7 @@ An included build with **one Gradle project per plugin**.
 
 ```
 conventions/     tallyvane.kotlin-module and siblings (precompiled scripts)
-graph/           tallyvane.graph — packages manifest / rules / gradle
+graph/           tallyvane.graph — nested ports in one package, Task in tasks/
 verification/    tallyvane.verification
 root/            tallyvane.root — applies graph + verification
 ```

@@ -1,4 +1,4 @@
-package tallyvane.gradle.graph.gradle
+package tallyvane.gradle.graph.tasks
 
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
@@ -11,9 +11,9 @@ import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
 import org.gradle.api.tasks.VerificationTask
-import tallyvane.gradle.graph.manifest.YamlManifestSource
-import tallyvane.gradle.graph.rules.ProjectGraph
-import tallyvane.gradle.graph.rules.ValidateModuleGraph
+import tallyvane.gradle.graph.GraphCheckRunner
+import tallyvane.gradle.graph.IncludedProjects
+import tallyvane.gradle.graph.ModulesYaml
 
 abstract class ValidateModuleGraphTask :
     DefaultTask(),
@@ -32,36 +32,42 @@ abstract class ValidateModuleGraphTask :
     abstract val coordinates: ListProperty<String>
 
     init {
+        group = "verification"
+        description =
+            "Fails if the Gradle project graph disagrees with modules.yaml, or if MockK/Mockito appear."
         ignoreFailures = false
     }
 
-    internal fun accept(snapshot: ProjectGraph) {
-        includedProjectPaths.set(snapshot.included.toList())
-        projectDependencies.set(snapshot.dependencies.mapValues { it.value.toList() })
-        coordinates.set(snapshot.coordinates.map { coordinate -> CoordinateWire().encode(coordinate) })
+    internal fun accept(projects: IncludedProjects) {
+        includedProjectPaths.set(projects.paths().toList())
+        projectDependencies.set(
+            projects.paths().associateWith { path -> projects.dependencies(path).toList() },
+        )
+        coordinates.set(projects.coordinates().map(::wire))
     }
 
     @TaskAction
     fun validate() {
         val findings =
-            ValidateModuleGraph().invoke(
-                YamlManifestSource(manifestFile.get().asFile).load(),
-                snapshot(),
-            )
+            GraphCheckRunner
+                .Base(
+                    ModulesYaml.File(manifestFile.get().asFile),
+                    IncludedProjects.Wired(
+                        includedProjectPaths.get().toSet(),
+                        projectDependencies.get().mapValues { entry -> entry.value.toSet() },
+                        coordinates.get(),
+                    ),
+                ).runAll()
         if (findings.isNotEmpty()) {
             throw GradleException(
                 findings.joinToString(
                     separator = "\n",
                     prefix = "Module graph is not the manifest:\n",
-                ) { finding -> finding.message },
+                ),
             )
         }
     }
 
-    private fun snapshot(): ProjectGraph =
-        ProjectGraph(
-            included = includedProjectPaths.get().toSet(),
-            dependencies = projectDependencies.get().mapValues { it.value.toSet() },
-            coordinates = coordinates.get().map { value -> CoordinateWire().decode(value) },
-        )
+    private fun wire(coordinate: IncludedProjects.Coordinate): String =
+        "${coordinate.projectPath()}\t${coordinate.group()}"
 }
