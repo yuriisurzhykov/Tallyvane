@@ -32,7 +32,7 @@ internal val ARCH_RULES: List<ArchRule> =
         ArchRule("own-schema-only", violations = ::ownSchemaOnly),
         ArchRule("no-cross-schema-join", violations = ::noCrossSchemaJoin),
         ArchRule("no-llm-with-personal-data", violations = ::noLlmWithPersonalData),
-        ArchRule("port-has-contract-suite", scope = { codeScope() }, violations = ::portHasContractSuite),
+        ArchRule("port-has-conformance-suite", scope = { codeScope() }, violations = ::portHasConformanceSuite),
         ArchRule("usecase-has-test", scope = { codeScope() }, violations = ::usecaseHasTest),
         ArchRule("registry-owns-branching", violations = ::registryOwnsBranching),
         ArchRule("app-has-no-logic", violations = ::appHasNoLogic),

@@ -97,6 +97,28 @@ with more machinery.
 `ambientRandomMarkersIn` exists so the deliberate breadth is asserted on a
 literal snippet rather than argued about in a comment.
 
+## SQL is scanned too, because the gates only read Kotlin
+
+`own-schema-only` and `no-cross-schema-join` ask Konsist, and Konsist parses
+Kotlin. So the cheapest way to break the rule they defend was never Kotlin at
+all: a `create view` in a migration joins a neighbour's tables, and the consumer
+starts depending on that neighbour's physical column names with nothing to notice.
+`MigrationSchemaSpec` reads every `.sql` under `platform/` and `modules/` and
+fails on a schema that is not the file's own.
+
+The exemption is precisely the one §4.6 grants and no wider: a foreign key may
+cross a schema, a query may not. `references identity.users (id)` and
+`join jobs.companies` can sit in the same file, and only the second is a
+violation.
+
+The first draft matched every `x.y` in the file and reported table aliases as
+schemas — `a.id` in `from applications.applications a`. The patterns are anchored
+to the positions where a schema can actually stand (`from`, `join`, `table`,
+`view`, `index … on` and their siblings), which is also why the spec asserts the
+alias case rather than describing it. The decision this enforces, including the
+half that cannot be enforced, is
+[ADR-045](../../docs/adr/ADR-045-cross-capability-reads-own-the-copy.md).
+
 ## The SOLID angle
 
 One reason to change `codeText()` — what counts as source a rule may inspect —

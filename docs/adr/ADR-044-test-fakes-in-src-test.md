@@ -13,7 +13,7 @@ sources. `Cached`, `Retrying` and `Abstract` may still nest on the port:
 those are production implementations without I/O, not test doubles.
 
 MockK and Mockito stay banned (ADR-043). The dummy still implements the port
-in full so a new method fails the compiler and the contract suite.
+in full so a new method fails the compiler and the conformance suite.
 
 This applies to feature modules, `platform/*`, and binary Gradle plugins
 under `build-logic/` (Konsist scans `platform/`, `app/` and `modules/`;

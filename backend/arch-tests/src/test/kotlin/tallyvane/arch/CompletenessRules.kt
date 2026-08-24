@@ -2,23 +2,23 @@ package tallyvane.arch
 
 import com.lemonappdev.konsist.api.container.KoScope
 
-internal fun portHasContractSuite(scope: KoScope): List<String> {
-    val contractNames =
+internal fun portHasConformanceSuite(scope: KoScope): List<String> {
+    val suiteNames =
         scope
             .classesAndInterfacesAndObjects(includeNested = true)
             .map { it.name }
-            .filter { it.endsWith("Contract") }
+            .filter { it.endsWith("Conformance") }
             .toSet()
     return scope
         .interfaces(includeNested = false)
-        .withoutException("port-has-contract-suite")
+        .withoutException("port-has-conformance-suite")
         .filter { it.resideInPackage("..port..") }
         .filter { port ->
             val implementations =
                 scope
                     .classes(includeNested = true, includeLocal = false)
                     .count { klass -> klass.parentInterfaces().any { parent -> parent.name == port.name } }
-            implementations > 1 && "${port.name}Contract" !in contractNames
+            implementations > 1 && "${port.name}Conformance" !in suiteNames
         }.map { it.where() }
 }
 

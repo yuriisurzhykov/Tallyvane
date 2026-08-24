@@ -28,8 +28,8 @@ Four tools, four questions, no overlap:
 Kotest remains the test runner. Handwritten fakes in `src/test` (`JobsFake`)
 are the only test doubles — placement is ADR-044; this record's nested
 `Jobs.Fake` is superseded. MockK is not a stubbing escape hatch: a `mockk()`
-double does not implement the port and will not fail the contract suite when a
-method is added.
+double does not implement the port and will not fail the conformance suite when
+a method is added.
 
 Smart contract: I/O-free *production* implementations nest inside the port
 (`Cached`, `Retrying`; `Abstract` only as a Template Method). A `Fake` does
