@@ -20,4 +20,17 @@ public interface Clock {
      * The current instant according to this clock.
      */
     public fun now(): Instant
+
+    /**
+     * The wall clock the process is actually running on.
+     *
+     * Named for the mechanism rather than `System`, which at a call site would
+     * be indistinguishable from the `kotlin.time.Clock.System` this port exists
+     * to keep out of domain code. It nests on the port because it reaches no
+     * technology — no driver, no connection — so it drags nothing into a module
+     * whose purpose is to stay free of both.
+     */
+    public class Wall : Clock {
+        override fun now(): Instant = kotlin.time.Clock.System.now()
+    }
 }

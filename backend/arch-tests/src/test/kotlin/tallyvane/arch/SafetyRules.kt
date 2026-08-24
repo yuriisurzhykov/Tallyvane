@@ -13,12 +13,33 @@ private val ambientTimeMarkers =
         "kotlin.time.Clock.System",
     )
 
+// `Uuid.generateV7` is unparenthesised so it also catches
+// `generateV7NonMonotonicAt`: both v7 generators draw their suffix from the
+// platform CSPRNG. Minting a UUID is listed here and deliberately not among the
+// time markers, even though `generateV7()` reads the wall clock — see
+// arch-tests/README.md for why the time marker was added and then withdrawn.
 private val ambientRandomMarkers =
     listOf(
         "UUID.randomUUID",
         "kotlin.random.Random",
         "java.util.Random",
+        "Uuid.random",
+        "Uuid.generateV4",
+        "Uuid.generateV7",
     )
+
+/**
+ * The ambient-random markers [source] contains, as a rule would see them.
+ *
+ * Exposed so a spec can pin the breadth a substring match makes easy to get
+ * wrong — every way of minting a UUID must match, including the
+ * `NonMonotonicAt` form — without building a Konsist scope for two lines of
+ * Kotlin.
+ */
+internal fun ambientRandomMarkersIn(source: String): List<String> {
+    val code = codeWithoutComments(source)
+    return ambientRandomMarkers.filter { code.contains(it) }
+}
 
 internal fun noAmbientTime(scope: KoScope): List<String> = scope.files
     .withoutException("no-ambient-time")

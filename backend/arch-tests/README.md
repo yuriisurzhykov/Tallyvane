@@ -67,6 +67,36 @@ place — a comment inside a string template's interpolation counts as literal.
 Konsist exposes no comment-free view of a file, and a full Kotlin lexer here
 would be a second parser to keep alive.
 
+## A marker nobody has seen fire is not a guard
+
+`ArchitectureRulesSpec` asserts one thing per rule: the fixture directory is not
+clean. That is enough to prove a rule works and useless for proving a *marker*
+works, because a directory stays dirty on the strength of any single violation
+in it. So when Kotlin 2.4 moved UUID generation into the standard library —
+`Uuid.random()`, `Uuid.generateV4()`, `Uuid.generateV7()`, none of which the
+ambient rules knew — adding the strings would have been an unverified claim of
+exactly the kind this module exists to refuse. `AmbientMarkerSpec` names the
+fixture it expects each new marker to flag.
+
+All three markers went to `no-ambient-random`, and none to `no-ambient-time` —
+which is a correction of the first attempt, kept here because the reasoning is
+the useful part. `Uuid.generateV7()` really does read the wall clock, so a time
+marker looked obviously right, and one was added. Writing the production
+generator immediately disproved it. A file is spared `no-ambient-random` when it
+implements `IdGenerator` and spared `no-ambient-time` when it implements `Clock`,
+so `IdGenerator.Uuid7` — the one file in the tree that is *supposed* to mint a
+time-ordered id — was the only thing the time marker flagged. Every illegitimate
+call is already caught: the random marker `Uuid.generateV7` is deliberately
+unparenthesised, so it matches `generateV7NonMonotonicAt` too, and no domain or
+application file can mint a UUID by any route without firing it. A marker whose
+entire effect is to accuse the correct implementation is not a guard, and the
+alternatives — widening the time exemption by port name, or spending one of ten
+`@ArchitectureException` slots — would both have bought that same protection
+with more machinery.
+
+`ambientRandomMarkersIn` exists so the deliberate breadth is asserted on a
+literal snippet rather than argued about in a comment.
+
 ## The SOLID angle
 
 One reason to change `codeText()` — what counts as source a rule may inspect —

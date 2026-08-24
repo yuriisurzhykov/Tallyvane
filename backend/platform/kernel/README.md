@@ -23,9 +23,27 @@ that implements this interface fails Konsist `no-ambient-time`.
 
 `UUID.randomUUID()` is the same shape for identity. A domain rule that
 mints an id cannot be asserted against if the id is different every run.
-`IdGenerator` is the collaborator; `IdGeneratorFake` yields `id-1`,
-`id-2`. `UUID.randomUUID()`, `kotlin.random.Random` and `java.util.Random`
-outside an `IdGenerator` implementation fail `no-ambient-random`.
+`IdGenerator` is the collaborator; `IdGeneratorFake` yields
+`…-000000000001`, `…-000000000002`. `UUID.randomUUID()`,
+`kotlin.random.Random` and `java.util.Random` outside an `IdGenerator`
+implementation fail `no-ambient-random`.
+
+The port returns `kotlin.uuid.Uuid`, and production draws **UUIDv7** —
+ARCHITECTURE.md §8.1 wants a monotonic id so Postgres clusters the index
+and rows sort by mint time. No library is needed for that: Kotlin 2.4
+stabilised `Uuid` and added `Uuid.generateV7()` to the standard library,
+which prefixes a millisecond timestamp and fills the rest from the
+platform CSPRNG. Only the generator functions stayed experimental, so a
+production implementation opts in; this port and the fake use `parse` and
+therefore do not.
+
+An id is not a secret, and the distinction is load-bearing rather than
+pedantic. The standard library says of `generateV7` that it is "not
+recommended for use for cryptographic purposes", because a v7 value
+publishes its own mint time and spends at most 74 bits on randomness. A
+session token, a device token or a calendar-feed token therefore cannot
+come from `IdGenerator`; each needs a port whose whole contract is
+unguessability.
 
 `kotlin.runCatching` already offers "try this, otherwise that". It catches
 every `Throwable`. A cancelled coroutine then continues with a fallback
@@ -47,12 +65,22 @@ annotation, owns those rules — see
 ## What is here, and what is not
 
 Four types exist: `Clock`, `IdGenerator`, `ArchitectureException`,
-`Fallback`. Production implementations of the two ports have not arrived;
-tests construct `ClockFake` and `IdGeneratorFake` in this module's
-`src/test`. `Money`, `UserId`, `Slug` and `Outcome` are named in
-ARCHITECTURE.md §4.2 (value objects also in §2.5) and are not in this
-tree. They belong here when they are written. This file does not describe
-them as if they were.
+`Fallback`. Each port now carries its production implementation nested on
+it — `Clock.Wall` and `IdGenerator.Uuid7` — while tests construct
+`ClockFake` and `IdGeneratorFake` in this module's `src/test`.
+`Money`, `UserId` and `Slug` are named in ARCHITECTURE.md §4.2
+(value objects also in §2.5) and are not in this tree. They belong here
+when they are written. This file does not describe them as if they were.
+
+`Outcome` was in that §4.2 list and has been removed from it rather than
+implemented here. A search of the specification finds the name in that one
+line and nowhere else: every operation that can fail already returns its
+own named outcome — `FetchOutcome`, `LlmOutcome<T>`, `ProcessOutcome`,
+`IntakeOutcome`, `AppendOutcome`, `DeliveryOutcome`, `RenderOutcome`,
+`PublishOutcome`. A general `Outcome` in this module would be the second
+competing result type that ENGINEERING-PRINCIPLES.md rejects in as many
+words: "Two competing result types in one codebase is worse than either of
+them alone."
 
 ## What was actually done
 
@@ -66,6 +94,27 @@ That is
 [ADR-044](../../../docs/adr/ADR-044-test-fakes-in-src-test.md). `Cached` /
 `Retrying` still nest: they are production. Until a second module's tests
 need `ClockFake`, the fake stays here rather than in `java-test-fixtures`.
+
+`Clock.Wall` and `IdGenerator.Uuid7` nest on their ports rather than
+sitting beside them. The rule that keeps adapters out of a port's module
+exists for one reason — "a nested type compiles into the module that owns
+the interface, which would drag a database driver into a module whose whole
+purpose is to be driver-free" — and that reason does not reach here: these
+two reach no technology at all, only the platform's clock and CSPRNG, both
+already on this module's stdlib-only classpath. `app` was the other
+candidate and is closed to them: `app-has-no-logic` refuses any type there
+whose name does not end in `Wiring`, `Configuration` or `Application`, and
+naming a UUID generator `IdGeneratorWiring` to satisfy a checker is a lie
+told to a checker.
+
+Neither is named `System`. `Clock.System` would read at a call site exactly
+like the `kotlin.time.Clock.System` this port exists to keep out of domain
+code, and the Konsist marker is the fully qualified name, so nothing would
+have caught the confusion. `Wall` names the mechanism — the system's wall
+clock — and `Uuid7` names the format. Both had to be added to
+`NESTED_IMPL_ALLOW` in `arch-tests`, and not as a formality:
+`nested-impl-is-pure` silently skips every nested class whose name it does
+not recognise, so an unlisted name is an unguarded one.
 
 `ArchitectureException` is a source-retention annotation on class,
 function, file and property. Konsist skips the annotated declaration only
@@ -91,6 +140,17 @@ can inspect. Catching `Exception` is broad on purpose in `of` and nowhere
 else — the alternative is every call site catching broadly on its own.
 
 ## Wrong turns
+
+`IdGenerator.next()` returned a `String` until §6.13 was read against it.
+The specification says `fun next(): Uuid` and annotates it "UUIDv7,
+монотонный по времени", and §8.1 requires UUIDv7 of every identifier in
+the database. The port had been written before any caller existed, so
+nothing failed while the two disagreed — the decay that "an abstraction
+for substitution arrives with the test that substitutes" predicts, in a
+port that had a fake but no assertion about the shape of what it yields.
+The signature now follows the specification, and `IdGeneratorFakeSpec`
+asserts the version nibble and the sort order, so a later change cannot
+quietly return to a v4-shaped id.
 
 A first rule, `fake-is-nested`, required the double to sit on the port.
 That grouped the fake with the methods it had to implement and shipped it
