@@ -1,10 +1,11 @@
 # platform:persistence
 
 Everything about reaching Postgres: the connection, the transaction boundary, schema
-conventions, and migrations. Today the first two exist — the `Persistence` port and
-`PostgresPersistence` behind it — plus the test harness that had to come before them,
-because the slices that follow verify behaviour no in-memory substitute exhibits and
-cannot be written without a real database to write them against.
+conventions, and migrations. All four now exist in some form — the `Persistence` and
+`Migrations` ports with `PostgresPersistence` and `FlywayMigrations` behind them — plus the
+test harness that had to come before them, because the slices that follow verify behaviour
+no in-memory substitute exhibits and cannot be written without a real database to write them
+against.
 
 Database access lives behind the port and its adapter. Nothing in `main` opens a
 connection itself; raw JDBC appears only in integration tests, and there deliberately, so
@@ -135,6 +136,50 @@ left out of a list.
 
 Full record, including what was rejected and why:
 [ADR-057](../../../docs/adr/ADR-057-integration-tests-are-opt-in.md).
+
+## 2026-08-25 — migrations, and a database per test
+
+ADR-051 had already fixed the layout. Three things it left open only appeared once the thing
+ran, and one of them changed what the first migration had to contain.
+
+**An extension can stop working silently.** An extension's operators live in the schema it
+was installed into. If that schema is not on `search_path` when a query runs, PostgreSQL does
+not find them and compares as ordinary case-sensitive text — no error, no warning. `citext`
+would simply stop being case-insensitive, and the symptom would arrive as a person unable to
+sign in with their own address typed in a different case. The migration therefore sets
+`search_path` on the database, which covers every session including `psql` and Flyway's own
+later runs, and a test asserts a case-different comparison finds its row. A second test takes
+`platform` off `search_path` and shows the type does not resolve at all, so the statement is
+demonstrably load-bearing rather than decoration.
+
+**Flyway's bookkeeping went into `platform`, and it is the only schema Flyway is told about.**
+Listing every capability's schema would have been the "second place to forget" ADR-051
+rejected for locations; instead each capability's first migration creates the schema it owns.
+`platform` rather than a name of Flyway's own because `MigrationSchemaSpec` lets a migration
+under `db/migration/platform/` name exactly that schema — one name instead of two.
+
+**Two findings came from running the command rather than from tests.** `initSql` is deprecated
+in favour of an `afterConnect` callback; letting Flyway create the one schema it needs avoids
+both the deprecated setting and a callback class. And a second run printed `Schema version:
+none`, which in a deploy log reads as "there is no schema" when it means "already up to date"
+— Flyway leaves `targetSchemaVersion` null when it applied nothing. Both were shipped-and-
+noticed only because the command was executed as the deploy will execute it, not merely
+tested.
+
+**Truncation is gone.** Each integration test now gets its own database: `empty()` for tests
+about migrating, `migrated()` for everything needing the schema, cloned from a template
+migrated once per JVM. `create database … template …` copies files instead of replaying
+migrations, which is what makes it affordable per test. Truncation needed a list of tables
+that a table added later could be left out of, silently.
+
+That was not a hypothetical risk here. `FlywayMigrationsSpec` sets `search_path` **on the
+database** — on a shared one it would have changed the environment every other spec ran in,
+and it happened to be harmless only by luck. The isolation is asserted rather than trusted:
+`PostgresFixtureSpec` proves two callers get different databases and that one's tables are
+invisible to the other, because every other integration spec now rests on that claim.
+
+Full record, including the rejected alternatives:
+[ADR-059](../../../docs/adr/ADR-059-migration-application-and-test-isolation.md).
 
 ## Why it is understandable, scalable, extensible
 

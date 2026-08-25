@@ -1,36 +1,97 @@
 package tallyvane.platform.persistence
 
 import org.testcontainers.containers.PostgreSQLContainer
+import java.sql.DriverManager
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
- * One Postgres for the test JVM that asks for it.
+ * One Postgres for the test JVM that asks for it, and a database of its own for every
+ * caller.
  *
  * The image is the one §16.4's compose file runs, `postgres:17-alpine`, because a
- * different build sorts text differently: musl and glibc disagree on collation,
- * and a test that passed on one could fail on the other for no reason a reader
- * would find.
+ * different build sorts text differently: musl and glibc disagree on collation, and a
+ * test that passed on one could fail on the other for no reason a reader would find.
  *
- * Started on first use and never stopped: Testcontainers' reaper removes it when
- * the JVM exits. One container per test JVM, which means per Gradle test task —
- * not one per build. A shared build service would give that, and is the
- * escalation if the container count ever costs more than the code would.
+ * Started on first use and never stopped: Testcontainers' reaper removes it when the JVM
+ * exits. One container per test JVM, which means per Gradle test task — not one per
+ * build. A shared build service would give that, and is the escalation if the container
+ * count ever costs more than the code would.
  *
- * Fails rather than skips when Docker is absent. Integration tests only run when
- * asked for, so an absent Docker means the request could not be honoured, and a
- * silent pass would be the worst of the three outcomes.
+ * Fails rather than skips when Docker is absent. Integration tests only run when asked
+ * for, so an absent Docker means the request could not be honoured, and a silent pass
+ * would be the worst of the three outcomes.
+ *
+ * ### Why a database per caller, rather than one shared one
+ *
+ * Sharing a database makes every spec depend on every other spec's leftovers, and the
+ * escape from that is truncation — which needs a list of tables that a table added later
+ * can be left out of. That is the same "second place to forget" ADR-051 rejected for
+ * migration locations.
+ *
+ * It is not hypothetical here: `FlywayMigrationsSpec` sets `search_path` **on the
+ * database**, so on a shared one it would silently change the environment every other
+ * spec runs in.
+ *
+ * [migrated] clones a template that had the migrations applied once, because `create
+ * database … template …` copies files rather than replaying migrations — fast enough to
+ * do per test, where replaying a growing migration set would not be.
  */
 public object PostgresFixture {
     private const val IMAGE = "postgres:17-alpine"
+
+    private const val PORT = 5432
+
+    private const val TEMPLATE = "tallyvane_template"
+
+    private val sequence = AtomicInteger()
 
     private val container: PostgreSQLContainer<*> by lazy {
         PostgreSQLContainer<Nothing>(IMAGE).apply { start() }
     }
 
     /**
-     * Connection details of the running container, starting it if needed.
+     * A new database with nothing in it. For tests about migrating itself.
      */
-    public fun access(): DatabaseAccess = DatabaseAccess(
-        url = container.jdbcUrl,
+    public fun empty(): DatabaseAccess = accessTo(created(from = null))
+
+    /**
+     * A new database with every migration applied, cloned from a template built once.
+     */
+    public fun migrated(): DatabaseAccess = accessTo(created(from = template))
+
+    /**
+     * Built once per JVM, then left without a connection: Postgres refuses to clone a
+     * template while anyone is attached to it, and Flyway closes its own connections
+     * when `migrate` returns.
+     */
+    private val template: String by lazy {
+        val name = TEMPLATE
+        create(name, from = null)
+        FlywayMigrations(accessTo(name)).apply()
+        name
+    }
+
+    private fun created(from: String?): String {
+        val name = "spec_${sequence.incrementAndGet()}"
+        create(name, from)
+        return name
+    }
+
+    /**
+     * Issued over the container's own database, because `create database` cannot be run
+     * from inside the database it creates, nor inside a transaction.
+     */
+    private fun create(name: String, from: String?) {
+        val clause = from?.let { " template $it" } ?: ""
+        DriverManager
+            .getConnection(container.jdbcUrl, container.username, container.password)
+            .use { connection ->
+                connection.createStatement().use { it.execute("create database $name$clause") }
+            }
+    }
+
+    private fun accessTo(database: String): DatabaseAccess = DatabaseAccess(
+        url = "jdbc:postgresql://${container.host}:${container.getMappedPort(PORT)}/$database",
         user = container.username,
         password = container.password,
     )

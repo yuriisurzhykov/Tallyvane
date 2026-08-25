@@ -15,6 +15,8 @@ dependencies {
     runtimeOnly(libs.postgresql)
 
     testFixturesImplementation(libs.testcontainers.postgresql)
+    testFixturesRuntimeOnly(libs.postgresql)
+    testFixturesRuntimeOnly(libs.flyway.database.postgresql)
 
     integrationTestImplementation(testFixtures(project()))
     integrationTestImplementation(testFixtures(projects.platform.kernel))

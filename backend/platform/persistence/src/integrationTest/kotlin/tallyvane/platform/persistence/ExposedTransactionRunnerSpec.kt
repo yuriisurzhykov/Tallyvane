@@ -42,28 +42,31 @@ private class MarksSubject(private val access: DatabaseAccess, override val tran
  * `TransactionRunnerFake`, so anything that fails is a real disagreement between the
  * double every other module tests against and the code that actually runs.
  *
- * "Fresh" means an empty table, arranged over a plain JDBC connection rather than
- * through Exposed. A first draft did it with `suspendTransaction` and failed all seven
- * cases with "no default database found", because the arrangement ran before the pool
- * that would have registered one — a setup that depends on the code under test having
- * already worked.
+ * "Fresh" means a database of its own per case, not a truncated table in a shared one.
+ * Truncation needs a list of tables that a table added later can be left out of, and this
+ * suite's own wording anticipated it: for Postgres "fresh" means an empty table, "which no
+ * framework flag arranges".
+ *
+ * The table is created over a plain JDBC connection rather than through Exposed. A first
+ * draft arranged it with `suspendTransaction` and failed all seven cases with "no default
+ * database found", because the arrangement ran before the pool that would have registered
+ * one — a setup that depends on the code under test having already worked.
  */
 class ExposedTransactionRunnerSpec : TransactionRunnerConformance() {
-    private val access = PostgresFixture.access()
-
-    private val persistence by lazy { PostgresPersistence(access) }
+    private val opened = mutableListOf<PostgresPersistence>()
 
     init {
-        afterSpec { persistence.close() }
+        afterSpec { opened.forEach { persistence -> persistence.close() } }
     }
 
     override suspend fun fresh(): Subject {
+        val access = PostgresFixture.empty()
         DriverManager.getConnection(access.url, access.user, access.password).use { connection ->
             connection.createStatement().use { statement ->
-                statement.execute("create table if not exists marks (n integer not null)")
-                statement.execute("truncate table marks")
+                statement.execute("create table marks (n integer not null)")
             }
         }
+        val persistence = PostgresPersistence(access).also { opened += it }
         return MarksSubject(access, persistence.transactions)
     }
 }
