@@ -1,5 +1,7 @@
 package tallyvane.platform.kernel
 
+import tallyvane.platform.kernel.Fallback.Companion.invoke
+import tallyvane.platform.kernel.Fallback.Companion.of
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
@@ -35,10 +37,15 @@ import kotlin.coroutines.cancellation.CancellationException
  * Attempts are inlined, so a chain may wrap suspending calls and reads the same
  * from suspending and ordinary code.
  *
- * Failed attempts are discarded rather than collected. That is deliberate for
- * the case this type serves, where each failure is an expected condition; a
- * failure worth logging means the fallback is hiding something, and that
- * belongs in an outcome the caller can inspect.
+ * Only the last failure is kept, and only [orRecover] reaches it, because naming
+ * an outcome for the caller needs the cause:
+ *
+ * ```
+ * val health = Fallback { postgres.ping() }.orRecover { cause -> Health.Down(cause.reason()) }
+ * ```
+ *
+ * No `orThrow`: the exception type would depend on which attempt happened to be
+ * last. Every terminal ends in a value, so `Fallback<T>` stays a promise of a `T`.
  *
  * Why not `kotlin.runCatching`, and why the constructor is
  * `@PublishedApi internal`: `backend/platform/kernel/README.md`.
@@ -52,6 +59,10 @@ internal constructor(
      * rather than `T?` keeps those two states distinct.
      */
     @PublishedApi internal val resolved: List<T>,
+    /**
+     * Why the last attempt failed, or `null` while the chain holds a value.
+     */
+    @PublishedApi internal val lastFailure: Exception?,
 ) {
     /**
      * Runs [next] only if no earlier attempt in this chain produced a value.
@@ -77,6 +88,21 @@ internal constructor(
     }
 
     /**
+     * The value of the first successful attempt, or whatever [recover] makes of
+     * the last failure. A cancelled chain never arrives here: [of] rethrows
+     * [CancellationException] rather than counting it as a failed attempt.
+     */
+    public inline fun orRecover(recover: (Exception) -> T): T {
+        if (resolved.isNotEmpty()) {
+            return resolved.first()
+        }
+        val failure = requireNotNull(lastFailure) {
+            "An empty chain must carry the failure that emptied it"
+        }
+        return recover.invoke(failure)
+    }
+
+    /**
      * Starts a [Fallback] chain. Callers write `Fallback { ... }`.
      */
     public companion object {
@@ -95,11 +121,11 @@ internal constructor(
         @PublishedApi
         @Suppress("TooGenericExceptionCaught", "RethrowCaughtException", "SwallowedException")
         internal inline fun <T> of(block: () -> T): Fallback<T> = try {
-            Fallback(listOf(block()))
+            Fallback(listOf(block()), null)
         } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (failure: Exception) {
-            Fallback(emptyList())
+            Fallback(emptyList(), failure)
         }
     }
 }

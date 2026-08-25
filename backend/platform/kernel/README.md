@@ -181,10 +181,17 @@ value. The scope is local recovery that never lets the failure leave the
 function. A failure the caller must handle is a named sealed outcome for
 that operation, not this class and not `kotlin.Result`. Attempts are
 `inline`, so a chain may wrap a suspending call. A successful `null` is a
-value. Failed attempts are discarded: a failure worth logging means the
-fallback is hiding something, and that belongs in an outcome the caller
-can inspect. Catching `Exception` is broad on purpose in `of` and nowhere
-else — the alternative is every call site catching broadly on its own.
+value. Catching `Exception` is broad on purpose in `of` and nowhere else —
+the alternative is every call site catching broadly on its own.
+
+The chain keeps the last failure; `orRecover` reaches it, `orElse` discards
+it. Earlier it kept none — turning a failure into a named outcome needs the
+cause.
+
+No `orThrow`: rethrowing the last failure makes the exception type depend on
+which attempt happened to be last, and a wrapper forces a `catch` on a type
+the caller did not choose. Every terminal ends in a value, so `Fallback<T>`
+stays a promise of a `T`.
 
 ## Wrong turns
 
@@ -219,10 +226,9 @@ not appear at every call site.
 A reader looking for "what time is it" finds `Clock`, not a static import.
 A new shared value object is a new file in this package; nothing existing
 is edited. A new ambient source of non-determinism is a new Konsist marker
-in `SafetyRules.kt`, not a comment on this module. `Fallback` does not
-grow a logging hook or a collected-error list: that would change its scope
-from local recovery to an outcome type, and the outcome type belongs to
-the operation.
+in `SafetyRules.kt`, not a comment on this module. `Fallback` exposes one
+cause, not a list: a list would need protecting from `CancellationException`
+landing in it, and one cause is enough to name an outcome.
 
 ## Migration and fault-tolerance
 

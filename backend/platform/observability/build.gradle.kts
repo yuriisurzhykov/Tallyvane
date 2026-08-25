@@ -1,5 +1,5 @@
 plugins {
-    id("tallyvane.kotlin-module")
+    id("tallyvane.pure-module")
 }
 
 dependencies {
