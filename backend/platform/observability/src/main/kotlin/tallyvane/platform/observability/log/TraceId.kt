@@ -13,7 +13,7 @@ import kotlin.uuid.Uuid
  * The standard's shape is used rather than an opaque identifier of our own so
  * that the value stays meaningful to anything else that already speaks trace
  * context, and so that adopting real tracing later adds to this instead of
- * renaming it — see [ADR-056](../../../../../../../docs/adr/ADR-056-request-identity.md).
+ * renaming it (ADR-056).
  *
  * Constructed from an [IdGenerator]'s UUIDv7 through [from], which keeps the
  * millisecond prefix §8.1 relies on and keeps randomness behind the port

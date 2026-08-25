@@ -26,7 +26,7 @@ import kotlin.coroutines.coroutineContext
  * `kotlinx-coroutines-slf4j`'s `MDCContext` does the same for the MDC map as a
  * whole. This carries one typed value instead, which is both what §16.6 asks for
  * and readable as a `Trace` from code that needs the identifier rather than a
- * log line — see [ADR-056](../../../../../../../docs/adr/ADR-056-request-identity.md).
+ * log line (ADR-056).
  */
 public class TraceContext(public val trace: Trace) :
     AbstractCoroutineContextElement(Key),

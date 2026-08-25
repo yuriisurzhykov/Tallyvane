@@ -1,10 +1,10 @@
 # platform:observability
 
 What §16 asks the system to say about itself: whether it is healthy, and what
-happened. Two concerns, both defined here as types and neither talking to a network —
-a probe an orchestrator can trust and an alert a human can act on, and a log line that
-names the request it belongs to. The route is §11's business and lives in `app`; so is
-the choice of logging binding.
+happened. Two concerns, one package each — `health/` and `log/` — both defined here as
+types and neither talking to a network: a probe an orchestrator can trust and an alert
+a human can act on, and a log line that names the request it belongs to. The route is
+§11's business and lives in `app`; so is the choice of logging binding.
 
 Nothing existing could be reused because nothing existing had an opinion about either.
 `platform:kernel` holds ports every module needs — `Clock`, `IdGenerator`,
@@ -125,7 +125,13 @@ dependency only — the binding is the composition root's choice, and a library 
 picks one takes that choice away.
 
 Parsing and rendering `traceparent` is deliberately absent. It belongs to the HTTP
-boundary in slice 11; what is needed here is the value and its carrier.
+boundary in slice 11; what is needed here is the value and its carrier. So is the root
+level, fixed at `INFO` in the fragment: changing it is configuration from an
+environment variable, which is `app`'s in slice 13, not a second untyped `${LOG_LEVEL}`
+here.
+
+One convention this module cannot enforce, from §16.6: `WARN` means *a human needs to
+look at this*, not *something unusual happened*. A retry that succeeded is `INFO`.
 
 ## Why it is understandable, scalable, extensible
 

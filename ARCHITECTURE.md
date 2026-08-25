@@ -394,7 +394,7 @@ backend/
 ├── settings.gradle.kts
 ├── build-logic/                        included build: один Gradle-проект на плагин; ktlint-rules — ruleset, не плагин
 ├── platform/                           технические возможности, ноль бизнес-логики
-│   ├── kernel/                         Money, UserId, Slug, Clock, IdGenerator, TransactionRunner
+│   ├── kernel/                         Money, UserId, Slug, Clock, IdGenerator, TransactionRunner, Verdict, UseCase, Fallback
 │   ├── events/                         DomainEvent, EventPublisher, EventSubscriber
 │   ├── persistence/                    реализация TransactionRunner, конвенции схем, миграции
 │   ├── http/                           пломбировка Ktor: ошибки, аутентификация, RouteModule
@@ -402,7 +402,7 @@ backend/
 │   ├── llm/                            LlmProvider, декораторы, адаптер провайдера
 │   ├── storage/                        BlobStore
 │   ├── exec/                           безопасный запуск внешних бинарников
-│   └── observability/                  структурные логи и метрики
+│   └── observability/                  Health, HealthCheck, HealthReporter, Trace, TraceContext, метрики
 ├── modules/
 │   ├── identity/       { contract, domain, application, infrastructure, web }
 │   ├── jobs/           { contract, domain, application, infrastructure, web }
