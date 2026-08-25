@@ -101,7 +101,12 @@ test.describe("Menu — keyboard and focus", () => {
         await page.goto(storyPath(DEFAULT_MENU_STORY));
         await page.getByRole("button", { name: "Actions" }).click();
 
-        await page.keyboard.press("d");
+        // Base UI focuses the popup on the next animation frame (`enqueueFocus`);
+        // `page.keyboard.press` before that misses the typeahead handler.
+        const menu = page.getByRole("menu");
+        await expect(menu).toBeVisible();
+        await expect(menu).toBeFocused();
+        await menu.press("d");
 
         const duplicate = page.getByRole("menuitem", { name: "Duplicate" });
         await expect(duplicate).toHaveAttribute("data-highlighted", "");

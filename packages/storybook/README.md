@@ -55,9 +55,16 @@ checking logic lives neither there nor here.
 *before* `playwright test` even starts, not inside its `webServer`.
 `story-manifest.ts` reads `storybook-static/index.json` synchronously while
 Playwright is still loading `.spec.ts` files, which happens before any
-`webServer` starts — so the `test:*` scripts run `build-storybook` as a
-distinct, earlier step (`pnpm run build-storybook && playwright test ...`),
-and `webServer` here only serves the already-built output via `http-server`.
+`webServer` starts — so the `test:*` scripts run
+`scripts/ensure-storybook-static.mjs` as a distinct, earlier step, and
+`webServer` here only serves the already-built output via `http-server`.
+The ensure step skips `storybook build` when `storybook-static/index.json`
+is newer than every Storybook input (`.storybook/`, this package's own
+config, `frontend-shared/src`). Playwright specs under `tests/` are not
+inputs — neither are `*.md` / `*.test.*` / `*.spec.*` inside
+`frontend-shared`, which do not feed the iframe. CI still always rebuilds
+(`CI` is set; the folder is gitignored and not cached). `pnpm run
+build-storybook` still force-rebuilds.
 
 ## What did not move here
 
@@ -71,7 +78,7 @@ Playwright suite.
 ```bash
 pnpm --filter "./packages/storybook" run storybook        # dev server, :6006
 pnpm --filter "./packages/storybook" run build-storybook   # static output for CI
-pnpm --filter "./packages/storybook" run test:a11y         # builds, then checks every story
+pnpm --filter "./packages/storybook" run test:a11y         # ensures static output, then checks every story
 ```
 
 Not part of the root `pnpm verify`/`pnpm test` fan-out, by the same
@@ -79,6 +86,20 @@ convention `frontend-web`'s own Playwright suite already follows: neither
 package names a plain `"test"` script, so `pnpm --recursive --if-present run
 test` never reaches either. Both run from their own dedicated CI workflow
 instead, on their own schedule.
+
+## 2026-08-25 — `test:*` rebuilt Storybook even when only a spec changed
+
+`test:scoped` exists so local iteration on one story does not cost a full CI
+suite (`run-scoped.mjs`'s own header). Its `package.json` script still
+unconditionally ran `build-storybook` first, so a Playwright-only edit
+(typeahead focus, say) paid a full Vite emit — minutes — for an iframe that
+`http-server` already had on disk. `storybook build` has no per-story static
+output, so the granularity we actually have is skip vs rebuild: skip when
+`storybook-static/index.json` is newer than `.storybook/`, this package's
+config, and `frontend-shared/src`; rebuild when any of those changed, when
+the output is missing, or when `CI` is set. Specs under `tests/` are not
+inputs, and neither are markdown or `*.test.*` files inside
+`frontend-shared`. `pnpm run build-storybook` remains the force path.
 
 ## Growing beyond Tier 0
 

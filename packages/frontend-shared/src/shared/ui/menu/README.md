@@ -54,6 +54,33 @@ simulate a genuine mouse click. Recorded in `lessons-learned.mdc` since it
 applies to any future component test asserting mouse-vs-keyboard-specific
 behavior.
 
+## 2026-08-25 — typeahead e2e sent `d` before the popup held focus
+
+CI failed `menu-keyboard.spec.ts`'s typeahead case with Playwright's
+`toHaveAttribute("data-highlighted", "")` reporting `Expected: ""` /
+`Received: serializes to the same string` / `unexpected value "null"`. The
+Duplicate item was in the DOM for the whole 15s timeout (`tabindex="-1"`,
+no `data-highlighted`); the highlight never arrived. That error text is
+Playwright comparing an empty-string value to a missing attribute, not a
+component bug — the jsdom test that `fireEvent.keyDown`s the menu itself
+still passes.
+
+Root cause, read from the installed `@base-ui/react@1.7.0`:
+`FloatingFocusManager` moves focus onto the popup in a layout effect, then
+`queueMicrotask`, then `enqueueFocus`'s `requestAnimationFrame`.
+`locator.click()` returns before that frame. `page.keyboard.press("d")`
+goes to whatever currently has focus; typeahead's `onKeyDown` lives only on
+the trigger and the popup. If focus is in transit (trigger already blurred,
+popup not yet focused), the key is dropped. `expect()` then retries the
+assertion for 15s and never re-sends the key. ArrowDown/Home/End hide the
+same gap because `useListNavigation` handles those keys on the trigger
+(`openOnArrowKeyDown: true`); a letter has no such fallback. Base UI's own
+`onMatch` also no-ops unless `open` is already true.
+
+Fix: wait until the menu is visible and focused, then `menu.press("d")` —
+the locator focuses the popup before sending the key, matching what the
+jsdom test already did by dispatching on `role="menu"`.
+
 ## SOLID
 
 Single responsibility: menu-list interaction and its tokens, nothing about
