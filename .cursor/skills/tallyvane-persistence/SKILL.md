@@ -100,13 +100,21 @@ test container has ever applied it, and taking it requires saying so out loud.
 ./gradlew :playground:transactions:run            # commit/rollback/nesting by hand, against your own Postgres
 ./gradlew :playground:isolation:run               # what READ COMMITTED allows; when a retry is correct
 ./gradlew :playground:ddl-locks:run               # what a migration does to readers
+./gradlew :playground:timeout-bounds:run          # which timeout actually stops a blocked statement
 ```
 
 Nothing calls `:migrate` yet, and `PostgresPersistence` is closed by nobody, because `app` does
 not exist. Both are recorded debts against slice 13 in `backend/.plans/`.
 
-Also open: the server-side timeouts the general skill calls non-negotiable — `statement_timeout`,
-`lock_timeout`, `idle_in_transaction_session_timeout` on the role or database — are set by nothing
-in this repository yet. The client-side bounds above are not substitutes: a coroutine timeout
-cannot interrupt a blocked JDBC call, and `playground/isolation/` shows a conflicting insert
-waiting with no error until a server-side timeout ends it.
+## Timeouts, and the one that was not there
+
+`statement_timeout` 15 s, `lock_timeout` 3 s, `idle_in_transaction_session_timeout` 60 s, carried
+on the connection through pgjdbc's `options` property by `SessionTimeouts` — not on the role and
+not on the database, because a database-level setting does not survive the
+`CREATE DATABASE … TEMPLATE` every test database is made with (ADR-059). Flyway gets `lock_timeout`
+and nothing else: a migration is meant to hold a long transaction. ADR-061 has the reasoning.
+
+`addDataSourceProperty` is called only by `DriverProperties`, and `no-raw-datasource-property`
+enforces that. A non-`String` value there is accepted by HikariCP and silently ignored by pgjdbc,
+which is not hypothetical: `socketTimeout` and `connectTimeout` shipped as `Int` constants and
+neither was in effect. `playground/timeout-bounds/README.md` has the measurement.

@@ -39,13 +39,21 @@ tutorial mentions because they fail silently.
    extension`. A green suite there is a confident claim with nothing behind it.
 5. **Every test gets its own database.** Truncation between tests needs a list of tables
    that a table added later can be left out of, silently.
-6. **Server-side timeouts are set on the role or the database**, not left to call sites:
+6. **Server-side timeouts are configured in one place, not left to call sites**:
    `statement_timeout`, `lock_timeout`, `idle_in_transaction_session_timeout`. A coroutine
-   timeout cannot interrupt a blocked JDBC call, and `idle in transaction` is what holds
-   both vacuum and concurrent index builds hostage.
-7. **An invariant the database can express belongs in the schema.** A unique index, a check,
+   timeout cannot interrupt a blocked JDBC call, and `idle in transaction` is what holds both
+   vacuum and concurrent index builds hostage. Carry them on the connection (pgjdbc's `options`
+   property) rather than on the database, since a database-level setting is lost by
+   `CREATE DATABASE … TEMPLATE`; on the role works too but is invisible to tests, which run as a
+   different role.
+7. **A driver setting is a `String` or it is nothing.** Measured: HikariCP 6.3.1+ keeps
+   `dataSourceProperties` values as given, and pgjdbc reads them with `Properties.getProperty`,
+   which returns `null` for anything that is not a `String`. So
+   `addDataSourceProperty("socketTimeout", 30)` is stored and ignored, with no warning from
+   either library. Force the conversion in one wrapper and forbid the raw call.
+8. **An invariant the database can express belongs in the schema.** A unique index, a check,
    a foreign key. A guard in Kotlin protects against nothing that arrives concurrently.
-8. **Nothing that talks to the network runs inside a transaction.** Decide inside, record the
+9. **Nothing that talks to the network runs inside a transaction.** Decide inside, record the
    intent, act afterwards from something that can retry — a transactional outbox.
 
 ## Traps that fail silently
@@ -128,9 +136,11 @@ Ask these in order. Each has caught a real defect.
 4. Can a block be re-executed by the library without the author's knowledge?
 5. Does any guarantee rest on session state — `search_path`, a default database, a
    thread-local — that a clone, a pool, or another thread can lose?
-6. Is the schema comparison one-directional?
-7. Does a test observe its result through the layer it is testing?
-8. Would each test still pass if run alone, and in a different order?
+6. Is any driver setting passed as something other than a `String`, and is there anything that
+   would notice if it stopped taking effect?
+7. Is the schema comparison one-directional?
+8. Does a test observe its result through the layer it is testing?
+9. Would each test still pass if run alone, and in a different order?
 
 ## Primary sources
 

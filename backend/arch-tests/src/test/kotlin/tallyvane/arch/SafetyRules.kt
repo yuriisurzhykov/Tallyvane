@@ -104,6 +104,20 @@ internal fun noLlmWithPersonalData(scope: KoScope): List<String> = scope.files
         buildsPrompt && contacts
     }.map { it.where() }
 
+/**
+ * `addDataSourceProperty` may be called only by the wrapper that forces its value to a String.
+ *
+ * A value of any other type is accepted by HikariCP, stored, and then ignored by pgjdbc, with no
+ * warning from either — this repository shipped `socketTimeout` and `connectTimeout` as `Int`
+ * constants and neither was in effect. See `DriverProperties` and
+ * `playground/timeout-bounds/README.md`.
+ */
+internal fun noRawDataSourceProperty(scope: KoScope): List<String> = scope.files
+    .withoutException("no-raw-datasource-property")
+    .filterNot { it.name == "DriverProperties" }
+    .filter { it.codeText().contains("addDataSourceProperty") }
+    .map { it.where() }
+
 internal fun noMockLibraries(scope: KoScope): List<String> = scope.files
     .withoutException("no-mock-libraries")
     .filter { it.hasImportStartingWith(MOCK_IMPORT_PREFIXES) }

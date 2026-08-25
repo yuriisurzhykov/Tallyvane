@@ -29,6 +29,7 @@ internal val ARCH_RULES: List<ArchRule> =
         ArchRule("no-ambient-time", violations = ::noAmbientTime),
         ArchRule("no-ambient-random", violations = ::noAmbientRandom),
         ArchRule("no-sql-concat", violations = ::noSqlConcat),
+        ArchRule("no-raw-datasource-property", violations = ::noRawDataSourceProperty),
         ArchRule("own-schema-only", violations = ::ownSchemaOnly),
         ArchRule("no-cross-schema-join", violations = ::noCrossSchemaJoin),
         ArchRule("no-llm-with-personal-data", violations = ::noLlmWithPersonalData),
