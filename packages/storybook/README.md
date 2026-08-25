@@ -60,7 +60,10 @@ Playwright is still loading `.spec.ts` files, which happens before any
 `webServer` here only serves the already-built output via `http-server`.
 The ensure step skips `storybook build` when `storybook-static/index.json`
 is newer than every Storybook input (`.storybook/`, this package's own
-config, `frontend-shared/src`). Playwright specs under `tests/` are not
+config, `frontend-shared/src`, the workspace `pnpm-lock.yaml`, and the
+repo-root `package.json`). Deleting or renaming a story counts: the walk
+uses the parent directory's mtime, because that is what changes when no
+newer file is left behind. Playwright specs under `tests/` are not
 inputs — neither are `*.md` / `*.test.*` / `*.spec.*` inside
 `frontend-shared`, which do not feed the iframe. CI still always rebuilds
 (`CI` is set; the folder is gitignored and not cached). `pnpm run
@@ -96,10 +99,33 @@ unconditionally ran `build-storybook` first, so a Playwright-only edit
 `http-server` already had on disk. `storybook build` has no per-story static
 output, so the granularity we actually have is skip vs rebuild: skip when
 `storybook-static/index.json` is newer than `.storybook/`, this package's
-config, and `frontend-shared/src`; rebuild when any of those changed, when
-the output is missing, or when `CI` is set. Specs under `tests/` are not
+config, `frontend-shared/src`, the workspace lockfile, and the repo-root
+`package.json`; rebuild when any of those changed, when a story was
+deleted or renamed (the directory mtime moves), when the output is
+missing, or when `CI` is set. Specs under `tests/` are not
 inputs, and neither are markdown or `*.test.*` files inside
 `frontend-shared`. `pnpm run build-storybook` remains the force path.
+
+## 2026-08-25 — skip vs rebuild missed deletions and lockfile-only updates
+
+Two holes in the freshness walk, both found by review rather than by a
+failing suite.
+
+`walkForStale` compared only file mtimes. Deleting or renaming a story
+updates the parent directory's mtime and leaves no newer file, so
+`decideRebuild` skipped and Playwright served HTML that still contained
+the removed story. The walk now treats a directory newer than
+`index.json` as stale too. Editing an existing `.md` / `*.test.*` file
+does not bump the directory; adding, deleting or renaming one does, and
+that extra rebuild is accepted — a wasted `storybook build`, not a stale
+iframe.
+
+`node_modules` is skipped on purpose, but the walk also ignored
+`pnpm-lock.yaml` and the repo-root `package.json` (where `pnpm.overrides`
+live). A lockfile-only bump of Storybook or Tailwind plus `pnpm install`
+left every listed input untouched, so tests ran against assets built with
+the previous graph. Those two files are inputs now; a missing lockfile
+is ENOENT and does not force a rebuild.
 
 ## Growing beyond Tier 0
 
