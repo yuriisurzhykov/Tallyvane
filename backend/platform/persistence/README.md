@@ -202,6 +202,47 @@ invisible to the other, because every other integration spec now rests on that c
 Full record, including the rejected alternatives:
 [ADR-059](../../../docs/adr/ADR-059-migration-application-and-test-isolation.md).
 
+## 2026-08-25 — the schema drift gate
+
+Tables are declared twice, in SQL for the migration and in Kotlin for Exposed, and nothing
+makes the two agree. The gate turns that from a production failure into a build failure.
+
+Which Exposed function to build it on was settled by two facts rather than taste.
+`SchemaUtils.statementsRequiredToActualizeScheme` is deprecated in 1.x — under
+warnings-as-errors it would not compile — and it reports only what the database is *missing*.
+`MigrationUtils.statementsRequiredForDatabaseMigration`, from `exposed-migration-jdbc`, also
+reports what the database has that no Kotlin table declares. Drift runs both ways, and a gate
+watching one direction passes the other half of the mistakes, which is why the spec asserts
+both.
+
+`SchemaDrift` takes its database in the constructor and its tables per call, and the reason it
+cannot simply find them all is structural: "unmapped" only means anything against a complete set, so a partial
+list makes a neighbour's table look like something to drop. The only project allowed to see
+every module's tables is `app` — `platform:*` may not depend on `modules:*` — so the run over
+everything lands in slice 13, and discovery by classpath scanning arrives with it rather than
+before it.
+
+One case here exists purely for that future run: the gate is checked against a migrated
+database, which carries `platform.flyway_schema_history` that no Kotlin table declares, and
+reports nothing. Without it, slice 13's first full run could have failed on Flyway's own
+bookkeeping and looked like drift.
+
+What this leaves is honest to state: a verified mechanism with no consumer until slice 13. The
+same shape as building `migrated()` a slice before anything needed it, with one difference —
+there is no earlier home for the full run, because before `app` exists nowhere in the build may
+see all the tables.
+
+One correction worth keeping, because the reasoning generalises. `SchemaDrift` was first an
+`object` with a single function taking everything as parameters — a `Utils` class under another
+name. `no-stateful-objects` already forbids that shape, and the only reason it did not fire is
+that the rule runs on `main` and this lives in `testFixtures`. Fixed by judgement rather than by
+widening the rule: widening it would immediately flag `PostgresFixture`, whose whole purpose is
+to hold one container for the JVM, so the principle here is care that does not depend on the
+source set, not a rule that applies uniformly to every one of them.
+
+Full record, including the per-module and `arch-tests` alternatives:
+[ADR-060](../../../docs/adr/ADR-060-schema-drift-gate.md).
+
 ## Why it is understandable, scalable, extensible
 
 A module that needs a database in tests applies one plugin and takes
