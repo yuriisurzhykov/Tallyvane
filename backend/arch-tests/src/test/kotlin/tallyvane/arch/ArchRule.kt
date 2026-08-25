@@ -45,6 +45,7 @@ internal val ARCH_RULES: List<ArchRule> =
         ArchRule("nested-impl-is-pure", violations = ::nestedImplIsPure),
         ArchRule("adapter-named-by-mechanism", violations = ::adapterNamedByMechanism),
         ArchRule("no-fake-in-main", violations = ::noFakeInMain),
+        ArchRule("no-verdict-in-signature", scope = { codeScope() }, violations = ::noVerdictInSignature),
         ArchRule("no-mock-libraries", scope = { codeScope() }, violations = ::noMockLibraries),
         ArchRule("no-di-framework", scope = { codeScope() }, violations = ::noDiFramework),
         ArchRule("web-one-usecase", violations = ::webOneUsecase),

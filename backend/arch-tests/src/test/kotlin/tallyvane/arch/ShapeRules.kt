@@ -13,6 +13,35 @@ internal fun singlePublicMethod(scope: KoScope): List<String> = scope
         publicFunctions.size != 1 || publicFunctions.single().name != "invoke"
     }.map { it.where() }
 
+/**
+ * `Verdict` is a directive to one transaction, not a result anything hands back.
+ *
+ * Left unchecked it would spread: a port returns it, then a contract carries it,
+ * and the codebase has the second competing result type ENGINEERING-PRINCIPLES.md
+ * rejects. Confined to the last expression of a transactional block it stays what
+ * ADR-052 says it is. Parameters are untouched — `inTransaction` takes one, which
+ * is the whole point.
+ */
+internal fun noVerdictInSignature(scope: KoScope): List<String> {
+    val returned =
+        scope
+            .functions(includeNested = true, includeLocal = false)
+            .withoutException("no-verdict-in-signature")
+            .filter { function -> function.returnType?.name?.namesVerdict() == true }
+            .map { it.where() }
+    val held =
+        scope
+            .properties(includeNested = true)
+            .withoutException("no-verdict-in-signature")
+            .filter { property -> property.type?.name?.namesVerdict() == true }
+            .map { it.where() }
+    return (returned + held).distinct()
+}
+
+private fun String.namesVerdict(): Boolean = VERDICT.containsMatchIn(this)
+
+private val VERDICT = Regex("""\bVerdict\b""")
+
 internal fun portIsInterface(scope: KoScope): List<String> = scope
     .classes(includeNested = false, includeLocal = false)
     .withoutException("port-is-interface")

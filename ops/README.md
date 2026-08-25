@@ -3,9 +3,13 @@
 Deployment, migrations and backups for a single 2 GB VPS.
 
 ```
-migrations/   Flyway scripts, grouped by owning module
 backup/       nightly dump, offsite upload, weekly restore verification
 ```
+
+Migrations are deliberately absent from this tree — an earlier version listed them
+here, contradicting the paragraph below and ARCHITECTURE.md §4.6. Each capability
+carries its own under `db/migration/<module>/`, and `platform:persistence`
+collects them (ADR-051).
 
 ## Containers
 
@@ -58,6 +62,14 @@ Each capability owns its PostgreSQL schema and carries its own migration
 directory; `platform:persistence` collects them into one ordered stream. You
 can read the history of a module's schema without wading through everyone
 else's.
+
+The stream is ordered globally, by a timestamp in each file name, and not module
+by module. Cross-schema foreign keys are allowed and used, so `identity.users`
+has to exist before `jobs` references it, and Flyway compares versions across
+every location rather than within one. Applying them is a one-shot command this
+deploy runs, not something the server does as it starts — which is why the
+readiness probe can verify the schema instead of reporting on work it just did
+itself (ADR-051).
 
 ## Backups are only real if restored
 

@@ -64,10 +64,14 @@ annotation, owns those rules — see
 
 ## What is here, and what is not
 
-Four types exist: `Clock`, `IdGenerator`, `ArchitectureException`,
-`Fallback`. Each port now carries its production implementation nested on
-it — `Clock.Wall` and `IdGenerator.Uuid7` — while tests construct
-`ClockFake` and `IdGeneratorFake` in this module's `src/test`.
+Six types exist: `Clock`, `IdGenerator`, `TransactionRunner`, `Verdict`,
+`ArchitectureException`, `Fallback`. The first two carry their production
+implementations nested on them — `Clock.Wall` and `IdGenerator.Uuid7` —
+while tests construct `ClockFake` and `IdGeneratorFake` in this module's
+`src/test`. `TransactionRunner`'s production implementation lives in
+`platform:persistence`, because unlike the other two it does reach a
+technology; only the port is here, so that a use case can mark a
+transaction boundary without depending on a database.
 `Money`, `UserId` and `Slug` are named in ARCHITECTURE.md §4.2
 (value objects also in §2.5) and are not in this tree. They belong here
 when they are written. This file does not describe them as if they were.
@@ -94,6 +98,19 @@ That is
 [ADR-044](../../../docs/adr/ADR-044-test-fakes-in-src-test.md). `Cached` /
 `Retrying` still nest: they are production. Until a second module's tests
 need `ClockFake`, the fake stays here rather than in `java-test-fixtures`.
+
+`Verdict` is here for one reason: `TransactionRunner` is here, and the block
+it takes has to name the type. It is a directive rather than a result, and
+that distinction is what keeps it from being the second competing result
+type the engineering principles reject — the same objection that removed a
+general `Outcome` from §4.2. What makes the distinction a fact instead of a
+claim is `no-verdict-in-signature`: no function or property may declare
+`Verdict` as its type, so it exists only as the last expression of a
+transactional block. `TransactionRunnerFake` simulates rollback rather than
+merely recording it, because a fake that reported a rollback it had not
+performed would let the conformance suite pass for no reason. The whole
+decision, including the hazard nothing checks, is
+[ADR-052](../../../docs/adr/ADR-052-transaction-verdict.md).
 
 `Clock.Wall` and `IdGenerator.Uuid7` nest on their ports rather than
 sitting beside them. The rule that keeps adapters out of a port's module
