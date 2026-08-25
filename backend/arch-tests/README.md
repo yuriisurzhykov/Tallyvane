@@ -119,6 +119,33 @@ alias case rather than describing it. The decision this enforces, including the
 half that cannot be enforced, is
 [ADR-045](../../docs/adr/ADR-045-cross-capability-reads-own-the-copy.md).
 
+## A gate that is not run is not a gate
+
+Every rule above can be correct and still enforce nothing, and for a while all of
+them enforced nothing. `Scopes.kt` finds the tree through `konsist.root`, a
+**system property** — a `String`. Gradle tracks the string, not the thousands of
+files behind it, so `:arch-tests:test` declared none of what it actually reads:
+Kotlin under `platform/`, `app/` and `modules/`, every `.sql` those two trees
+carry, and `docs/adr/`, which `RecordedException` opens to check an
+`@ArchitectureException` cites a real file. A task with no inputs is never out of
+date. It cached a pass and replayed it.
+
+This was found by planting a violation rather than by reading the build script: a
+`System.currentTimeMillis()` in `platform:observability` left `./gradlew check`
+green, with `:arch-tests:test FROM-CACHE`, and `no-ambient-time` failed on the
+same line the moment `--rerun` forced the task to actually run. The gate worked
+throughout; nothing ever asked it. That is the worst shape a verification failure
+can take, because a red build is a question and a green one is not.
+
+The fix declares whole trees — all of `backend/` bar `build/`, `.gradle/` and
+`.idea/`, plus `docs/adr/` — rather than a list mirroring `Scopes.kt` and
+`MigrationSchema.kt`. A precise list is a second copy of a fact, and the same
+"someone widens the scan and forgets to widen this" is what opened the hole in the
+first place. Coarseness costs about seven seconds whenever anything under
+`backend/` changes and keeps the cache when nothing does, which was measured both
+ways: the planted violation now fails a plain `check`, and a second `check` with
+no edits reports `UP-TO-DATE`.
+
 ## The SOLID angle
 
 One reason to change `codeText()` — what counts as source a rule may inspect —
