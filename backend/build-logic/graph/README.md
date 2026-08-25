@@ -17,7 +17,7 @@ domain/
   Finding.kt                  a check result (toString is the Gradle line)
   Feature.kt                  values plus the paths they imply
   Platform.kt                 values plus the paths they imply
-  GraphCheck.kt               Planned, Platforms, Features, Banned
+  GraphCheck.kt               Planned, Unlisted, Platforms, Features, Banned
   ModulesYaml.kt              port — no SnakeYAML
   IncludedProjects.kt         port + Snapshot + Wired (configuration cache)
 application/
@@ -77,6 +77,28 @@ a control that `runtimeOnly` is still ignored, so the four positive cases cannot
 pass by the filter having been removed rather than widened.
 
 Runtime configurations stay out: they grant no compile-time access.
+
+## 2026-08-25 — the capability nobody wrote down
+
+Four checks read the manifest and compared it to Gradle, and between them they
+left one path uncovered: `Planned` reports a name only when it **is** under
+`planned:`, and `Features` iterates what `modules:` declares. A project
+`:modules:<name>:<layer>` whose capability appears in neither list was therefore
+invisible to both, along with every edge it drew — the manifest quietly stopped
+being authoritative for exactly the module nobody had written down.
+
+`Unlisted` closes it by starting from Gradle rather than from the manifest, which
+is why it is a separate type instead of a branch inside `Planned`: the two ask
+opposite questions of the same paths. It reports once per capability, not per
+layer, since five layers of one undeclared module are one thing to fix.
+
+Found by review while `modules:` was still empty, so nothing could exercise the
+hole yet — the first capability would have made it live. `GraphCheckUnlistedSpec`
+includes the case that pins *why* the check exists: given a manifest that is
+internally consistent, `Planned` and `Features` both report nothing about an
+undeclared module that depends on `platform:http`. Writing that case caught a
+mistake in a neighbouring one, where the fake declared a capability the fake build
+did not contain, so `Features` failed for an unrelated reason.
 
 Applying `id("tallyvane.graph")` registers `validateModuleGraph`.
 `tallyvane.root` applies this plugin and `tallyvane.verification`.

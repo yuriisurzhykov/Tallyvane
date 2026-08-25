@@ -56,7 +56,16 @@ class ExposedTransactionRunnerSpec : TransactionRunnerConformance() {
     private val opened = mutableListOf<PostgresPersistence>()
 
     init {
-        afterSpec { opened.forEach { persistence -> persistence.close() } }
+        // Per case, not per spec. A pool holds its full size in open connections from
+        // the moment it is built - eight, measured in playground/pool-occupancy, with
+        // no query ever issued - so closing at the end of the spec meant seven pools
+        // alive at once. Against the twenty connections §16.2 plans for production,
+        // the third one exhausts the server and the failure arrives as "too many
+        // clients" instead of whatever the case was checking.
+        afterTest {
+            opened.forEach { persistence -> persistence.close() }
+            opened.clear()
+        }
     }
 
     override suspend fun fresh(): Subject {

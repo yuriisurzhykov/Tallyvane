@@ -53,6 +53,7 @@ include(":playground:transactions")
 include(":playground:isolation")
 include(":playground:ddl-locks")
 include(":playground:timeout-bounds")
+include(":playground:pool-occupancy")
 
 // ---------------------------------------------------------------------------
 // Feature modules — one include per layer, added as each capability is built.

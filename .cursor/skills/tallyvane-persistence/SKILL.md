@@ -29,7 +29,7 @@ down, so a proposal can be checked against it before being argued.
 | A port with two implementations has one suite both must pass | ADR-046 |
 | Transactions over JDBC, on a dispatcher bounded by the pool | ADR-058 |
 | Flyway creates one schema; migrations create the rest; a database per test | ADR-059 |
-| Schema drift is a build failure, detected in both directions | ADR-060 |
+| Schema drift is a build failure, detected in three directions | ADR-060 |
 
 `docs/adr/` holds them. Read the ADR before proposing a change to any row — each lists what was
 rejected and why, and most of those rejections were measured rather than reasoned.

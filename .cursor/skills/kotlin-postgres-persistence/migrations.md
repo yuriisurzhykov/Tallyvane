@@ -186,9 +186,11 @@ file and only the second is a violation. Anchor the patterns to positions where 
 actually stand (`from`, `join`, `table`, `view`, `index … on`), or table aliases will be
 reported as schemas.
 
-**Schema drift**, in both directions. See [SKILL.md](SKILL.md) and note that
-`MigrationUtils.statementsRequiredForDatabaseMigration` is the function that includes `DROP`;
-the `SchemaUtils` equivalent is deprecated and one-directional. "Unmapped" is only meaningful
-against the complete set of declared tables, so the full comparison belongs wherever every
-table is visible — usually the composition root — and discovery should scan rather than read a
+**Schema drift**, in three directions. See [SKILL.md](SKILL.md) and note that
+`MigrationUtils.statementsRequiredForDatabaseMigration` is the function that includes `DROP`
+for columns of the tables it is given; the `SchemaUtils` equivalent is deprecated and
+one-directional. It does not enumerate the catalog, so a leftover table with no Kotlin
+declaration needs a separate catalog comparison. "Unmapped" is only meaningful against the
+complete set of declared tables, so the full comparison belongs wherever every table is
+visible — usually the composition root — and discovery should scan rather than read a
 registry a table can be left out of.

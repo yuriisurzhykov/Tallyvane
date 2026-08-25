@@ -109,11 +109,13 @@ default. Any guarantee that rests on a database-level setting is absent in every
 test database — and if tests only assert against freshly migrated databases, they agree
 with themselves and notice nothing.
 
-**Schema drift runs in two directions.** A gate that reports only what the database is
+**Schema drift runs in three directions.** A gate that reports only what the database is
 missing passes every "column exists in the database and in no Kotlin table" mistake. In
 Exposed, `SchemaUtils.statementsRequiredToActualizeScheme` is deprecated and one-directional;
 `MigrationUtils.statementsRequiredForDatabaseMigration` (in `exposed-migration-jdbc`)
-includes `DROP`.
+includes `DROP` — but only for columns of the tables it is given. It does not enumerate the
+catalog, so a leftover table with no Kotlin `Table` produces no statement. Compare catalog
+names as well.
 
 ## Deeper material
 
@@ -138,7 +140,7 @@ Ask these in order. Each has caught a real defect.
    thread-local — that a clone, a pool, or another thread can lose?
 6. Is any driver setting passed as something other than a `String`, and is there anything that
    would notice if it stopped taking effect?
-7. Is the schema comparison one-directional?
+7. Is the schema comparison one-directional, and does it also catch a table with no Kotlin declaration?
 8. Does a test observe its result through the layer it is testing?
 9. Would each test still pass if run alone, and in a different order?
 

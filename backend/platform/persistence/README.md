@@ -211,16 +211,30 @@ Which Exposed function to build it on was settled by two facts rather than taste
 `SchemaUtils.statementsRequiredToActualizeScheme` is deprecated in 1.x — under
 warnings-as-errors it would not compile — and it reports only what the database is *missing*.
 `MigrationUtils.statementsRequiredForDatabaseMigration`, from `exposed-migration-jdbc`, also
-reports what the database has that no Kotlin table declares. Drift runs both ways, and a gate
-watching one direction passes the other half of the mistakes, which is why the spec asserts
-both.
+reports what the database has that no Kotlin table declares — but only on the tables it is
+given. Drift on those columns runs both ways, and a gate watching one direction passes the
+other half of the mistakes, which is why the spec asserts both.
+
+That is not the whole of "what the database has that no Kotlin table declares." Measured
+2026-08-25: `from(Aligned)` against a matching `aligned` plus an extra `orphan_leftover` in
+the same schema returned empty. `MigrationUtils` partitions the supplied objects; it does
+not enumerate the catalog. A review that pointed at that hole was right, and the planned
+classpath scan in slice 13 would not have closed it — that scan still only feeds `from` the
+objects it found.
+
+`unmappedTables` is the third side. It reads `information_schema` over JDBC and returns
+qualified names the supplied `Table` objects do not declare. Same-schema leftovers, leftovers
+in another schema, and a leftover in `platform` that is not Flyway's history table are each
+a case; ignoring the whole `platform` schema instead would hide the last of those. Flyway's
+`platform.flyway_schema_history` is excluded by qualified name, and the migrated-database
+case now asserts both methods stay silent on it.
 
 `SchemaDrift` takes its database in the constructor and its tables per call, and the reason it
 cannot simply find them all is structural: "unmapped" only means anything against a complete set, so a partial
 list makes a neighbour's table look like something to drop. The only project allowed to see
 every module's tables is `app` — `platform:*` may not depend on `modules:*` — so the run over
 everything lands in slice 13, and discovery by classpath scanning arrives with it rather than
-before it.
+before it. That run calls `from` and `unmappedTables` together.
 
 One case here exists purely for that future run: the gate is checked against a migrated
 database, which carries `platform.flyway_schema_history` that no Kotlin table declares, and
