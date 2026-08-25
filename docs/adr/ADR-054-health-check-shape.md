@@ -1,4 +1,4 @@
-# ADR-054: Health checks are decorated, and a cause is a type
+# ADR-054. Health checks are decorated, and a cause is a type
 
 ## Status
 

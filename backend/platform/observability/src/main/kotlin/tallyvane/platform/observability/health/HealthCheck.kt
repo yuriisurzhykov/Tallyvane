@@ -1,4 +1,4 @@
-package tallyvane.platform.observability
+package tallyvane.platform.observability.health
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async

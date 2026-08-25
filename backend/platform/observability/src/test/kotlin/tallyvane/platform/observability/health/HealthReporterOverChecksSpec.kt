@@ -1,4 +1,4 @@
-package tallyvane.platform.observability
+package tallyvane.platform.observability.health
 
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.StringSpec

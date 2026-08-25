@@ -1,4 +1,4 @@
-package tallyvane.platform.observability
+package tallyvane.platform.observability.health
 
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.comparables.shouldBeLessThan

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The one authored logging configuration. `app` owns logback.xml and includes
+  this; no library may own logback.xml itself, or two of them end up on the
+  classpath and which one wins is undefined.
+
+  Console only: the process runs under a supervisor that captures stdout (§16.4).
+-->
+<included>
+    <appender name="json" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="ch.qos.logback.classic.encoder.JsonEncoder">
+            <!-- The message with its placeholders filled, not the template plus a list. -->
+            <withFormattedMessage>true</withFormattedMessage>
+            <withMessage>false</withMessage>
+            <withArguments>false</withArguments>
+            <!-- Noise in a single-process application: a per-appender counter, a
+                 second timestamp at nanosecond precision, and the logger context's
+                 own name and birthdate. -->
+            <withSequenceNumber>false</withSequenceNumber>
+            <withNanoseconds>false</withNanoseconds>
+            <withContext>false</withContext>
+        </encoder>
+    </appender>
+
+    <root level="INFO">
+        <appender-ref ref="json"/>
+    </root>
+</included>

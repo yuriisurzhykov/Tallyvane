@@ -1,32 +1,33 @@
-# ADR-055: Форма ответа health, и что из неё видно без авторизации
+# ADR-055. Without authorisation, health answers with a status and nothing else
 
-## Статус
+## Status
 
-Принято.
+Accepted.
 
-## Контекст
+## Context
 
-§11.1 задаёт snake_case для всех ответов, но не саму форму ответа health. Форму нужно
-зафиксировать до среза 12, иначе маршруты будут её изобретать, а `docs/openapi.yaml`
-из среза 14 — описывать изобретённое.
+§11.1 fixes snake_case for every response but says nothing about the shape of the
+health response. It has to be settled before slice 12, or the routes will invent one
+and `docs/openapi.yaml` in slice 14 will describe the invention.
 
-Два вида читателя, и они не совпадают. Оркестратор дёргает пробы и смотрит на код
-ответа; тело ему не нужно вовсе. Человек в инциденте открывает подробный
-`/api/v1/health` и хочет знать, какая зависимость и почему.
+There are two readers and they want different things. An orchestrator calls the
+probes and looks at the status code; it has no use for a body at all. A human in an
+incident opens the detailed `/api/v1/health` and wants to know which dependency, and
+why.
 
-После [ADR-054](ADR-054-health-check-shape.md) причина — не строка, а замкнутый тип
-`Ailment` с четырьмя случаями. Значит на проводе ей нужен размеченный union, а не
-свободный текст.
+Since [ADR-054](ADR-054-health-check-shape.md) a cause is not a string but a closed
+`Ailment` type with four cases, so on the wire it needs a discriminated union rather
+than free text.
 
-## Решение
+## Decision
 
-**Без авторизации отдаётся только `status`.** Ни `ready`, ни `checks`, ни причины.
+**Unauthorised callers get `status` only.** No `ready`, no `checks`, no causes.
 
 ```json
 { "status": "degraded" }
 ```
 
-**Авторизованный `/api/v1/health` отдаёт разбивку.**
+**An authorised `/api/v1/health` gets the breakdown.**
 
 ```json
 {
@@ -40,47 +41,51 @@
 }
 ```
 
-Словарь статусов — `up`, `degraded`, `down`, строчными.
+The status vocabulary is `up`, `degraded`, `down`, lowercase.
 
-`cause` — объект с дискриминатором `kind`: `refused` с полем `says`, `overran` с
-`bound_ms`, `threw` с `type`, `dependencies` с `names`. У `dependencies` публичного
-представления нет по определению первого правила. `cause` отсутствует у проверки в
-состоянии `up`.
+`cause` is an object discriminated by `kind`: `refused` with `says`, `overran` with
+`bound_ms`, `threw` with `type`, `dependencies` with `names`. By the first rule
+`dependencies` has no unauthorised rendering at all. A check that is `up` carries no
+`cause`.
 
-`took_ms` — целое число миллисекунд.
+`took_ms` is an integer number of milliseconds.
 
-## Последствия
+## Consequences
 
-Публичный ответ не раскрывает состав зависимостей. Имена `postgres` и `llm` говорят,
-из чего система собрана и что именно в ней сейчас лежит, — это бесплатная разведка
-для того, кто ищет, куда давить. Проба остаётся полезной оркестратору, потому что
-готовность несёт код ответа, а не тело.
+The public answer does not disclose what the system is built from. The names
+`postgres` and `llm` tell a reader which dependencies exist and which one is
+currently down, which is free reconnaissance for anyone looking for somewhere to
+push. The probe stays useful to an orchestrator because readiness travels in the
+status code, not the body.
 
-Дискриминатор называется `kind`, а не `type`, по двум независимым причинам: у случая
-`threw` есть поле `type` с именем класса исключения, и `{"type": ..., "type": ...}`
-невозможно; а в RFC 9457, которым §11 отвечает на ошибки, `type` — это URI проблемы,
-и одинаковое имя для разных вещей пришлось бы каждый раз оговаривать.
+The discriminator is `kind` rather than `type` for two independent reasons: the
+`threw` case already has a field named `type` holding the exception's class name, so
+`{"type": …, "type": …}` is impossible; and in RFC 9457, which §11 uses for errors,
+`type` is a problem URI, so reusing the name for a different thing would need
+explaining every time.
 
-`ready` остаётся в подробном ответе, хотя формально выводится из `status` и флагов
-проверок. Вывод неочевиден: `down` у необязательной зависимости готовность не
-отменяет, поэтому повторять эту логику на стороне читателя — приглашение вывести её
-неправильно.
+`ready` stays in the detailed answer even though it is formally derivable from
+`status` and the per-check flags. The derivation is not obvious — a `down` optional
+dependency does not make the application unready — so repeating that logic on the
+reader's side is an invitation to get it wrong.
 
-Срез 12 отдаёт эти две формы, срез 14 описывает их в `docs/openapi.yaml`.
+Slice 12 serves both shapes; slice 14 describes them in `docs/openapi.yaml`.
 
-## Отвергнутые варианты
+## Alternatives considered
 
-**Отдавать всё без авторизации.** Система личная, но эндпоинт достижим из интернета
-через туннель, и цена сокрытия здесь нулевая: оркестратору тело не нужно.
+**Serve everything without authorisation.** The system is personal, but the endpoint
+is reachable from the internet through the tunnel, and the cost of withholding is
+zero here: an orchestrator does not read the body.
 
-**`cause` плоской строкой.** Возвращает ровно ту проблему, которую ADR-054 убрал:
-читатель разбирает предложение обратно в данные, а автор строки решает, что в неё
-положить.
+**`cause` as a flat string.** Reintroduces exactly what ADR-054 removed: the reader
+parses a sentence back into data, and the author of the string decides what goes in
+it.
 
-**`type` как дискриминатор.** Коллизия с полем `threw.type` и с `type` из RFC 9457.
+**`type` as the discriminator.** Collides with `threw.type` and with RFC 9457's
+`type`.
 
-**Длительность строкой ISO-8601 или секундами с плавающей точкой.** Первую нужно
-парсить, вторая даёт `0.003` там, где в пороге алерта стоит `3`.
+**Duration as an ISO-8601 string, or as fractional seconds.** The first needs
+parsing; the second gives `0.003` where an alert threshold reads `3`.
 
-**Числовой уровень статуса.** Сортировка трёх значений не стоит того, чтобы `2` в
-логе требовало таблицы соответствия.
+**A numeric status level.** Sorting three values is not worth making `2` in a log
+require a lookup table.

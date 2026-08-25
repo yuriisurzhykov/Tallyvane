@@ -1,4 +1,4 @@
-package tallyvane.platform.observability
+package tallyvane.platform.observability.health
 
 /**
  * What one dependency, or the application as a whole, currently is.

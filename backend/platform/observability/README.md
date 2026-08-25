@@ -1,17 +1,21 @@
 # platform:observability
 
-Health, as a thing the rest of the system can be asked about. §16 wants a probe an
-orchestrator can trust and an alert a human can act on; this module supplies the
-types those two are built from, and nothing that talks to a network. The route is
-§11's business and lives in `app`.
+What §16 asks the system to say about itself: whether it is healthy, and what
+happened. Two concerns, both defined here as types and neither talking to a network —
+a probe an orchestrator can trust and an alert a human can act on, and a log line that
+names the request it belongs to. The route is §11's business and lives in `app`; so is
+the choice of logging binding.
 
-Nothing existing could be reused because nothing existing had an opinion about
-health at all. `platform:kernel` holds ports every module needs — `Clock`,
-`IdGenerator`, `TransactionRunner`, `UseCase` — and health is not one of those: a
-module that stores applications has no reason to know what a probe is. Keeping it
-here also keeps the eventual metrics and tracing next to it rather than scattered.
+Nothing existing could be reused because nothing existing had an opinion about either.
+`platform:kernel` holds ports every module needs — `Clock`, `IdGenerator`,
+`TransactionRunner`, `UseCase` — and neither health nor log identity is one of those: a
+module that stores applications has no reason to know what a probe is, and the kernel
+has no reason to depend on slf4j. Keeping both here keeps the eventual metrics next to
+them rather than scattered.
 
-## What needed doing
+## Health
+
+### What needed doing
 
 Four separate questions, which is why there are four types rather than one.
 
@@ -22,7 +26,7 @@ application out of rotation — it stops extraction and nothing else. `HealthRep
 is what a probe gets: an aggregate, a `ready` flag and each check's own account.
 `HealthReporter` produces one, and `OverChecks` is the only implementation.
 
-## What was actually done, including the wrong turns
+### What was actually done, including the wrong turns
 
 The first draft put everything in `OverChecks`: it asked the checks, applied each
 check's timeout, caught what they threw, and folded the results. Two things were
@@ -68,6 +72,61 @@ was accidental: it existed because aggregation had been given a responsibility
 that belongs to a decorator. Moving the bound out took the scope, the lifetime and
 the third state with it.
 
+## Logging, and the identity a log line carries
+
+§16.6 asks for structured JSON logs carrying a correlation identifier through every
+layer and module. Three things it leaves open had to be decided, all recorded in
+[ADR-056](../../../docs/adr/ADR-056-request-identity.md).
+
+**The identifier is a W3C trace, not one of ours.** `TraceId` and `SpanId` are that
+standard's `trace-id` and `parent-id` — 32 and 16 lowercase hex characters, validated
+at construction, minted from `IdGenerator`'s UUIDv7. Nothing new is depended on for
+this: the standard's vocabulary is free, and it is what OpenTelemetry, reverse proxies
+and APM agents already read. An opaque identifier of our own would be equally easy to
+put in a header and impossible for anything else to interpret, which matters precisely
+when a module becomes a separate service and the identifier is the only thing joining
+two processes' records.
+
+**MDC alone does not survive a coroutine.** `org.slf4j.MDC` is thread-local; a
+coroutine resumes on whatever thread its dispatcher supplies. An entry put there once
+is gone after the first suspension, with no error — just an identifier missing from
+the rest of the request's log. `TraceContext` is a `ThreadContextElement` that writes
+`trace_id` and `span_id` as the coroutine takes a thread and puts back whatever was
+there as it leaves.
+
+`TraceContextSpec` asserts the problem as well as the fix: one test shows a bare
+`MDC.put` losing its value across `withContext(Dispatchers.IO)`. Without it, the
+element's tests would pass equally well against an implementation that did nothing on
+a single-threaded dispatcher, and nothing would say why the element exists.
+
+`kotlinx-coroutines-slf4j` was the alternative, and would have worked. It mirrors the
+whole MDC map as captured at construction, which surprises people regularly, and it
+gives no typed read path — so a second element would have sat beside it to answer
+"what is this request's identity" for code that needs the value rather than a log
+line. One element answers both.
+
+**The configuration is split by role.** No library may own `logback.xml`: put two on a
+classpath and which one wins is undefined. But a configuration authored only in `app`
+cannot be exercised by the module that owns the log format — and a test that builds
+its own encoder passes while the shipping configuration is wrong. So this module owns
+`logback-tallyvane.xml`, an `<included>` fragment holding the JSON appender and the
+root logger, and `app` will include it from a `logback.xml` that does nothing else.
+The module's `logback-test.xml` includes the same fragment the same way, so the tests
+assert on the encoder that ships, and on the include mechanism too.
+
+Which members the encoder emits was decided by looking at real output rather than at
+the documentation's field list: `sequenceNumber`, `nanoseconds` and the logger
+context's `name`/`birthdate` carry nothing in a single-process application and are
+switched off; `formattedMessage` replaces the raw template plus its argument list.
+
+`slf4j-api` is exposed as `api` because a dependant takes this module in order to log
+and needs the facade on its own compile classpath. `logback-classic` is a test
+dependency only — the binding is the composition root's choice, and a library that
+picks one takes that choice away.
+
+Parsing and rendering `traceparent` is deliberately absent. It belongs to the HTTP
+boundary in slice 11; what is needed here is the value and its carrier.
+
 ## Why it is understandable, scalable, extensible
 
 A new dependency is a `HealthCheck`, wrapped by `app` in `Contained` and `Bounded`
@@ -90,7 +149,15 @@ secret. No migration impact — this module owns no data.
 
 ## The SOLID angle
 
-Single responsibility is the whole story of the rewrite. Aggregating, bounding and
+Single responsibility again in the logging half: `Trace` is the value, `TraceContext`
+is what makes it follow a coroutine, and the encoder configuration is neither. Splitting
+`TraceId` from `SpanId` is the same principle at the smallest scale — a trace id must
+cross a process boundary unchanged and a span id must not, so they are not one type with
+a length field. Both validate in `init`, so an invalid identifier cannot exist rather
+than being checked wherever it is used. Dependency inversion is why the binding is not
+here: this module names slf4j's facade and `app` chooses what implements it.
+
+Single responsibility is the whole story of the health rewrite. Aggregating, bounding and
 containing are three reasons to change, they were in one class, and the class grew
 a lifetime it did not need as a result. Each is now its own type, and the two
 decorators are separate from each other for the same reason: "do not exceed a

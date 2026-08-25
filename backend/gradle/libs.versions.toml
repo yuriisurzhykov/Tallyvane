@@ -2,6 +2,7 @@
 # Build & language
 kotlin = "2.4.10"
 coroutines = "1.11.0"
+serialization = "1.11.0"
 
 # Static analysis
 detekt = "2.0.0-alpha.6"
@@ -18,7 +19,8 @@ konsist = "0.17.3"
 snakeyaml = "2.4"
 
 # Logging
-slf4j = "2.0.17"
+slf4j = "2.0.18"
+logback = "1.6.3"
 
 [libraries]
 # Gradle.
@@ -30,6 +32,7 @@ gradle-ktlint-plugin = { group = "org.jlleitschuh.gradle.ktlint", name = "org.jl
 
 # Kotlinx
 kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "coroutines" }
+kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "serialization" }
 
 # Kotest
 kotest-runner-junit5 = { group = "io.kotest", name = "kotest-runner-junit5", version.ref = "kotest" }
@@ -46,8 +49,14 @@ ktlint-test = { group = "com.pinterest.ktlint", name = "ktlint-test", version.re
 # SnakeYAML
 snakeyaml = { group = "org.yaml", name = "snakeyaml", version.ref = "snakeyaml" }
 
-# slf4j
+# slf4j.
+# -api:  the facade modules compile against.
+# -nop:  binding that discards everything (test classpaths that must stay quiet).
+slf4j-api = { group = "org.slf4j", name = "slf4j-api", version.ref = "slf4j" }
 slf4j-nop = { group = "org.slf4j", name = "slf4j-nop", version.ref = "slf4j" }
+
+# Logback
+logback-classic = { group = "ch.qos.logback", name = "logback-classic", version.ref = "logback" }
 
 [plugins]
 # Kotlin
