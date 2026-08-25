@@ -9,8 +9,9 @@ import io.kotest.matchers.string.shouldNotContain
  *
  * A single dirty fixture proves a rule fires once. It says nothing about the ways
  * round it, and the ways round a rule written against a marker are predictable:
- * reach the marker indirectly, or arrive as a declaration kind the predicate does
- * not ask for.
+ * reach the marker indirectly, arrive as a declaration kind the predicate does
+ * not ask for, or nest the implementation under an unrelated class so a
+ * top-level-only query never sees it.
  */
 class UseCaseCornerSpec :
     StringSpec(
@@ -29,12 +30,19 @@ class UseCaseCornerSpec :
                 violations.joinToString() shouldContain "ObjectUseCase.kt"
             }
 
+            "rejects an implementation nested in an unrelated class, not its use-case interface" {
+                val violations = usecaseIsInterface(corners())
+
+                violations.joinToString() shouldContain "NestedInWrongClass.kt"
+            }
+
             "flags every wrong shape here and nothing that is allowed" {
                 val flagged = usecaseIsInterface(corners()).joinToString()
 
                 flagged shouldContain "TopLevelViaInterface.kt"
                 flagged shouldContain "ObjectUseCase.kt"
                 flagged shouldContain "ContractObject.kt"
+                flagged shouldContain "NestedInWrongClass.kt"
                 flagged shouldNotContain "LocalVerdict.kt"
             }
 

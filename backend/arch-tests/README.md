@@ -182,3 +182,16 @@ would report a suite as missing because the suite had been moved somewhere the
 scope did not reach, so the honest fix for a port would have looked like a
 violation. A scope that lags behind where code actually lives turns its rules
 into noise in one direction and blindness in the other.
+
+## 2026-08-25 — nested in the wrong class passed `usecase-is-interface`
+
+`usecase-is-interface` requires the implementation to nest inside its own
+use-case interface. The query asked only for top-level classes and objects,
+which caught `class SignIn : SignInUseCase` sitting beside the interface and
+an `object` implementing the marker. It never saw `class Registry { class
+SignIn : SignInUseCase }`, because nested types were excluded. The canonical
+`SignInUseCase.SignIn` passed for the same reason: the rule did not look at
+it. The query now includes nested declarations and accepts a type only when
+its containing declaration is the use-case interface it implements.
+`UseCaseCornerSpec` asserts the wrong-container fixture; `UseCaseShapeSpec`
+now passes because the nesting is recognised, not because it is invisible.
