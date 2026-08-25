@@ -108,6 +108,25 @@ description: The rules-log file for all the lessons learned during working on th
 
 ### Playwright and the accessibility suites
 
+- **`packages/storybook`'s `test:*` scripts must not unconditionally
+  `build-storybook`.** A spec-only edit does not feed the iframe, but every
+  `test:scoped` / `test:e2e` used to rebuild Storybook anyway — minutes of
+  Vite for a Playwright file that `http-server` already had. `scripts/
+  ensure-storybook-static.mjs` rebuilds only when an input (`.storybook/`,
+  this package's config, `frontend-shared/src`) is newer than
+  `storybook-static/index.json`, or when `CI` is set. Specs under `tests/`
+  are not inputs, and neither are `*.md` / `*.test.*` inside
+  `frontend-shared`. There is no per-story static emit; skip vs full rebuild
+  is the granularity `storybook build` actually has.
+- **`page.keyboard.press` after a popup `click()` races Base UI's focus
+  move.** `FloatingFocusManager` focuses the popup on the next animation
+  frame (`enqueueFocus`); Playwright's `click()` returns before that.
+  `expect()` retries the assertion, not the keypress, so a missed letter
+  looks like `toHaveAttribute(..., "")` receiving `null` (Playwright prints
+  that as "serializes to the same string"). Typeahead is the fragile case —
+  ArrowDown/Home/End are also bound on the trigger. Wait for the popup to
+  be focused, or `locator.press` it. Caught on
+  `packages/storybook/tests/e2e/menu-keyboard.spec.ts`.
 - **`webServer.url` must point at a route that actually exists.** Probing `/`
   when the app has no root page means the readiness check 404s until it times
   out, and the failure reads like a build failure, sending you to debug the

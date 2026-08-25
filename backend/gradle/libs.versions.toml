@@ -1,6 +1,8 @@
 [versions]
 # Build & language
 kotlin = "2.4.10"
+coroutines = "1.11.0"
+serialization = "1.11.0"
 
 # Static analysis
 detekt = "2.0.0-alpha.6"
@@ -12,12 +14,20 @@ ktlintEngine = "1.5.0"
 # Testing
 kotest = "6.2.4"
 konsist = "0.17.3"
+testcontainers = "1.21.4"
+
+# Database
+postgresql = "42.7.13"
+exposed = "1.4.0"
+hikari = "7.1.0"
+flyway = "13.3.0"
 
 # YAML
 snakeyaml = "2.4"
 
 # Logging
-slf4j = "2.0.17"
+slf4j = "2.0.18"
+logback = "1.6.3"
 
 [libraries]
 # Gradle.
@@ -27,12 +37,35 @@ gradle-kotlin-plugin = { group = "org.jetbrains.kotlin", name = "kotlin-gradle-p
 gradle-detekt-plugin = { group = "dev.detekt", name = "dev.detekt.gradle.plugin", version.ref = "detekt" }
 gradle-ktlint-plugin = { group = "org.jlleitschuh.gradle.ktlint", name = "org.jlleitschuh.gradle.ktlint.gradle.plugin", version.ref = "ktlint" }
 
+# Kotlinx
+kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "coroutines" }
+kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "serialization" }
+
 # Kotest
 kotest-runner-junit5 = { group = "io.kotest", name = "kotest-runner-junit5", version.ref = "kotest" }
 kotest-assertions-core = { group = "io.kotest", name = "kotest-assertions-core", version.ref = "kotest" }
 
 # Konsist
 konsist = { group = "com.lemonappdev", name = "konsist", version.ref = "konsist" }
+
+# Testcontainers
+testcontainers-postgresql = { group = "org.testcontainers", name = "postgresql", version.ref = "testcontainers" }
+
+# PostgreSQL
+postgresql = { group = "org.postgresql", name = "postgresql", version.ref = "postgresql" }
+
+# Exposed
+exposed-core = { group = "org.jetbrains.exposed", name = "exposed-core", version.ref = "exposed" }
+exposed-jdbc = { group = "org.jetbrains.exposed", name = "exposed-jdbc", version.ref = "exposed" }
+
+# HikariCP
+hikaricp = { group = "com.zaxxer", name = "HikariCP", version.ref = "hikari" }
+
+# Flyway.
+# -database-postgresql is required: since Flyway 10 each database's support is
+# its own artifact, and -core alone cannot migrate Postgres.
+flyway-core = { group = "org.flywaydb", name = "flyway-core", version.ref = "flyway" }
+flyway-database-postgresql = { group = "org.flywaydb", name = "flyway-database-postgresql", version.ref = "flyway" }
 
 # ktlint engine (the linter, not the Gradle plugin)
 ktlint-cli-ruleset-core = { group = "com.pinterest.ktlint", name = "ktlint-cli-ruleset-core", version.ref = "ktlintEngine" }
@@ -42,8 +75,14 @@ ktlint-test = { group = "com.pinterest.ktlint", name = "ktlint-test", version.re
 # SnakeYAML
 snakeyaml = { group = "org.yaml", name = "snakeyaml", version.ref = "snakeyaml" }
 
-# slf4j
+# slf4j.
+# -api:  the facade modules compile against.
+# -nop:  binding that discards everything (test classpaths that must stay quiet).
+slf4j-api = { group = "org.slf4j", name = "slf4j-api", version.ref = "slf4j" }
 slf4j-nop = { group = "org.slf4j", name = "slf4j-nop", version.ref = "slf4j" }
+
+# Logback
+logback-classic = { group = "ch.qos.logback", name = "logback-classic", version.ref = "logback" }
 
 [plugins]
 # Kotlin

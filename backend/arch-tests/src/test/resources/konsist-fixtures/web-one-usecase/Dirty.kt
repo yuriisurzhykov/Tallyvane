@@ -1,9 +1,12 @@
 package tallyvane.jobs.web
 
+import tallyvane.platform.kernel.UseCase
+
 class JobsRoutes(
-    private val captureJob: CaptureJob,
-    private val saveJob: SaveJob,
+    private val jobCapture: JobCaptureUseCase,
+    private val jobSave: JobSaveUseCase,
 )
 
-class CaptureJob
-class SaveJob
+interface JobCaptureUseCase : UseCase
+
+interface JobSaveUseCase : UseCase

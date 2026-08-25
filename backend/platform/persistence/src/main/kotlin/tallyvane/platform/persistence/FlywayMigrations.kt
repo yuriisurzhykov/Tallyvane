@@ -1,0 +1,60 @@
+package tallyvane.platform.persistence
+
+import org.flywaydb.core.Flyway
+
+/**
+ * [Migrations] over Flyway.
+ *
+ * One location, `classpath:db/migration`, which Flyway walks — so a new capability
+ * registers its migrations nowhere, which is the whole point of ADR-051's convention
+ * over an explicit list. Versions are timestamps, so the order is global across
+ * modules and a cross-schema foreign key cannot run before the table it references.
+ *
+ * ### Where Flyway's own table lives, and who creates schemas
+ *
+ * [SCHEMA] holds `flyway_schema_history`, and it is the *only* schema named here, so
+ * Flyway creates that one and nothing else — every capability's schema is created by
+ * that capability's own first migration. Listing them all here instead would be a
+ * second place to forget a capability, which ADR-051 rejected by name.
+ *
+ * Flyway creates [SCHEMA] itself rather than being handed an `initSql` statement: that
+ * setting is deprecated in favour of an `afterConnect` callback, which is a class to
+ * write and register for one `create schema`, and letting Flyway create the one schema
+ * it needs asks for neither.
+ *
+ * [SCHEMA] is `platform` rather than a name of its own because `MigrationSchemaSpec`
+ * allows a migration under `db/migration/platform/` to name exactly that schema, and
+ * the platform module owns it by the same convention every capability follows.
+ */
+public class FlywayMigrations(private val access: DatabaseAccess) : Migrations {
+    override fun apply(): Migrations.Applied {
+        val result = flyway().migrate()
+        return Migrations.Applied(
+            count = result.migrationsExecuted,
+            // Flyway leaves `targetSchemaVersion` null when it applied nothing, so a
+            // no-op run reported "none" and read, in a deploy log, as "there is no
+            // schema" rather than "already up to date".
+            version = result.targetSchemaVersion ?: result.initialSchemaVersion,
+        )
+    }
+
+    override fun pending(): List<String> = flyway()
+        .info()
+        .pending()
+        .map { migration -> migration.version.version }
+
+    private fun flyway(): Flyway = Flyway
+        .configure()
+        .dataSource(access.url, access.user, access.password)
+        .locations(LOCATION)
+        .schemas(SCHEMA)
+        .defaultSchema(SCHEMA)
+        .createSchemas(true)
+        .load()
+
+    private companion object {
+        const val LOCATION = "classpath:db/migration"
+
+        const val SCHEMA = "platform"
+    }
+}

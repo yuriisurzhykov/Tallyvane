@@ -41,15 +41,15 @@ plugin is a file you can open.
 
 ## Plugins
 
-| Plugin                     | Project           | Kind       | Responsibility                                                                 |
-| -------------------------- | ----------------- | ---------- | ------------------------------------------------------------------------------ |
-| `tallyvane.kotlin-module`  | `:conventions`    | convention | Kotlin JVM, toolchain 21, `allWarningsAsErrors`, Kotest, ktlint, detekt        |
-| `tallyvane.pure-module`    | `:conventions`    | convention | The above, plus `explicitApi()`                                                |
-| `tallyvane.adapter-module` | `:conventions`    | convention | Same rails; Testcontainers come with the first adapter                         |
-| `tallyvane.web-module`     | `:conventions`    | convention | Same rails; Ktor test host comes with the first route                          |
-| `tallyvane.graph`          | `:graph`          | binary     | `validateModuleGraph`: `modules.yaml` vs the Gradle graph, banned MockK/Mockito |
-| `tallyvane.verification`   | `:verification`   | binary     | `arch` / `check` aggregator                                                    |
-| `tallyvane.root`           | `:root`           | binary     | Applies graph + verification                                                   |
+| Plugin                     | Project         | Kind       | Responsibility                                                                  |
+|----------------------------|-----------------|------------|---------------------------------------------------------------------------------|
+| `tallyvane.kotlin-module`  | `:conventions`  | convention | Kotlin JVM, toolchain 21, `allWarningsAsErrors`, Kotest, ktlint, detekt         |
+| `tallyvane.pure-module`    | `:conventions`  | convention | The above, plus `explicitApi()`                                                 |
+| `tallyvane.adapter-module` | `:conventions`  | convention | Same rails; Testcontainers come with the first adapter                          |
+| `tallyvane.web-module`     | `:conventions`  | convention | Same rails; Ktor test host comes with the first route                           |
+| `tallyvane.graph`          | `:graph`        | binary     | `validateModuleGraph`: `modules.yaml` vs the Gradle graph, banned MockK/Mockito |
+| `tallyvane.verification`   | `:verification` | binary     | `arch` / `check` aggregator                                                     |
+| `tallyvane.root`           | `:root`         | binary     | Applies graph + verification                                                    |
 
 `./gradlew arch` is ktlint + detekt on every leaf, the graph check, this
 included build's own `check`, and `:arch-tests:test`. Empty parent projects

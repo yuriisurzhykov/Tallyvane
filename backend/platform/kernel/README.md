@@ -1,11 +1,23 @@
 # kernel
 
-The vocabulary every layer is allowed to share. `domain` depends on this
-module and nothing else; this module depends on nothing but the standard
-library. Whether a type belongs here is the same test as for the rest of
-platform — could it move to a different product without carrying a single
-idea about job hunting — plus one more: would every layer, `domain`
-included, need to name it.
+The vocabulary more than one layer or module has to share. `domain` depends
+on this module and nothing else; this module depends on nothing but the
+standard library. Whether a type belongs here is the same test as for the
+rest of platform — could it move to a different product without carrying a
+single idea about job hunting — plus one more: does more than one layer or
+module have to name it, with no layer able to reach a better home.
+
+**That second clause used to read "would every layer, `domain` included, need
+to name it", and it was corrected rather than worked around.** By the time
+`TransactionRunner`, `Verdict` and `UseCase` arrived, three of this module's
+six types failed it: `domain` names none of them, having neither
+transactions nor use cases. The test as written excluded contents that
+ARCHITECTURE.md §6.13 puts here by name, so it described an intention rather
+than this module. The replacement is what actually decides the question:
+`application` may see only `platform:kernel`, `platform:events` and
+contracts (`modules.yaml`), so a type every module's `application` must name
+has nowhere else to live — and inventing a platform module per shared
+interface would be six registrations for ten lines of code.
 
 [ARCHITECTURE.md](../../../ARCHITECTURE.md) §4.4 also allows
 `kotlinx-datetime`. That coordinate is not on the classpath yet.
@@ -64,10 +76,20 @@ annotation, owns those rules — see
 
 ## What is here, and what is not
 
-Four types exist: `Clock`, `IdGenerator`, `ArchitectureException`,
-`Fallback`. Each port now carries its production implementation nested on
-it — `Clock.Wall` and `IdGenerator.Uuid7` — while tests construct
-`ClockFake` and `IdGeneratorFake` in this module's `src/test`.
+Seven types exist: `Clock`, `IdGenerator`, `TransactionRunner`, `Verdict`,
+`UseCase`, `ArchitectureException`, `Fallback`. The first two carry their production
+implementations nested on them — `Clock.Wall` and `IdGenerator.Uuid7` —
+while `ClockFake`, `IdGeneratorFake`, `TransactionRunnerFake` and
+`TransactionRunnerConformance` sit in `src/testFixtures`, so another
+module's tests can pin time, name ids and substitute a transaction without
+declaring their own. That source set rather than `src/test` because
+`src/test` does not cross a project boundary, and rather than `src/main`
+because these must never ship (ADR-044, ADR-046). Being consumable makes
+them `public`; `internal` stops at the module edge.
+`TransactionRunner`'s production implementation lives in
+`platform:persistence`, because unlike the other two it does reach a
+technology; only the port is here, so that a use case can mark a
+transaction boundary without depending on a database.
 `Money`, `UserId` and `Slug` are named in ARCHITECTURE.md §4.2
 (value objects also in §2.5) and are not in this tree. They belong here
 when they are written. This file does not describe them as if they were.
@@ -94,6 +116,31 @@ That is
 [ADR-044](../../../docs/adr/ADR-044-test-fakes-in-src-test.md). `Cached` /
 `Retrying` still nest: they are production. Until a second module's tests
 need `ClockFake`, the fake stays here rather than in `java-test-fixtures`.
+
+`UseCase` is an empty interface, which is unusual enough to justify. It buys
+two things a naming convention cannot. It replaces a list of twenty-eight
+imperative prefixes that the rules used to recognise a use case by — a list
+that rejected `SignIn`, `Upload`, `Open` and `Delete`, so it contradicted the
+definition of a use case it was meant to enforce, and that accepted
+`SaveThing`, so it was wrong in both directions. And it lets a rule say "this
+type is a use case" exactly, which is what `single-public-method`,
+`usecase-has-test` and `web-one-usecase` all need and previously guessed at.
+The shape it marks — interface with the implementation nested inside, method
+named for the action, no `invoke` — is documented on the type itself and in
+[ADR-053](../../../docs/adr/ADR-053-use-case-shape.md).
+
+`Verdict` is here for one reason: `TransactionRunner` is here, and the block
+it takes has to name the type. It is a directive rather than a result, and
+that distinction is what keeps it from being the second competing result
+type the engineering principles reject — the same objection that removed a
+general `Outcome` from §4.2. What makes the distinction a fact instead of a
+claim is `no-verdict-in-signature`: no function or property may declare
+`Verdict` as its type, so it exists only as the last expression of a
+transactional block. `TransactionRunnerFake` simulates rollback rather than
+merely recording it, because a fake that reported a rollback it had not
+performed would let the conformance suite pass for no reason. The whole
+decision, including the hazard nothing checks, is
+[ADR-052](../../../docs/adr/ADR-052-transaction-verdict.md).
 
 `Clock.Wall` and `IdGenerator.Uuid7` nest on their ports rather than
 sitting beside them. The rule that keeps adapters out of a port's module
@@ -134,10 +181,17 @@ value. The scope is local recovery that never lets the failure leave the
 function. A failure the caller must handle is a named sealed outcome for
 that operation, not this class and not `kotlin.Result`. Attempts are
 `inline`, so a chain may wrap a suspending call. A successful `null` is a
-value. Failed attempts are discarded: a failure worth logging means the
-fallback is hiding something, and that belongs in an outcome the caller
-can inspect. Catching `Exception` is broad on purpose in `of` and nowhere
-else — the alternative is every call site catching broadly on its own.
+value. Catching `Exception` is broad on purpose in `of` and nowhere else —
+the alternative is every call site catching broadly on its own.
+
+The chain keeps the last failure; `orRecover` reaches it, `orElse` discards
+it. Earlier it kept none — turning a failure into a named outcome needs the
+cause.
+
+No `orThrow`: rethrowing the last failure makes the exception type depend on
+which attempt happened to be last, and a wrapper forces a `catch` on a type
+the caller did not choose. Every terminal ends in a value, so `Fallback<T>`
+stays a promise of a `T`.
 
 ## Wrong turns
 
@@ -172,10 +226,9 @@ not appear at every call site.
 A reader looking for "what time is it" finds `Clock`, not a static import.
 A new shared value object is a new file in this package; nothing existing
 is edited. A new ambient source of non-determinism is a new Konsist marker
-in `SafetyRules.kt`, not a comment on this module. `Fallback` does not
-grow a logging hook or a collected-error list: that would change its scope
-from local recovery to an outcome type, and the outcome type belongs to
-the operation.
+in `SafetyRules.kt`, not a comment on this module. `Fallback` exposes one
+cause, not a list: a list would need protecting from `CancellationException`
+landing in it, and one cause is enough to name an outcome.
 
 ## Migration and fault-tolerance
 

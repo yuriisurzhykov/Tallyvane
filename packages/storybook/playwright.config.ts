@@ -37,7 +37,8 @@ export default defineConfig({
      * while Playwright is still loading `.spec.ts` files — before this
      * `webServer` even starts — so the build has to be a separate, earlier
      * step. That step lives in `package.json`'s `test:*` scripts
-     * (`pnpm run build-storybook && playwright test ...`), not here.
+     * (`ensure-storybook-static.mjs`, which skips when the static output is
+     * newer than its inputs, then `playwright test`), not here.
      */
     ...(process.env.PLAYWRIGHT_BASE_URL
         ? {}

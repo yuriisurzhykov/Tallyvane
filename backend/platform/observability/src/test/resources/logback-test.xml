@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The same two lines app will hold, so the include itself is exercised too. -->
+<configuration>
+    <include resource="logback-tallyvane.xml"/>
+</configuration>

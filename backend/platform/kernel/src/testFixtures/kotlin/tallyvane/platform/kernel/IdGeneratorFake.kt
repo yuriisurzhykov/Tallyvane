@@ -9,9 +9,11 @@ import kotlin.uuid.Uuid
  * caller that parses, stores or sorts them behaves as it does in production,
  * while a failed assertion still names an id a reader can recognise.
  *
- * Lives in `src/test` so it does not ship in the production jar (ADR-044).
+ * Lives in `src/testFixtures` rather than `src/main`, so it never ships in the
+ * production jar (ADR-044), and rather than `src/test`, so another module's tests
+ * can name the ids they expect.
  */
-internal class IdGeneratorFake(private var sequence: Int = 0) : IdGenerator {
+class IdGeneratorFake(private var sequence: Int = 0) : IdGenerator {
     override fun next(): Uuid {
         sequence += 1
         return Uuid.parse("00000000-0000-7000-8000-%012d".format(sequence))
