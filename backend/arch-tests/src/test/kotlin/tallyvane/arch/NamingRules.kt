@@ -36,12 +36,6 @@ internal fun noFakeInMain(scope: KoScope): List<String> = scope
     .filter { it.namedLikeFake() }
     .map { it.where() }
 
-internal fun usecaseIsImperative(scope: KoScope): List<String> = scope
-    .applicationUseCases()
-    .withoutException("usecase-is-imperative")
-    .filter { klass -> USE_CASE_PREFIXES.none { klass.name.startsWith(it) } }
-    .map { it.where() }
-
 internal fun appHasNoLogic(scope: KoScope): List<String> = scope
     .classesAndInterfacesAndObjects(includeNested = false)
     .withoutException("app-has-no-logic")

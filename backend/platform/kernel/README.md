@@ -1,11 +1,23 @@
 # kernel
 
-The vocabulary every layer is allowed to share. `domain` depends on this
-module and nothing else; this module depends on nothing but the standard
-library. Whether a type belongs here is the same test as for the rest of
-platform — could it move to a different product without carrying a single
-idea about job hunting — plus one more: would every layer, `domain`
-included, need to name it.
+The vocabulary more than one layer or module has to share. `domain` depends
+on this module and nothing else; this module depends on nothing but the
+standard library. Whether a type belongs here is the same test as for the
+rest of platform — could it move to a different product without carrying a
+single idea about job hunting — plus one more: does more than one layer or
+module have to name it, with no layer able to reach a better home.
+
+**That second clause used to read "would every layer, `domain` included, need
+to name it", and it was corrected rather than worked around.** By the time
+`TransactionRunner`, `Verdict` and `UseCase` arrived, three of this module's
+six types failed it: `domain` names none of them, having neither
+transactions nor use cases. The test as written excluded contents that
+ARCHITECTURE.md §6.13 puts here by name, so it described an intention rather
+than this module. The replacement is what actually decides the question:
+`application` may see only `platform:kernel`, `platform:events` and
+contracts (`modules.yaml`), so a type every module's `application` must name
+has nowhere else to live — and inventing a platform module per shared
+interface would be six registrations for ten lines of code.
 
 [ARCHITECTURE.md](../../../ARCHITECTURE.md) §4.4 also allows
 `kotlinx-datetime`. That coordinate is not on the classpath yet.
@@ -64,8 +76,8 @@ annotation, owns those rules — see
 
 ## What is here, and what is not
 
-Six types exist: `Clock`, `IdGenerator`, `TransactionRunner`, `Verdict`,
-`ArchitectureException`, `Fallback`. The first two carry their production
+Seven types exist: `Clock`, `IdGenerator`, `TransactionRunner`, `Verdict`,
+`UseCase`, `ArchitectureException`, `Fallback`. The first two carry their production
 implementations nested on them — `Clock.Wall` and `IdGenerator.Uuid7` —
 while `ClockFake`, `IdGeneratorFake`, `TransactionRunnerFake` and
 `TransactionRunnerConformance` sit in `src/testFixtures`, so another
@@ -104,6 +116,18 @@ That is
 [ADR-044](../../../docs/adr/ADR-044-test-fakes-in-src-test.md). `Cached` /
 `Retrying` still nest: they are production. Until a second module's tests
 need `ClockFake`, the fake stays here rather than in `java-test-fixtures`.
+
+`UseCase` is an empty interface, which is unusual enough to justify. It buys
+two things a naming convention cannot. It replaces a list of twenty-eight
+imperative prefixes that the rules used to recognise a use case by — a list
+that rejected `SignIn`, `Upload`, `Open` and `Delete`, so it contradicted the
+definition of a use case it was meant to enforce, and that accepted
+`SaveThing`, so it was wrong in both directions. And it lets a rule say "this
+type is a use case" exactly, which is what `single-public-method`,
+`usecase-has-test` and `web-one-usecase` all need and previously guessed at.
+The shape it marks — interface with the implementation nested inside, method
+named for the action, no `invoke` — is documented on the type itself and in
+[ADR-053](../../../docs/adr/ADR-053-use-case-shape.md).
 
 `Verdict` is here for one reason: `TransactionRunner` is here, and the block
 it takes has to name the type. It is a directive rather than a result, and

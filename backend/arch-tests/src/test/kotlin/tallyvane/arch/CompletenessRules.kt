@@ -22,10 +22,14 @@ internal fun portHasConformanceSuite(scope: KoScope): List<String> {
         }.map { it.where() }
 }
 
+/**
+ * The implementation is what holds the logic, so the implementation is what needs
+ * the test — `SignInUseCase.SignIn` is covered by `SignInSpec`.
+ */
 internal fun usecaseHasTest(scope: KoScope): List<String> {
     val testNames = scope.classes(includeNested = false, includeLocal = false).map { it.name }.toSet()
     return scope
-        .applicationUseCases()
+        .useCaseImplementations()
         .withoutException("usecase-has-test")
         .filter { klass ->
             klass.name + "Test" !in testNames && klass.name + "Spec" !in testNames

@@ -29,6 +29,44 @@ _template/
   `domain`, `adapter-module` for `infrastructure`, `web-module` for `web`.
 - Create the module's PostgreSQL schema in a migration, named after it.
 
+## What a use case looks like
+
+One action a user can perform — sign in, upload a document, delete a contact.
+Not a step inside how that action is carried out: "complete the OAuth exchange"
+names a mechanism, and a use case names an intent.
+
+```kotlin
+public interface SignInUseCase : UseCase {
+    public suspend fun signIn(request: SignInRequest): SignInOutcome
+
+    public class SignIn(
+        private val users: Users,
+        private val sessions: Sessions,
+        private val transactions: TransactionRunner,
+        private val clock: Clock,
+    ) : SignInUseCase {
+        override suspend fun signIn(request: SignInRequest): SignInOutcome = TODO()
+    }
+}
+```
+
+The interface takes the action's name plus a `UseCase` suffix; the nested class
+takes the action's name alone. `app` is the only place that writes
+`SignInUseCase.SignIn(...)`; a route or a test holds `SignInUseCase` and never
+learns the concrete type.
+
+The method is the action's verb, so a call reads `signIn.signIn(request)` — the
+`parser.parse()` shape, where the type carries the subject and the method carries
+the operation. `invoke` is refused because an `operator` call means only what the
+field name says, and the field name belongs to whoever declared it, so two
+unrelated actions read identically under review.
+
+Four rules hold this shape up: `usecase-is-interface`, `single-public-method`,
+`usecase-has-test` — which wants `SignInSpec` for the implementation, not the
+interface — and `web-one-usecase`. `UseCaseShapeSpec` in `arch-tests` checks that
+they accept exactly the snippet above, so the template and the gates cannot drift
+apart.
+
 ## Where a transaction goes
 
 The order below is not a style preference; each line of it is either enforced or

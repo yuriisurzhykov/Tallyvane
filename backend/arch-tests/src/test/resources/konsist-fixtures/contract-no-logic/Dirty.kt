@@ -1,3 +1,7 @@
 package tallyvane.jobs.contract
 
-class CaptureJob
+import tallyvane.platform.kernel.UseCase
+
+interface JobCaptureUseCase : UseCase {
+    suspend fun capture(url: JobUrl): CaptureOutcome
+}

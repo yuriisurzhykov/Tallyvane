@@ -22,10 +22,13 @@ that leaks internal types drags them into every neighbour that reads it.
 reading of the current time. A value is valid from the moment it is
 constructed; there is no `validate()` to forget to call.
 
-**`application`** — use cases and ports. One public `invoke` per use case. The
-use case marks the transaction boundary, asks the domain for decisions and the
-ports for effects. Ports are declared here because they belong to whoever uses
-them, not to whoever implements them.
+**`application`** — use cases and ports. A use case is one action a user can
+perform, published as an interface carrying the `UseCase` marker, with its
+implementation nested inside it; the interface declares exactly one method, named
+for the action, and never `invoke` (ADR-053). The use case marks the transaction
+boundary, asks the domain for decisions and the ports for effects. Ports are
+declared here because they belong to whoever uses them, not to whoever implements
+them.
 
 **`infrastructure`** — adapters. Implementations are `internal`; the module
 exposes one factory that hands them back typed as ports, so no caller can name

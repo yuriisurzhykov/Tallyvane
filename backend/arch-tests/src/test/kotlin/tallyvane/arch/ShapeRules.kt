@@ -2,16 +2,60 @@ package tallyvane.arch
 
 import com.lemonappdev.konsist.api.container.KoScope
 
+/**
+ * A use case publishes one action, so its interface declares one method.
+ *
+ * The method used to have to be named `invoke`. It is now forbidden to be: an
+ * `operator` call takes its whole meaning from the field name the consumer picked,
+ * so `a(request)` and `b(request)` read alike under review even when they are
+ * unrelated actions. The name belongs to the type, where nobody downstream can
+ * change it (ADR-053).
+ */
 internal fun singlePublicMethod(scope: KoScope): List<String> = scope
-    .applicationUseCases()
+    .useCaseInterfaces()
     .withoutException("single-public-method")
-    .filter { klass ->
-        val publicFunctions =
-            klass
-                .functions(includeNested = false, includeLocal = false)
-                .filter { it.hasPublicOrDefaultModifier }
-        publicFunctions.size != 1 || publicFunctions.single().name != "invoke"
+    .filter { declaration ->
+        // Every function counts, not only the public ones. Kotlin does allow a
+        // `private` interface member that has a body — measured, not assumed — and
+        // its only purpose is to share code between default implementations in the
+        // same interface. A use-case interface has none of those, so such a helper
+        // is either dead or logic that crept into the abstraction.
+        //
+        // The body check is the same argument reaching the one declared method: a
+        // default implementation would let the nested class skip the override, and
+        // nothing else would notice.
+        val declared = declaration.functions(includeNested = false).singleOrNull()
+        declared == null || declared.name == "invoke" || declared.hasBlockBody || declared.hasExpressionBody
     }.map { it.where() }
+
+/**
+ * A use case is published as an interface; the implementation nests inside it.
+ *
+ * Consumers receive the abstraction and the composition root chooses the concrete
+ * type, which is the reason a top-level class implementing [USE_CASE_MARKER] is a
+ * violation rather than a shortcut.
+ */
+internal fun usecaseIsInterface(scope: KoScope): List<String> {
+    // The marker is usually reached through the use-case interface rather than
+    // directly, so matching only `UseCase` caught the one shape nobody writes and
+    // missed `class SignIn : SignInUseCase` sitting beside its interface. And a
+    // declaration kind the predicate does not ask for is a way round on its own:
+    // `classes()` never returns an object. Both were holes until a test looked.
+    val markers = scope.useCaseInterfaces().map { it.name }.toSet() + USE_CASE_MARKER
+    val topLevelClasses =
+        scope
+            .classes(includeNested = false, includeLocal = false)
+            .withoutException("usecase-is-interface")
+            .filter { klass -> klass.parentInterfaces().any { it.name in markers } }
+            .map { it.where() }
+    val topLevelObjects =
+        scope
+            .objects(includeNested = false)
+            .withoutException("usecase-is-interface")
+            .filter { declaration -> declaration.parentInterfaces().any { it.name in markers } }
+            .map { it.where() }
+    return topLevelClasses + topLevelObjects
+}
 
 /**
  * `Verdict` is a directive to one transaction, not a result anything hands back.
@@ -98,18 +142,20 @@ internal fun nestedImplIsPure(scope: KoScope): List<String> = scope
     .filter { it.containingFile.hasFrameworkImport() }
     .map { it.where() }
 
-internal fun webOneUsecase(scope: KoScope): List<String> = scope
-    .classes(includeNested = false, includeLocal = false)
-    .withoutException("web-one-usecase")
-    .filter { it.resideInPackage("..web..") }
-    .filter { klass ->
-        val useCaseParams =
-            klass.primaryConstructor
-                ?.parameters
-                .orEmpty()
-                .count { parameter ->
-                    val typeName = parameter.type.name
-                    USE_CASE_PREFIXES.any { typeName.startsWith(it) }
-                }
-        useCaseParams > 1
-    }.map { it.where() }
+internal fun webOneUsecase(scope: KoScope): List<String> {
+    // A parameter's type is a name, not a resolved declaration, so the marker is
+    // applied once to collect the names and the count is done against that set.
+    val useCaseNames = scope.useCaseInterfaces().map { it.name }.toSet()
+    return scope
+        .classes(includeNested = false, includeLocal = false)
+        .withoutException("web-one-usecase")
+        .filter { it.resideInPackage("..web..") }
+        .filter { klass ->
+            val useCaseParams =
+                klass.primaryConstructor
+                    ?.parameters
+                    .orEmpty()
+                    .count { parameter -> parameter.type.name in useCaseNames }
+            useCaseParams > 1
+        }.map { it.where() }
+}
