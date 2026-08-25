@@ -109,6 +109,17 @@ an area it covers.
      can be checked in a second rather than recalled wrongly.
    - For anything UI-visual, ask the user to check in a real browser. They will,
      and they have caught real bugs this way that no test or type-check did.
+   - **A test must be able to fail for the reason it exists.** Before counting a
+     test as coverage, ask what bug would fail it — then, for anything
+     load-bearing, take the guard away and watch it fail. A test that exercises
+     the fixture rather than the system is worse than no test: it looks like a
+     decision. Two written in one evening asserted a string the library
+     produced and the identity of a value the next slice must change; both were
+     deleted. State plainly when a test is a harness canary rather than
+     coverage, so a count of green tests is never mistaken for a guarantee.
+     Arrange and observe with something independent of the code under test —
+     reading a result through the layer being judged proves only that the layer
+     agrees with itself.
 5. **When a first hypothesis is wrong, say so and show the correction** — in
    code comments and in the relevant README or spec. Several entries below took
    two tries; the wrong turn is left in the record on purpose, because the wrong

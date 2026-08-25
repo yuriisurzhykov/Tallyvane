@@ -10,6 +10,8 @@ dependencies {
     implementation(libs.exposed.core)
     implementation(libs.exposed.jdbc)
     implementation(libs.hikaricp)
+    implementation(libs.flyway.core)
+    runtimeOnly(libs.flyway.database.postgresql)
     runtimeOnly(libs.postgresql)
 
     testFixturesImplementation(libs.testcontainers.postgresql)

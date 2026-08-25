@@ -39,6 +39,11 @@ include(":platform:observability")
 include(":app")
 include(":arch-tests")
 
+// The one-shot migration command ADR-051 calls for: run by the deploy, never by the
+// application at startup. Outside modules.yaml for the same reason `app` and
+// `arch-tests` are — it is not a platform capability and not a feature.
+include(":migrate")
+
 // ---------------------------------------------------------------------------
 // Spikes — code written to answer one question, kept so the answer stays
 // checkable. Outside the Konsist scopes and outside modules.yaml on purpose;

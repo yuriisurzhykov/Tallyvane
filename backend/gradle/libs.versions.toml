@@ -20,6 +20,7 @@ testcontainers = "1.21.4"
 postgresql = "42.7.13"
 exposed = "1.4.0"
 hikari = "7.1.0"
+flyway = "13.3.0"
 
 # YAML
 snakeyaml = "2.4"
@@ -59,6 +60,12 @@ exposed-jdbc = { group = "org.jetbrains.exposed", name = "exposed-jdbc", version
 
 # HikariCP
 hikaricp = { group = "com.zaxxer", name = "HikariCP", version.ref = "hikari" }
+
+# Flyway.
+# -database-postgresql is required: since Flyway 10 each database's support is
+# its own artifact, and -core alone cannot migrate Postgres.
+flyway-core = { group = "org.flywaydb", name = "flyway-core", version.ref = "flyway" }
+flyway-database-postgresql = { group = "org.flywaydb", name = "flyway-database-postgresql", version.ref = "flyway" }
 
 # ktlint engine (the linter, not the Gradle plugin)
 ktlint-cli-ruleset-core = { group = "com.pinterest.ktlint", name = "ktlint-cli-ruleset-core", version.ref = "ktlintEngine" }

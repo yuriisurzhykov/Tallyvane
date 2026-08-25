@@ -58,6 +58,31 @@ Then **pause**: wait for the answer. Implement nothing until it arrives.
 This format applies to every item under "What counts as a decision" and to
 every mid-implementation surprise.
 
+## Ask well, not just often
+
+The user stays in every decision. That is settled and not to be renegotiated —
+so the cost of asking is paid by how the question is written, not by asking
+less. Three rules, each of which was learned by breaking it.
+
+**Bring the facts, do not discover them mid-answer.** Verify versions, API
+shapes and actual library behaviour *before* the question, so the options
+arrive with measured data attached. An option list that has to be revised
+twice because the third round found a fact costs three rounds where one would
+have done. When behaviour cannot be read from documentation, write a throwaway
+probe and put its output in the question.
+
+**One message per slice, not one per fork.** Collect a slice's decisions and
+present them together, in dependency order, with a recommendation on each. Two
+exceptions: a fork whose answer changes the other questions goes first and
+alone, and a fork discovered mid-implementation is asked when it appears.
+
+**Explain a concept the first time it is used.** If a question rests on
+`suspend`, blocking, savepoints, connection pooling or anything else the user
+has not chosen to specialise in, define it in the question — plainly, from the
+problem, not from the jargon. A question the reader cannot evaluate is not a
+question, and "I don't understand a word of this" is feedback about the
+question, never about the reader.
+
 ## What counts as a decision
 
 Not just architecture. All of these need approval:
