@@ -11,9 +11,9 @@ Slices 7 to 10 verify behaviour only a real Postgres exhibits: the Exposed
 (ADR-046), migrations applying and re-applying to no effect, the schema-drift gate
 comparing table definitions against a migrated schema, and the Postgres health check
 reporting `Down` against a stopped database. H2 in Postgres-compatibility mode would
-answer none of these honestly — a different dialect, no `citext`, no `create
-extension`, different collation — so a green suite there would be a confident claim
-about production with nothing behind it.
+answer none of these honestly — a different dialect, no ICU collations, no `create
+extension`, different collation behaviour — so a green suite there would be a confident
+claim about production with nothing behind it.
 
 A real database costs resources on a developer machine, and the machine here does not
 have them to spare. On Windows, Testcontainers means Docker Desktop and a WSL2 virtual

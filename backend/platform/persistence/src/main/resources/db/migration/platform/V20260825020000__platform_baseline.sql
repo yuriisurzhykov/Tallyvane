@@ -1,27 +1,28 @@
--- The one extension every capability relies on.
+-- Case-insensitive comparison, as a property of a column rather than of a session.
 --
--- citext is text that compares without regard to case, which is what an email
--- address needs: a person typing a different case is the same person. It is a
--- trusted extension since PostgreSQL 13, so the application's own role may install
--- it given CREATE on the database — no superuser step on the server.
+-- An email address must match itself typed in a different case: a person entering
+-- Ivan@Mail.com and ivan@mail.com is one person, and two rows differing only by case
+-- must be impossible.
 --
--- The `platform` schema itself is not created here: Flyway has to create it before
--- this file can run, because its own history table lives there.
-create extension if not exists citext schema platform;
-
--- Without this, citext silently stops being citext.
+-- This is an ICU collation rather than the citext extension, and the reason is that
+-- citext cannot give the guarantee. An extension's comparison operators live in the
+-- schema it was installed into, and if that schema is not on search_path when a query
+-- runs, PostgreSQL silently falls back to case-sensitive text comparison - no error,
+-- no warning, just a person unable to sign in. search_path is session state, and
+-- setting it on the database does not survive `create database ... template ...`,
+-- which is how every integration test gets its database. Measured, not assumed.
 --
--- An extension's comparison operators live in the schema it was installed into. If
--- that schema is not on search_path when a query runs, PostgreSQL does not find them
--- and falls back to ordinary case-sensitive text comparison - no error, no warning,
--- just an address that no longer matches itself. Setting it on the database rather
--- than per connection covers every session: the application, psql, and Flyway's own
--- later runs.
+-- A collation is bound to the column when the table is created and stored with it. It
+-- depends on nothing at query time and travels with the schema when a database is
+-- cloned, so it cannot silently stop working.
 --
--- current_database() through a DO block because ALTER DATABASE takes a name, not an
--- expression.
-do $$
-begin
-    execute format('alter database %I set search_path to public, platform', current_database());
-end;
-$$;
+-- Columns declare it qualified: `email text collate platform.case_insensitive`.
+--
+-- One limitation to know rather than discover: PostgreSQL refuses LIKE on a
+-- non-deterministic collation. Case-insensitive prefix search is `lower(email) like
+-- lower(...)`, over an expression index where it matters.
+create collation platform.case_insensitive (
+    provider = icu,
+    locale = 'und-u-ks-level2',
+    deterministic = false
+);

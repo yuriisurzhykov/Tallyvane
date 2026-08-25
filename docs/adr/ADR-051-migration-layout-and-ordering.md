@@ -46,9 +46,16 @@ A migration is never edited after it merges. A destructive change is split into
 "add the new — switch the code — drop the old" across separate releases. Every
 migration is exercised in CI against both an empty and a populated database.
 
-`create extension if not exists citext` belongs to the first platform migration,
-not to a capability and not to a manual step on the server — the same rule §8.22
-already states for `vector` in Phase 2.
+Whatever every capability needs from the database belongs to the first platform
+migration, not to a capability and not to a manual step on the server — the same rule
+§8.22 already states for `vector` in Phase 2.
+
+**Amended.** This record named `create extension if not exists citext` as that
+content. It is not: `citext`'s guarantee depends on `search_path`, which is session
+state, and a database-level setting for it does not survive `create database …
+template …` — measured, and the reason every integration test would have compared
+case-sensitively while saying nothing. Case-insensitivity is an ICU collation on the
+column instead. See [ADR-059](ADR-059-migration-application-and-test-isolation.md).
 
 ## What the machine checks
 

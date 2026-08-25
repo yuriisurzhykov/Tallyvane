@@ -1,17 +1,26 @@
 ﻿package tallyvane.platform.persistence
 
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.comparables.shouldBeGreaterThanOrEqualTo
 import io.kotest.matchers.shouldBe
-import io.kotest.matchers.string.shouldContain
 import java.sql.Connection
 import java.sql.DriverManager
+import java.sql.SQLException
 
 private const val PLATFORM_BASELINE = "20260825020000"
 
 private fun <T> on(access: DatabaseAccess, read: (Connection) -> T): T =
     DriverManager.getConnection(access.url, access.user, access.password).use(read)
+
+private fun run(access: DatabaseAccess, vararg statements: String) {
+    on(access) { connection ->
+        connection.createStatement().use { statement ->
+            statements.forEach { statement.execute(it) }
+        }
+    }
+}
 
 private fun query(access: DatabaseAccess, sql: String): String? = on(access) { connection ->
     connection.createStatement().use { statement ->
@@ -20,8 +29,8 @@ private fun query(access: DatabaseAccess, sql: String): String? = on(access) { c
 }
 
 /**
- * Every case starts from a virgin database, never the migrated template: these tests are
- * about migrating, and starting from an already-migrated database would assert nothing.
+ * Every case starts from a database of its own: virgin where the test is about migrating,
+ * cloned from the migrated template where it is about what migrating produced.
  */
 class FlywayMigrationsSpec :
     StringSpec(
@@ -70,53 +79,47 @@ class FlywayMigrationsSpec :
                 ) shouldBe "platform"
             }
 
-            "installs citext, and a comparison ignores case on a connection it did not open" {
+            "gives a column comparison that ignores case" {
                 val access = PostgresFixture.empty()
                 FlywayMigrations(access).apply()
+                run(
+                    access,
+                    "create table people (email text collate platform.case_insensitive)",
+                    "insert into people values ('Ivan@Mail.COM')",
+                )
 
-                on(access) { connection ->
-                    connection.createStatement().use { statement ->
-                        // Unqualified `citext` only resolves if the migration put the
-                        // extension's schema on the database's search_path.
-                        statement.execute("create table citext_probe (email citext not null)")
-                        statement.execute("insert into citext_probe values ('Ivan@Mail.COM')")
-                    }
+                query(access, "select count(*) from people where email = 'ivan@mail.com'") shouldBe "1"
+            }
+
+            "keeps that comparison working on a cloned database, where session state does not travel" {
+                // The regression test for a real bug: the first version of this migration
+                // installed citext and set search_path on the database. Both survived
+                // `create database ... template ...` in appearance - the extension's
+                // objects were copied - but the search_path setting was not, so the
+                // clone compared case-sensitively with nothing to indicate it. A
+                // collation is part of the column, so there is no session state to lose.
+                val cloned = PostgresFixture.migrated()
+                run(
+                    cloned,
+                    "create table people (email text collate platform.case_insensitive)",
+                    "insert into people values ('Ivan@Mail.COM')",
+                )
+
+                query(cloned, "select count(*) from people where email = 'ivan@mail.com'") shouldBe "1"
+            }
+
+            "refuses two addresses that differ only by case" {
+                val access = PostgresFixture.migrated()
+                run(
+                    access,
+                    "create table people (email text collate platform.case_insensitive)",
+                    "create unique index people_email on people (email)",
+                    "insert into people values ('Ivan@Mail.COM')",
+                )
+
+                shouldThrow<SQLException> {
+                    run(access, "insert into people values ('ivan@mail.com')")
                 }
-
-                // A different case must find the row. If the extension's schema were
-                // missing from search_path, this would compare as plain text and return
-                // zero - with no error anywhere, which is why it is asserted rather than
-                // assumed.
-                query(access, "select count(*) from citext_probe where email = 'ivan@mail.com'") shouldBe "1"
-            }
-
-            "puts the extension's schema on the database's search_path" {
-                val access = PostgresFixture.empty()
-                FlywayMigrations(access).apply()
-
-                query(access, "show search_path") shouldBe "public, platform"
-            }
-
-            "loses the type entirely when that schema is taken off search_path" {
-                val access = PostgresFixture.empty()
-                FlywayMigrations(access).apply()
-
-                val failure =
-                    on(access) { connection ->
-                        connection.createStatement().use { statement ->
-                            statement.execute("set search_path to public")
-                            runCatching {
-                                statement.execute("create temporary table probe (email citext)")
-                            }.exceptionOrNull()
-                        }
-                    }
-
-                // Proves the migration's third statement is load-bearing rather than
-                // decoration: with `platform` off search_path, not even the type
-                // resolves. The nastier variant - a qualified column type whose operators
-                // are invisible, comparing case-sensitively with no error - is what that
-                // statement exists to make unreachable.
-                failure?.message shouldContain "citext"
             }
         },
     )

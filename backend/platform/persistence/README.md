@@ -74,7 +74,7 @@ adapter cannot drift; that promise is empty until the same suite runs against Ex
 over a real Postgres. Slice 8 needs migrations to apply and to re-apply to no effect;
 slice 9 compares Exposed's table definitions against a migrated schema; slice 10 asks
 whether the health check says `Down` when the database is stopped. None of those is
-answerable against H2 in Postgres-compatibility mode: a different dialect, no `citext`,
+answerable against H2 in Postgres-compatibility mode: a different dialect, no ICU collations,
 no `create extension`, different collation. A green suite there would be a confident
 claim about production with nothing behind it — which is the one failure this repository
 spends most of its machinery refusing.
@@ -142,15 +142,36 @@ Full record, including what was rejected and why:
 ADR-051 had already fixed the layout. Three things it left open only appeared once the thing
 ran, and one of them changed what the first migration had to contain.
 
-**An extension can stop working silently.** An extension's operators live in the schema it
-was installed into. If that schema is not on `search_path` when a query runs, PostgreSQL does
-not find them and compares as ordinary case-sensitive text — no error, no warning. `citext`
-would simply stop being case-insensitive, and the symptom would arrive as a person unable to
-sign in with their own address typed in a different case. The migration therefore sets
-`search_path` on the database, which covers every session including `psql` and Flyway's own
-later runs, and a test asserts a case-different comparison finds its row. A second test takes
-`platform` off `search_path` and shows the type does not resolve at all, so the statement is
-demonstrably load-bearing rather than decoration.
+**An extension can stop working silently, and the fix for that could too.** An extension's
+operators live in the schema it was installed into. If that schema is not on `search_path`
+when a query runs, PostgreSQL does not find them and compares as ordinary case-sensitive text
+— no error, no warning. `citext` would simply stop being case-insensitive, and the symptom
+would arrive as a person unable to sign in with their own address typed in a different case.
+
+The first version of the migration answered that by installing `citext` into the platform
+schema and setting `search_path` on the database, which covers every session including `psql`
+and Flyway's own later runs. That was wrong, and the way it was wrong is the useful part.
+Database-level settings are keyed to the database rather than stored in it, so `create
+database … template …` does not copy them — and every integration database is a clone.
+Measured: a cloned database reported `search_path` as `"$user", public` and could not resolve
+the type at all. So the guarantee was absent precisely where it was being tested, and the
+suite did not notice, because the only case touching a cloned database asserted that a schema
+existed.
+
+The answer now is an ICU collation rather than an extension: the migration creates
+`platform.case_insensitive`, and columns declare it as `email text collate
+platform.case_insensitive`. A collation is bound to the column when the table is created and
+stored with it, reads nothing at query time, and travels with the schema when a database is
+cloned. It cannot silently stop applying, where the previous arrangement could and did.
+`citext` in `public` would also have worked — `public` is on every database's default
+`search_path` — and was rejected because the guarantee would still rest on session state that
+a later change could remove without a word.
+
+The regression test is the one that matters: the case-insensitive comparison is asserted on a
+**cloned** database, not only on a freshly migrated one, plus a case proving a unique index
+refuses two addresses differing only by case. One limitation to know rather than discover:
+PostgreSQL refuses `LIKE` on a non-deterministic collation, so case-insensitive prefix search
+is `lower(email) like lower(…)`.
 
 **Flyway's bookkeeping went into `platform`, and it is the only schema Flyway is told about.**
 Listing every capability's schema would have been the "second place to forget" ADR-051
