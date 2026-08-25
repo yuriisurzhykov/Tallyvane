@@ -78,7 +78,16 @@ jobs:
         run: chmod +x ./gradlew
         working-directory: backend
 
-      # Wrapper, module graph vs modules.yaml, ktlint, detekt, and Konsist.
-      - name: Architecture verification
-        run: ./gradlew arch --no-daemon
+      # Module graph vs modules.yaml, ktlint, detekt, Konsist, and every
+      # module's unit tests. `check`, not `arch`: `arch` stops at the analysis
+      # gates, so calling it here ran no module test at all on a push.
+      - name: Verification
+        run: ./gradlew check --no-daemon
+        working-directory: backend
+
+      # Separate because these need Docker for a real Postgres, which is why they
+      # are opt-in locally. The runner has it; Testcontainers starts the
+      # container itself, so no `services:` block is needed.
+      - name: Integration tests
+        run: ./gradlew integrationTest --no-daemon
         working-directory: backend
