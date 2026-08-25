@@ -40,6 +40,13 @@ include(":app")
 include(":arch-tests")
 
 // ---------------------------------------------------------------------------
+// Spikes — code written to answer one question, kept so the answer stays
+// checkable. Outside the Konsist scopes and outside modules.yaml on purpose;
+// `check` compiles them and nothing else. See playground/README.md.
+// ---------------------------------------------------------------------------
+include(":playground:transactions")
+
+// ---------------------------------------------------------------------------
 // Feature modules — one include per layer, added as each capability is built.
 // The authoritative dependency manifest is modules.yaml; the shape to copy is
 // modules/_template, which is deliberately NOT included here so Gradle ignores

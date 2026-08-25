@@ -1,10 +1,57 @@
 # platform:persistence
 
 Everything about reaching Postgres: the connection, the transaction boundary, schema
-conventions, and migrations. Almost none of it exists yet — slice 6 built only the test
-harness, because the four slices that follow verify behaviour no in-memory substitute
-exhibits, and they cannot be written before there is a real database to write them
-against.
+conventions, and migrations. Today the first two exist — `PostgresPersistence` owns the
+pool and hands out `TransactionRunner` — plus the test harness that had to come before
+them, because the slices that follow verify behaviour no in-memory substitute exhibits and
+cannot be written without a real database to write them against.
+
+Database access lives behind the port and its adapter. Nothing in `main` opens a
+connection itself; raw JDBC appears only in integration tests, and there deliberately, so
+an observation cannot be fooled by the machinery it observes.
+
+## 2026-08-25 — the transaction adapter
+
+Four facts shaped it, and none was assumed. `suspendTransaction` from `exposed-jdbc`
+exists, in JetBrains' own words, "for compatibility with JDBC drivers, to call suspend
+functions alongside blocking database operations" — the SQL under it still blocks its
+thread, because JDBC returns a result and a result cannot be returned before it arrives.
+Flyway has no R2DBC support and needs a JDBC URL, so pgjdbc stays in this project whatever
+the adapter chooses. Exposed joins a nested transaction to its parent by default. Exposed
+re-runs the whole block on `SQLException` by default.
+
+So `suspend` in this port means "callable from a coroutine", not "costs no thread", and the
+adapter's KDoc says exactly that. A signature that reads as a promise it does not keep is
+what left the health-check timeout decorative for an entire evening one layer up.
+
+Blocking work therefore runs only on a dispatcher whose parallelism equals the pool size.
+That is not a style preference: with eight connections and unbounded IO, a burst of
+transactions would park up to sixty-four shared IO threads inside `getConnection` and
+starve health checks and model calls of them. Tying the two numbers together in one class
+is what stops them drifting apart.
+
+Nesting is refused rather than joined, and the reason is measured. A probe against a real
+container showed a nested `suspendTransaction` reporting the same transaction id as its
+parent — so an inner rollback would silently discard the outer's writes, while the fake
+every other module tests against fails loudly on nesting. That is the disagreement ADR-046
+exists to catch, and it caught it on the first run. The probe also showed
+`TransactionManager.currentOrNull()` surviving a `withContext(Dispatchers.IO)` hop, which
+is why asking Exposed is sound on a multi-threaded dispatcher and no coroutine-context
+marker of our own was needed.
+
+Two wrong turns are worth keeping. The conformance spec first arranged its table through
+`suspendTransaction` and failed all seven cases with "no default database found", because
+the arrangement ran before the pool that would have registered one — a setup depending on
+the code under test having already worked. It now uses a plain JDBC connection, which also
+fixed a second fault in the same place: the row count was being read through Exposed, so
+the observation shared the machinery it was meant to judge.
+
+The nesting guard was then removed on purpose to see what would fail. Exactly one case did,
+the nesting one; the other six stayed green. A test that passes is not evidence until the
+thing it guards has been taken away.
+
+Full record, including the rejected R2DBC and virtual-thread routes:
+[ADR-058](../../../docs/adr/ADR-058-transactions-over-jdbc.md).
 
 ## Why the harness came before the code
 

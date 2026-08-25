@@ -77,6 +77,14 @@ an area it covers.
      scalable, extensible → migration and fault-tolerance impact where
      applicable → the SOLID angle, as its own explicit heading, not folded
      into prose.
+   - **Date every investigation entry**, as `YYYY-MM-DD` where the entry starts.
+     A README that records findings accumulates them, and undated prose gives a
+     reader no way to tell a discovery made this week from one that predates the
+     design it describes — or to see that three entries were the same afternoon.
+     `.cursor/rules/comment-style.mdc` already sends long stories to "a dated
+     entry" in a README; this is the format it assumes. A section that just
+     describes what the code *is* needs no date; one that records a discovery, a
+     wrong turn, a measurement or a correction does.
    - Match the established tone in `packages/frontend-shared/src/shared/ui/theme/README.md`,
      `packages/design-tokens/README.md` and `backend/README.md`: dense
      explanatory prose that states the rejected alternative, not bullet lists
