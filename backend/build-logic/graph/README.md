@@ -55,6 +55,29 @@ execution, and `@TaskAction` translates a non-empty list into a
 Test doubles are `ModulesYamlFake` and `IncludedProjectsFake` in `src/test`,
 not nested on the production types (ADR-044).
 
+## Test edges count too
+
+`Snapshot` reads `test*`, `integrationTest*` and `testFixtures*` configurations
+alongside `api`, `implementation` and `compileOnly`. §15.2 asks this task to
+resolve the real Gradle graph, and a module reached only from `src/test` is still
+one module reaching another; a test-only edge between two capabilities is exactly
+the coupling the manifest exists to make visible in a diff.
+
+There is no second manifest key for test permissions. If a test needs an edge its
+module may not declare, the test is in the wrong layer: an integration test of a
+use case belongs to `infrastructure`, where `platform:*` is already allowed, not
+to `application`, where it is not.
+
+Widening the list found its first case immediately, and it is one compile
+configurations never produce: a module that consumes its own `testFixtures`
+registers a project dependency on itself, which reported `:platform:kernel` as
+depending on `:platform:kernel`. Self-references are dropped — using one's own
+fixtures reaches nobody. `IncludedProjectsSnapshotSpec` pins all of it, including
+a control that `runtimeOnly` is still ignored, so the four positive cases cannot
+pass by the filter having been removed rather than widened.
+
+Runtime configurations stay out: they grant no compile-time access.
+
 Applying `id("tallyvane.graph")` registers `validateModuleGraph`.
 `tallyvane.root` applies this plugin and `tallyvane.verification`.
 

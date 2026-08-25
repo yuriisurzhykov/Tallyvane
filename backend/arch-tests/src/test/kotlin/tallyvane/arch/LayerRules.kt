@@ -85,13 +85,34 @@ internal fun domainNoVar(scope: KoScope): List<String> = scope
     .map { it.where() }
 
 internal fun contractNoLogic(scope: KoScope): List<String> {
-    val useCases =
+    // A use case is recognised by the marker it carries, directly on an interface
+    // or through the interface a class implements (ADR-053).
+    val markers = scope.useCaseInterfaces().map { it.name }.toSet() + USE_CASE_MARKER
+    val declaredUseCases =
         scope
-            .classes(includeNested = false)
+            .interfaces(includeNested = true)
             .withoutException("contract-no-logic")
             .filter { it.resideInPackage("..contract..") }
-            .filter { klass -> USE_CASE_PREFIXES.any { klass.name.startsWith(it) } }
+            .filter { declaration -> declaration.parentInterfaces().any { it.name in markers } }
             .map { it.where() }
+    val implementedUseCases =
+        scope
+            .classes(includeNested = true, includeLocal = false)
+            .withoutException("contract-no-logic")
+            .filter { it.resideInPackage("..contract..") }
+            .filter { klass -> klass.parentInterfaces().any { it.name in markers } }
+            .map { it.where() }
+    // Objects are a third declaration kind and were missed until a test asked for
+    // one: `classes()` does not return them, so `object X : UseCase` in a contract
+    // passed a rule that had just been rewritten to catch exactly that.
+    val objectUseCases =
+        scope
+            .objects(includeNested = true)
+            .withoutException("contract-no-logic")
+            .filter { it.resideInPackage("..contract..") }
+            .filter { declaration -> declaration.parentInterfaces().any { it.name in markers } }
+            .map { it.where() }
+    val useCases = declaredUseCases + implementedUseCases + objectUseCases
     val nested =
         scope
             .classes(includeNested = true)

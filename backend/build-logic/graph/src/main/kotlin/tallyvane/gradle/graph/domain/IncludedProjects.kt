@@ -27,12 +27,20 @@ internal interface IncludedProjects {
     fun paths(): Set<String>
 
     /**
-     * Project-dependency paths of one leaf on the compile configurations.
+     * Project-dependency paths of one leaf on every declaring configuration.
+     *
+     * Test configurations count, because a test edge is access too: §15.2 asks
+     * this task to resolve the real Gradle graph, and a dependency reached only
+     * from `src/test` is still one module reaching another. A test that needs an
+     * edge its module may not declare is a test in the wrong layer — an
+     * integration test of a use case belongs to `infrastructure`, where
+     * `platform:*` is already allowed, not to `application`, where it is not.
      *
      * @param path Gradle path of a leaf that [paths] may or may not contain.
-     * @return Paths this project depends on via `api`, `implementation`, or
-     * `compileOnly`. Empty if [path] is unknown or has no such edges.
-     * Test and runtime configurations are ignored.
+     * @return Paths this project depends on via `api`, `implementation`,
+     * `compileOnly`, their `test`, `integrationTest` and `testFixtures`
+     * counterparts. Empty if [path] is unknown or has no such edges. Runtime
+     * configurations are ignored: they add no compile-time access.
      */
     fun dependencies(path: String): Set<String>
 
@@ -100,16 +108,22 @@ internal interface IncludedProjects {
                         project.path != ROOT && project.subprojects.isEmpty()
                     }
                 paths = leaves.map { project -> project.path }.toSet()
-                dependencies = leaves.associate { project -> project.path to compileProjectPaths(project) }
+                dependencies = leaves.associate { project -> project.path to declaredProjectPaths(project) }
                 coordinates = leaves.flatMap(::coordinates)
             }
 
-            private fun compileProjectPaths(project: Project): Set<String> {
-                val compile = COMPILE_CONFIGS.mapNotNull { name -> project.configurations.findByName(name) }
-                return compile
+            /**
+             * Self-references are dropped: consuming one's own `testFixtures`
+             * registers as a project dependency on oneself, and a module is not
+             * reaching another module by using its own fixtures.
+             */
+            private fun declaredProjectPaths(project: Project): Set<String> {
+                val declaring = CHECKED_CONFIGS.mapNotNull { name -> project.configurations.findByName(name) }
+                return declaring
                     .flatMap { configuration ->
                         configuration.dependencies.withType(ProjectDependency::class.java).map { it.path }
-                    }.toSet()
+                    }.filterNot { path -> path == project.path }
+                    .toSet()
             }
 
             private fun coordinates(project: Project): List<Coordinate> =
@@ -121,7 +135,20 @@ internal interface IncludedProjects {
 
             private companion object {
                 const val ROOT = ":"
-                val COMPILE_CONFIGS = listOf("api", "implementation", "compileOnly")
+
+                val CHECKED_CONFIGS =
+                    listOf(
+                        "api",
+                        "implementation",
+                        "compileOnly",
+                        "testImplementation",
+                        "testCompileOnly",
+                        "integrationTestImplementation",
+                        "integrationTestCompileOnly",
+                        "testFixturesApi",
+                        "testFixturesImplementation",
+                        "testFixturesCompileOnly",
+                    )
             }
         }
     }

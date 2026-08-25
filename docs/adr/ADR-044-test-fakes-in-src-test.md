@@ -13,7 +13,7 @@ sources. `Cached`, `Retrying` and `Abstract` may still nest on the port:
 those are production implementations without I/O, not test doubles.
 
 MockK and Mockito stay banned (ADR-043). The dummy still implements the port
-in full so a new method fails the compiler and the contract suite.
+in full so a new method fails the compiler and the conformance suite.
 
 This applies to feature modules, `platform/*`, and binary Gradle plugins
 under `build-logic/` (Konsist scans `platform/`, `app/` and `modules/`;
@@ -22,6 +22,17 @@ plugins are bound by the same cursor rule and by review).
 Sharing a fake across modules, when that sharing exists, is Gradle test
 fixtures — still not `src/main`. Until a second module needs `ClockFake`,
 the fake stays in that module's `src/test`.
+
+**Amended: that condition has been met, and earlier than this record expected.**
+`platform:kernel`'s fakes now live in `src/testFixtures` and are `public` rather
+than `internal`, because `internal` does not cross a project boundary. The trigger
+was not one specific second consumer but the realisation that every feature
+module's use-case tests will substitute `ClockFake`, `IdGeneratorFake` and
+`TransactionRunnerFake` — that is what those types are for, so the first feature
+module fires the condition for all three at once. Moving them together with
+`TransactionRunnerConformance`, whose home is settled in ADR-046, made it one
+change instead of two. Nothing else about this record changes: the fakes are still
+handwritten, still absent from `src/main`, and `no-fake-in-main` still guards that.
 
 ## Why
 

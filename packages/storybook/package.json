@@ -11,12 +11,12 @@
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
     "typecheck": "tsc --noEmit",
-    "test:a11y": "pnpm run build-storybook && playwright test --project=desktop a11y.spec.ts",
-    "test:contrast": "pnpm run build-storybook && playwright test --project=desktop contrast-wcag.spec.ts contrast-apca.spec.ts",
-    "test:visual": "pnpm run build-storybook && playwright test --project=desktop --project=tablet --project=mobile visual.spec.ts",
-    "test:visual:update": "pnpm run build-storybook && playwright test visual.spec.ts --update-snapshots",
-    "test:e2e": "pnpm run build-storybook && playwright test",
-    "test:scoped": "pnpm run build-storybook && node ../test-kit/src/cli/run-scoped.mjs --ports=6006,6007"
+    "test:a11y": "node ./scripts/ensure-storybook-static.mjs && playwright test --project=desktop a11y.spec.ts",
+    "test:contrast": "node ./scripts/ensure-storybook-static.mjs && playwright test --project=desktop contrast-wcag.spec.ts contrast-apca.spec.ts",
+    "test:visual": "node ./scripts/ensure-storybook-static.mjs && playwright test --project=desktop --project=tablet --project=mobile visual.spec.ts",
+    "test:visual:update": "node ./scripts/ensure-storybook-static.mjs && playwright test visual.spec.ts --update-snapshots",
+    "test:e2e": "node ./scripts/ensure-storybook-static.mjs && playwright test",
+    "test:scoped": "node ./scripts/ensure-storybook-static.mjs && node ../test-kit/src/cli/run-scoped.mjs --ports=6006,6007"
   },
   "dependencies": {
     "frontend-shared": "workspace:*",

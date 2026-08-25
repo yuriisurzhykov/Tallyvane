@@ -56,4 +56,39 @@ class FallbackSpec :
                     .orElse("default")
             }
         }
+
+        "hands the cause to orRecover when every attempt failed" {
+            Fallback<String> { error("why it broke") }
+                .orRecover { cause -> cause.message.orEmpty() } shouldBe "why it broke"
+        }
+
+        "does not call orRecover when an attempt succeeded" {
+            var recovered = 0
+            Fallback { "first" }
+                .orRecover {
+                    recovered++
+                    "recovered"
+                } shouldBe "first"
+
+            recovered shouldBe 0
+        }
+
+        "reports the last failure, not the first" {
+            Fallback<String> { error("first failure") }
+                .or { error("last failure") }
+                .orRecover { cause -> cause.message.orEmpty() } shouldBe "last failure"
+        }
+
+        "keeps no cause once a later attempt succeeded" {
+            Fallback<String> { error("recovered from") }
+                .or { "second" }
+                .orRecover { "should not be reached" } shouldBe "second"
+        }
+
+        "never hands cancellation to orRecover" {
+            shouldThrow<CancellationException> {
+                Fallback<String> { throw CancellationException("cancelled") }
+                    .orRecover { "recovered" }
+            }
+        }
     })

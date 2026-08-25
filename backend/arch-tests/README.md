@@ -97,6 +97,55 @@ with more machinery.
 `ambientRandomMarkersIn` exists so the deliberate breadth is asserted on a
 literal snippet rather than argued about in a comment.
 
+## SQL is scanned too, because the gates only read Kotlin
+
+`own-schema-only` and `no-cross-schema-join` ask Konsist, and Konsist parses
+Kotlin. So the cheapest way to break the rule they defend was never Kotlin at
+all: a `create view` in a migration joins a neighbour's tables, and the consumer
+starts depending on that neighbour's physical column names with nothing to notice.
+`MigrationSchemaSpec` reads every `.sql` under `platform/` and `modules/` and
+fails on a schema that is not the file's own.
+
+The exemption is precisely the one §4.6 grants and no wider: a foreign key may
+cross a schema, a query may not. `references identity.users (id)` and
+`join jobs.companies` can sit in the same file, and only the second is a
+violation.
+
+The first draft matched every `x.y` in the file and reported table aliases as
+schemas — `a.id` in `from applications.applications a`. The patterns are anchored
+to the positions where a schema can actually stand (`from`, `join`, `table`,
+`view`, `index … on` and their siblings), which is also why the spec asserts the
+alias case rather than describing it. The decision this enforces, including the
+half that cannot be enforced, is
+[ADR-045](../../docs/adr/ADR-045-cross-capability-reads-own-the-copy.md).
+
+## A gate that is not run is not a gate
+
+Every rule above can be correct and still enforce nothing, and for a while all of
+them enforced nothing. `Scopes.kt` finds the tree through `konsist.root`, a
+**system property** — a `String`. Gradle tracks the string, not the thousands of
+files behind it, so `:arch-tests:test` declared none of what it actually reads:
+Kotlin under `platform/`, `app/` and `modules/`, every `.sql` those two trees
+carry, and `docs/adr/`, which `RecordedException` opens to check an
+`@ArchitectureException` cites a real file. A task with no inputs is never out of
+date. It cached a pass and replayed it.
+
+This was found by planting a violation rather than by reading the build script: a
+`System.currentTimeMillis()` in `platform:observability` left `./gradlew check`
+green, with `:arch-tests:test FROM-CACHE`, and `no-ambient-time` failed on the
+same line the moment `--rerun` forced the task to actually run. The gate worked
+throughout; nothing ever asked it. That is the worst shape a verification failure
+can take, because a red build is a question and a green one is not.
+
+The fix declares whole trees — all of `backend/` bar `build/`, `.gradle/` and
+`.idea/`, plus `docs/adr/` — rather than a list mirroring `Scopes.kt` and
+`MigrationSchema.kt`. A precise list is a second copy of a fact, and the same
+"someone widens the scan and forgets to widen this" is what opened the hole in the
+first place. Coarseness costs about seven seconds whenever anything under
+`backend/` changes and keeps the cache when nothing does, which was measured both
+ways: the planted violation now fails a plain `check`, and a second `check` with
+no edits reports `UP-TO-DATE`.
+
 ## The SOLID angle
 
 One reason to change `codeText()` — what counts as source a rule may inspect —
@@ -118,7 +167,18 @@ the cap is a visible edit to the architecture tests, not a quiet annotation.
 `build-logic` and these tests themselves. Top-level helpers in `tallyvane.arch`
 would fail `no-top-level-functions` if they were treated as production, and
 Konsist's own types are not the product. Production is `platform/`, `app/` and
-`modules/` — `src/main/kotlin`, plus `src/test/kotlin` for rules that care
-about tests (`no-mock-libraries`, `usecase-has-test`). A `Fake` belongs in
-those test directories, never in `src/main/kotlin`: nested `Jobs.Fake` still
-compiles into the production class file.
+`modules/` — `src/main/kotlin` only. Rules that care about tests as well
+(`no-mock-libraries`, `usecase-has-test`, `port-has-conformance-suite`,
+`no-verdict-in-signature`) run on a wider scope: `main`, `test` **and**
+`testFixtures`. A `Fake` belongs in one of the latter two, never in
+`src/main/kotlin`: nested `Jobs.Fake` still compiles into the production class
+file.
+
+`testFixtures` was added to that scope the moment the first double moved there,
+and not as tidiness. Two holes open otherwise, both silent. `no-mock-libraries`
+would stop looking exactly where a *shared* double lives — the one most worth
+guarding, since several modules depend on it. And `port-has-conformance-suite`
+would report a suite as missing because the suite had been moved somewhere the
+scope did not reach, so the honest fix for a port would have looked like a
+violation. A scope that lags behind where code actually lives turns its rules
+into noise in one direction and blindness in the other.

@@ -77,6 +77,14 @@ an area it covers.
      scalable, extensible → migration and fault-tolerance impact where
      applicable → the SOLID angle, as its own explicit heading, not folded
      into prose.
+   - **Date every investigation entry**, as `YYYY-MM-DD` where the entry starts.
+     A README that records findings accumulates them, and undated prose gives a
+     reader no way to tell a discovery made this week from one that predates the
+     design it describes — or to see that three entries were the same afternoon.
+     `.cursor/rules/comment-style.mdc` already sends long stories to "a dated
+     entry" in a README; this is the format it assumes. A section that just
+     describes what the code *is* needs no date; one that records a discovery, a
+     wrong turn, a measurement or a correction does.
    - Match the established tone in `packages/frontend-shared/src/shared/ui/theme/README.md`,
      `packages/design-tokens/README.md` and `backend/README.md`: dense
      explanatory prose that states the rejected alternative, not bullet lists
@@ -101,6 +109,17 @@ an area it covers.
      can be checked in a second rather than recalled wrongly.
    - For anything UI-visual, ask the user to check in a real browser. They will,
      and they have caught real bugs this way that no test or type-check did.
+   - **A test must be able to fail for the reason it exists.** Before counting a
+     test as coverage, ask what bug would fail it — then, for anything
+     load-bearing, take the guard away and watch it fail. A test that exercises
+     the fixture rather than the system is worse than no test: it looks like a
+     decision. Two written in one evening asserted a string the library
+     produced and the identity of a value the next slice must change; both were
+     deleted. State plainly when a test is a harness canary rather than
+     coverage, so a count of green tests is never mistaken for a guarantee.
+     Arrange and observe with something independent of the code under test —
+     reading a result through the layer being judged proves only that the layer
+     agrees with itself.
 5. **When a first hypothesis is wrong, say so and show the correction** — in
    code comments and in the relevant README or spec. Several entries below took
    two tries; the wrong turn is left in the record on purpose, because the wrong

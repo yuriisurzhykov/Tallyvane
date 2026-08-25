@@ -1,0 +1,12 @@
+---
+description: Points to the backend-spike skill when creating or changing a backend spike.
+globs: backend/playground/**,backend/settings.gradle.kts
+alwaysApply: false
+---
+
+# Backend spike
+
+Before creating or changing a module under `backend/playground/`, read and follow
+[.cursor/skills/backend-spike/SKILL.md](../skills/backend-spike/SKILL.md).
+
+Do not duplicate that guidance here — this rule only points to it.

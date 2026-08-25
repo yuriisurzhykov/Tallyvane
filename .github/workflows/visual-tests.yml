@@ -59,10 +59,12 @@ jobs:
 
       # Playwright builds and starts the app itself, through the `webServer`
       # entry in its config, so there is no separate build step to keep in step
-      # with it. For `packages/storybook`, `test:e2e` builds the static
-      # Storybook output first and only then runs Playwright against it — see
-      # that package's own `playwright.config.ts` for why the build cannot
-      # happen inside `webServer` here.
+      # with it. For `packages/storybook`, `test:e2e` ensures the static
+      # Storybook output first (`ensure-storybook-static.mjs`; CI always
+      # rebuilds because the folder is gitignored and not cached) and only
+      # then runs Playwright against it — see that package's own
+      # `playwright.config.ts` for why the build cannot happen inside
+      # `webServer` here.
       - name: Run suites
         working-directory: ${{ matrix.module }}
         run: pnpm run test:e2e

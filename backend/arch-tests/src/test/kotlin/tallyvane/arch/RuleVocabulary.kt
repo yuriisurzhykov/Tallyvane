@@ -1,36 +1,10 @@
 package tallyvane.arch
 
-internal val USE_CASE_PREFIXES =
-    listOf(
-        "Capture",
-        "Save",
-        "Submit",
-        "Advance",
-        "Schedule",
-        "Send",
-        "Render",
-        "Register",
-        "Update",
-        "Archive",
-        "Publish",
-        "Record",
-        "Evaluate",
-        "Compose",
-        "Notify",
-        "Ingest",
-        "Extract",
-        "Normalize",
-        "Score",
-        "Match",
-        "Recommend",
-        "Accept",
-        "Dismiss",
-        "Complete",
-        "Start",
-        "Conclude",
-        "Observe",
-        "Log",
-    )
+// Replaces a list of twenty-eight imperative prefixes that the rules used to
+// recognise a use case by. That list rejected `SignIn`, `Upload`, `Open` and
+// `Delete` while accepting `SaveThing`, so it contradicted the definition it was
+// meant to enforce and was wrong in both directions (ADR-053).
+internal const val USE_CASE_MARKER = "UseCase"
 
 internal val BANNED_SUFFIXES =
     listOf(
