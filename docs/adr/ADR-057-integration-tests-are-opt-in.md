@@ -46,7 +46,11 @@ the latter and is the escalation if the count ever costs more than the code woul
 
 **The fixture hands out `DatabaseAccess`** — url, user, password — not a
 `PostgreSQLContainer`. A test that held the container would have to be rewritten if the
-database ever came from somewhere else.
+database ever came from somewhere else. That type lives in the module's `main`, not in
+`testFixtures`: slice 7's connection factory needs the same three fields, and a test-only
+type would have guaranteed a duplicate beside it in production. This corrects the first
+implementation, which put it in `testFixtures` — the exact case of a fixture shaping
+production code that this decision otherwise argues against.
 
 **Isolation between specs is a database per spec, cloned from a template** that has the
 migrations applied once. Not implemented here: there are no migrations until slice 8.
@@ -79,6 +83,20 @@ stops at the analysis gates, and completeness of `check` had rested on Gradle ma
 a task name across projects — which the local invocation did and CI's did not. The root
 `check` now depends on every leaf's `check`, so completeness is a property of the task
 graph rather than of how the build was invoked, and CI calls `check`.
+
+Parity between the test image and production is not yet enforced by anything: there is no
+compose file in the repository, so `postgres:17-alpine` appears in the fixture and in a
+line of `ARCHITECTURE.md`, and the version spec compares a constant to a constant. The
+slice that creates compose owns making the tag have one home and adding a check that the
+two agree.
+
+Two of the four specs written here were deleted in the same slice, and the reasons are the
+useful part. One asserted the shape of a url Testcontainers produces — unfailable by our
+code. The other asserted that the fixture returns the same database twice, which
+contradicts the per-spec cloning decided above; a test that must be deleted for the plan
+to proceed reads like a decision. What is left is a canary and a parity check, and neither
+is coverage of Tallyvane — which is worth stating plainly so that the count of tests here
+is never mistaken for one.
 
 ## Alternatives considered
 

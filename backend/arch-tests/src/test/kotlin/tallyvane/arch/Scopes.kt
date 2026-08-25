@@ -11,14 +11,17 @@ internal fun repoRoot(): File = File(System.getProperty("repo.root") ?: error("r
 internal fun productionScope(): KoScope = scopeFromKotlinDirs(listOf("main"))
 
 /**
- * Everything a rule about code-in-general must see, `testFixtures` included.
+ * Everything a rule about code-in-general must see, `testFixtures` and
+ * `integrationTest` included.
  *
- * Leaving that source set out would open two holes the moment a fake is shared:
+ * Leaving `testFixtures` out would open two holes the moment a fake is shared:
  * `no-mock-libraries` would stop looking exactly where a shared double lives, and
  * `port-has-conformance-suite` would report a suite as missing because it had been
- * moved somewhere the scope did not reach.
+ * moved somewhere the scope did not reach. `integrationTest` was added for the same
+ * reason on the day it appeared: a scope that lags behind where code lives is blind
+ * in one direction and noisy in the other.
  */
-internal fun codeScope(): KoScope = scopeFromKotlinDirs(listOf("main", "test", "testFixtures"))
+internal fun codeScope(): KoScope = scopeFromKotlinDirs(listOf("main", "test", "testFixtures", "integrationTest"))
 
 internal fun fixtureScope(rule: String): KoScope {
     val dir = File(konsistRoot(), "arch-tests/src/test/resources/konsist-fixtures/$rule")

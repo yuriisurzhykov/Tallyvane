@@ -31,6 +31,29 @@ mechanism is meant to be replaceable: addressing a database that is already runn
 environment variable, stays possible without touching a single spec. A test holding a
 `PostgreSQLContainer` would have to be rewritten for that.
 
+That type lives in `main`, and a first draft had it in `testFixtures`. The correction is
+worth keeping because the reasoning generalises: slice 7's connection factory needs those
+same three fields, so a test-only type would have guaranteed a second one beside it in
+production — two vocabularies for one concept, free to drift. A fixture that quietly
+shapes production code is the most expensive kind of test scaffolding, and putting the
+value where production will use it is what stops that here.
+
+Two of the four original specs were deleted for related reasons. One asserted that the
+returned url contains `jdbc:postgresql://` — a string Testcontainers produces, which no
+bug of ours can fail. The other asserted that a second call hands back the same
+database, which contradicts the isolation already agreed for slice 8: a database per
+spec, cloned from a migrated template. A test that must be deleted for the plan to
+proceed reads like a decision, and is worse than no test.
+
+What remains is two specs, and neither is coverage of Tallyvane. `select 1` is a canary
+for this environment — Docker, the image, the driver, the wiring — and it cannot fail
+because of anything we write. The version check is the one claim a future change can
+quietly break, and it is currently weaker than it looks: it compares a constant in the
+fixture against a constant in the spec, while the real source of truth is a compose file
+that does not exist yet. Parity between the test image and production therefore rests on
+a line in `ARCHITECTURE.md` and nothing mechanical. When compose lands, the tag gets one
+home and a check compares the two.
+
 The tests live in an `integrationTest` source set that `tallyvane.integration-test` adds
 to this module, and they are not part of `check`. Running them costs a container, and
 the machine this is developed on does not have resources to spare, so locally they are
