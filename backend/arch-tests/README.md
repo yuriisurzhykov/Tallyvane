@@ -140,7 +140,18 @@ the cap is a visible edit to the architecture tests, not a quiet annotation.
 `build-logic` and these tests themselves. Top-level helpers in `tallyvane.arch`
 would fail `no-top-level-functions` if they were treated as production, and
 Konsist's own types are not the product. Production is `platform/`, `app/` and
-`modules/` — `src/main/kotlin`, plus `src/test/kotlin` for rules that care
-about tests (`no-mock-libraries`, `usecase-has-test`). A `Fake` belongs in
-those test directories, never in `src/main/kotlin`: nested `Jobs.Fake` still
-compiles into the production class file.
+`modules/` — `src/main/kotlin` only. Rules that care about tests as well
+(`no-mock-libraries`, `usecase-has-test`, `port-has-conformance-suite`,
+`no-verdict-in-signature`) run on a wider scope: `main`, `test` **and**
+`testFixtures`. A `Fake` belongs in one of the latter two, never in
+`src/main/kotlin`: nested `Jobs.Fake` still compiles into the production class
+file.
+
+`testFixtures` was added to that scope the moment the first double moved there,
+and not as tidiness. Two holes open otherwise, both silent. `no-mock-libraries`
+would stop looking exactly where a *shared* double lives — the one most worth
+guarding, since several modules depend on it. And `port-has-conformance-suite`
+would report a suite as missing because the suite had been moved somewhere the
+scope did not reach, so the honest fix for a port would have looked like a
+violation. A scope that lags behind where code actually lives turns its rules
+into noise in one direction and blindness in the other.

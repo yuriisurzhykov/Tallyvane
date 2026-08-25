@@ -67,8 +67,14 @@ annotation, owns those rules — see
 Six types exist: `Clock`, `IdGenerator`, `TransactionRunner`, `Verdict`,
 `ArchitectureException`, `Fallback`. The first two carry their production
 implementations nested on them — `Clock.Wall` and `IdGenerator.Uuid7` —
-while tests construct `ClockFake` and `IdGeneratorFake` in this module's
-`src/test`. `TransactionRunner`'s production implementation lives in
+while `ClockFake`, `IdGeneratorFake`, `TransactionRunnerFake` and
+`TransactionRunnerConformance` sit in `src/testFixtures`, so another
+module's tests can pin time, name ids and substitute a transaction without
+declaring their own. That source set rather than `src/test` because
+`src/test` does not cross a project boundary, and rather than `src/main`
+because these must never ship (ADR-044, ADR-046). Being consumable makes
+them `public`; `internal` stops at the module edge.
+`TransactionRunner`'s production implementation lives in
 `platform:persistence`, because unlike the other two it does reach a
 technology; only the port is here, so that a use case can mark a
 transaction boundary without depending on a database.
