@@ -6,6 +6,15 @@ import type { PageEntry } from "../types";
 type AxeViolation = Awaited<ReturnType<AxeBuilder["analyze"]>>["violations"][number];
 
 /**
+ * Which kind of thing the spec is looking at. `"document"` is a real page
+ * (`frontend-web`, later `frontend-admin`); `"component"` is an isolated
+ * Storybook story. The closed page-scoped rule list below is owned here, not
+ * passed in as a free-form array, so no consumer can pick a private subset
+ * and drift from another.
+ */
+export type A11ySurface = "document" | "component";
+
+/**
  * Structural accessibility: roles, names, landmarks, heading order, form
  * labelling — everything a machine can decide without a human looking.
  *
@@ -17,6 +26,21 @@ type AxeViolation = Awaited<ReturnType<AxeBuilder["analyze"]>>["violations"][num
  * than one.
  */
 const CONTRAST_RULES = ["color-contrast", "color-contrast-enhanced"];
+
+/**
+ * Document/page questions. A Button story is not a page: wrapping every
+ * iframe in `<main>`/`<h1>` would fake a surface the product does not have,
+ * and a green run built on that fake would be the one outcome worse than a
+ * skipped rule. Name/role/label rules stay on — those are why axe runs on
+ * stories at all.
+ */
+const PAGE_SCOPED_RULES = [
+    "page-has-heading-one",
+    "landmark-one-main",
+    "bypass",
+    "document-title",
+    "region",
+] as const;
 
 /**
  * `wcag22a` and `wcag22aa` together, not `wcag22aa` alone. axe-core's WCAG
@@ -31,16 +55,31 @@ const CONTRAST_RULES = ["color-contrast", "color-contrast-enhanced"];
  */
 const TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22a", "wcag22aa", "best-practice"];
 
-/** `critical` and `serious` fail the build. Lower impacts are still captured and attached, because they are worth reading without being worth blocking a merge. */
-const BLOCKING_IMPACTS = new Set(["critical", "serious"]);
+function disabledRules(surface: A11ySurface): string[] {
+    return surface === "component" ? [...CONTRAST_RULES, ...PAGE_SCOPED_RULES] : [...CONTRAST_RULES];
+}
 
 /**
- * Registers one `test()` per page/story, per theme. The caller supplies only
- * the list — every other decision (which tags, what blocks, how the report
- * reads) is made once, here, so no consumer can drift from another by editing
- * its own copy.
+ * Registers one `test()` per page/story, per theme. The caller supplies the
+ * list and, for isolated stories, `{ surface: "component" }` — every other
+ * decision (which tags, which rules a surface skips, that remaining
+ * violations fail) is made once, here, so no consumer can drift from another
+ * by editing its own copy.
+ *
+ * Remaining `violations[]` fail the test. A first draft filtered to
+ * `critical`/`serious` and attached the rest: that produced a successful CI
+ * job with 1458 `moderate` findings, almost all `landmark-one-main` and
+ * `page-has-heading-one` on Storybook stories. `axe-incomplete` still does
+ * not fail — those are judgements a machine cannot make, and blocking on
+ * them would make the suite unpassable.
  */
-export function defineA11ySpecs(manifest: readonly PageEntry[]): void {
+export function defineA11ySpecs(
+    manifest: readonly PageEntry[],
+    options: { readonly surface?: A11ySurface } = {},
+): void {
+    const surface = options.surface ?? "document";
+    const disabled = disabledRules(surface);
+
     for (const entry of manifest) {
         for (const theme of THEMES) {
             test(`${entry.name} @ ${theme} — a11y`, async ({ page }, testInfo) => {
@@ -50,7 +89,7 @@ export function defineA11ySpecs(manifest: readonly PageEntry[]): void {
 
                 const results = await new AxeBuilder({ page })
                     .withTags(TAGS)
-                    .disableRules(CONTRAST_RULES)
+                    .disableRules(disabled)
                     .analyze();
 
                 await testInfo.attach("axe-results", {
@@ -75,8 +114,7 @@ export function defineA11ySpecs(manifest: readonly PageEntry[]): void {
                     });
                 }
 
-                const blocking = results.violations.filter((violation) => BLOCKING_IMPACTS.has(violation.impact ?? ""));
-                expect(blocking, formatViolations(blocking)).toEqual([]);
+                expect(results.violations, formatViolations(results.violations)).toEqual([]);
             });
         }
     }

@@ -1,0 +1,22 @@
+root = true
+
+[{*.kt,*.kts}]
+# `ktlint_official` double-indents a whole class body when the primary constructor
+# carries an annotation or a modifier, and upstream calls that intended (ktlint
+# #2138, #3193). Trailing commas do not depend on the profile: the four properties
+# below set them explicitly and are enforced under either. See ADR-043.
+ktlint_code_style = intellij_idea
+ktlint_standard_trailing-comma-on-declaration-site = enabled
+ktlint_standard_trailing-comma-on-call-site = enabled
+ij_kotlin_allow_trailing_comma = true
+ij_kotlin_allow_trailing_comma_on_call_site = true
+# detekt's WildcardImport is on by default; ktlint must not rewrite those imports into stars.
+ij_kotlin_name_count_to_use_star_import = 99
+ij_kotlin_name_count_to_use_star_import_for_members = 99
+ktlint_standard_no-wildcard-imports = enabled
+# Official ktlint allows `/** text */` on its own line. tallyvane does not.
+ktlint_tallyvane_no-single-line-kdoc = enabled
+insert_final_newline = true
+indent_size = 4
+indent_style = space
+max_line_length = 120

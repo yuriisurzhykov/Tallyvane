@@ -1,0 +1,13 @@
+---
+description: Points to the gradle-version-catalog skill when editing Gradle version catalogs.
+globs: backend/gradle/libs.versions.toml,**/libs.versions.toml
+alwaysApply: false
+---
+
+# Gradle version catalog
+
+Before adding or renaming an entry in a Gradle version catalog
+(`libs.versions.toml`), read and follow
+[.cursor/skills/gradle-version-catalog/SKILL.md](../skills/gradle-version-catalog/SKILL.md).
+
+Do not duplicate that guidance here — this rule only points to it.

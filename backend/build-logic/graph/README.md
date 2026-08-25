@@ -1,0 +1,73 @@
+# graph — `tallyvane.graph`
+
+`modules.yaml` is the contract for who may depend on whom. This plugin
+compares that file to the real Gradle project graph. An undeclared edge and
+a declared but unused one are both errors. MockK and Mockito coordinates are
+banned on every configuration, including test.
+
+The plugin class sits at the package root:
+`tallyvane.gradle.graph.ModuleGraphPlugin`. Gradle Task subclasses live under
+`tasks/`. Everything else is cut by the same layers as a feature module,
+as packages inside one `:graph` project — not as extra Gradle modules, and
+not as folders named after a technology.
+
+```
+ModuleGraphPlugin.kt          composition root: register, snapshot, get out
+domain/
+  Finding.kt                  a check result (toString is the Gradle line)
+  Feature.kt                  values plus the paths they imply
+  Platform.kt                 values plus the paths they imply
+  GraphCheck.kt               Planned, Platforms, Features, Banned
+  ModulesYaml.kt              port — no SnakeYAML
+  IncludedProjects.kt         port + Snapshot + Wired (configuration cache)
+application/
+  ValidateModuleGraph.kt      use case: run the checks, return findings
+infrastructure/
+  YamlModulesYaml.kt          the only class that imports SnakeYAML
+tasks/
+  ValidateModuleGraphTask.kt  @TaskAction: use case, then GradleException
+```
+
+A first pass put every type in one package, nested `File` on `ModulesYaml`,
+and treated `Feature` as a port with `FromManifest`. That matched an Android
+plugin's vocabulary-in-one-file shape and kept `settings.gradle.kts` to one
+project per plugin. It also put SnakeYAML on the port, put Gradle next to
+the comparison rules, and invented an interface for a value nobody
+substitutes. `manifest/` / `rules/` / `gradle/` were the other wrong cut:
+those names describe a technology, not a layer, so YAML knowledge and
+"what may depend on what" still sat in the wrong files. `:graph:domain` as
+its own Gradle project would compile-isolate the domain from Gradle, but
+it would also rewrite ARCHITECTURE.md's "one Gradle project per plugin".
+Packages inside `:graph` keep that rule. Isolation is by convention:
+`GraphCheck.kt` does not import Gradle or SnakeYAML; `IncludedProjects.kt`
+is the one domain file that does, because part two of the engineering
+principles puts `Snapshot` and `Wired` on the same port.
+
+`YamlModulesYaml` reads the file. `Feature` and `Platform` are data classes
+the adapter constructs — formatting `:modules:jobs:contract` is not a
+reason to allocate a throwaway object, and it is not a reason to extract a
+port. `ValidateModuleGraph` holds the yaml and the projects and returns
+findings. The task exists because configuration cache needs serialisable
+`@Input` values: `accept` writes them, `Wired` rebuilds the same port at
+execution, and `@TaskAction` translates a non-empty list into a
+`GradleException`.
+
+Test doubles are `ModulesYamlFake` and `IncludedProjectsFake` in `src/test`,
+not nested on the production types (ADR-044).
+
+Applying `id("tallyvane.graph")` registers `validateModuleGraph`.
+`tallyvane.root` applies this plugin and `tallyvane.verification`.
+
+## SOLID
+
+Single responsibility is the layer cut and "one class per outside world":
+SnakeYAML has one owner, the Gradle `Project` graph has one owner, the task
+does not expand allow-list tokens. Open/closed is a new nested type on
+`GraphCheck`; the use case's default list is the composition, not a `when`
+inside a check. Liskov is why `Feature` is not nested on `ModulesYaml` and
+why `YamlModulesYaml` implements the whole port rather than a parser that
+callers special-case. Interface segregation is why `ModulesYaml` and
+`IncludedProjects` are two ports — a check that only reads coordinates does
+not grow a YAML method. Dependency inversion is the plugin as composition
+root: `GraphCheck` depends on the ports, `YamlModulesYaml` and `Snapshot`
+are named only at the edge.

@@ -16,7 +16,7 @@ compiler can enforce the boundary rather than a reviewer.
 
 ```
 backend/
-├── build-logic/        convention plugins; every module's build file is 3 lines
+├── build-logic/        one Gradle project per plugin
 ├── platform/           technical capabilities, zero business logic
 ├── modules/            capabilities (none yet; _template is the shape to copy)
 ├── app/                composition root — the only place implementations are named
@@ -57,9 +57,12 @@ the wrong place.
 ## Running it
 
 ```
+./gradlew arch            # ktlint, detekt, modules.yaml graph, Konsist
 ./gradlew projects        # the module graph
 ./gradlew tasks           # what is available
 ```
+
+`check` depends on `arch`. CI runs `./gradlew arch`, not `projects`.
 
 Nothing needs installing. Gradle 9.7.0 comes down on first use and lives in the
 Gradle user home, not in this repository. JDK 21 is the only prerequisite.
@@ -84,7 +87,7 @@ When upgrading:
 
 ## Deliberately absent
 
-No dependencies are declared anywhere yet — no Ktor, no Exposed, no test
-framework. The skeleton exists first so that the rules are in place before the
-first line of logic, rather than being retrofitted against code that already
-disagrees with them.
+Ktor, Exposed and Flyway are not on any classpath yet. The checking rails are:
+ktlint, detekt, Konsist, Kotest, and the `modules.yaml` graph. Business
+libraries arrive with the first adapter that needs them, not as a pile of
+unused coordinates. MockK and Mockito are banned on every configuration.

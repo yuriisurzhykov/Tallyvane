@@ -1,9 +1,16 @@
 # Tallyvane — Архитектура системы
 
-> Версия документа: 3.4
+> Версия документа: 3.6
 > Статус: утверждённый дизайн, палитра и модель экранов проверены прототипом; Фаза 2 (раздел 21, Вехи 10–18)
 > спроектирована, но не начата
 > Язык кода, идентификаторов и интерфейса: английский. Язык проектной документации: русский.
+>
+> Изменения относительно 3.5: тестовый двойник порта — `JobsFake` в `src/test`, не вложенный `Jobs.Fake` в основном
+> коде (ADR-044); Konsist-правило `no-fake-in-main` вместо `fake-is-nested`.
+>
+> Изменения относительно 3.4: бэкенд получил рельсы статической проверки (ktlint, detekt, Konsist, сверка
+> `modules.yaml`); рубеж 2 для бэкенда — стиль и SOLID-прокси, не Steiger; тестовые двойники — вложенный `Fake`, не MockK
+> (ADR-043).
 >
 > Изменения относительно 3.3: добавлена Фаза 2 — дифференцирующий слой из issue #4 (Career Memory, Career Graph,
 > Matching, Opportunity Score, Next Best Action, Outcome Learning, Experiments, Voice, Gamification), спроектированный тем
@@ -173,8 +180,8 @@ flowchart TB
     Dev["Разработчик пишет код"] --> R1
     R1["Рубеж 1: граф модулей сборки<br/>Gradle на бэкенде, tsconfig-пути на фронтенде"]
     R1 -->|"нарушение"| F1["Не компилируется"]
-    R1 --> R2["Рубеж 2: линтеры импортов<br/>Steiger, eslint-boundaries, dependency-cruiser"]
-    R2 -->|"нарушение"| F2["Падает pnpm arch"]
+    R1 --> R2["Рубеж 2: стиль и SOLID-прокси<br/>ktlint + detekt; Steiger, eslint-boundaries, dependency-cruiser"]
+    R2 -->|"нарушение"| F2["Падает pnpm arch или gradlew arch"]
     R2 --> R3["Рубеж 3: правила Konsist и манифест модулей"]
     R3 -->|"нарушение"| F3["Падает gradlew arch"]
     R3 --> R4["Рубеж 4: контрактные сьюты портов"]
@@ -377,11 +384,11 @@ API остаётся единственным честным контракто�
 ```
 backend/
 ├── settings.gradle.kts
-├── build-logic/                        конвенционные плагины Gradle
+├── build-logic/                        included build: один Gradle-проект на плагин; ktlint-rules — ruleset, не плагин
 ├── platform/                           технические возможности, ноль бизнес-логики
-│   ├── kernel/                         Money, UserId, Slug, Clock, IdGenerator, Outcome
+│   ├── kernel/                         Money, UserId, Slug, Clock, IdGenerator, TransactionRunner
 │   ├── events/                         DomainEvent, EventPublisher, EventSubscriber
-│   ├── persistence/                    TransactionRunner, конвенции схем, миграции
+│   ├── persistence/                    реализация TransactionRunner, конвенции схем, миграции
 │   ├── http/                           пломбировка Ktor: ошибки, аутентификация, RouteModule
 │   ├── outbox/                         очередь отложенных эффектов и диспетчер
 │   ├── llm/                            LlmProvider, декораторы, адаптер провайдера
@@ -3912,10 +3919,33 @@ export interface SiteAdapter {
 pnpm arch           все проверки фронтенда
 ```
 
+`./gradlew arch` — это ktlint, detekt, сверка графа с `modules.yaml` и тесты Konsist. `check` зависит от `arch`.
+
 Обе команды входят в `check` соответствующей сборки, запускаются в CI на каждый push и в pre-commit хуке в быстром
 режиме — только для изменённых файлов.
 
-### 15.2. Бэкенд, рубеж первый: граф модулей
+### 15.2. Бэкенд: ktlint, detekt и граф модулей
+
+**ktlint** держит official Kotlin style, включая trailing comma на многострочных списках. Профиль ktlint —
+`intellij_idea`. От профиля trailing comma не зависит: её задают явные свойства в `backend/.editorconfig`, и требуют
+её оба профиля. `ktlint_official` отвергнут потому, что уводит всё тело класса на лишний уровень отступа, когда у
+первичного конструктора есть аннотация или модификатор — разбор в
+[ADR-043](docs/adr/ADR-043-backend-static-analysis-stack.md).
+Плагин `org.jlleitschuh.gradle.ktlint`. `detekt-formatting` не подключаем: это второй ktlint и два отчёта на одну правку.
+
+**detekt** держит размер и сложность как SOLID-прокси. Пороги — Kotlin-набор, не копия ESLint: у функции и у конструктора
+разный смысл (порты в конструкторе use case — DIP, не жирный интерфейс).
+
+| Правило                 | Порог                                      |
+|-------------------------|--------------------------------------------|
+| LongMethod              | 60 строк (выключен на тестах)              |
+| CyclomaticComplexMethod | 12                                         |
+| NestedBlockDepth        | 3                                          |
+| LongParameterList       | 3 параметра функции, 5 параметров конструктора |
+| LargeClass              | 400 строк (выключен на тестах)             |
+| TooManyFunctions        | дефолт detekt 11 (выключен на тестах)      |
+
+Цикломатика, глубина и списки параметров на тестах остаются.
 
 Компилятор ловит нарушение направления зависимостей, потому что нужного ребра просто нет в графе. Но добавить ребро
 может любой, дописав строку в `build.gradle.kts`, и это скомпилируется. Поэтому граф зафиксирован декларативно.
@@ -3941,7 +3971,7 @@ modules:
   # ...
 ```
 
-Задача `validateModuleGraph` разрешает реальный граф зависимостей Gradle и сравнивает с манифестом. Любое расхождение в
+Плагин `tallyvane.graph` (`validateModuleGraph`) разрешает реальный граф зависимостей Gradle и сравнивает с манифестом. Любое расхождение в
 любую сторону — незаявленная зависимость или заявленная, но неиспользуемая — валит сборку. Это делает архитектурное
 решение видимым в diff: чтобы модуль начал читать у соседа, надо явно вписать это в манифест, и такое изменение
 невозможно пропустить на ревью.
@@ -3968,10 +3998,10 @@ modules:
 |-----------------------------|----------------------------------------------------------------------------------------------------------------------------------|
 | `single-public-method`      | У класса use case ровно один публичный метод, названный `invoke`                                                                 |
 | `usecase-is-imperative`     | Имя use case — глагол в повелительном наклонении из проверяемого словаря                                                         |
-| `port-is-interface`         | Всё в пакете `port` — интерфейсы, без реализаций                                                                                 |
+| `port-is-interface`         | Top-level в пакете `port` — интерфейсы; вложенные `Cached` / `Retrying` допустимы                                                |
 | `port-naming`               | Имя порта без префикса `I` и без суффикса `Interface`                                                                            |
 | `adapter-is-internal`       | Реализация порта в `infrastructure` объявлена `internal`                                                                         |
-| `no-banned-suffix`          | Имя не оканчивается на `Utils`, `Util`, `Helper`, `Manager`, `Tools`, `Common`, `Misc`, `Constants`, `Processor`, `Data`, `Info` |
+| `no-banned-suffix`          | Имя не оканчивается на `Utils`, `Util`, `Helper`, `Helpers`, `Manager`, `Tools`, `Common`, `Misc`, `Shared`, `Constants`, `Processor`, `Data`, `Info`, `Base` |
 | `no-top-level-functions`    | Функций вне класса нет                                                                                                           |
 | `no-stateful-objects`       | Нет `object` с функциями или изменяемыми свойствами                                                                              |
 | `no-companion-logic`        | В `companion object` только фабрики и константы, без ветвлений                                                                   |
@@ -3996,6 +4026,26 @@ modules:
 | `usecase-has-test`        | У каждого use case есть тестовый класс                                                                 |
 | `registry-owns-branching` | `when` по значениям `JobSourceKind`, `ChannelKind`, `ReminderCode` встречается только в пакете реестра |
 | `app-has-no-logic`        | В модуле `app` имена классов оканчиваются на `Wiring`, `Configuration` или `Application`               |
+
+**Конвенция и smart contract**
+
+| Код                            | Правило                                                                                          |
+|--------------------------------|--------------------------------------------------------------------------------------------------|
+| `one-top-level-class`          | Один top-level класс или интерфейс на файл                                                       |
+| `package-matches-layer`        | Пакет `tallyvane.<capability>.<layer>`; для platform — `tallyvane.platform.<name>`               |
+| `domain-no-annotations`        | В `*:domain` нет framework-аннотаций                                                             |
+| `domain-no-var`                | В `*:domain` нет `var`                                                                           |
+| `contract-no-logic`            | В `*:contract` нет use case; вложенные декораторы без I/O (`Cached`, `Retrying`) допустимы; `Fake` — только в `src/test` |
+| `no-impl-suffix`               | Имя не оканчивается на `Impl`                                                                    |
+| `nested-impl-is-pure`          | Вложенный класс порта не импортирует Ktor, Exposed, JDBC, java.net                               |
+| `adapter-named-by-mechanism`   | Production-адаптер в infrastructure не `*Impl` и не вложен в порт                                |
+| `no-fake-in-main`              | В `src/main` нет типа `Fake` / `Fake*` / `*Fake`, в том числе вложенного `Jobs.Fake`              |
+| `no-mock-libraries`            | Нет импортов MockK и Mockito, в том числе в тестах                                               |
+| `no-di-framework`              | Нет Koin, Dagger, Spring (ADR-010)                                                               |
+| `web-one-usecase`              | Класс маршрута вызывает ровно один use case                                                      |
+
+Каждое правило имеет негативную фикстуру в `arch-tests`: production-scope на пустом дереве зелёный, фикстура обязана
+быть грязной, иначе правило не считается существующим.
 
 Пример реализации правила:
 
@@ -4315,8 +4365,11 @@ Typst и cwebp — не контейнеры, а статические бина
 | Компонентные фронтенда   | Блоки, формы, слой строк                    | Vitest, Testing Library                | Секунды      |
 | Сквозные                 | Критические пути в браузере                 | Playwright                             | Минуты       |
 
-Библиотеки моков не используются. Вместо них рукописные фейки, реализующие порт целиком и хранящие состояние в памяти.
-Фейк проходит тот же контрактный сьют, что и настоящая реализация: это гарантирует, что тесты не лгут о поведении.
+Библиотеки моков не используются. Вместо них рукописные фейки в `src/test` модуля, которому принадлежит порт
+(`JobsFake`): реализуют порт целиком и хранят состояние в памяти. Фейк не вкладывается в production-тип — вложенный
+`Jobs.Fake` попадает в production-jar как `Jobs$Fake.class`. Фейк проходит тот же контрактный сьют, что и настоящая
+реализация: это гарантирует, что тесты не лгут о поведении. `mockk()` это не закрывает — собранная пустышка не реализует
+порт и не упадёт, когда у порта появится второй метод.
 
 ### 18.2. Особые виды проверок
 
@@ -4840,6 +4893,14 @@ rule-signals и узкого LLM-rerank только по уже отобран�
 15 в год, посчитанном для Вех 0–9.
 
 **ADR-042. Пиксельная оценка виртуализатора — число в JS, не CSS-переменная.** `estimateSize` у `@tanstack/react-virtual` обязан вернуть число CSS-пикселей; движок не читает custom property, поэтому семя высоты строки `DataTable` (`ROW_HEIGHT_PX`) остаётся JS-числом, хотя нарисованная строка идёт через `var(--control-height-sm)`. Число не освобождает `style={{}}`: CSS строки — токен, число живёт только как начальная оценка, `measureElement` поправляет дрейф. Тишина — полный `@architecture-exception` с ADR. Именованная константа, `n + "px"` и Lucide `size={16}` по-прежнему хардкод. Отвергнуто чтение `getComputedStyle` на рендере (форсирует layout и гоняется с первой отрисовкой). Отвергнута именованная константа как lint-исключение: агент уже обошёл ту дыру.
+
+**ADR-043. Статический анализ бэкенда — четыре инструмента, четыре вопроса.** ktlint (стиль, trailing comma;
+правила, которых нет в official set, — `build-logic/ktlint-rules`), detekt
+(размер и сложность с Kotlin-порогами, не копией ESLint), Konsist (именованные правила §15.3), сверка графа Gradle с
+`modules.yaml`. MockK и Mockito запрещены на classpath; двойник — рукописный `Fake` в `src/test` (ADR-044). `detekt-formatting` отвергнут как
+второй ktlint. Полный разбор — [ADR-043](docs/adr/ADR-043-backend-static-analysis-stack.md).
+
+**ADR-044. Фейк порта живёт в `src/test`, не на production-типе.** Вложенный `Jobs.Fake` компилируется в production-jar (`Jobs$Fake.class`). Двойник — `JobsFake` в тестовом source set того же модуля. `Cached` / `Retrying` по-прежнему вкладываются в порт: это production без I/O. MockK по-прежнему запрещён. Полный разбор — [ADR-044](docs/adr/ADR-044-test-fakes-in-src-test.md).
 
 ### Зафиксированные противоречия и их разрешение
 

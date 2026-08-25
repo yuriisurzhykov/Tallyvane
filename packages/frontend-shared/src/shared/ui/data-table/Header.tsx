@@ -29,6 +29,11 @@ function SortIcon({ sorted }: { readonly sorted: false | "asc" | "desc" }) {
  * participating in `Body`'s roving-cell system: they are chrome around the
  * grid, not one of the cells the task's own "arrow keys move between
  * cells" describes.
+ *
+ * The synthetic expand column's leading cell is a `gridcell`, not a
+ * `columnheader`. It is alignment chrome, not a heading — a blank
+ * `columnheader` fails axe `empty-table-header`, and that rule's own
+ * incorrect example is exactly `aria-label` on an empty header.
  */
 export function Header({ className }: DataTableHeaderProps) {
     const { meta } = useDataTableContext();
@@ -40,7 +45,7 @@ export function Header({ className }: DataTableHeaderProps) {
                 <div role="row" key={ headerGroup.id } aria-rowindex={ groupIndex + 1 } className={ HEADER_ROW_CLASS }>
                     { meta.hasRowExpansion ? (
                         <div
-                            role="columnheader"
+                            role="gridcell"
                             aria-colindex={ 1 }
                             style={ { flex: "0 0 var(--control-height-sm)" } }
                             className={ HEADER_CELL_CLASS }

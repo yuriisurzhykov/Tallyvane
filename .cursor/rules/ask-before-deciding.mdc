@@ -1,5 +1,5 @@
 ---
-description: Ask, do not guess. No architectural, design or behavioural decision is made or implemented in this repo until the user has explicitly approved it.
+description: Ask, do not guess. No decision is made or implemented until the user approves it — including surprises during an already-approved plan. Ask in a six-block message, then wait.
 alwaysApply: true
 ---
 
@@ -15,6 +15,10 @@ opinions that are frequently better informed than the first idea an agent
 arrives at. A guess that happens to compile is still an unreviewed decision
 sitting permanently in the codebase.
 
+An approved plan does **not** authorize new decisions. If implementation
+uncovers a choice the plan did not settle (or the plan is ambiguous), **stop**.
+Do not pick a "reasonable default" and continue in order to save time.
+
 ## What to do when something is unclear
 
 1. **State the guess as a question**, not as an assertion and not as a finished
@@ -25,11 +29,34 @@ sitting permanently in the codebase.
    roughly 99% of the time.
 3. **Decide only if the answer is unambiguous AND matches the documentation.**
    Then act, and state briefly what the decision rests on.
-4. **Otherwise, ask the user and wait for an answer.** That covers every case
-   where:
+4. **Otherwise, ask in the six-block message below and wait.** That covers
+   every case where:
    - the answer is still not obvious after checking the documentation, or
    - what you found contradicts the documentation, or
-   - several plausible options exist.
+   - several plausible options exist, or
+   - a fork appears while implementing an already-approved plan.
+
+## How to ask
+
+The question is a **message**, not a one-liner and not a bare choice widget.
+Write it in the language of the user's last message. If a structured selector
+(`AskQuestion` or equivalent) is available, it may follow the message as a
+picker over the options already listed — it does not replace the message.
+
+Use these six headings, translated to that same language (Russian example in
+parentheses):
+
+1. **What I was trying to do** (Что я пытался сделать)
+2. **What became apparent** (Что вдруг выявилось)
+3. **What this means for the project** (Что это означает для нашего проекта)
+4. **What decision needs to be made** (Какое решение нужно принять)
+5. **What options exist** (Какие варианты есть)
+6. **Pros and cons of each option** (Какие плюсы и минусы по каждому из вариантов)
+
+Then **pause**: wait for the answer. Implement nothing until it arrives.
+
+This format applies to every item under "What counts as a decision" and to
+every mid-implementation surprise.
 
 ## What counts as a decision
 
@@ -57,13 +84,45 @@ and report them — but say plainly what changed, so the user can disagree.
 - Making architectural, design or behavioural decisions without approval.
 - Presenting a guess as a fact — see `verify-before-asserting.mdc`.
 - Quietly picking an option and moving on in the hope that it fits.
+- Continuing an approved plan by choosing a default when a new fork appears.
+- Asking in one line instead of the six-block message.
 - Answering "is this right?" with reassurance instead of a check. When the user
   expresses doubt, **re-verify and show the evidence**; agreeing confidently is
   worse than useless if it is unverified.
 
 ## Right versus wrong
 
-❌ "I assumed option A was needed, and implemented it."
+❌ Implemented option A because it compiled / looked like the usual choice.
 
-✅ "The documentation does not cover this unambiguously. Options A and B are
-both plausible. Which should I use?" → wait for the answer.
+❌ "The documentation does not cover this unambiguously. Options A and B are
+both plausible. Which should I use?"
+
+❌ The plan was approved, so I picked the default and kept going.
+
+✅ Six-block message, then wait:
+
+**What I was trying to do**
+Add a `max-w-*` utility for the content column while implementing the approved
+layout slice.
+
+**What became apparent**
+Tailwind resolves `--spacing-<key>` before `--container-<key>` for the whole
+width family. A spacing key named `md` would silently hijack `max-w-md`.
+
+**What this means for the project**
+The token architecture forbids class-facing names that collide with Tailwind's
+built-in scale. Picking a key now either preserves that invariant or reopens
+the hijack.
+
+**What decision needs to be made**
+Which name the content-column width role should have in the theme adapter.
+
+**What options exist**
+- A. Job-named role (`content-column`), matching existing spacing roles.
+- B. Scale-named role (`md`), matching Tailwind's default width scale.
+
+**Pros and cons of each option**
+- A. Keeps the no-collision invariant; callers must learn our name, not
+  `max-w-md`.
+- B. Familiar utility name; silently maps `max-w-md` to a spacing-sized
+  value if a `--spacing-md` token ever appears.

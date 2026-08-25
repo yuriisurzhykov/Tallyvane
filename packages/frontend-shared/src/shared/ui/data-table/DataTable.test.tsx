@@ -304,6 +304,14 @@ describe("DataTable", () => {
 
             expect(screen.getByRole("grid", { name: "People" })).toHaveAttribute("aria-colcount", String(COLUMN_COUNT + 1));
         });
+
+        it("occupies the expand column in the header row with a gridcell, not an empty columnheader", () => {
+            renderExpandableTable();
+
+            expect(screen.getAllByRole("columnheader")).toHaveLength(COLUMN_COUNT);
+            const headerRow = screen.getAllByRole("row")[0];
+            expect(headerRow?.querySelector('[aria-colindex="1"]')).toHaveAttribute("role", "gridcell");
+        });
     });
 
     describe("layout passthrough", () => {

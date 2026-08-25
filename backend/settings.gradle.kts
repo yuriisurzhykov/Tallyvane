@@ -1,10 +1,23 @@
 rootProject.name = "tallyvane"
 
-// Convention plugins live in an included build so that every module's own
-// build file stays three lines long. Wired in once build-logic has content —
-// see build-logic/README.md.
-//
-// pluginManagement { includeBuild("build-logic") }
+enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
+
+pluginManagement {
+    includeBuild("build-logic")
+    repositories {
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+
+includeBuild("build-logic")
+
+dependencyResolutionManagement {
+    repositories {
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
 
 // ---------------------------------------------------------------------------
 // Platform — technical capabilities. Zero business logic, zero knowledge of
