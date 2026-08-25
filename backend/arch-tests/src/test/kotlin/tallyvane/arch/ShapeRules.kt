@@ -40,21 +40,25 @@ internal fun usecaseIsInterface(scope: KoScope): List<String> {
     // directly, so matching only `UseCase` caught the one shape nobody writes and
     // missed `class SignIn : SignInUseCase` sitting beside its interface. And a
     // declaration kind the predicate does not ask for is a way round on its own:
-    // `classes()` never returns an object. Both were holes until a test looked.
+    // `classes()` never returns an object. Nested implementations were a third
+    // hole: `includeNested = false` never saw `class Registry { class SignIn :
+    // SignInUseCase }`, so the required nesting was asserted only by not looking.
     val markers = scope.useCaseInterfaces().map { it.name }.toSet() + USE_CASE_MARKER
-    val topLevelClasses =
+    val classes =
         scope
-            .classes(includeNested = false, includeLocal = false)
+            .classes(includeNested = true, includeLocal = false)
             .withoutException("usecase-is-interface")
             .filter { klass -> klass.parentInterfaces().any { it.name in markers } }
+            .filterNot { it.isNestedInOwnUseCaseInterface(markers) }
             .map { it.where() }
-    val topLevelObjects =
+    val objects =
         scope
-            .objects(includeNested = false)
+            .objects(includeNested = true)
             .withoutException("usecase-is-interface")
             .filter { declaration -> declaration.parentInterfaces().any { it.name in markers } }
+            .filterNot { it.isNestedInOwnUseCaseInterface(markers) }
             .map { it.where() }
-    return topLevelClasses + topLevelObjects
+    return classes + objects
 }
 
 /**

@@ -23,10 +23,12 @@ test("rebuildReason: missing output rebuilds; matching stamp skips", () => {
     );
 });
 
-test("inputRoots: Storybook config and frontend-shared source, not Playwright specs", () => {
+test("inputRoots: Storybook config, frontend-shared source, and workspace lockfile", () => {
     const roots = inputRoots(PACKAGE_ROOT);
     assert.ok(roots.includes(join(PACKAGE_ROOT, ".storybook")));
     assert.ok(roots.includes(join(PACKAGE_ROOT, "..", "frontend-shared", "src")));
+    assert.ok(roots.includes(join(PACKAGE_ROOT, "..", "..", "pnpm-lock.yaml")));
+    assert.ok(roots.includes(join(PACKAGE_ROOT, "..", "..", "package.json")));
     assert.ok(!roots.some((root) => root.includes(`${join("tests", "e2e")}`)));
 });
 
@@ -40,6 +42,7 @@ test("findStaleInput: a newer file under an input root is reported; an older one
         const newer = new Date(stampMs + 60_000);
 
         await utimes(inputFile, older, older);
+        await utimes(dir, older, older);
         assert.equal(findStaleInput([dir], stampMs), null);
 
         await utimes(inputFile, newer, newer);
@@ -57,9 +60,31 @@ test("findStaleInput: README and *.test.tsx edits do not count as Storybook inpu
         await writeFile(readme, "# menu\n");
         await writeFile(unit, "it('noop', () => {});\n");
         const newer = new Date(Date.now() + 60_000);
+        const older = new Date(Date.now() - 60_000);
         await utimes(readme, newer, newer);
         await utimes(unit, newer, newer);
+        await utimes(dir, older, older);
         assert.equal(findStaleInput([dir], Date.now()), null);
+    } finally {
+        await rm(dir, {recursive: true, force: true});
+    }
+});
+
+test("findStaleInput: deleting a build file is stale via the directory mtime", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "ensure-storybook-static-"));
+    try {
+        const inputFile = join(dir, "Menu.tsx");
+        await writeFile(inputFile, "export const x = 1;\n");
+        const stampMs = Date.now();
+        const older = new Date(stampMs - 60_000);
+        const newer = new Date(stampMs + 60_000);
+        await utimes(inputFile, older, older);
+        await utimes(dir, older, older);
+        assert.equal(findStaleInput([dir], stampMs), null);
+
+        await rm(inputFile);
+        await utimes(dir, newer, newer);
+        assert.equal(findStaleInput([dir], stampMs), dir);
     } finally {
         await rm(dir, {recursive: true, force: true});
     }
@@ -72,7 +97,9 @@ test("findStaleInput: node_modules under an input root is ignored", async () => 
         await mkdir(join(dir, "node_modules", "storybook"), {recursive: true});
         await writeFile(nested, "module.exports = {}\n");
         const newer = new Date(Date.now() + 60_000);
+        const older = new Date(Date.now() - 60_000);
         await utimes(nested, newer, newer);
+        await utimes(dir, older, older);
         assert.equal(findStaleInput([dir], Date.now()), null);
     } finally {
         await rm(dir, {recursive: true, force: true});
@@ -109,15 +136,20 @@ test("decideRebuild: a stamp newer than every input skips; a newer Menu.tsx does
         const older = new Date(now - 60_000);
         const stamp = new Date(now);
         const newer = new Date(now + 60_000);
-        for (const file of [
+        for (const path of [
             join(packageRoot, "package.json"),
             join(packageRoot, "postcss.config.mjs"),
             join(packageRoot, "tsconfig.json"),
+            join(packageRoot, ".storybook"),
             join(packageRoot, ".storybook", "main.ts"),
             join(workspace, "frontend-shared", "package.json"),
+            join(workspace, "frontend-shared", "src"),
+            join(workspace, "frontend-shared", "src", "shared"),
+            join(workspace, "frontend-shared", "src", "shared", "ui"),
+            join(workspace, "frontend-shared", "src", "shared", "ui", "menu"),
             menu,
         ]) {
-            await utimes(file, older, older);
+            await utimes(path, older, older);
         }
         await utimes(indexPath, stamp, stamp);
 

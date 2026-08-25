@@ -7,6 +7,10 @@
  * no per-story static rebuild), so "only build what changed" here means
  * skip vs full rebuild, not a partial compile. `*.md` / `*.test.*` /
  * `*.spec.*` under `frontend-shared` are ignored for the same reason.
+ * Directory mtimes are inputs too: deleting or renaming a story updates
+ * the parent folder and leaves no newer file. Workspace `pnpm-lock.yaml`
+ * and the repo-root `package.json` are inputs so a lockfile-only bump of
+ * Storybook/Tailwind/React still rebuilds (`node_modules` itself is skipped).
  *
  * CI always rebuilds: `storybook-static/` is gitignored and the visual
  * workflow does not cache it, but a future cache of that folder would
@@ -37,7 +41,8 @@ function isNonBuildFile(name) {
 /**
  * Paths whose mtime can change the built iframe. Specs, snapshots and
  * Playwright config are deliberately absent — they do not feed `storybook
- * build`.
+ * build`. The lockfile and repo-root `package.json` stand in for
+ * `node_modules`, which this walk skips.
  */
 export function inputRoots(packageRoot = PACKAGE_ROOT) {
     return [
@@ -47,6 +52,8 @@ export function inputRoots(packageRoot = PACKAGE_ROOT) {
         join(packageRoot, "tsconfig.json"),
         join(packageRoot, "..", "frontend-shared", "src"),
         join(packageRoot, "..", "frontend-shared", "package.json"),
+        join(packageRoot, "..", "..", "pnpm-lock.yaml"),
+        join(packageRoot, "..", "..", "package.json"),
     ];
 }
 
@@ -93,7 +100,9 @@ function walkForStale(absPath, outputMtimeMs) {
                 return found;
             }
         }
-        return null;
+        // Deletion/rename updates the directory's mtime without leaving a newer
+        // file behind, so the walk above would otherwise miss it.
+        return stat.mtimeMs > outputMtimeMs ? absPath : null;
     }
     return stat.mtimeMs > outputMtimeMs ? absPath : null;
 }

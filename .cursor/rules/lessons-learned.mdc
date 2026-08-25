@@ -113,8 +113,10 @@ description: The rules-log file for all the lessons learned during working on th
   `test:scoped` / `test:e2e` used to rebuild Storybook anyway — minutes of
   Vite for a Playwright file that `http-server` already had. `scripts/
   ensure-storybook-static.mjs` rebuilds only when an input (`.storybook/`,
-  this package's config, `frontend-shared/src`) is newer than
-  `storybook-static/index.json`, or when `CI` is set. Specs under `tests/`
+  this package's config, `frontend-shared/src`, the workspace
+  `pnpm-lock.yaml`, the repo-root `package.json`) is newer than
+  `storybook-static/index.json`, when a story was deleted or renamed (the
+  parent directory's mtime), or when `CI` is set. Specs under `tests/`
   are not inputs, and neither are `*.md` / `*.test.*` inside
   `frontend-shared`. There is no per-story static emit; skip vs full rebuild
   is the granularity `storybook build` actually has.

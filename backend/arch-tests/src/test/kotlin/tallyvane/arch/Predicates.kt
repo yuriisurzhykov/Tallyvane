@@ -4,6 +4,7 @@ import com.lemonappdev.konsist.api.container.KoScope
 import com.lemonappdev.konsist.api.declaration.KoClassDeclaration
 import com.lemonappdev.konsist.api.declaration.KoFileDeclaration
 import com.lemonappdev.konsist.api.declaration.KoInterfaceDeclaration
+import com.lemonappdev.konsist.api.declaration.combined.KoClassAndObjectDeclaration
 import com.lemonappdev.konsist.api.provider.KoNameProvider
 import com.lemonappdev.konsist.api.provider.KoPathProvider
 
@@ -36,6 +37,18 @@ internal fun KoScope.useCaseImplementations(): List<KoClassDeclaration> {
     val markers = useCaseInterfaces().map { it.name }.toSet() + USE_CASE_MARKER
     return classes(includeNested = true, includeLocal = false)
         .filter { klass -> klass.parentInterfaces().any { it.name in markers } }
+}
+
+/**
+ * True when this class or object is nested inside the use-case interface it
+ * implements. Top-level types, and types nested in an unrelated class or in a
+ * different use-case interface, are the shapes [usecaseIsInterface] rejects.
+ */
+internal fun KoClassAndObjectDeclaration.isNestedInOwnUseCaseInterface(markers: Set<String>): Boolean {
+    val container = containingDeclaration
+    return container is KoInterfaceDeclaration &&
+        container.name in markers &&
+        container.name in parentInterfaces().map { it.name }
 }
 
 internal fun KoFileDeclaration.inLayer(layer: String): Boolean {
