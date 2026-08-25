@@ -61,8 +61,15 @@ bounds ADR-054 makes mandatory, since a coroutine timeout cannot interrupt a blo
 socket read. Exposed `defaultQueryTimeout` 10 s as the bound on one statement, below
 `socketTimeout` so a slow query and a dead socket are distinguishable.
 
-**`PostgresPersistence` owns the pool, the Exposed database and the dispatcher**, and is
-`AutoCloseable`. The composition root closes it, as with every lifetime here.
+**The module publishes a `Persistence` port**, and `PostgresPersistence` implements it,
+owning the pool, the Exposed database and the dispatcher. This corrects the first
+implementation, which was a bare class: handing out a port is not the same as being one,
+and a consumer that had to name `PostgresPersistence` was naming Hikari, Exposed and a
+JDBC url at its own call site.
+
+`AutoCloseable` is on the implementation, not on the port. Whoever built the pool closes
+it — the composition root — and a consumer that only runs transactions must not be able to
+shut down a pool other code is using.
 
 ## Consequences
 

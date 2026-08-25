@@ -1,9 +1,9 @@
 # platform:persistence
 
 Everything about reaching Postgres: the connection, the transaction boundary, schema
-conventions, and migrations. Today the first two exist — `PostgresPersistence` owns the
-pool and hands out `TransactionRunner` — plus the test harness that had to come before
-them, because the slices that follow verify behaviour no in-memory substitute exhibits and
+conventions, and migrations. Today the first two exist — the `Persistence` port and
+`PostgresPersistence` behind it — plus the test harness that had to come before them,
+because the slices that follow verify behaviour no in-memory substitute exhibits and
 cannot be written without a real database to write them against.
 
 Database access lives behind the port and its adapter. Nothing in `main` opens a
@@ -49,6 +49,19 @@ the observation shared the machinery it was meant to judge.
 The nesting guard was then removed on purpose to see what would fail. Exactly one case did,
 the nesting one; the other six stayed green. A test that passes is not evidence until the
 thing it guards has been taken away.
+
+A third correction, made the same day and worth its own paragraph because it is a
+different kind of mistake. `PostgresPersistence` was first written as a bare class
+implementing nothing. It handed out a port — `TransactionRunner` — and that felt like
+enough, but it is not the same thing as being one: a consumer wanting persistence had to
+name the class whose insides are Hikari, Exposed and a JDBC url, so the choice was nailed
+into every call site. The `Persistence` port fixes that, and the implementation is now
+the only name in the module that says which technology it runs on.
+
+`AutoCloseable` deliberately sits on the implementation and not on the port. A consumer
+that merely runs transactions has no business being able to shut down a pool other code
+is using; whoever built it closes it, which is the composition root. That is interface
+segregation doing real work rather than being cited.
 
 Full record, including the rejected R2DBC and virtual-thread routes:
 [ADR-058](../../../docs/adr/ADR-058-transactions-over-jdbc.md).
