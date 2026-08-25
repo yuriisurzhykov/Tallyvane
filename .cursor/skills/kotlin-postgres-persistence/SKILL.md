@@ -39,6 +39,14 @@ tutorial mentions because they fail silently.
    extension`. A green suite there is a confident claim with nothing behind it.
 5. **Every test gets its own database.** Truncation between tests needs a list of tables
    that a table added later can be left out of, silently.
+6. **Server-side timeouts are set on the role or the database**, not left to call sites:
+   `statement_timeout`, `lock_timeout`, `idle_in_transaction_session_timeout`. A coroutine
+   timeout cannot interrupt a blocked JDBC call, and `idle in transaction` is what holds
+   both vacuum and concurrent index builds hostage.
+7. **An invariant the database can express belongs in the schema.** A unique index, a check,
+   a foreign key. A guard in Kotlin protects against nothing that arrives concurrently.
+8. **Nothing that talks to the network runs inside a transaction.** Decide inside, record the
+   intent, act afterwards from something that can retry — a transactional outbox.
 
 ## Traps that fail silently
 
@@ -53,8 +61,28 @@ that check is sound across dispatcher threads, because 1.x carries the transacti
 coroutine context rather than a thread-local.
 
 **Exposed retries a transaction block on `SQLException`.** `defaultMaxAttempts` re-runs the
-*whole block*. If the block decides and then writes, a retry repeats everything else it
-did. Set it to 1 and write any retry where a reader can see it is a retry.
+*whole block*. If the block decides and then writes, a retry repeats everything else it did.
+Set it to 1 — and then retry deliberately, only on `40001` and `40P01`, only where the block
+is safe to re-run. A serialization failure is PostgreSQL's contract asking the loser to try
+again, not a defect: measured, and the retry succeeded. See [concurrency.md](concurrency.md).
+
+**Checking before inserting is a race.** Under `READ COMMITTED` two sessions both read "this
+address is free" and both insert it — measured, two rows. Uniqueness is enforced by a unique
+index, never by a preceding `select`.
+
+**A conflicting insert waits rather than failing.** While the first session's insert is
+uncommitted, the second blocks: no error until a `statement_timeout` cancels it with `57014`,
+and only after the first commits does the honest `23505` arrive. So a slow transaction stalls
+every writer competing for that key, and each of them holds a connection while waiting.
+
+**A blocked `ALTER TABLE` takes unrelated reads with it.** Measured: behind one open reader,
+an `ALTER` waits — and a plain `SELECT` arriving *after* it dies too, queued behind the DDL.
+With `lock_timeout` the `ALTER` gives up quickly and reads keep flowing.
+
+**`CREATE INDEX CONCURRENTLY` cannot be run from a Flyway migration.** Measured both ways:
+inside a transaction Flyway refuses the migration outright; with `executeInTransaction=false`
+the statement waits on `virtualxid` for Flyway's *own* connection, which sits idle in a
+transaction — indefinitely. Concurrent index creation is a separate operational step.
 
 **`Database.connect` mutates global state.** It registers the database with Exposed's
 `TransactionManager` and makes it the default for any `transaction { }` without an explicit
@@ -83,6 +111,8 @@ includes `DROP`.
 
 - Transaction boundaries, the verdict-carrying block, and pool numbers:
   [transactions.md](transactions.md)
+- Races the default isolation level allows, serialization failures, and when to retry:
+  [concurrency.md](concurrency.md)
 - Migration layout, ordering, and the rules for changing a shipped schema:
   [migrations.md](migrations.md)
 - Databases in tests, isolation, and what a database test can and cannot prove:

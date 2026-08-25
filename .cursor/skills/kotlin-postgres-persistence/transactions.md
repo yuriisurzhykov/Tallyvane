@@ -91,8 +91,23 @@ observable symptom.
 ## Retries
 
 Exposed re-runs the whole block on `SQLException`, governed by `maxAttempts` /
-`defaultMaxAttempts`. A block that decides and then writes must not be re-run silently: set
-it to 1, and write any retry explicitly where a reader can see it.
+`defaultMaxAttempts`. A block that decides and then writes must not be re-run silently: set it
+to 1, and write any retry explicitly where a reader can see it.
+
+That rule has one exception, and it is a protocol rather than a preference. Under
+`SERIALIZABLE`, PostgreSQL refuses one of two conflicting transactions with `40001` and expects
+the loser to run again — measured, and the retry succeeded. So retry deliberately, only on
+`40001` and `40P01` (deadlock), only where the block is safe to re-run, re-deriving the decision
+from a new snapshot rather than replaying a stale one. Never retry `23505` or `23503`: those are
+answers. [concurrency.md](concurrency.md) has the measurements.
+
+## Nothing across the network inside a transaction
+
+A transaction holds a connection and a snapshot until it ends, so an HTTP or model call inside
+one makes its lifetime depend on something the database cannot bound. The pool drains, sessions
+pile up `idle in transaction`, and vacuum cannot reclaim rows those snapshots still see. Decide
+inside the transaction, record the intent to act, and perform the effect afterwards from a queue
+that can retry — a transactional outbox.
 
 ## `Database.connect` is not a constructor-safe call
 

@@ -82,6 +82,12 @@ where a query is not.
 The `platform` schema is created by Flyway, not by a migration, because its history table lives
 there and must exist first.
 
+It sets `lock_timeout`. Measured in `playground/ddl-locks/`: an `ALTER TABLE` queued behind one
+open reader also kills a plain `SELECT` that arrives after it, because the lock queue is ordered.
+A failed migration is rerunnable; an application stalled behind that queue is an incident.
+`CREATE INDEX CONCURRENTLY` is not written as a migration at all — the same spike shows it
+waiting on Flyway's own idle-in-transaction connection, indefinitely.
+
 A merged migration is not edited. The one exception applies only while no database outside a
 test container has ever applied it, and taking it requires saying so out loud.
 
@@ -92,7 +98,15 @@ test container has ever applied it, and taking it requires saying so out loud.
 ./gradlew integrationTest                         # needs Docker; opt-in locally, its own CI step
 ./gradlew :migrate:installDist                    # the deploy artefact for migrations
 ./gradlew :playground:transactions:run            # commit/rollback/nesting by hand, against your own Postgres
+./gradlew :playground:isolation:run               # what READ COMMITTED allows; when a retry is correct
+./gradlew :playground:ddl-locks:run               # what a migration does to readers
 ```
 
 Nothing calls `:migrate` yet, and `PostgresPersistence` is closed by nobody, because `app` does
 not exist. Both are recorded debts against slice 13 in `backend/.plans/`.
+
+Also open: the server-side timeouts the general skill calls non-negotiable — `statement_timeout`,
+`lock_timeout`, `idle_in_transaction_session_timeout` on the role or database — are set by nothing
+in this repository yet. The client-side bounds above are not substitutes: a coroutine timeout
+cannot interrupt a blocked JDBC call, and `playground/isolation/` shows a conflicting insert
+waiting with no error until a server-side timeout ends it.

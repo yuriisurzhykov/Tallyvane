@@ -1,4 +1,4 @@
-rootProject.name = "tallyvane"
+﻿rootProject.name = "tallyvane"
 
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
@@ -50,6 +50,9 @@ include(":migrate")
 // `check` compiles them and nothing else. See playground/README.md.
 // ---------------------------------------------------------------------------
 include(":playground:transactions")
+include(":playground:isolation")
+include(":playground:ddl-locks")
+include(":playground:timeout-bounds")
 
 // ---------------------------------------------------------------------------
 // Feature modules — one include per layer, added as each capability is built.
