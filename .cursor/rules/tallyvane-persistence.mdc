@@ -1,0 +1,15 @@
+---
+description: Points to the persistence skills when touching database code or migrations.
+globs: backend/platform/persistence/**,backend/migrate/**,backend/**/db/migration/**,backend/**/*Table*.kt
+alwaysApply: false
+---
+
+# Persistence
+
+Before changing database code, a migration, or a database-backed test, read and follow
+[.cursor/skills/tallyvane-persistence/SKILL.md](../skills/tallyvane-persistence/SKILL.md)
+for what this repository already decided, and
+[.cursor/skills/kotlin-postgres-persistence/SKILL.md](../skills/kotlin-postgres-persistence/SKILL.md)
+for the general practice behind those decisions.
+
+Do not duplicate that guidance here — this rule only points to it.

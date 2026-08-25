@@ -15,6 +15,9 @@ dependencies {
     runtimeOnly(libs.postgresql)
 
     testFixturesImplementation(libs.testcontainers.postgresql)
+    testFixturesImplementation(libs.exposed.core)
+    testFixturesImplementation(libs.exposed.jdbc)
+    testFixturesImplementation(libs.exposed.migration.jdbc)
     testFixturesRuntimeOnly(libs.postgresql)
     testFixturesRuntimeOnly(libs.flyway.database.postgresql)
 
