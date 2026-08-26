@@ -13,6 +13,13 @@ package tallyvane.platform.http
  * which is the right place to find it.
  */
 internal class Rfc9457Answers : Answers {
+    override fun malformed(detail: String?): Problem = Problem(
+        type = uri("malformed-request"),
+        title = "Malformed request",
+        status = MALFORMED,
+        detail = detail,
+    )
+
     override fun invalid(errors: List<FieldError>, detail: String?): Problem = Problem(
         type = uri("validation-failed"),
         title = "Validation failed",
@@ -59,6 +66,8 @@ internal class Rfc9457Answers : Answers {
 
     private companion object {
         const val PREFIX = "https://tallyvane.com/errors/"
+
+        const val MALFORMED = 400
 
         const val FORBIDDEN = 403
 

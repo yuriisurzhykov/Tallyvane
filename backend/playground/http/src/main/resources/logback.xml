@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  What `app` will own in slice 13, standing in for it here: include the fragment
+  platform:observability ships and nothing else. A library may not own logback.xml itself —
+  two on one classpath and which wins is undefined.
+-->
+<configuration>
+    <include resource="logback-tallyvane.xml"/>
+</configuration>

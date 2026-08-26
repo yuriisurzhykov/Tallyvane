@@ -81,6 +81,22 @@ the same reason; without it, a translator in a module would have been a public s
 `application/problem+json` content type, the trace id in the header and in the body, and the log
 line. A route responds with a value and arranges none of it, so none of it can be forgotten.
 
+**The framework's own failures are translated by the platform, at the head of every chain.**
+`TransportFailures` maps Ktor's `BadRequestException` to a 400 and `NotFoundException` to a 404, and
+`Api` prepends it rather than trusting `app` to — a transport failure happens before any module's
+code runs. Ktor's bodiless 404 for an unmatched path is given the same shape by a `status` handler.
+
+Both were found by asking whether the slice was actually finished, and both were real: a malformed
+JSON body was answering **500** — a client's typo presented as our outage, and logged at ERROR as
+though a bug had happened — and an unknown path answered with no body at all, so the one error
+format held everywhere except the most common failure there is. A seventh meaning, `malformed`, was
+added to `Answers` for the first of them: 400 ("I could not understand you") is genuinely a
+different statement from 422 ("I understood and refused").
+
+Logging follows the same split: only a status of 500 or more is logged at ERROR. §16.6 says a level
+means "a human must look", and a stranger's malformed request does not qualify — logging it there
+would bury the failures that do.
+
 **`FailureTranslator` is a chain for what no use case reported** — a driver refusing, a pool
 exhausted, a lock timeout, a bug. None of those pass through an outcome, so no `when` can see
 them. Each link answers for what it recognises; `Unrecognised` ends every chain and produces the

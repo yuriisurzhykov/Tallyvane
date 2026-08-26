@@ -127,11 +127,15 @@ internal fun noRawDataSourceProperty(scope: KoScope): List<String> = scope.files
  * compiles and the endpoint answers, so only a gate catches it.
  *
  * Success statuses are untouched: choosing 201 over 200 is the route's business.
+ *
+ * Scoped to `..web..` and deliberately not to `platform:http`. A first version covered both and
+ * failed on `Api` itself, which names `HttpStatusCode.NotFound` to *install* the handler that gives
+ * Ktor's bodiless 404 the right shape. A rule that flags the mechanism it protects is stating the
+ * wrong thing, not finding a violation.
  */
 internal fun webAnswersWithProblem(scope: KoScope): List<String> = scope.files
     .withoutException("web-answers-with-problem")
-    .filter { file -> file.inLayer("web") || file.packagee?.name?.startsWith("tallyvane.platform.http") == true }
-    .filterNot { file -> file.name == "Problem" }
+    .filter { file -> file.inLayer("web") }
     .filter { file -> REFUSAL_STATUSES.any { status -> file.codeText().contains(status) } }
     .map { it.where() }
 

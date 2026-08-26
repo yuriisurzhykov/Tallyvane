@@ -27,6 +27,17 @@ package tallyvane.platform.http
  */
 public interface Answers {
     /**
+     * Could not be read at all: 400. A body that is not the JSON it claims to be, a media type
+     * nothing can parse.
+     *
+     * Distinct from [invalid] on purpose, and the difference is whose fault the client should
+     * conclude it is: 400 means "I could not understand you", 422 means "I understood and refused".
+     * Added after a measurement — a malformed body was answering 500, so a client's typo read as
+     * our outage and was logged as one.
+     */
+    public fun malformed(detail: String? = null): Problem
+
+    /**
      * Understood and rejected: 422, naming the fields that offended.
      */
     public fun invalid(errors: List<FieldError>, detail: String? = null): Problem

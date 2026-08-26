@@ -7,11 +7,17 @@ import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.string.shouldNotContain
 import io.ktor.client.request.get
 import io.ktor.client.request.headers
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
+import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.contentType
+import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
+import io.ktor.server.routing.post
 import io.ktor.server.testing.testApplication
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -19,6 +25,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import tallyvane.platform.kernel.Failure
 import tallyvane.platform.kernel.IdGeneratorFake
+import tallyvane.platform.observability.log.TraceContext
 
 /**
  * A body with a camelCase property, so the naming strategy has something to rename.
@@ -61,12 +68,20 @@ private class Probes(private val problems: Refusals) : RouteModule {
         route.get("/boom") {
             error("jdbc:postgresql://tallyvane:hunter2@10.0.0.4:5432/db is unreachable")
         }
+        route.get("/traced") {
+            call.respond(Payslip(takeHomeCents = if (TraceContext.current() == null) 0 else 1))
+        }
+        route.post("/body") { call.respond(call.receive<Payslip>()) }
     }
 }
 
+/**
+ * No links of its own: `Api` supplies the framework's translator and the detail-free tail itself,
+ * which is what the unknown-path and malformed-body cases below check.
+ */
 private fun api(): Api = Api(
     routes = listOf(Probes(Refusals())),
-    failures = FailureTranslator.Chained(listOf(FailureTranslator.Unrecognised())),
+    failures = FailureTranslator.Chained(emptyList()),
     trace = TraceHeader(IdGeneratorFake()),
 )
 
@@ -157,6 +172,74 @@ class ApiSpec :
 
                     body.jsonObject["trace_id"]!!.jsonPrimitive.content shouldBe
                         "4bf92f3577b34da6a3ce929d0e0e4736"
+                }
+            }
+
+            // The trace has to be in the coroutine context of the handler itself, not merely on
+            // the response: that is what makes a log line written inside a use case carry the id.
+            "a handler runs inside the trace, so its own log lines carry the id" {
+                testApplication {
+                    application { api().install(this) }
+
+                    val body = client.get("/api/v1/probes/traced").bodyAsText()
+
+                    body shouldContain "\"take_home_cents\":1"
+                }
+            }
+
+            // The failure a live run exposed: an exception unwinds past the context element, so the
+            // 500 arrived with no trace id in its body and an empty MDC on its log line — no id
+            // exactly where a user would quote one.
+            "a 500 carries the same trace id as its header, so the log line can be found" {
+                testApplication {
+                    application { api().install(this) }
+
+                    val answer = client.get("/api/v1/probes/boom")
+                    val body = Json.parseToJsonElement(answer.bodyAsText()).jsonObject
+
+                    val inBody = body["trace_id"]!!.jsonPrimitive.content
+                    answer.headers["traceparent"]!! shouldContain inBody
+                }
+            }
+
+            "a valid snake_case body is read, not only written" {
+                testApplication {
+                    application { api().install(this) }
+
+                    val answer =
+                        client.post("/api/v1/probes/body") {
+                            contentType(ContentType.Application.Json)
+                            setBody("""{"take_home_cents":7}""")
+                        }
+
+                    answer.status shouldBe HttpStatusCode.OK
+                    answer.bodyAsText() shouldContain "\"take_home_cents\":7"
+                }
+            }
+
+            "an unknown path answers in the error shape, like everything else" {
+                testApplication {
+                    application { api().install(this) }
+
+                    val answer = client.get("/api/v1/nowhere")
+
+                    answer.status shouldBe HttpStatusCode.NotFound
+                    answer.headers["Content-Type"]!! shouldContain "application/problem+json"
+                }
+            }
+
+            "a malformed body is the client's fault: 400, not 500" {
+                testApplication {
+                    application { api().install(this) }
+
+                    val answer =
+                        client.post("/api/v1/probes/body") {
+                            contentType(ContentType.Application.Json)
+                            setBody("{ this is not json")
+                        }
+
+                    answer.status shouldBe HttpStatusCode.BadRequest
+                    answer.headers["Content-Type"]!! shouldContain "application/problem+json"
                 }
             }
 
