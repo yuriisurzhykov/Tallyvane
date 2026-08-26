@@ -8,9 +8,13 @@ import java.util.concurrent.atomic.AtomicInteger
  * One Postgres for the test JVM that asks for it, and a database of its own for every
  * caller.
  *
- * The image is the one §16.4's compose file runs, `postgres:17-alpine`, because a
- * different build sorts text differently: musl and glibc disagree on collation, and a
- * test that passed on one could fail on the other for no reason a reader would find.
+ * The image must be the one `ops/docker-compose.yml` runs, because a different build sorts
+ * text differently: musl and glibc disagree on collation, and a test that passed on one
+ * could fail on the other for no reason a reader would find.
+ *
+ * That agreement is currently unguarded — the tag and the connection limit are written here
+ * and in the compose file, and nothing compares them. `backend/.plans/` carries it as an
+ * open debt.
  *
  * Started on first use and never stopped: Testcontainers' reaper removes it when the JVM
  * exits. One container per test JVM, which means per Gradle test task — not one per
@@ -39,6 +43,22 @@ import java.util.concurrent.atomic.AtomicInteger
 public object PostgresFixture {
     private const val IMAGE = "postgres:17-alpine"
 
+    /**
+     * The limit `ops/docker-compose.yml` runs, so a test cannot pass on room production
+     * does not have.
+     *
+     * A connection is a backend process on the server, and one pool holds its full size open
+     * at rest — eight, with no query issued, measured in `playground/pool-occupancy`. On the
+     * default 100 a spec could hold seven pools and never notice; on 20 the third exhausts
+     * the server, which is what made `ExposedTransactionRunnerSpec` close per case instead of
+     * per spec.
+     *
+     * `shared_buffers` and `work_mem` are deliberately *not* mirrored: they change how fast a
+     * query runs, never whether it succeeds, and they will diverge anyway when production
+     * moves off a 2 GB VPS. This number is the one that decides outcomes.
+     */
+    private const val MAX_CONNECTIONS = 20
+
     private const val PORT = 5432
 
     private const val TEMPLATE = "tallyvane_template"
@@ -46,7 +66,9 @@ public object PostgresFixture {
     private val sequence = AtomicInteger()
 
     private val container: PostgreSQLContainer<*> by lazy {
-        PostgreSQLContainer<Nothing>(IMAGE).apply { start() }
+        PostgreSQLContainer<Nothing>(IMAGE)
+            .apply { withCommand("postgres", "-c", "max_connections=$MAX_CONNECTIONS") }
+            .apply { start() }
     }
 
     /**

@@ -1,4 +1,4 @@
-rootProject.name = "tallyvane"
+﻿rootProject.name = "tallyvane"
 
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
@@ -32,6 +32,7 @@ include(":platform:llm")
 include(":platform:storage")
 include(":platform:exec")
 include(":platform:observability")
+include(":platform:health")
 
 // ---------------------------------------------------------------------------
 // Composition root and architecture tests.
@@ -50,6 +51,12 @@ include(":migrate")
 // `check` compiles them and nothing else. See playground/README.md.
 // ---------------------------------------------------------------------------
 include(":playground:transactions")
+include(":playground:isolation")
+include(":playground:ddl-locks")
+include(":playground:timeout-bounds")
+include(":playground:pool-occupancy")
+include(":playground:health")
+include(":playground:http")
 
 // ---------------------------------------------------------------------------
 // Feature modules — one include per layer, added as each capability is built.

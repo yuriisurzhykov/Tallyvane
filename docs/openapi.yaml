@@ -1,0 +1,345 @@
+# The API contract, and the source of truth for it (§11.7).
+#
+# Types for the frontend and for the extension are generated from this file, and CI checks
+# backward compatibility against it. So an endpoint is described here first and implemented
+# second — not the other way round.
+#
+# 2026-08-26: the health endpoints and the error shape below were written *after* the code, in
+# slices 11 and 12, and that was the wrong order. §11.7 had said this file is the source of
+# truth since before either slice; the plan put it in slice 14, and nobody noticed the
+# contradiction until the shapes were already fixed in Kotlin. Recorded rather than quietly
+# corrected, because the ordering is the part that matters: from here on the entry precedes the
+# endpoint, and `openapi-covers-routes` fails the build on an endpoint this file does not know.
+#
+# Only what exists is described. Endpoints of unbuilt modules would be a description of wishes.
+
+openapi: 3.1.0
+
+info:
+  title: Tallyvane API
+  version: 1.0.0
+  description: |
+    Personal job-search console. One user, one deployment.
+
+    Conventions that hold everywhere (§11.1): JSON with `snake_case` fields, times in ISO 8601
+    with an offset, money as integer cents in a field suffixed `_cents`, cursor pagination with
+    `next_cursor`, `PATCH` with merge semantics where an absent field is untouched and an
+    explicit `null` clears.
+
+servers:
+  - url: /api/v1
+    description: The only prefix. A module never writes it itself.
+
+tags:
+  - name: health
+    description: Probes an orchestrator and a human read for different reasons.
+
+paths:
+  /health:
+    get:
+      tags: [health]
+      operationId: healthAggregate
+      summary: Aggregate health, for a human or an alert
+      description: |
+        Always answers 200: it is informational, and a 503 here would look to a monitor like the
+        endpoint itself being down. The meaning is in the body.
+
+        Without the service token the body is `HealthSummary` — one field. With it, `HealthDetail`
+        adds `ready` and the per-check breakdown. Dependency names describe what the system is
+        built from, which is why an anonymous caller does not get them (ADR-055).
+      security:
+        - {}
+        - serviceToken: []
+      responses:
+        "200":
+          description: The aggregate. Shape depends on whether the service token was accepted.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+            traceparent:
+              $ref: "#/components/headers/Traceparent"
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/HealthSummary"
+                  - $ref: "#/components/schemas/HealthDetail"
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /health/live:
+    get:
+      tags: [health]
+      operationId: healthLive
+      summary: Is the process alive
+      description: |
+        Consults no dependency, by construction — the handler is not given the reporter. A liveness
+        probe that checked a dependency would turn that dependency's outage into a restart loop of
+        a healthy process.
+
+        Answers 200 with `{"status":"up"}` whenever it answers at all. A dead process does not
+        answer, which is the signal.
+      security:
+        - {}
+      responses:
+        "200":
+          description: The process is answering.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+            traceparent:
+              $ref: "#/components/headers/Traceparent"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthSummary"
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /health/ready:
+    get:
+      tags: [health]
+      operationId: healthReady
+      summary: Should traffic come here
+      description: |
+        Readiness follows `required_for_readiness` on each check rather than the aggregate status,
+        so a `degraded` application answers **200**: an unavailable optional dependency must not
+        close the part of the product that does not need it.
+
+        503 rather than 500 when unready — "not now, try later" is the statement being made.
+      security:
+        - {}
+      responses:
+        "200":
+          description: Ready for traffic. May still be `degraded`.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+            traceparent:
+              $ref: "#/components/headers/Traceparent"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthSummary"
+        "503":
+          description: A dependency required for readiness is down.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+            traceparent:
+              $ref: "#/components/headers/Traceparent"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthSummary"
+        default:
+          $ref: "#/components/responses/Problem"
+
+components:
+  securitySchemes:
+    serviceToken:
+      type: apiKey
+      in: header
+      name: X-Service-Token
+      description: |
+        A service secret from the deploy's configuration, not a user credential — which is why it
+        is not `Authorization`. Temporary: it exists because §11.2's authentication arrives with
+        the `identity` module, and it is replaced when that lands (ADR-063).
+
+        A wrong or absent token is not an error. The caller gets the public answer, because
+        refusing would tell an anonymous caller that there is something to refuse.
+
+  headers:
+    NoStore:
+      description: |
+        Always `no-store`. Cloudflare sits in front of this application, and a 200 with no cache
+        directives is a legitimate thing to cache — after which a cheerful "up" would outlive the
+        truth.
+      schema:
+        type: string
+        const: no-store
+    Traceparent:
+      description: |
+        W3C Trace Context. Present on every response, including ones with no body. Quote it when
+        reporting a problem: the same id is on the log lines of that request.
+      schema:
+        type: string
+        pattern: "^00-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$"
+
+  responses:
+    Problem:
+      description: |
+        Any failure, in one shape (§11.6, RFC 9457). A route never invents a status or a `type`:
+        both come from a closed set in the platform, so a client can branch on `type` and expect
+        it to stay put (ADR-062).
+      headers:
+        traceparent:
+          $ref: "#/components/headers/Traceparent"
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+
+  schemas:
+    HealthStatus:
+      type: string
+      enum: [up, degraded, down]
+      description: |
+        Three states, not two. `degraded` means working with something missing — the distinction
+        exists so that an unavailable optional dependency does not read as an outage.
+
+    HealthSummary:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status:
+          $ref: "#/components/schemas/HealthStatus"
+      description: |
+        What an unauthorised caller gets. One field, and a separate schema from `HealthDetail`
+        rather than a filtered view of it: a shape with one field cannot leak a second.
+
+    HealthDetail:
+      type: object
+      additionalProperties: false
+      required: [status, ready, checks]
+      properties:
+        status:
+          $ref: "#/components/schemas/HealthStatus"
+        ready:
+          type: boolean
+          description: |
+            Kept although it is derivable from the checks, because the derivation is not obvious —
+            a `down` optional dependency leaves the application ready — and making a reader redo
+            that logic invites getting it wrong.
+        checks:
+          type: array
+          items:
+            $ref: "#/components/schemas/HealthChecked"
+
+    HealthChecked:
+      type: object
+      additionalProperties: false
+      required: [name, status, took_ms]
+      properties:
+        name:
+          type: string
+          description: Stable across releases, because alert rules reference it.
+          examples: [database, schema]
+        status:
+          $ref: "#/components/schemas/HealthStatus"
+        took_ms:
+          type: integer
+          minimum: 0
+          description: Whole milliseconds, so an alert threshold reads `3` rather than `0.003`.
+        cause:
+          $ref: "#/components/schemas/HealthCause"
+
+    HealthCause:
+      description: |
+        Why a check is not `up`, discriminated by `kind` — not `type`, because `threw` already has
+        a field of that name and §11.6 spends `type` on a problem URI.
+
+        Two internal causes have no representation here at all: an aggregate over ailing
+        dependencies, and a schema behind the code. Both name what the system is made of, and
+        ADR-055 withholds that from every answer including an authorised one.
+      oneOf:
+        - $ref: "#/components/schemas/CauseRefused"
+        - $ref: "#/components/schemas/CauseOverran"
+        - $ref: "#/components/schemas/CauseThrew"
+      discriminator:
+        propertyName: kind
+        mapping:
+          refused: "#/components/schemas/CauseRefused"
+          overran: "#/components/schemas/CauseOverran"
+          threw: "#/components/schemas/CauseThrew"
+
+    CauseRefused:
+      type: object
+      additionalProperties: false
+      required: [kind, says]
+      properties:
+        kind:
+          type: string
+          const: refused
+        says:
+          type: string
+          description: The check's own words. The one cause whose text we write rather than a library.
+
+    CauseOverran:
+      type: object
+      additionalProperties: false
+      required: [kind, bound_ms]
+      properties:
+        kind:
+          type: string
+          const: overran
+        bound_ms:
+          type: integer
+          minimum: 0
+          description: The bound the check did not answer inside.
+
+    CauseThrew:
+      type: object
+      additionalProperties: false
+      required: [kind, type]
+      properties:
+        kind:
+          type: string
+          const: threw
+        type:
+          type: string
+          description: |
+            The exception's type and nothing else. A message carries hosts, ports and occasionally
+            credentials (§17), so there is no field for one.
+          examples: [SQLException]
+
+    Problem:
+      type: object
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+          format: uri
+          description: |
+            Stable identifier of the *kind* of failure, and the field a client branches on. It
+            survives rewording of `title` and `detail`.
+          examples:
+            - https://tallyvane.com/errors/validation-failed
+            - https://tallyvane.com/errors/malformed-request
+            - https://tallyvane.com/errors/internal
+        title:
+          type: string
+          description: The kind in human words, identical for every occurrence of one `type`.
+        status:
+          type: integer
+          description: Repeated in the body so the document stands alone when forwarded or logged.
+        detail:
+          type: string
+          description: This occurrence in human words. Never a driver's message.
+        errors:
+          type: array
+          description: Per-field detail for a validation failure; absent otherwise.
+          items:
+            $ref: "#/components/schemas/FieldError"
+        trace_id:
+          type: string
+          pattern: "^[0-9a-f]{32}$"
+          description: |
+            Added by the renderer, so it is on every problem body including a 500. The same id is
+            in the `traceparent` header and on the log lines of that request.
+
+    FieldError:
+      type: object
+      additionalProperties: false
+      required: [field, code]
+      properties:
+        field:
+          type: string
+          description: The name as the client sent it — `salary_min_cents`, not `salaryMinCents`.
+        code:
+          type: string
+          description: |
+            What is wrong, in a form a frontend can branch on. A free string on purpose: closing
+            this set would put every module's validation vocabulary in the platform.
+          examples: [range.invalid, required]

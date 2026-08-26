@@ -104,6 +104,41 @@ internal fun noLlmWithPersonalData(scope: KoScope): List<String> = scope.files
         buildsPrompt && contacts
     }.map { it.where() }
 
+/**
+ * `addDataSourceProperty` may be called only by the wrapper that forces its value to a String.
+ *
+ * A value of any other type is accepted by HikariCP, stored, and then ignored by pgjdbc, with no
+ * warning from either — this repository shipped `socketTimeout` and `connectTimeout` as `Int`
+ * constants and neither was in effect. See `DriverProperties` and
+ * `playground/timeout-bounds/README.md`.
+ */
+internal fun noRawDataSourceProperty(scope: KoScope): List<String> = scope.files
+    .withoutException("no-raw-datasource-property")
+    .filterNot { it.name == "DriverProperties" }
+    .filter { it.codeText().contains("addDataSourceProperty") }
+    .map { it.where() }
+
+/**
+ * A route never names a refusal status itself; it answers with a `Problem`.
+ *
+ * `call.respond(HttpStatusCode.BadRequest, "oops")` bypasses everything at once: the closed
+ * vocabulary of `type` URIs, the `application/problem+json` content type, the trace id in the
+ * body, the log line — all of which live in the one renderer a `Problem` goes through. The line
+ * compiles and the endpoint answers, so only a gate catches it.
+ *
+ * Success statuses are untouched: choosing 201 over 200 is the route's business.
+ *
+ * Scoped to `..web..` and deliberately not to `platform:http`. A first version covered both and
+ * failed on `Api` itself, which names `HttpStatusCode.NotFound` to *install* the handler that gives
+ * Ktor's bodiless 404 the right shape. A rule that flags the mechanism it protects is stating the
+ * wrong thing, not finding a violation.
+ */
+internal fun webAnswersWithProblem(scope: KoScope): List<String> = scope.files
+    .withoutException("web-answers-with-problem")
+    .filter { file -> file.inLayer("web") }
+    .filter { file -> REFUSAL_STATUSES.any { status -> file.codeText().contains(status) } }
+    .map { it.where() }
+
 internal fun noMockLibraries(scope: KoScope): List<String> = scope.files
     .withoutException("no-mock-libraries")
     .filter { it.hasImportStartingWith(MOCK_IMPORT_PREFIXES) }

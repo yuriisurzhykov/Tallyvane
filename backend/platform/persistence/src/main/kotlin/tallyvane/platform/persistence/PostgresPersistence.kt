@@ -7,6 +7,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.jetbrains.exposed.v1.core.DatabaseConfig
 import org.jetbrains.exposed.v1.jdbc.Database
 import tallyvane.platform.kernel.TransactionRunner
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * [Persistence] over a JDBC connection pool and Exposed.
@@ -62,14 +63,37 @@ public class PostgresPersistence(access: DatabaseAccess) :
         validationTimeout = VALIDATION_TIMEOUT_MILLIS
         keepaliveTime = KEEPALIVE_MILLIS
         maxLifetime = MAX_LIFETIME_MILLIS
-        // The driver's own bounds, which ADR-054 makes mandatory rather than
-        // optional: a coroutine timeout cannot interrupt a blocking socket read,
-        // so these are what actually stop a hung connection. Seconds, not millis.
-        addDataSourceProperty("connectTimeout", CONNECT_TIMEOUT_SECONDS)
-        addDataSourceProperty("socketTimeout", SOCKET_TIMEOUT_SECONDS)
+        DriverProperties(this).apply {
+            // Seconds, not millis, and strings rather than Ints — see DriverProperties
+            // for why an Int here is accepted and then ignored.
+            set("connectTimeout", CONNECT_TIMEOUT_SECONDS)
+            set("socketTimeout", SOCKET_TIMEOUT_SECONDS)
+            set("options", serverBounds.asConnectionOption())
+        }
     }
 
     private companion object {
+        /**
+         * The bounds PostgreSQL enforces itself, layered under the client-side ones.
+         *
+         * `statement_timeout` sits above [QUERY_TIMEOUT_SECONDS] so the cheaper client cancel
+         * usually wins and this is the backstop for anything not issued through Exposed, and
+         * below [SOCKET_TIMEOUT_SECONDS] so a statement is cancelled before the socket is torn
+         * down — a cancelled statement leaves a usable connection, a dead socket does not.
+         *
+         * `lock_timeout` is short because a request that has queued this long for a lock has
+         * already missed §1.5's p95 target, and while it queues it holds a connection.
+         *
+         * `idle_in_transaction_session_timeout` catches the leak that holds both a connection and
+         * vacuum hostage; `playground/ddl-locks/` shows what one idle transaction does to a
+         * concurrent index build.
+         */
+        val serverBounds = SessionTimeouts(
+            statement = 15.seconds,
+            lock = 3.seconds,
+            idleInTransaction = 60.seconds,
+        )
+
         /**
          * `ops/README.md`'s memory budget fixes this, and the dispatcher follows it.
          */

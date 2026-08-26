@@ -2,6 +2,7 @@
 
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.collections.shouldBeEmpty
+import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContainIgnoringCase
 import org.jetbrains.exposed.v1.core.Table
 import java.sql.DriverManager
@@ -31,13 +32,17 @@ private fun create(access: DatabaseAccess, ddl: String) {
 }
 
 /**
- * The gate itself, proven in both directions.
+ * The gate itself, proven in three directions.
  *
  * A gate that only reported what the database lacks would pass half the mistakes, so the
- * cases below cover both: a column Kotlin wants and the database has not got, and a column
- * the database has that no Kotlin table declares. The second is the one
- * `SchemaUtils.statementsRequiredToActualizeScheme` never reported, and the reason this is
- * built on `MigrationUtils`.
+ * cases below cover both column directions: a column Kotlin wants and the database has not
+ * got, and a column the database has that no Kotlin table declares. The second is the one
+ * `SchemaUtils.statementsRequiredToActualizeScheme` never reported, and the reason `from`
+ * is built on `MigrationUtils`.
+ *
+ * The third direction is a whole table the database still has after its Kotlin declaration
+ * is gone. `MigrationUtils` does not see that — measured 2026-08-25, same schema, empty
+ * result — which is why `unmappedTables` reads the catalog itself.
  *
  * Tables here are declared in the test source set and created by hand. None of them belongs
  * in `db/migration`: a table that exists only to prove a check would otherwise ship to
@@ -50,7 +55,9 @@ class SchemaDriftSpec :
                 val access = PostgresFixture.empty()
                 create(access, "create table aligned (id integer not null, label text not null)")
 
-                SchemaDrift(access).from(Aligned).shouldBeEmpty()
+                val drift = SchemaDrift(access)
+                drift.from(Aligned).shouldBeEmpty()
+                drift.unmappedTables(Aligned).shouldBeEmpty()
             }
 
             "reports a column Kotlin declares and the database has not got" {
@@ -80,13 +87,41 @@ class SchemaDriftSpec :
                 drift.joinToString("\n") shouldContainIgnoringCase "create table"
             }
 
+            "reports a table the database has and no Kotlin table declares at all" {
+                val access = PostgresFixture.empty()
+                create(access, "create table aligned (id integer not null, label text not null)")
+                create(access, "create table orphan_leftover (id integer not null)")
+
+                SchemaDrift(access).unmappedTables(Aligned) shouldBe listOf("public.orphan_leftover")
+            }
+
+            "reports an undeclared table that lives in another schema" {
+                val access = PostgresFixture.empty()
+                create(access, "create schema leftover")
+                create(access, "create table leftover.gone (id integer not null)")
+                create(access, "create table aligned (id integer not null, label text not null)")
+
+                SchemaDrift(access).unmappedTables(Aligned) shouldBe listOf("leftover.gone")
+            }
+
+            "reports an undeclared table in platform that is not Flyway's history" {
+                val access = PostgresFixture.empty()
+                create(access, "create schema platform")
+                create(access, "create table platform.orphan_in_platform (id integer not null)")
+                create(access, "create table aligned (id integer not null, label text not null)")
+
+                SchemaDrift(access).unmappedTables(Aligned) shouldBe listOf("platform.orphan_in_platform")
+            }
+
             "does not mistake Flyway's own history table for drift" {
                 // Matters for the run over every table in slice 13: that database has
                 // `platform.flyway_schema_history`, which no Kotlin table declares.
                 val access = PostgresFixture.migrated()
                 create(access, "create table aligned (id integer not null, label text not null)")
 
-                SchemaDrift(access).from(Aligned).shouldBeEmpty()
+                val drift = SchemaDrift(access)
+                drift.from(Aligned).shouldBeEmpty()
+                drift.unmappedTables(Aligned).shouldBeEmpty()
             }
         },
     )

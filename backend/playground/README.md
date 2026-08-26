@@ -14,6 +14,26 @@ playground/<name>/
 Run one with `./gradlew :playground:<name>:run`. Values a spike needs come through
 `-Pspike.<key>=<value>`, which `tallyvane.spike` forwards as system properties.
 
+In PowerShell, quote it: `./gradlew :playground:http:run "-Pspike.port=9000"`. Unquoted,
+PowerShell splits the argument and Gradle reports `Task '.port=9000' not found` — which
+reads like a broken build rather than a shell quirk.
+
+### 2026-08-26 — that forwarding was silently broken
+
+The first version of the plugin read `project.properties` inside a provider and called
+`.get()` during configuration. Under the configuration cache — on by default here — the
+eager read is not registered as an input, so a cached entry keeps whichever map the run
+that created it saw. Measured: `-Pspike.port=9007` left the spike on its default 8099,
+and the same command with `--no-configuration-cache` bound 9007.
+
+Every `-Pspike.*` in every README here was affected, including the database URLs the
+persistence spikes document. Nothing failed — the values were simply ignored, which is
+why it survived four spikes: each of them was run against its default.
+
+It now goes through `providers.gradlePropertiesPrefixedBy("spike.")`, which is a tracked
+input, and an argument provider that reads it at execution time. Verified with the cache
+on: `-Pspike.port=9011` binds 9011.
+
 ## Why the rules here are looser, and where they are not
 
 `tallyvane.spike` gives a spike Kotlin and a toolchain, and nothing else — no ktlint, no

@@ -119,6 +119,26 @@ alias case rather than describing it. The decision this enforces, including the
 half that cannot be enforced, is
 [ADR-045](../../docs/adr/ADR-045-cross-capability-reads-own-the-copy.md).
 
+## 2026-08-25 — a rule for a setting that vanished
+
+`no-raw-datasource-property` looks like a style rule and is not one. `PostgresPersistence`
+called `addDataSourceProperty("socketTimeout", 30)` — an `Int` — and that setting had
+no effect at all: HikariCP stores what it is given, and pgjdbc reads its properties
+with `Properties.getProperty`, which returns `null` for anything that is not a
+`String`. No warning from either library. The full measurement, including the
+upstream commit that changed HikariCP's behaviour and turned working configuration
+into a no-op, is in `playground/timeout-bounds/README.md`; the decision is
+[ADR-061](../../docs/adr/ADR-061-timeouts-are-carried-on-the-connection.md).
+
+The rule exists because the type error is invisible at the call site and at runtime.
+`DriverProperties` does the conversion, and this rule is what keeps it the only door
+— exempted by file name, the same structural exemption `no-ambient-time` gives a
+`Clock` implementation, rather than by a recorded exception.
+
+Worth stating plainly, since it is the second entry here to say it: this was found by
+looking, not by any gate. The rule closes the class of bug going forward; it did not
+catch this one.
+
 ## A gate that is not run is not a gate
 
 Every rule above can be correct and still enforce nothing, and for a while all of

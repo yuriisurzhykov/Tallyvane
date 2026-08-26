@@ -1,11 +1,22 @@
 # Backend documentation
 
-One document per capability module, written before the module is built.
+Two kinds of document, following what `docs/frontend/` already does: numbered
+files for a cross-cutting concern, and one file per capability module written
+before the module is built.
 
-Empty for now. [ARCHITECTURE.md](../../ARCHITECTURE.md) sections 4 through 9
-hold the current level of detail — module map, layer rules, inter-module
-communication, the full data model and the event vocabulary. These files take
-over as each capability is specified in depth.
+## Cross-cutting
+
+- [01-observability.md](01-observability.md) — the four signals and which
+  question each answers; health checks in depth, including why there are fewer
+  of them than there are modules; and what happens to all of it when the
+  monolith starts splitting into services.
+
+## Per capability
+
+None yet. [ARCHITECTURE.md](../../ARCHITECTURE.md) sections 4 through 9 hold the
+current level of detail — module map, layer rules, inter-module communication,
+the full data model and the event vocabulary. These files take over as each
+capability is specified in depth.
 
 ## Planned
 

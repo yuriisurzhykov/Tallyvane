@@ -6,6 +6,12 @@ plugins {
 
 dependencies {
     api(projects.platform.kernel)
+    // `implementation`, deliberately, even though `DatabaseAnswers` and
+    // `MigrationsApplied` are public `HealthCheck`s: with `api` this module put
+    // observability on the compile classpath of everything downstream, and `:migrate`
+    // — a command that applies migrations and exits — was carrying it for nothing.
+    // Whoever wires a health check already depends on observability to aggregate it.
+    implementation(projects.platform.observability)
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.exposed.core)
     implementation(libs.exposed.jdbc)
@@ -23,6 +29,10 @@ dependencies {
 
     integrationTestImplementation(testFixtures(project()))
     integrationTestImplementation(testFixtures(projects.platform.kernel))
+    // The suite gets this module's `api` and not its `implementation`, so the specs that
+    // assert on `Health` name observability themselves. That is the visible cost of the
+    // line above, and it is preferred to `:migrate` carrying observability instead.
+    integrationTestImplementation(projects.platform.observability)
     integrationTestImplementation(libs.kotest.runner.junit5)
     integrationTestImplementation(libs.kotest.assertions.core)
     integrationTestImplementation(libs.kotlinx.coroutines.core)

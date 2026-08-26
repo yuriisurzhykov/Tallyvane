@@ -1,0 +1,62 @@
+# One service so far. The rest of ARCHITECTURE.md §16.1 — server, two frontends,
+# cloudflared, backup — arrive with the images they need, which do not exist yet.
+#
+# `db` is here ahead of them because it closes a debt rather than anticipating one: the
+# Postgres tag lived in the test fixture and in prose, with nothing able to notice a
+# disagreement.
+#
+# Values are written here rather than in a `.env` this file would interpolate. A committed
+# `.env` is forbidden in this repository, and not as a formality: it is the file people reach
+# for when they have an API key to park somewhere, and one lapse of memory publishes it. So
+# anything secret appears here only as a `${VAR}` reference with no default, resolved from the
+# deploy's own environment, and everything non-secret is written in the open where a reviewer
+# reads it in the diff.
+services:
+  db:
+    # The one place this tag is written. `PostgresFixture` must run the same image: musl and
+    # glibc disagree on text collation, so a different build of the same major version can
+    # pass a test the shipped image fails, with no cause a reader would find.
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: tallyvane
+      POSTGRES_USER: tallyvane
+      # No default, on purpose: compose refuses to start rather than run on a password
+      # somebody committed.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+      # Read by init/, which applies them to the role. ADR-061 explains why these exist on
+      # top of the bounds PostgresPersistence sets on its own connections.
+      POSTGRES_STATEMENT_TIMEOUT: 15s
+      POSTGRES_LOCK_TIMEOUT: 3s
+      POSTGRES_IDLE_IN_TRANSACTION_TIMEOUT: 60s
+    # ARCHITECTURE.md §16.2's memory budget for a 2 GB VPS. Measured defaults in this image,
+    # for comparison: shared_buffers 128MB, work_mem 4MB, max_connections 100 — so this
+    # profile buys 64 MB of cache and gives back 80 connection slots.
+    #
+    # max_connections is the one with teeth. A connection is a backend process on the server,
+    # and one application pool holds its full size open at rest — eight, measured in
+    # backend/playground/pool-occupancy. Two copies during an update is 16 of these 20.
+    command:
+      - postgres
+      - -c
+      - shared_buffers=192MB
+      - -c
+      - work_mem=8MB
+      - -c
+      - max_connections=20
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Runs once, when the data directory is first created.
+      - ./init:/docker-entrypoint-initdb.d:ro
+    # §16.2 allots PostgreSQL 384 MB, and limits are per service so a spike in one container
+    # cannot kill its neighbours.
+    mem_limit: 384m
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  pgdata:

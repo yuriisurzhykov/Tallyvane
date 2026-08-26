@@ -69,6 +69,52 @@ internal interface GraphCheck {
     }
 
     /**
+     * Fails when an included `:modules:<name>:…` names a capability that is in
+     * neither `modules:` nor `planned:`.
+     *
+     * Every other check here starts from what the manifest declares, which
+     * leaves one gap they cannot see between them: [Planned] reports a name
+     * only if it *is* under `planned:`, and [Features] iterates
+     * [ModulesYaml.features], so a capability listed nowhere is invisible to
+     * both — along with every edge it draws. The manifest silently stops being
+     * authoritative for exactly the module nobody wrote down.
+     *
+     * This check starts from Gradle instead, which is why it is a separate
+     * type rather than a branch in [Planned]: the two ask opposite questions
+     * of the same paths.
+     *
+     * The remedy is to add the capability to `modules:` with its layers, or to
+     * `planned:` if the projects were included ahead of the manifest.
+     */
+    object Unlisted : GraphCheck {
+        override fun findings(
+            yaml: ModulesYaml,
+            projects: IncludedProjects,
+        ): List<Finding> {
+            val declared = yaml.planned() + yaml.features().map { feature -> feature.name }
+            return capabilities(projects)
+                .filterNot { module -> module in declared }
+                .map { module ->
+                    Finding(
+                        "Module $module is included under :modules: but is in neither " +
+                            "modules: nor planned: in modules.yaml",
+                    )
+                }
+        }
+
+        /**
+         * @return Capability names of every included `:modules:` path, each once,
+         * in discovery order — one finding per capability, not per layer.
+         */
+        private fun capabilities(projects: IncludedProjects): List<String> =
+            projects
+                .paths()
+                .filter { path -> path.startsWith(":modules:") }
+                .map { path -> path.removePrefix(":modules:").substringBefore(":") }
+                .distinct()
+    }
+
+    /**
      * Fails when a `platform:` row is missing from Gradle, or when its
      * compile project-dependencies are not exactly the declared `depends`
      * list.

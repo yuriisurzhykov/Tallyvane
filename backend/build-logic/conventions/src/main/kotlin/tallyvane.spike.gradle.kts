@@ -35,13 +35,23 @@ tasks.named("check") {
 
 // `./gradlew :playground:<name>:run -Pspike.url=...` reaches the spike as a system
 // property; Gradle does not forward these on its own.
+//
+// 2026-08-26: the first version read `project.properties` inside a provider and called
+// `.get()` on it during configuration, and under the configuration cache — on by default
+// here — that silently stopped working. The eager read is not registered as a
+// configuration input, so a cached entry kept the map from whichever run created it:
+// measured, `-Pspike.port=9007` left the spike on its default 8099, while the same
+// command with `--no-configuration-cache` bound 9007. Every `-Pspike.*` in every
+// playground README was affected, including the database URLs.
+//
+// `gradlePropertiesPrefixedBy` is a tracked input, and passing the values through an
+// argument provider defers reading them to execution time, so changing one invalidates
+// the entry instead of being ignored by it.
 tasks.named<JavaExec>("run") {
-    systemProperties(
-        providers
-            .provider {
-                project.properties
-                    .filterKeys { key -> key.startsWith("spike.") }
-                    .mapValues { (_, value) -> value.toString() }
-            }.get(),
+    val forwarded = providers.gradlePropertiesPrefixedBy("spike.")
+    jvmArgumentProviders.add(
+        CommandLineArgumentProvider {
+            forwarded.get().map { (key, value) -> "-D$key=$value" }
+        },
     )
 }

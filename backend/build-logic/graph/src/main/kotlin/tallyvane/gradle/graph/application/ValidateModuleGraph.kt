@@ -17,9 +17,9 @@ import tallyvane.gradle.graph.domain.ModulesYaml
  * @param yaml Declared graph (`planned:`, `platform:`, `modules:`, `layers:`).
  * @param projects Included leaf projects, their compile project-dependencies,
  * and external coordinates.
- * @param checks Checks to run, in order. Production uses Planned, Platforms,
- * Features, then Banned. A test may pass a shorter list; an empty list always
- * yields no findings.
+ * @param checks Checks to run, in order. Production uses Planned, Unlisted,
+ * Platforms, Features, then Banned. A test may pass a shorter list; an empty
+ * list always yields no findings.
  */
 internal class ValidateModuleGraph(
     private val yaml: ModulesYaml,
@@ -40,6 +40,7 @@ internal class ValidateModuleGraph(
         val DEFAULT_CHECKS: List<GraphCheck> =
             listOf(
                 GraphCheck.Planned,
+                GraphCheck.Unlisted,
                 GraphCheck.Platforms,
                 GraphCheck.Features,
                 GraphCheck.Banned(),

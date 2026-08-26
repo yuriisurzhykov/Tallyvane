@@ -37,4 +37,17 @@ public sealed interface Ailment {
      * joined, so a reader is not parsing a sentence back into a list.
      */
     public data class Dependencies(val names: List<String>) : Ailment
+
+    /**
+     * A schema behind the code that expects it, by these migration versions.
+     *
+     * Its own case rather than [Refused] text because the remedy depends on the
+     * list: one pending version is a deploy that started the application before
+     * its migration command, several is a deploy that never ran it at all. A
+     * sentence would make a reader parse that back out.
+     *
+     * Like [Dependencies], it has no public representation — schema versions say
+     * what the system is made of, and ADR-055 keeps that for an authorized reader.
+     */
+    public data class Behind(val versions: List<String>) : Ailment
 }

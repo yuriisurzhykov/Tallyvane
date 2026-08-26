@@ -84,6 +84,71 @@ non-deterministic collation; use `lower(col) like lower(…)` over an expression
 It keeps `LIKE`, and it keeps the guarantee resting on session state that a later change can
 remove without a word.
 
+## Locks: how a migration takes an application down
+
+Measured on PostgreSQL 17, and this is the trap worth knowing before the first large table.
+
+`ALTER TABLE` needs `ACCESS EXCLUSIVE`, which conflicts with everything — including the
+`ACCESS SHARE` any reader holds. When it cannot get the lock it queues, and **the queue is
+ordered**: requests arriving after it wait behind it, even ones that would have been compatible
+with the transaction actually holding the table.
+
+```
+=== ALTER TABLE behind an open reader, without lock_timeout
+  the ALTER: sqlState=57014 ERROR: canceling statement due to statement timeout
+  a plain SELECT arriving after it: sqlState=57014 ERROR: canceling statement due to statement timeout
+
+=== ALTER TABLE behind an open reader, with lock_timeout=300ms
+  the ALTER: sqlState=55P03 ERROR: canceling statement due to lock timeout
+  a plain SELECT arriving after it: succeeded
+```
+
+So one long-running query plus one `ALTER TABLE` equals an outage, and the outage lasts as long
+as the DDL is willing to wait.
+
+**Every migration sets `lock_timeout`.** A migration that fails is recoverable — rerun it when
+the long query is gone. An application stalled behind a lock queue is a customer-visible
+incident. Prefer failing fast, and retry the migration rather than the outage.
+
+Two smaller rules from the same source: adding a column with a default no longer rewrites the
+table (PostgreSQL 11+), so it is cheap; adding `NOT NULL` or a check constraint is done in two
+steps — `ADD CONSTRAINT … NOT VALID`, then `VALIDATE CONSTRAINT` — so the long scan takes a
+weaker lock than the declaration does.
+
+## `CREATE INDEX CONCURRENTLY` does not belong in a migration
+
+Measured both ways, and neither works.
+
+Inside a transaction, Flyway refuses the migration outright: *"Detected both transactional and
+non-transactional statements within the same migration."*
+
+With `executeInTransaction=false`, the statement is accepted and then waits forever. What it
+waits on is visible in `pg_stat_activity`:
+
+```
+pid 65 | idle in transaction | ClientRead | SELECT COUNT(*) FROM pg_namespace WHERE nspname=$1
+pid 66 | active              | Lock/virtualxid | create index concurrently ... on widgets
+```
+
+`CREATE INDEX CONCURRENTLY` waits for every transaction that could see the table to finish, and
+pid 65 is *Flyway's own connection*, sitting idle inside a transaction. The migration deadlocks
+against the tool running it.
+
+So concurrent index creation is an operational step run outside the migration tool, before or
+after the deploy, with its own `statement_timeout` and its own record of having happened. Note
+also that a failed `CREATE INDEX CONCURRENTLY` leaves an invalid index behind, which must be
+dropped before retrying — one more reason it does not belong in an automated migration.
+
+## Server-side timeouts
+
+Set these on the role or the database, not per call site — a coroutine timeout cannot interrupt
+a blocked JDBC call, and a call site can be forgotten:
+
+- `statement_timeout` — the general bound; without it a blocked writer waits indefinitely.
+- `lock_timeout` — for migrations especially, per above.
+- `idle_in_transaction_session_timeout` — the state that held the concurrent index build
+  hostage above is the same state that stops vacuum reclaiming rows in production.
+
 ## Changing a schema that has shipped
 
 **A merged migration is never edited.** Its checksum is recorded in databases that already
@@ -121,9 +186,11 @@ file and only the second is a violation. Anchor the patterns to positions where 
 actually stand (`from`, `join`, `table`, `view`, `index … on`), or table aliases will be
 reported as schemas.
 
-**Schema drift**, in both directions. See [SKILL.md](SKILL.md) and note that
-`MigrationUtils.statementsRequiredForDatabaseMigration` is the function that includes `DROP`;
-the `SchemaUtils` equivalent is deprecated and one-directional. "Unmapped" is only meaningful
-against the complete set of declared tables, so the full comparison belongs wherever every
-table is visible — usually the composition root — and discovery should scan rather than read a
+**Schema drift**, in three directions. See [SKILL.md](SKILL.md) and note that
+`MigrationUtils.statementsRequiredForDatabaseMigration` is the function that includes `DROP`
+for columns of the tables it is given; the `SchemaUtils` equivalent is deprecated and
+one-directional. It does not enumerate the catalog, so a leftover table with no Kotlin
+declaration needs a separate catalog comparison. "Unmapped" is only meaningful against the
+complete set of declared tables, so the full comparison belongs wherever every table is
+visible — usually the composition root — and discovery should scan rather than read a
 registry a table can be left out of.

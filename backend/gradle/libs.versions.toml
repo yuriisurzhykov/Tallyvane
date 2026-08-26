@@ -4,6 +4,9 @@ kotlin = "2.4.10"
 coroutines = "1.11.0"
 serialization = "1.11.0"
 
+# HTTP
+ktor = "3.5.2"
+
 # Static analysis
 detekt = "2.0.0-alpha.6"
 ktlint = "14.2.0"
@@ -40,6 +43,20 @@ gradle-ktlint-plugin = { group = "org.jlleitschuh.gradle.ktlint", name = "org.jl
 # Kotlinx
 kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "coroutines" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "serialization" }
+
+# Ktor.
+# -server-core:                  the application, routing, plugin machinery.
+# -server-cio:                   the engine ADR-050 chose; the only artifact a move would replace.
+# -server-content-negotiation:   installs a converter; carries no format of its own.
+# -serialization-kotlinx-json:   the converter itself, over kotlinx-serialization.
+# -server-status-pages:          the single place an escaped exception becomes a response.
+# -server-test-host:             runs the application in-process, without opening a port.
+ktor-server-core = { group = "io.ktor", name = "ktor-server-core", version.ref = "ktor" }
+ktor-server-cio = { group = "io.ktor", name = "ktor-server-cio", version.ref = "ktor" }
+ktor-server-content-negotiation = { group = "io.ktor", name = "ktor-server-content-negotiation", version.ref = "ktor" }
+ktor-serialization-kotlinx-json = { group = "io.ktor", name = "ktor-serialization-kotlinx-json", version.ref = "ktor" }
+ktor-server-status-pages = { group = "io.ktor", name = "ktor-server-status-pages", version.ref = "ktor" }
+ktor-server-test-host = { group = "io.ktor", name = "ktor-server-test-host", version.ref = "ktor" }
 
 # Kotest
 kotest-runner-junit5 = { group = "io.kotest", name = "kotest-runner-junit5", version.ref = "kotest" }
@@ -88,6 +105,9 @@ logback-classic = { group = "ch.qos.logback", name = "logback-classic", version.
 [plugins]
 # Kotlin
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+# The compiler plugin that generates serializers for @Serializable. The library alone
+# does not: without this, every @Serializable class fails at compile time.
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 
 # Detekt
 detekt = { id = "dev.detekt", version.ref = "detekt" }

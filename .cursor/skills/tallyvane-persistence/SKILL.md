@@ -29,7 +29,7 @@ down, so a proposal can be checked against it before being argued.
 | A port with two implementations has one suite both must pass | ADR-046 |
 | Transactions over JDBC, on a dispatcher bounded by the pool | ADR-058 |
 | Flyway creates one schema; migrations create the rest; a database per test | ADR-059 |
-| Schema drift is a build failure, detected in both directions | ADR-060 |
+| Schema drift is a build failure, detected in three directions | ADR-060 |
 
 `docs/adr/` holds them. Read the ADR before proposing a change to any row — each lists what was
 rejected and why, and most of those rejections were measured rather than reasoned.
@@ -82,6 +82,12 @@ where a query is not.
 The `platform` schema is created by Flyway, not by a migration, because its history table lives
 there and must exist first.
 
+It sets `lock_timeout`. Measured in `playground/ddl-locks/`: an `ALTER TABLE` queued behind one
+open reader also kills a plain `SELECT` that arrives after it, because the lock queue is ordered.
+A failed migration is rerunnable; an application stalled behind that queue is an incident.
+`CREATE INDEX CONCURRENTLY` is not written as a migration at all — the same spike shows it
+waiting on Flyway's own idle-in-transaction connection, indefinitely.
+
 A merged migration is not edited. The one exception applies only while no database outside a
 test container has ever applied it, and taking it requires saying so out loud.
 
@@ -92,7 +98,23 @@ test container has ever applied it, and taking it requires saying so out loud.
 ./gradlew integrationTest                         # needs Docker; opt-in locally, its own CI step
 ./gradlew :migrate:installDist                    # the deploy artefact for migrations
 ./gradlew :playground:transactions:run            # commit/rollback/nesting by hand, against your own Postgres
+./gradlew :playground:isolation:run               # what READ COMMITTED allows; when a retry is correct
+./gradlew :playground:ddl-locks:run               # what a migration does to readers
+./gradlew :playground:timeout-bounds:run          # which timeout actually stops a blocked statement
 ```
 
 Nothing calls `:migrate` yet, and `PostgresPersistence` is closed by nobody, because `app` does
 not exist. Both are recorded debts against slice 13 in `backend/.plans/`.
+
+## Timeouts, and the one that was not there
+
+`statement_timeout` 15 s, `lock_timeout` 3 s, `idle_in_transaction_session_timeout` 60 s, carried
+on the connection through pgjdbc's `options` property by `SessionTimeouts` — not on the role and
+not on the database, because a database-level setting does not survive the
+`CREATE DATABASE … TEMPLATE` every test database is made with (ADR-059). Flyway gets `lock_timeout`
+and nothing else: a migration is meant to hold a long transaction. ADR-061 has the reasoning.
+
+`addDataSourceProperty` is called only by `DriverProperties`, and `no-raw-datasource-property`
+enforces that. A non-`String` value there is accepted by HikariCP and silently ignored by pgjdbc,
+which is not hypothetical: `socketTimeout` and `connectTimeout` shipped as `Int` constants and
+neither was in effect. `playground/timeout-bounds/README.md` has the measurement.
