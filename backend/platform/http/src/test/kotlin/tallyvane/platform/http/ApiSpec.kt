@@ -37,9 +37,9 @@ private sealed interface Refusal : Failure {
 }
 
 private class Refusals : Problems<Refusal> {
-    override fun of(failure: Refusal): Problem = when (failure) {
-        is Refusal.Range -> Problem.invalid(FieldError("salary_min_cents", "range.invalid"))
-        is Refusal.Owner -> Problem.forbidden("Not yours")
+    override fun Answers.of(failure: Refusal): Problem = when (failure) {
+        is Refusal.Range -> invalid(listOf(FieldError("salary_min_cents", "range.invalid")))
+        is Refusal.Owner -> forbidden("Not yours")
     }
 }
 
@@ -54,8 +54,10 @@ private class Probes(private val problems: Refusals) : RouteModule {
 
     override fun install(route: Route) {
         route.get("/fine") { call.respond(Payslip(takeHomeCents = 1)) }
-        route.get("/refused") { call.respond(problems.of(Refusal.Range)) }
-        route.get("/forbidden") { call.respond(problems.of(Refusal.Owner)) }
+        // The only way to answer with a failure: the failure and the table that maps it. There is
+        // no expression here that produces a `Problem` — the route cannot make one.
+        route.get("/refused") { call.respond(Refused(Refusal.Range, problems)) }
+        route.get("/forbidden") { call.respond(Refused(Refusal.Owner, problems)) }
         route.get("/boom") {
             error("jdbc:postgresql://tallyvane:hunter2@10.0.0.4:5432/db is unreachable")
         }

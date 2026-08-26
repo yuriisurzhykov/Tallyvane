@@ -28,15 +28,25 @@ only at the framework boundary — so a use case reports outcomes, and the route
 
 ## Decision
 
-**`Problem` has an `internal` constructor and a closed set of factories.** A module picks an HTTP
-*meaning* — `invalid`, `forbidden`, `missing`, `conflicting`, `unavailable`, `unexpected` — and
-supplies only what it alone knows: which field, which code, what to say. The platform owns the
-protocol's vocabulary, the module owns its domain's, and the split satisfies
+**`Problem` has no public source at all.** Its constructor is `internal`, and the six factories
+live on `Answers` — an interface whose only implementation is `internal` too, held by the renderer
+and handed out nowhere. A module receives an `Answers` as a *receiver*, inside `Problems.of` and
+`FailureTranslator.translate`, and those are the only two places in the backend where a `Problem`
+can be made.
+
+A module picks an HTTP *meaning* — `invalid`, `forbidden`, `missing`, `conflicting`, `unavailable`,
+`unexpected` — and supplies only what it alone knows: which field, which code, what to say. The
+platform owns the protocol's vocabulary, the module owns its domain's, and the split satisfies
 `platform-knows-no-business` without an exception: `forbidden` is HTTP, not jobs.
 
 `unexpected()` takes no parameters at all. It is what an escaped exception becomes, and an
 exception's message carries hosts, ports and occasionally credentials (§17). There is no argument
 to leak them through.
+
+**A route answers a failure with `Refused(failure, problems)`, never with a `Problem`.** The type
+parameter pairs them: `Refused<F>` does not compile without a `Problems<F>` for that exact branch.
+The send pipeline recognises the `Refused`, asks its table with the receiver only it holds, and
+writes the answer.
 
 **Failures are marked with `Failure` in the kernel and grouped under one sealed root.** The
 marker lives in `platform:kernel` because `Problems<F : Failure>` needs something to bound its
@@ -48,9 +58,24 @@ mapped. An earlier sketch took `Throwable` and returned `null` for "not mine", w
 `else`; an `else` is exactly how a new failure silently becomes a 500.
 
 **The type system, not a rule, forces the whole chain.** A sealed outcome makes the route's `when`
-handle the failure branch; answering a failure requires a `Problem`; obtaining one for a module
-failure requires a `Problems<F>`; holding one requires asking for it in the constructor; supplying
-it requires `app` to build it. Break any link and the build stops.
+handle the failure branch; answering a failure requires a `Refused`; constructing one requires a
+`Problems<F>` of the matching branch; holding that requires asking for it in the constructor;
+supplying it requires `app` to build it. Break any link and the build stops.
+
+### Corrected the same day
+
+The first version of this decision claimed exactly that chain while leaving `Problem`'s factories
+public — and the claim was wrong, which the author caught by asking what actually forces a route to
+consult its table. Nothing did: `call.respond(Problem.forbidden())` compiled, needed no table, and
+`failure-has-problems` only checked that a table existed somewhere. The record keeps the mistake
+because it is the reason for the receiver: a factory anyone can reach is a contract nobody has to
+honour.
+
+Two smaller corrections came from the compiler rather than review. `Answers`' implementation could
+not be nested inside the interface — Kotlin has no `internal` members in an interface, so nesting
+would have made it public and handed every module a constructor, undoing the whole thing. It is a
+separate `internal` class instead. And `FailureTranslator.translate` needed the same receiver for
+the same reason; without it, a translator in a module would have been a public source of problems.
 
 **One place renders.** An interceptor on the send pipeline sets the status from the document, the
 `application/problem+json` content type, the trace id in the header and in the body, and the log
@@ -64,9 +89,11 @@ detail-free 500.
 **`RouteModule.basePath` is a `BasePath` value class**, validated on construction. §11.1 was
 amended to match.
 
-**Three arch rules cover what types cannot.** `failure-groups-under-root` (a failure is a sealed
-root or nested in one), `failure-has-problems` (every root has a mapper), and
-`web-answers-with-problem` (no route names a refusal status itself).
+**Four arch rules cover what types cannot.** `failure-groups-under-root` (a failure is a sealed root
+or nested in one), `failure-has-problems` (every root has a mapper), `web-answers-with-problem` (no
+route names a refusal status itself), and `problem-has-no-public-source` — which guards the
+foundation the other three stand on, because one convenience factory added in six months would undo
+all of it without a single failing test.
 
 ## Consequences
 

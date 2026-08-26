@@ -5,6 +5,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.TextContent
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.Application
+import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.ApplicationCallPipeline
 import io.ktor.server.application.call
 import io.ktor.server.application.install
@@ -35,9 +36,11 @@ import tallyvane.platform.observability.log.TraceContext
  *    it (ADR-056).
  * 2. **Every response says which trace it was**, in the `traceparent` header — including the
  *    ones with no body, which is why the header exists as well as the body field.
- * 3. **A [Problem] renders itself correctly or not at all.** Status from the document, content
- *    type `application/problem+json`, the trace id added to the body so it reaches the screen
- *    the user is looking at. A route responds with the value and arranges none of this.
+ * 3. **A [Refused] renders correctly or not at all.** The table is asked here, with the
+ *    [Answers] only this class holds; status comes from the document, the content type is
+ *    `application/problem+json`, and the trace id is added to the body so it reaches the screen
+ *    the user is looking at. A route hands over a failure and its table, and arranges none of
+ *    this.
  * 4. **An escaped exception becomes an answer, never a leak.** The translator chain decides
  *    what; its tail produces a 500 with no detail at all. No stack trace, no exception message,
  *    no class name.
@@ -64,11 +67,12 @@ public class Api(
         application.install(StatusPages) {
             exception<Throwable> { call, cause ->
                 logger.error("Request failed", cause)
-                call.respond(failures.translate(cause) ?: Problem.unexpected())
+                val problem = with(answers) { with(failures) { translate(cause) } ?: answers.unexpected() }
+                call.respondProblem(problem)
             }
         }
         traced(application)
-        renderProblems(application)
+        renderRefusals(application)
         mount(application)
     }
 
@@ -90,15 +94,23 @@ public class Api(
      * offering a helper function is what makes it unavoidable: a route cannot respond with a
      * problem and skip this.
      */
-    private fun renderProblems(application: Application) {
-        // `Before`, not `Transform`: ContentNegotiation also intercepts the send pipeline, and at
-        // `Transform` it had already turned the problem into plain `application/json` with a 200 —
-        // measured, three tests red. Rendering first and handing on an `OutgoingContent` leaves
-        // ContentNegotiation nothing to convert.
+    /**
+     * Recognises a [Refused] and asks its table, with the [Answers] nobody else holds.
+     *
+     * `Before`, not `Transform`: ContentNegotiation also intercepts the send pipeline, and at
+     * `Transform` it had already turned the body into plain `application/json` with a 200 —
+     * measured, three tests red. Rendering first and handing on an `OutgoingContent` leaves
+     * ContentNegotiation nothing to convert.
+     */
+    private fun renderRefusals(application: Application) {
         application.sendPipeline.intercept(ApplicationSendPipeline.Before) {
-            val problem = subject as? Problem ?: return@intercept
-            proceedWith(rendered(problem, TraceContext.current()?.traceId?.value))
+            val refused = subject as? Refused<*> ?: return@intercept
+            proceedWith(rendered(refused.problem(answers), TraceContext.current()?.traceId?.value))
         }
+    }
+
+    private suspend fun ApplicationCall.respondProblem(problem: Problem) {
+        respond(rendered(problem, TraceContext.current()?.traceId?.value))
     }
 
     private fun rendered(problem: Problem, traceId: String?): TextContent {
@@ -120,6 +132,13 @@ public class Api(
             }
         }
     }
+
+    /**
+     * The one instance of the only source of a [Problem]. Held here, never handed out: modules
+     * receive it as a receiver inside [Problems.of] and [FailureTranslator.translate], which is
+     * what makes those two the only places an error answer can be made.
+     */
+    private val answers: Answers = Rfc9457Answers()
 
     private companion object {
         const val HEADER = "traceparent"

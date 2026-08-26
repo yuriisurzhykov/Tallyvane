@@ -17,6 +17,11 @@ internal const val FAILURE_MARKER = "Failure"
 internal const val PROBLEMS_PORT = "Problems"
 
 /**
+ * The RFC 9457 document, which must keep having no public source (ADR-062).
+ */
+internal const val PROBLEM_TYPE = "Problem"
+
+/**
  * Statuses a route must not name directly: choosing one is `Problem`'s job, and a route that
  * writes its own has bypassed the type, the URI vocabulary and the renderer in one line.
  */

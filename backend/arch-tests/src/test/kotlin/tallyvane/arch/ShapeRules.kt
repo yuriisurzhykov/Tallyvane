@@ -160,6 +160,26 @@ internal fun failureHasProblems(scope: KoScope): List<String> {
         }.map { it.where() }
 }
 
+/**
+ * `Problem` has no public way to make one: no public constructor, no companion factories.
+ *
+ * This guards the foundation everything else in ADR-062 stands on. The first design *did* have
+ * public factories, and with them a route could answer with a problem of its own and never touch
+ * its module's mapping table — the tables were required to exist and required to be used by
+ * nothing. The fix was to move every factory onto `Answers`, which only the renderer holds.
+ *
+ * One convenience factory added here in six months would undo all of it silently: nothing would
+ * fail, and the contract would quietly become a convention again.
+ */
+internal fun problemHasNoPublicSource(scope: KoScope): List<String> = scope
+    .classes(includeNested = true, includeLocal = false)
+    .withoutException("problem-has-no-public-source")
+    .filter { declaration -> declaration.name == PROBLEM_TYPE }
+    .filter { declaration ->
+        declaration.primaryConstructor?.hasInternalModifier != true ||
+            declaration.objects(includeNested = false).any { nested -> nested.hasCompanionModifier }
+    }.map { it.where() }
+
 internal fun noTopLevelFunctions(scope: KoScope): List<String> = scope.files
     .withoutException("no-top-level-functions")
     .filter { it.numFunctions(includeNested = false, includeLocal = false) > 0 }
