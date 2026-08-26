@@ -17,13 +17,14 @@ package tallyvane.platform.http
  *
  * ### Why the set is closed
  *
- * Six HTTP meanings, no parameters for a status or a `type`. A module picks the meaning and
+ * Seven HTTP meanings, no parameters for a status or a `type`. A module picks the meaning and
  * supplies what only it knows: which field, which code, what to say. So `type` cannot drift into
  * a free string, two modules cannot describe one kind of failure differently, and slice 14 has
  * something enumerable to write into the specification.
  *
- * A seventh meaning means editing this interface, which is the point: adding one is a decision
- * about the API's contract, and it should appear in a diff of the platform.
+ * An eighth meaning means editing this interface, which is the point: adding one is a decision
+ * about the API's contract, and it should appear in a diff of the platform. [malformed] was the
+ * seventh, added when a live run showed a malformed body answering 500.
  */
 public interface Answers {
     /**

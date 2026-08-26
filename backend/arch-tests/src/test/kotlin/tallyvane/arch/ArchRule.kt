@@ -34,6 +34,7 @@ internal val ARCH_RULES: List<ArchRule> =
         ArchRule("failure-has-problems", violations = ::failureHasProblems),
         ArchRule("web-answers-with-problem", violations = ::webAnswersWithProblem),
         ArchRule("problem-has-no-public-source", violations = ::problemHasNoPublicSource),
+        ArchRule("openapi-covers-routes", violations = ::openapiCoversRoutes),
         ArchRule("own-schema-only", violations = ::ownSchemaOnly),
         ArchRule("no-cross-schema-join", violations = ::noCrossSchemaJoin),
         ArchRule("no-llm-with-personal-data", violations = ::noLlmWithPersonalData),

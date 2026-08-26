@@ -29,5 +29,9 @@ public object ApiJson {
         explicitNulls = false
         ignoreUnknownKeys = true
         prettyPrint = false
+        // `kind`, not kotlinx's default `type`, for two independent reasons ADR-055 records: a
+        // health cause of kind `threw` already has a field named `type` holding an exception's
+        // class name, and §11.6 spends `type` on an RFC 9457 problem URI.
+        classDiscriminator = "kind"
     }
 }

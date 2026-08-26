@@ -25,6 +25,9 @@ tasks.withType<Test>().configureEach {
         .files(
             fileTree(backendRoot) { exclude("**/build/**", "**/.gradle/**", "**/.idea/**") },
             fileTree(File(repoRoot, "docs/adr")),
+            // `openapi-covers-routes` reads this, and a path removed from it has to fail the build
+            // on the commit that removes it rather than on the next unrelated change.
+            File(repoRoot, "docs/openapi.yaml"),
         ).withPropertyName("scannedTrees")
         .withPathSensitivity(PathSensitivity.RELATIVE)
 }

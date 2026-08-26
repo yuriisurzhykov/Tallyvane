@@ -34,8 +34,9 @@ and handed out nowhere. A module receives an `Answers` as a *receiver*, inside `
 `FailureTranslator.translate`, and those are the only two places in the backend where a `Problem`
 can be made.
 
-A module picks an HTTP *meaning* — `invalid`, `forbidden`, `missing`, `conflicting`, `unavailable`,
-`unexpected` — and supplies only what it alone knows: which field, which code, what to say. The
+A module picks an HTTP *meaning* — `malformed`, `invalid`, `forbidden`, `missing`, `conflicting`,
+`unavailable`, `unexpected` — and supplies only what it alone knows: which field, which code, what to
+say. The
 platform owns the protocol's vocabulary, the module owns its domain's, and the split satisfies
 `platform-knows-no-business` without an exception: `forbidden` is HTTP, not jobs.
 

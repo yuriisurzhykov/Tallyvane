@@ -29,6 +29,10 @@ platform:
   storage:       { depends: [platform:kernel] }
   exec:          { depends: [platform:kernel] }
   observability: { depends: [platform:kernel] }
+  # The only platform module that publishes endpoints. It needs the reporter it exposes
+  # (observability) and the machinery to expose it with (http); nothing depends on it but
+  # `app`, so the edges stay one-directional.
+  health:        { depends: [platform:kernel, platform:observability, platform:http] }
 
 # Modules that exist in the build today.
 modules: {}

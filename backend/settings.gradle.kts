@@ -32,6 +32,7 @@ include(":platform:llm")
 include(":platform:storage")
 include(":platform:exec")
 include(":platform:observability")
+include(":platform:health")
 
 // ---------------------------------------------------------------------------
 // Composition root and architecture tests.

@@ -31,7 +31,7 @@ import tallyvane.platform.observability.log.TraceContext
  * touches the pipeline. That is deliberate: every guarantee below holds because there is exactly
  * one place where it is arranged, so no route can omit it and no future route can forget it.
  *
- * Four guarantees, in the order a request meets them:
+ * Six guarantees, in the order a request meets them:
  *
  * 1. **Every call runs under a trace.** Continued from `traceparent` if a valid one arrived,
  *    fresh otherwise, and carried in the coroutine context so every log line of that call has
@@ -46,6 +46,11 @@ import tallyvane.platform.observability.log.TraceContext
  * 4. **An escaped exception becomes an answer, never a leak.** The translator chain decides
  *    what; its tail produces a 500 with no detail at all. No stack trace, no exception message,
  *    no class name.
+ * 5. **The framework's own failures follow the same contract.** A body that cannot be read is a
+ *    400 rather than a 500, and an unmatched path answers in the error shape rather than with
+ *    Ktor's bodiless 404 — both measured as wrong before they were arranged.
+ * 6. **Only a failure that is ours is logged at ERROR.** A 4xx is the caller's business; logging
+ *    it at a level that means "a human must look" (§16.6) would bury the 5xx that does.
  *
  * @param routes the modules to mount, each under `/api/v1` plus its own [RouteModule.basePath].
  * @param failures the modules' links only. This class puts the framework's own translator at
