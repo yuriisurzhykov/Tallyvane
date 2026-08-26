@@ -29,6 +29,9 @@ class PostgresFixtureSpec :
                 query(PostgresFixture.empty(), "select 1") shouldBe "1"
             }
 
+            // A constant compared against a constant: this passes on whatever
+            // PostgresFixture starts, and would go on passing after the compose file moved
+            // to 18. Named as the weak check it is; the debt is recorded in backend/.plans/.
             "runs the major version production runs, so a test cannot pass on a different Postgres" {
                 query(PostgresFixture.empty(), "show server_version")!! shouldStartWith "17"
             }

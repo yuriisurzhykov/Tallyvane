@@ -118,6 +118,23 @@ internal fun noRawDataSourceProperty(scope: KoScope): List<String> = scope.files
     .filter { it.codeText().contains("addDataSourceProperty") }
     .map { it.where() }
 
+/**
+ * A route never names a refusal status itself; it answers with a `Problem`.
+ *
+ * `call.respond(HttpStatusCode.BadRequest, "oops")` bypasses everything at once: the closed
+ * vocabulary of `type` URIs, the `application/problem+json` content type, the trace id in the
+ * body, the log line — all of which live in the one renderer a `Problem` goes through. The line
+ * compiles and the endpoint answers, so only a gate catches it.
+ *
+ * Success statuses are untouched: choosing 201 over 200 is the route's business.
+ */
+internal fun webAnswersWithProblem(scope: KoScope): List<String> = scope.files
+    .withoutException("web-answers-with-problem")
+    .filter { file -> file.inLayer("web") || file.packagee?.name?.startsWith("tallyvane.platform.http") == true }
+    .filterNot { file -> file.name == "Problem" }
+    .filter { file -> REFUSAL_STATUSES.any { status -> file.codeText().contains(status) } }
+    .map { it.where() }
+
 internal fun noMockLibraries(scope: KoScope): List<String> = scope.files
     .withoutException("no-mock-libraries")
     .filter { it.hasImportStartingWith(MOCK_IMPORT_PREFIXES) }

@@ -44,9 +44,18 @@ than free text.
 The status vocabulary is `up`, `degraded`, `down`, lowercase.
 
 `cause` is an object discriminated by `kind`: `refused` with `says`, `overran` with
-`bound_ms`, `threw` with `type`, `dependencies` with `names`. By the first rule
-`dependencies` has no unauthorised rendering at all. A check that is `up` carries no
-`cause`.
+`bound_ms`, `threw` with `type`, `dependencies` with `names`, `behind` with `versions`. By
+the first rule `dependencies` and `behind` have no unauthorised rendering at all. A check
+that is `up` carries no `cause`.
+
+### Amended 2026-08-25 — `behind` added with the first real check
+
+Slice 10 added `MigrationsApplied`, and no existing case fitted "the schema is behind the
+code". `refused` with our own wording was the cheaper option and was rejected: the remedy
+depends on the list, since one pending version means a deploy that started the application
+before its migration step while several mean a deploy that skipped the step, and a sentence
+makes a reader parse that back out. Schema versions describe what the system is made of, so
+`behind` joins `dependencies` in having no public rendering.
 
 `took_ms` is an integer number of milliseconds.
 

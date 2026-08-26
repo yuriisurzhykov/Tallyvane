@@ -17,8 +17,13 @@ layers:
 platform:
   kernel:        { depends: [] }
   events:        { depends: [platform:kernel] }
-  persistence:   { depends: [platform:kernel] }
-  http:          { depends: [platform:kernel] }
+  # observability: persistence supplies the health checks over its own access to the
+  # database, so it needs the HealthCheck port. The edge runs this way and not the
+  # other because a check about Postgres belongs where Postgres is known.
+  persistence:   { depends: [platform:kernel, platform:observability] }
+  # observability: the response renderer puts the request's trace id on every answer and
+  # logs one line per failure, so it needs TraceContext. Same shape as persistence's edge.
+  http:          { depends: [platform:kernel, platform:observability] }
   outbox:        { depends: [platform:kernel, platform:persistence] }
   llm:           { depends: [platform:kernel] }
   storage:       { depends: [platform:kernel] }

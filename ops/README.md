@@ -3,17 +3,58 @@
 Deployment, migrations and backups for a single 2 GB VPS.
 
 ```
-backup/       nightly dump, offsite upload, weekly restore verification
+docker-compose.yml    one service so far: db
+init/                 runs once, when Postgres first creates its data directory
+backup/               nightly dump, offsite upload, weekly restore verification
 ```
 
 Migrations are deliberately absent from this tree — an earlier version listed them
-here, contradicting the paragraph below and ARCHITECTURE.md §4.6. Each capability
+here, contradicting the paragraph below and ARCHITECTURE.md §4.6, and an empty
+`migrations/` directory outlived that correction until 2026-08-25. Each capability
 carries its own under `db/migration/<module>/`, and `platform:persistence`
 collects them (ADR-051).
 
+## 2026-08-25 — what this file holds, and one withdrawn attempt
+
+Values are written in `docker-compose.yml` itself, not in a `.env` it would
+interpolate. **A committed `.env` is not an option in this repository**, and the
+reason is not formality: it is the file people reach for when an API key needs
+parking, and one lapse of memory publishes it. `.gitignore` excludes `.env`
+everywhere. So anything secret appears in compose only as a `${VAR}` reference
+with no default, resolved from the deploy's own environment, and everything
+non-secret is written in the open where a reviewer meets it in the diff.
+
+That rule invalidated a first attempt, recorded here because the wrong turn
+explains the shape: the Postgres tag and settings were put in `ops/.env` for both
+compose and the test fixture to read. `.gitignore` would have kept that file out
+of every clone and out of CI, so the "single source" was unreachable — and the
+mistake was building it before checking that. The tag is consequently still
+written twice, here and in `PostgresFixture`, with nothing comparing them;
+`backend/.plans/` carries it as an open debt.
+
+The Postgres settings are here because §16.2's memory budget fixes them and,
+before this file, they were a table in a document no running server had read.
+`max_connections=20` is the one that bites: a connection is a backend process, and
+one application pool holds its full size open at rest — eight, measured in
+`backend/playground/pool-occupancy/`. Two copies during an update is 16 of the 20.
+
+`init/` runs **only** when the data directory is first created. The bounds it
+applies to the role — `statement_timeout`, `lock_timeout`,
+`idle_in_transaction_session_timeout` — are defence in depth behind the ones
+`PostgresPersistence` puts on its own connections (ADR-061); they cover `psql`,
+the migrate command, and anything else that connects. Changing them needs the
+volume recreated or the `ALTER ROLE` statements applied by hand. Verified on a
+running container: `pg_roles.rolconfig` carried all three and a fresh session
+inherited them.
+
 ## Containers
 
-Five services: PostgreSQL, the Ktor server, two Next.js frontends
+`docker-compose.yml` holds `db` and nothing else yet. The other services need images
+that do not exist — there is no server distribution and no frontend build here — so
+they arrive with them rather than as placeholders nobody can run. `db` came first
+because it closed a debt rather than anticipating one.
+
+Five services in total, when they exist: PostgreSQL, the Ktor server, two Next.js frontends
 (`frontend-web`, built from `frontend-web/`; `frontend-admin`, built from
 `frontend-admin/`), and `cloudflared`. Typst and cwebp are not containers —
 they are static binaries inside the server image, invoked as short-lived

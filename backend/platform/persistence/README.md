@@ -2,14 +2,62 @@
 
 Everything about reaching Postgres: the connection, the transaction boundary, schema
 conventions, and migrations. All four now exist in some form — the `Persistence` and
-`Migrations` ports with `PostgresPersistence` and `FlywayMigrations` behind them — plus the
-test harness that had to come before them, because the slices that follow verify behaviour
-no in-memory substitute exhibits and cannot be written without a real database to write them
-against.
+`Migrations` ports with `PostgresPersistence` and `FlywayMigrations` behind them, and the two
+`HealthCheck`s that report on both — plus the test harness that had to come before them,
+because the slices that follow verify behaviour no in-memory substitute exhibits and cannot
+be written without a real database to write them against.
 
 Database access lives behind the port and its adapter. Nothing in `main` opens a
 connection itself; raw JDBC appears only in integration tests, and there deliberately, so
 an observation cannot be fooled by the machinery it observes.
+
+## 2026-08-25 — the two health checks, and why one of them goes through the pool
+
+`DatabaseAnswers` and `MigrationsApplied` are the first real `HealthCheck`s: until now
+`platform:observability` had the machinery and nothing to run through it.
+
+Two rather than one, because the causes are unrelated and so are the remedies. A database
+that cannot be reached is an infrastructure problem; a schema behind the code is a deploy
+that started the application before its migration step, or skipped it. One check would have
+had to merge those into a single cause, which is what `Ailment` exists to stop.
+
+**The connectivity check borrows from the pool rather than opening its own connection**, and
+the argument that settled it was about §12's extraction into services, not about today. Its
+own connection answers a question about the *server*. The pool answers a question about
+*this application's access*. Those coincide while there is one process and diverge exactly
+when several services share a server: each would report the same fact about the server and
+none about itself, while a saturated pool — the failure that actually stops a service
+working — would read as `up` throughout. The price is accepted rather than hidden: a
+saturated pool makes readiness false and the orchestrator pulls the instance out of
+rotation, which is the correct behaviour for an instance that cannot obtain a connection.
+`connectionTimeout` bounds how long the verdict takes.
+
+It issues `select 1` instead of opening an empty transaction, because an empty one would
+test whether Exposed acquires its connection eagerly — a library detail rather than a
+property of the database. Its verdict is `Rollback`: nothing was written, so the effect is
+the same either way, and the word states the intent that a probe leaves nothing behind.
+
+**Neither check catches its own exceptions.** `HealthCheck.Contained` does that (ADR-054),
+turning a throw into `Down` with the exception's type and nothing else, and an integration
+case asserts the type carries no driver message — §17's rule about hosts and ports reaching
+a client applies to a health body like anywhere else.
+
+`MigrationsApplied` reads `Migrations.pending()`, which is ADR-051's other half: the deploy
+applies, readiness verifies, and a probe that migrated would be a probe that always passed.
+A unit case asserts nothing was applied, over a fake that counts applications, and an
+integration case asserts the same over a plain JDBC connection.
+
+A property worth naming because it was luck turning into design: Flyway takes one location
+and walks the classpath, and a classpath is the contents of one artefact. So this check sees
+every module's migrations in the monolith and only its own inside an extracted service, with
+nothing to edit at the moment of the split. A registry of locations would have needed
+editing exactly then.
+
+Falsified rather than trusted: with `check()` replaced by a bare `Health.Up`, the live-database
+case still passed and both closed-pool cases failed. The live case is an environment canary;
+the coverage is in the failures. What no case catches — a check that opens a transaction and
+never issues its statement — is written down in the spec instead of being left to be
+discovered.
 
 ## 2026-08-25 — the transaction adapter
 
@@ -82,10 +130,22 @@ spends most of its machinery refusing.
 ## What was actually done
 
 `PostgresFixture` starts one `postgres:17-alpine` container per test JVM, lazily, and
-leaves it to Testcontainers' reaper. The image is the one §16.4's compose file runs, and
-that is not incidental: musl and glibc disagree on text collation, so a community build
-of the same major version could pass a test that the shipped image fails, with no cause
-a reader would find.
+leaves it to Testcontainers' reaper. The image is the one `ops/docker-compose.yml` runs, and
+that is not incidental: musl and glibc disagree on text collation, so a community build of
+the same major version could pass a test that the shipped image fails, with no cause a
+reader would find.
+
+### 2026-08-25 — the tag is still written twice, and an attempt to fix that was withdrawn
+
+The agreement between this constant and the compose file is unguarded: the spec that looks
+like it checks the version asserts `shouldStartWith "17"`, a constant against a constant,
+which would keep passing after compose moved to 18.
+
+An attempt to put the tag in `ops/.env` and have both readers take it from there was
+withdrawn the same day, for a reason worth recording: `.gitignore` excludes `.env`
+everywhere, so the file would never have reached a clone or CI — the "single source" was
+unreachable from the start, and building it before checking that was the mistake. Committing
+a `.env` is not on the table here, so the fix has to take a different shape.
 
 It hands out `DatabaseAccess` — url, user, password — rather than the container. The
 mechanism is meant to be replaceable: addressing a database that is already running, by
