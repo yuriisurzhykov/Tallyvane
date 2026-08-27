@@ -56,11 +56,7 @@ export default defineConfig({
         : {
             webServer: {
                 command: `pnpm run build && pnpm exec next start -p ${ String(PORT) }`,
-                // A route that exists, not the origin. There is no page at `/`
-                // yet, and Playwright reads the 404 as "not up" and waits out
-                // the whole timeout — a three-minute hang whose message says
-                // nothing about the missing route.
-                url: `${ LOCAL_BASE_URL }/storybook`,
+                url: LOCAL_BASE_URL,
                 reuseExistingServer: !process.env.CI,
                 timeout: 180_000,
             },

@@ -143,6 +143,7 @@ export default [
             "**/node_modules/**",
             "**/.next/**",
             "**/dist/**",
+            "**/build/**",
             // Next writes this and owns it; it is not in any tsconfig we
             // control, so the type-aware parser cannot read it either.
             "**/next-env.d.ts",

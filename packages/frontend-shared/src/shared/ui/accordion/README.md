@@ -82,6 +82,20 @@ this without one: `state.open` is available directly inside
 ADR-031's render-prop composition model, which is exactly how
 `Accordion.stories.tsx`'s `WithIndicator` story implements it.
 
+**2026-08-27 — the height animation was a snap, for two stacked reasons.**
+`transition-geometry` and `h-(--accordion-panel-height)` were already on
+`Panel`. That was not enough. First, `frontend-web` (unlike Storybook) did
+not `@source` this package, so the JIT height class never reached the app
+stylesheet — only `@utility` rules such as `transition-geometry` did. Base
+UI's `getAnimationType` saw a non-zero duration, attempted a CSS height
+transition, and nothing consumed `--accordion-panel-height`. Second,
+`data-[starting-style]:h-0` compiled to nothing even after the scan was
+fixed: `h-0` reads Tailwind's spacing scale, which the adapter clears
+(`Drawer.tsx` already documents that `inset-0` is the same trap). The
+0-height pin is now numeric `height: 0` while `transitionStatus` is
+`starting`/`ending`, the same geometry-zero Drawer uses. Padding moved off
+the panel onto the inner content so `height: 0` can actually be 0.
+
 ## SOLID
 
 Single responsibility: coordinating which of several disclosures are open

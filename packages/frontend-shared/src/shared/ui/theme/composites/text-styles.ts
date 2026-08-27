@@ -17,6 +17,18 @@ import { defineComposite } from "design-token-engine";
  * duplicate.
  */
 export const textStyles = defineComposite("text", {
+    /**
+     * Public marketing pages only (`frontend-web`'s `(public)` route group) —
+     * the one variant built on the fluid step 9 (`tokens/typography.ts`), for
+     * a hero headline that scales with the viewport. Never used inside the
+     * console: every console heading tops out at `display`.
+     */
+    hero: {
+        size: "{typography.size.9}",
+        line: "{typography.line.9}",
+        weight: "{typography.weight.bold}",
+        tracking: "{typography.tracking.tightest}",
+    },
     /** Large analytics figures and empty-state headings. */
     display: {
         size: "{typography.size.8}",

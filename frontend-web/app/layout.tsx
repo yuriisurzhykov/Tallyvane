@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import { ThemeInitScript, ThemeProvider } from "frontend-shared/ui/theme";
+import { enDictionary } from "@/app/i18n";
 import { ibmPlexMono, ibmPlexSans } from "./fonts";
 import "./globals.css";
 
 export const metadata: Metadata = {
-    title: "Tallyvane",
-    description: "A personal system for running a job search.",
+    title: enDictionary.common.productName,
+    description: enDictionary.landing.tagline,
 };
 
 /**

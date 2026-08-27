@@ -8,3 +8,11 @@
 @import "tailwindcss";
 @import "frontend-shared/ui/theme/generated/tokens.css";
 @import "frontend-shared/ui/theme/adapters/tailwind.css";
+
+/*
+ * Same `@source` as `frontend-web/app/globals.css`: Tailwind v4 does not
+ * scan `node_modules`, and pnpm resolves `frontend-shared` as a symlink
+ * into it. Without this, classes written only in that package never reach
+ * the stylesheet.
+ */
+@source "../../packages/frontend-shared/src/**/*.{ts,tsx}";

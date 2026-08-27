@@ -3907,6 +3907,8 @@ export function useStrings<N extends Namespace>(
 ): (key: KeyOf<N>, vars?: Record<string, string | number>) => string;
 ```
 
+The dictionary itself lives in each app (`frontend-web/src/app/i18n`), not inside `frontend-shared`. `shared/i18n` is the lookup factory only — the same split ADR-032 already applied to `content-kit`, so shared stays free of product vocabulary. The `pipeline` / `brief` namespaces in the example above are illustrative.
+
 Подстановка переменных простая и предсказуемая: `{name}` заменяется значением. Множественные формы — отдельные ключи с
 суффиксами, без внешней библиотеки: на текущем объёме полноценный движок множественного числа избыточен.
 

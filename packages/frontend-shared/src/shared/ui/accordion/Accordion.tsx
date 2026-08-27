@@ -48,12 +48,23 @@ export interface AccordionHeaderOwnProps {
 
 export type AccordionHeaderProps = AccordionHeaderOwnProps & Omit<BaseAccordion.Header.Props, "children" | "className">;
 
-/** Resets the `<h3>` user-agent margin only — `Trigger` inside it already owns every real typographic decision. */
-const HEADER_CLASS = "m-0";
+/**
+ * Numeric `0`, not `m-0`: that class compiles to nothing under
+ * `--spacing-*: initial` (same finding `Drawer.tsx`'s `inset: 0` documents).
+ */
+const HEADER_STYLE = { margin: 0 } as const;
 
-function Header({ children, className, ...rest }: AccordionHeaderProps) {
+function Header({ children, className, style, ...rest }: AccordionHeaderProps) {
     return (
-        <BaseAccordion.Header className={ [HEADER_CLASS, className].filter(Boolean).join(" ") } { ...rest }>
+        <BaseAccordion.Header
+            { ...rest }
+            className={ className }
+            style={
+                typeof style === "function"
+                    ? (state) => ({ ...style(state), ...HEADER_STYLE })
+                    : { ...style, ...HEADER_STYLE }
+            }
+        >
             { children }
         </BaseAccordion.Header>
     );
@@ -100,23 +111,39 @@ export interface AccordionPanelOwnProps {
 export type AccordionPanelProps = AccordionPanelOwnProps & Omit<BaseAccordion.Panel.Props, "children" | "className">;
 
 /**
- * `px-stack pb-stack` — aligned horizontally with `Trigger`'s own
- * `px-stack`, no forced typography. `Collapsible.Panel`'s README explains
- * the same choice at more length: a documentation section wants rich
- * content, a plain FAQ answer wants body text, and this component knows
- * neither case, so it leaves type entirely to whatever the caller renders.
+ * No padding on this element. Collapsible.Panel's own comment is the reason:
+ * height animates on the panel, and padding here would keep a non-zero box
+ * when height is pinned to 0. Horizontal rhythm with `Trigger`'s `px-stack`
+ * is the caller's (`px-stack pb-stack` on the inner content), matching what
+ * `Collapsible.stories` already does with `p-stack`.
  *
- * `h-(--accordion-panel-height)` plus `transition-geometry` and the
- * starting/ending 0-height pins — the exact same recipe `Collapsible.Panel`
- * uses, against this component's own `--accordion-panel-height` variable
- * (`AccordionPanelCssVars.mjs`: a distinct name from Collapsible's, even
- * though both panels share the identical measurement mechanism internally).
+ * `h-(--accordion-panel-height)` plus `transition-geometry` is Base UI's
+ * recipe (`AccordionPanelCssVars`: a distinct name from Collapsible's, even
+ * though both panels share the identical measurement mechanism). The 0-height
+ * pin cannot be `data-[starting-style]:h-0`: `h-0` is not a class this theme
+ * has, so that pair compiled to nothing and Base UI saw a duration with no
+ * height change — a snap. Numeric `height: 0` while `transitionStatus` is
+ * `starting`/`ending` is the same geometry-zero `Drawer.tsx` already uses.
  */
-const PANEL_CLASS = "h-(--accordion-panel-height) overflow-hidden transition-geometry px-stack pb-stack data-[starting-style]:h-0 data-[ending-style]:h-0";
+const PANEL_CLASS = "h-(--accordion-panel-height) overflow-hidden transition-geometry";
 
-function Panel({ children, className, ...rest }: AccordionPanelProps) {
+const CLOSED_HEIGHT_STYLE = { height: 0 } as const;
+
+function Panel({ children, className, style, ...rest }: AccordionPanelProps) {
     return (
-        <BaseAccordion.Panel className={ [PANEL_CLASS, className].filter(Boolean).join(" ") } { ...rest }>
+        <BaseAccordion.Panel
+            { ...rest }
+            className={ [PANEL_CLASS, className].filter(Boolean).join(" ") }
+            style={ (state) => {
+                const pin =
+                    state.transitionStatus === "starting" || state.transitionStatus === "ending"
+                        ? CLOSED_HEIGHT_STYLE
+                        : undefined;
+                const resolved = typeof style === "function" ? style(state) : style;
+                if (!resolved && !pin) return undefined;
+                return { ...resolved, ...pin };
+            } }
+        >
             { children }
         </BaseAccordion.Panel>
     );

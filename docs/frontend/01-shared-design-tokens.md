@@ -455,6 +455,8 @@ export const transitions = defineComposite('transition', {
 ```typescript
 // composites/text-styles.ts
 export const textStyles = defineComposite('text', {
+  // Публичные маркетинговые страницы, не консоль: единственный fluid-шаг.
+  hero:        { size: '{typography.size.9}', line: '{typography.line.9}', weight: '{typography.weight.bold}',      tracking: '{typography.tracking.tightest}' },
   display:     { size: '{typography.size.8}', line: '{typography.line.8}', weight: '{typography.weight.semibold}', tracking: '{typography.tracking.tightest}' },
   title1:      { size: '{typography.size.7}', line: '{typography.line.7}', weight: '{typography.weight.semibold}', tracking: '{typography.tracking.tighter}'  },
   title2:      { size: '{typography.size.6}', line: '{typography.line.6}', weight: '{typography.weight.semibold}', tracking: '{typography.tracking.tight}'    },
@@ -477,6 +479,7 @@ export const textStyles = defineComposite('text', {
 
 | Шаг | Кегль / интерлиньяж | Где |
 | --- | --- | --- |
+| 9 | 36→56, `clamp()` | Заголовок публичной маркетинговой страницы (`hero`); единственный fluid-шаг |
 | 8 | 36 / 44 | Крупные числа аналитики, заголовок пустого состояния |
 | 7 | 28 / 36 | Заголовок экрана |
 | 6 | 24 / 32 | Заголовок секции |

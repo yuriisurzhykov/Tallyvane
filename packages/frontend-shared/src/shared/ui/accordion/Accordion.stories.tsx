@@ -47,19 +47,19 @@ export const SingleOpen: Story = {
                 <Accordion.Header>
                     <Accordion.Trigger>How does billing work?</Accordion.Trigger>
                 </Accordion.Header>
-                <Accordion.Panel><Text variant="body">Monthly, cancel anytime.</Text></Accordion.Panel>
+                <Accordion.Panel><Text variant="body" className="px-stack pb-stack">Monthly, cancel anytime.</Text></Accordion.Panel>
             </Accordion.Item>
             <Accordion.Item value="export">
                 <Accordion.Header>
                     <Accordion.Trigger>Can I export my data?</Accordion.Trigger>
                 </Accordion.Header>
-                <Accordion.Panel><Text variant="body">Yes, as CSV or JSON.</Text></Accordion.Panel>
+                <Accordion.Panel><Text variant="body" className="px-stack pb-stack">Yes, as CSV or JSON.</Text></Accordion.Panel>
             </Accordion.Item>
             <Accordion.Item value="support" disabled>
                 <Accordion.Header>
                     <Accordion.Trigger>Enterprise support (unavailable)</Accordion.Trigger>
                 </Accordion.Header>
-                <Accordion.Panel><Text variant="body">Not offered on this plan.</Text></Accordion.Panel>
+                <Accordion.Panel><Text variant="body" className="px-stack pb-stack">Not offered on this plan.</Text></Accordion.Panel>
             </Accordion.Item>
         </Accordion.Root>
     ),
@@ -72,13 +72,13 @@ export const MultipleOpen: Story = {
                 <Accordion.Header>
                     <Accordion.Trigger>How does billing work?</Accordion.Trigger>
                 </Accordion.Header>
-                <Accordion.Panel><Text variant="body">Monthly, cancel anytime.</Text></Accordion.Panel>
+                <Accordion.Panel><Text variant="body" className="px-stack pb-stack">Monthly, cancel anytime.</Text></Accordion.Panel>
             </Accordion.Item>
             <Accordion.Item value="export">
                 <Accordion.Header>
                     <Accordion.Trigger>Can I export my data?</Accordion.Trigger>
                 </Accordion.Header>
-                <Accordion.Panel><Text variant="body">Yes, as CSV or JSON.</Text></Accordion.Panel>
+                <Accordion.Panel><Text variant="body" className="px-stack pb-stack">Yes, as CSV or JSON.</Text></Accordion.Panel>
             </Accordion.Item>
         </Accordion.Root>
     ),
@@ -99,7 +99,7 @@ export const WithIndicator: Story = {
                         ) }
                     />
                 </Accordion.Header>
-                <Accordion.Panel><Text variant="body">Monthly, cancel anytime.</Text></Accordion.Panel>
+                <Accordion.Panel><Text variant="body" className="px-stack pb-stack">Monthly, cancel anytime.</Text></Accordion.Panel>
             </Accordion.Item>
         </Accordion.Root>
     ),

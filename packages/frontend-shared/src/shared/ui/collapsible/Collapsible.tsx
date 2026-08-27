@@ -61,24 +61,36 @@ export type CollapsiblePanelProps =
  * this component knows neither case.
  *
  * `h-(--collapsible-panel-height)` is Base UI's own documented recipe
- * (verified against `useCollapsiblePanel.mjs`): the variable is only ever
- * set to a real, measured pixel value while a transition is actually in
- * flight (`getAnimationType` requires a non-zero `transition-duration` on
- * this exact element to even attempt a CSS-transition animation, which is
- * what `transition-geometry` now supplies); once idle and open, Base UI
- * resets it to `undefined`, so the unset variable makes `h-(--...)` resolve
- * to nothing and the panel is once again sized by its own content, not
- * pinned to a stale pixel value. `data-[starting-style]`/`data-[ending-style]`
- * pin the 0-height boundary the transition animates from/to — the same
- * transition-lifecycle attribute pair `Popover.Popup`'s own
- * `data-[starting-style]:opacity-0` already reads, applied to height instead
- * of opacity.
+ * (verified against `useCollapsiblePanel.js`): the variable is a measured
+ * pixel value while a transition is in flight (`getAnimationType` requires
+ * a non-zero `transition-duration` on this exact element, which is what
+ * `transition-geometry` supplies); once idle and open, Base UI sets it to
+ * `auto` so the panel sizes to its content again. The 0-height pin cannot
+ * be `data-[starting-style]:h-0`: `h-0` is not a class this theme has
+ * (`--spacing-*: initial`; same finding `Drawer.tsx`'s `inset: 0` documents),
+ * so that pair compiled to nothing and the panel snapped. Numeric `height: 0`
+ * while `transitionStatus` is `starting`/`ending` is the geometry-zero that
+ * actually reaches the stylesheet.
  */
-const PANEL_CLASS = "h-(--collapsible-panel-height) overflow-hidden transition-geometry data-[starting-style]:h-0 data-[ending-style]:h-0";
+const PANEL_CLASS = "h-(--collapsible-panel-height) overflow-hidden transition-geometry";
 
-function Panel({ children, className, ...rest }: CollapsiblePanelProps) {
+const CLOSED_HEIGHT_STYLE = { height: 0 } as const;
+
+function Panel({ children, className, style, ...rest }: CollapsiblePanelProps) {
     return (
-        <BaseCollapsible.Panel className={ [PANEL_CLASS, className].filter(Boolean).join(" ") } { ...rest }>
+        <BaseCollapsible.Panel
+            { ...rest }
+            className={ [PANEL_CLASS, className].filter(Boolean).join(" ") }
+            style={ (state) => {
+                const pin =
+                    state.transitionStatus === "starting" || state.transitionStatus === "ending"
+                        ? CLOSED_HEIGHT_STYLE
+                        : undefined;
+                const resolved = typeof style === "function" ? style(state) : style;
+                if (!resolved && !pin) return undefined;
+                return { ...resolved, ...pin };
+            } }
+        >
             { children }
         </BaseCollapsible.Panel>
     );

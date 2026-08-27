@@ -23,6 +23,7 @@ const meta: StoryMeta<TextProps> = {
 };
 export default meta;
 
+export const Hero: Story<TextProps> = { args: { variant: "hero", children: "Hero" } };
 export const Display: Story<TextProps> = { args: { variant: "display", children: "Display" } };
 export const Title1: Story<TextProps> = { args: { variant: "title1", children: "Title 1" } };
 export const Title2: Story<TextProps> = { args: { variant: "title2", children: "Title 2" } };

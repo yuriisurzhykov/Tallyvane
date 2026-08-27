@@ -15,3 +15,12 @@
 @import "tailwindcss";
 @import "frontend-shared/ui/theme/generated/tokens.css";
 @import "frontend-shared/ui/theme/adapters/tailwind.css";
+
+/*
+ * Tailwind v4 does not scan `node_modules`, and pnpm resolves a workspace
+ * package as a symlink into `node_modules`. Without this, classes written
+ * only inside `frontend-shared` never reach the stylesheet (the same
+ * `@source` already on `packages/storybook/.storybook/preview.css`).
+ * `@utility` rules in the adapter still emit; everything else is JIT.
+ */
+@source "../../packages/frontend-shared/src/**/*.{ts,tsx}";

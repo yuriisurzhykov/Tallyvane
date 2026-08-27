@@ -111,6 +111,7 @@
     --ds-typography-size-6: 1.5rem;
     --ds-typography-size-7: 1.75rem;
     --ds-typography-size-8: 2.25rem;
+    --ds-typography-size-9: clamp(2.25rem, 1.5rem + 3vw, 3.5rem);
     --ds-typography-line-1: 1.25rem;
     --ds-typography-line-2: 1.375rem;
     --ds-typography-line-3: 1.5rem;
@@ -119,6 +120,7 @@
     --ds-typography-line-6: 2rem;
     --ds-typography-line-7: 2.25rem;
     --ds-typography-line-8: 2.75rem;
+    --ds-typography-line-9: 1.1;
     --ds-typography-tracking-tightest: -0.02em;
     --ds-typography-tracking-tighter: -0.015em;
     --ds-typography-tracking-tight: -0.01em;
@@ -218,6 +220,10 @@
     --ds-shadow-elevation1: 0px 1px 2px 0px hsl(30 5% 7% / 40%);
     --ds-shadow-elevation2: 0px 4px 12px 0px hsl(30 5% 7% / 40%);
     --ds-shadow-elevation3: 0px 12px 32px 0px hsl(30 5% 7% / 60%);
+    --ds-text-hero-size: clamp(2.25rem, 1.5rem + 3vw, 3.5rem);
+    --ds-text-hero-line: 1.1;
+    --ds-text-hero-weight: 700;
+    --ds-text-hero-tracking: -0.02em;
     --ds-text-display-size: 2.25rem;
     --ds-text-display-line: 2.75rem;
     --ds-text-display-weight: 600;
