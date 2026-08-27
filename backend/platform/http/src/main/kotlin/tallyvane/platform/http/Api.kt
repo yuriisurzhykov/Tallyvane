@@ -47,8 +47,9 @@ import tallyvane.platform.observability.log.TraceContext
  *    what; its tail produces a 500 with no detail at all. No stack trace, no exception message,
  *    no class name.
  * 5. **The framework's own failures follow the same contract.** A body that cannot be read is a
- *    400 rather than a 500, and an unmatched path answers in the error shape rather than with
- *    Ktor's bodiless 404 — both measured as wrong before they were arranged.
+ *    400 rather than a 500, and every status Ktor answers on its own — an unmatched path, a method a
+ *    route does not accept, anything else it decides — arrives in the error shape rather than as the
+ *    bodiless code it starts as. No status is named to make that true; see [renderProblems].
  * 6. **Only a failure that is ours is logged at ERROR.** A 4xx is the caller's business; logging
  *    it at a level that means "a human must look" (§16.6) would bury the 5xx that does.
  *
@@ -73,14 +74,9 @@ public class Api(
         application.install(ContentNegotiation) { json(ApiJson.format) }
         application.install(StatusPages) {
             exception<Throwable> { call, cause -> call.respondProblem(call.translated(cause)) }
-            // Ktor answers an unmatched path with a bare 404 and no body at all — measured, and it
-            // meant the one error format held everywhere except the most common failure there is.
-            status(HttpStatusCode.NotFound) { call, _ ->
-                call.respondProblem(with(answers) { missing() })
-            }
         }
         traced(application)
-        renderRefusals(application)
+        renderProblems(application)
         mount(application)
     }
 
@@ -133,17 +129,41 @@ public class Api(
      * problem and skip this.
      */
     /**
-     * Recognises a [Refused] and asks its table, with the [Answers] nobody else holds.
+     * The two ways an error answer comes to exist, both dressed here.
+     *
+     * A [Refused] is a module's failure and its table, asked with the [Answers] nobody else holds. A
+     * bare [HttpStatusCode] is the framework answering by itself — an unmatched path, a method the
+     * route does not accept — and it becomes a document too, from the status alone.
+     *
+     * ### Why the second branch is keyed on the type and not on the status code
+     *
+     * A first version installed a `StatusPages` handler on the code 404 instead. That fires for
+     * *every* answer with that code, so a module answering `missing("No payslip for August")` had its
+     * document replaced by the generic one and its detail thrown away — found by review, confirmed by
+     * a test. The code is a symptom shared by two very different events; what actually distinguishes
+     * them is what is being sent. Ktor hands a bare status through this pipeline as an
+     * `HttpStatusCode`, and a document as content, so the branch below cannot mistake one for the
+     * other, and there is no flag anyone has to remember to set.
+     *
+     * It also means no code is ever named here. 405, 415 and anything else Ktor decides to answer on
+     * its own arrive in the shape without a line of their own — which is the whole of guarantee 5.
+     * Below 400 nothing is touched: a 204 must stay empty and a redirect is not a failure.
      *
      * `Before`, not `Transform`: ContentNegotiation also intercepts the send pipeline, and at
      * `Transform` it had already turned the body into plain `application/json` with a 200 —
      * measured, three tests red. Rendering first and handing on an `OutgoingContent` leaves
      * ContentNegotiation nothing to convert.
      */
-    private fun renderRefusals(application: Application) {
+    private fun renderProblems(application: Application) {
         application.sendPipeline.intercept(ApplicationSendPipeline.Before) {
-            val refused = subject as? Refused<*> ?: return@intercept
-            proceedWith(rendered(refused.problem(answers), call.traced().traceId.value))
+            val problem = when (val answer = subject) {
+                is Refused<*> -> answer.problem(answers)
+                is HttpStatusCode -> answer.takeIf { bare -> bare.value >= FAULT }?.let(statuses::problem)
+                else -> null
+            }
+            if (problem != null) {
+                proceedWith(rendered(problem, call.traced().traceId.value))
+            }
         }
     }
 
@@ -179,6 +199,13 @@ public class Api(
     private val answers: Answers = Rfc9457Answers()
 
     /**
+     * The other source of a [Problem], for the statuses no module asked for. A separate port because
+     * it changes for a separate reason, and because [Answers] must not gain the ability to name a
+     * status — see [Statuses].
+     */
+    private val statuses: Statuses = Statuses.AboutBlank()
+
+    /**
      * The chain as it is actually asked: the framework's own failures first, the modules' next, the
      * detail-free 500 last.
      *
@@ -193,6 +220,12 @@ public class Api(
         const val HEADER = "traceparent"
 
         val TRACE = AttributeKey<Trace>("tallyvane.trace")
+
+        /**
+         * Below this a status is not a failure at all: a 204 must stay empty and a redirect is not
+         * an error, so neither gets a document.
+         */
+        const val FAULT = 400
 
         /**
          * Below this a failure is the caller's to fix; at or above it, ours.

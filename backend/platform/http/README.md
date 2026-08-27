@@ -94,6 +94,99 @@ except the most common failure an API has. A `status` handler gives it the shape
 
 All three are pinned in `ApiSpec`, which is now thirteen cases.
 
+## 2026-08-26 — what an automated review found, and what it got wrong
+
+Two comments arrived on the slice-11 diff. Both were checked by measurement rather than accepted or
+dismissed, and they came out differently.
+
+**The `traceparent` parser was reading four fields and validating two.** Correct, and now fixed. The
+claim as written overstated part of it: a non-hex or all-zero *trace id* was already refused, because
+`TraceId`'s constructor validates and `runCatching` sends a refusal to a fresh trace — the two cases
+written for that passed first time. What was genuinely unchecked were `parent-id` and `trace-flags`,
+so `00-<valid trace>-0000000000000000-01` and `…-zz` were both honoured. The standard is explicit
+(§3.2.2.5): if `trace-id`, `parent-id` **or** `trace-flags` is invalid, a fresh header is created. So
+this was not a judgement call — the KDoc already claimed both were refused, and the code simply never
+looked at them. `TraceHeaderSpec` exists now, seven cases; three of them failed before the fix.
+
+The review's framing — that this merges our requests into "an attacker- or proxy-selected trace" —
+is not what the defect was. A well-formed header does exactly that *by design*: continuing a
+caller's trace is the point of the standard, and `TraceHeader`'s KDoc already names the residual risk
+and accepts it, because a trace id grants nothing. The real cost of the defect was a request filed
+under a trace the standard says to discard.
+
+**The 404 status handler replaces a module's own 404.** Correct, and worse than it sounds. The
+handler is installed for every response with that status, not only for an unmatched path, so a module
+that answers `missing("No payslip for August")` gets its detail thrown away:
+
+```
+expected: No payslip for August
+actual:   {"type":"https://tallyvane.com/errors/not-found","title":"Not found","status":404,"trace_id":"…"}
+```
+
+The asymmetry that makes this specifically a 404 problem is worth naming: `Answers` is a closed set,
+and 404 is one of the meanings a module can produce. A `status` handler is safe exactly when the
+framework is the *only* possible source of that code.
+
+The review's suggested fix — a fallback route instead of a status handler — was measured and does not
+work:
+
+```
+method-agnostic fallback   POST /api/v1/probes/fine (GET-only route) -> 200 from the fallback
+                           the 405 is gone, so "wrong method" now reads as "no such endpoint"
+GET-only fallback          POST /api/v1/nowhere -> 404 with no body, uncovered again
+```
+
+So a fallback either eats the 405 or fails to cover anything but GET.
+
+**A third defect fell out of measuring the second:** a wrong method answered `405` with an empty body,
+which contradicted this module's own guarantee that the framework's failures follow the same contract.
+
+## 2026-08-26 — the fix: stop keying on the status code at all
+
+The first two candidate fixes both treated the status code as the trigger and then looked for a way to
+tell the two sources of a 404 apart — a flag on the call, or a content-type sniff. The author rejected
+a flag on the grounds that needing one is a sign the trigger is wrong, which turned out to be exactly
+right.
+
+What is actually different between the two events is visible one layer down. Measured in the send
+pipeline, where this module already has an interceptor:
+
+```
+GET  /api/v1/nowhere  -> subject is HttpStatusCode   (the framework, answering by itself)
+POST /api/v1/fine     -> subject is HttpStatusCode   (405, same)
+GET  /api/v1/fine     -> subject is TextContent      (a route's body)
+GET  /api/v1/empty    -> subject is HttpStatusCode   (a route's own `respond(NoContent)`)
+```
+
+A bare status arrives as the status; anything with content arrives as content. So the second branch of
+`renderProblems` is keyed on that, and no status code is named anywhere. Consequences, all measured:
+an unmatched path gets the shape, a 405 gets it without a line of its own, a 204 is untouched, and a
+module's document is untouched because a document is not an `HttpStatusCode`.
+
+One claim in the earlier note was too strong and is corrected here: a module *can* send a bare status,
+`respond(HttpStatusCode.NotFound)` compiles and arrives as one. It gets wrapped, and nothing is lost by
+that — a bare status carries no detail to lose, which is the whole difference from the old handler,
+which threw away a document that had one.
+
+**`Statuses`, and why it is not an eighth `Answers` meaning.** The 405 question answered itself once
+the trigger moved. RFC 9457 §4.2.1 registers `about:blank` for a problem with "no additional semantics
+beyond that of the HTTP status code", with the title being the status's own phrase, so a bare status
+needs no `type` of ours and no enumeration of codes. That rendering is a port of its own —
+`internal interface Statuses` with `AboutBlank` nested in it — for two reasons. It changes for a
+different reason than "what a module's failure looks like" does. And `Answers` is public and handed to
+modules, so an eighth factory there would give every module the power to name a status, which the
+closed set exists to withhold.
+
+Nesting the implementation is what `Answers` could not do: Kotlin has no `internal` members in an
+interface, so nesting inside a public interface makes the nested class public. `Statuses` is `internal`
+itself, so nesting is safe there — the same idiom as `HealthCheck.Bounded` and
+`FailureTranslator.Chained`.
+
+`ApiSpec` is twenty-three cases. Four of them are new, and each was watched failing first: the
+detail-keeping case and the two `about:blank` assertions failed against the old handler, the 405 case
+failed when 405 had no body, and the "below 400 is left alone" case was checked by widening the
+threshold to zero and watching the 204 come back as a document.
+
 ## Where the rendering lives, and why it is a pipeline interceptor
 
 `ApplicationSendPipeline.Before`. Not a helper function — `no-top-level-functions` forbids the

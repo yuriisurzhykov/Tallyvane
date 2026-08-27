@@ -67,8 +67,12 @@ $ curl -i localhost:8099/api/v1/nowhere
 HTTP/1.1 404 Not Found
 Content-Type: application/problem+json
 
-{"type":"https://tallyvane.com/errors/not-found","title":"Not found","status":404,"trace_id":"…"}
+{"type":"about:blank","title":"Not Found","status":404,"trace_id":"…"}
 ```
+
+`about:blank` since the fix recorded in `platform/http/README.md`: an unmatched path is a failure with
+no meaning beyond its code, and a module's own 404 keeps its own `type` and its `detail`. Before that
+fix both answers were identical, which is how the defect was found.
 
 ```
 $ curl -i -X POST localhost:8099/api/v1/probes/echo -H 'content-type: application/json' -d '{ oops'
@@ -122,6 +126,41 @@ single quotes, which PowerShell mangles — so the one command meant to demonstr
 read returned 400 when run from the menu verbatim. Both are now spelled per host shell, and each
 printed command was run exactly as printed before this file was written. A spike whose own
 instructions do not work is worse than no spike: it teaches the wrong lesson confidently.
+
+## 2026-08-26 — does Ktor's `CallLogging` line carry the trace?
+
+ADR-056 left an access log open, and the open question was not whether the plugin logs — it does —
+but whether its line can be joined to a trace. The doubt came from the defect above: an exception
+unwinds past the context element, and `CallLogging` logs after the response is sent, which is the same
+neighbourhood. So the plugin was installed here with no `mdc` hook at first, to see what reaches the
+line on its own.
+
+```
+GET /probes/ok    "mdc": {"span_id":"98825cb416b7abb3","trace_id":"01a03d87910973d683cbf91af3deb388"}
+GET /probes/boom  "mdc": {}
+GET /nowhere      "mdc": {"span_id":"b686948e34150867","trace_id":"01a03d87920f70d28d2f6954935af6dd"}
+```
+
+The ambient ids reach the line for a 200 and for Ktor's own 404, and are **gone for the 500** — the
+one line most worth correlating is the one that cannot be. Same root cause as the defect above, and
+the fix that repaired the response body does not repair this: the body reads the call's attributes,
+and the plugin reads the thread.
+
+The second half of the measurement asked whether the plugin's own hook is a way out, since
+`mdc(key) { call -> … }` reads from the call:
+
+```
+GET /probes/ok    "mdc": {"from_call":"/api/v1/probes/ok",   "span_id":"a9d46ea9…","trace_id":"01a03d8999dc…"}
+GET /probes/boom  "mdc": {"from_call":"/api/v1/probes/boom"}
+```
+
+`from_call` survives all three. So an access log **can** be correlated — by being told where the trace
+lives, not for free. Both forms are left installed in the spike so the difference stays visible.
+
+What that settles and what it does not: the mechanism is understood, and the cost of an access log is
+now known to include exposing the trace from `platform:http` so something outside it can read it. The
+question of whether this application wants an access log at all is a separate decision, taken with
+the author rather than here.
 
 ## What this spike is not
 

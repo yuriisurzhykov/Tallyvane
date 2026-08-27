@@ -13,6 +13,7 @@ dependencies {
     implementation(projects.platform.observability)
     implementation(libs.ktor.server.core)
     implementation(libs.ktor.server.cio)
+    implementation(libs.ktor.server.call.logging)
     implementation(libs.kotlinx.serialization.json)
     // The binding, so the JSON log lines actually appear. platform:observability ships the
     // configuration fragment and only the facade; choosing logback is the runner's call.

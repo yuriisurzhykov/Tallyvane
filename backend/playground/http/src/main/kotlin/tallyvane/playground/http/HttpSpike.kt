@@ -1,7 +1,12 @@
 package tallyvane.playground.http
 
+import io.ktor.server.application.Application
+import io.ktor.server.application.install
 import io.ktor.server.cio.CIO
 import io.ktor.server.engine.embeddedServer
+import io.ktor.server.plugins.calllogging.CallLogging
+import io.ktor.server.request.httpMethod
+import io.ktor.server.request.path
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
@@ -9,6 +14,7 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import kotlinx.serialization.Serializable
 import org.slf4j.LoggerFactory
+import org.slf4j.event.Level
 import tallyvane.platform.http.Answers
 import tallyvane.platform.http.Api
 import tallyvane.platform.http.BasePath
@@ -106,7 +112,12 @@ private fun menu() {
     println("      The ERROR log line carries the same trace_id as the response - that pairing was")
     println("      broken until a live run found it.")
     println("  $client -i localhost:$port/api/v1/nowhere")
-    println("      404 in the same shape, although Ktor's own 404 has no body at all")
+    println("      404 in the same shape, although Ktor's own 404 has no body at all. type is")
+    println("      about:blank - no meaning beyond the code - while a module's own 404 keeps its")
+    println("      own type and its detail. Both were identical until a review found it.")
+    println("  $client -i -X POST localhost:$port/api/v1/probes/ok")
+    println("      405 with a body, and nothing in platform:http mentions 405: the shape is given")
+    println("      to whatever Ktor answers on its own, not to a list of codes")
     println("  $client -i -X POST localhost:$port/api/v1/probes/echo $json -d '{ oops'")
     println("      400, not 500: unreadable input is the caller's fault and is not logged as ours")
     println("  $client -i -X POST localhost:$port/api/v1/probes/echo $json -d ${body(GOOD_BODY)}")
@@ -114,7 +125,32 @@ private fun menu() {
     println("  $client -i localhost:$port/api/v1/probes/ok -H 'traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01'")
     println("      the response continues that trace instead of starting one")
     println()
+    println("Every request also produces an 'access ...' line from Ktor's CallLogging. Compare the")
+    println("mdc field on the /ok line with the one on the /boom line: the 500 has lost trace_id.")
+    println()
     println("Ctrl+C to stop.")
+}
+
+/**
+ * Ktor's own access log, kept here as the measurement it was installed for: does its line carry the
+ * trace ids our `TraceContext` puts in MDC?
+ *
+ * The doubt was not idle. `StatusPages` turned out to run *outside* the context element, because an
+ * exception unwinds past the `withContext` that carries it — found the same evening, in this spike.
+ * `CallLogging` logs after the response is sent, which is the same neighbourhood.
+ *
+ * Answer, from the run recorded in this spike's README: the ambient ids reach the line for a 200 and
+ * for Ktor's own 404, and are **gone** for a 500 — `"mdc": {}` on exactly the line most worth
+ * correlating. `mdc("from_call")` is the other half of the measurement and survives all three,
+ * because that hook reads from the call rather than from the thread. So an access log can be
+ * correlated, but only by being told where the trace lives; it does not come for free.
+ */
+private fun callLogging(application: Application) {
+    application.install(CallLogging) {
+        level = Level.INFO
+        format { call -> "access ${call.request.httpMethod.value} ${call.request.path()} -> ${call.response.status()?.value}" }
+        mdc("from_call") { call -> call.request.path() }
+    }
 }
 
 /**
@@ -152,7 +188,10 @@ fun main() {
     // The check above closes the common case; this closes the race between it and here, so a
     // failure to bind never reaches the console as a coroutine stack trace.
     try {
-        embeddedServer(CIO, port = port) { api.install(this) }.start(wait = true)
+        embeddedServer(CIO, port = port) {
+            api.install(this)
+            callLogging(this)
+        }.start(wait = true)
     } catch (refused: Throwable) {
         val cause = generateSequence(refused) { it.cause }.firstOrNull { it is java.net.BindException }
         if (cause == null) throw refused
