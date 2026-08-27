@@ -2,7 +2,9 @@ package tallyvane.app
 
 import org.slf4j.event.Level
 import tallyvane.app.config.Configuration
+import tallyvane.app.config.EnvironmentConfiguration
 import tallyvane.platform.kernel.Secret
+import tallyvane.platform.persistence.DEFAULT_SIZE
 import tallyvane.platform.persistence.DatabaseAccess
 import java.net.ServerSocket
 import java.net.URI
@@ -12,15 +14,16 @@ import java.net.http.HttpResponse
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.toJavaDuration
 
-internal const val TOKEN = "a-service-token-of-at-least-forty-characters-length"
-
-private const val DEFAULT_POOL = 2
-
 /**
- * Between polls. Short enough that a case does not sit on a state it already left, long enough that
- * a hundred attempts still span twenty seconds.
+ * A token that satisfies the only rule there is about one: at least as long as the floor. Derived
+ * rather than written out, so there is no second place holding a literal that has to agree with
+ * [EnvironmentConfiguration.TOKEN_FLOOR].
  */
+internal val TOKEN: String = "t".repeat(EnvironmentConfiguration.TOKEN_FLOOR)
+
 private const val PAUSE_MILLIS = 200L
+
+private const val ATTEMPTS = 100
 
 /**
  * A port nothing is listening on, released immediately. There is a race between releasing it and
@@ -29,7 +32,7 @@ private const val PAUSE_MILLIS = 200L
  */
 internal fun free(): Int = ServerSocket(0).use { it.localPort }
 
-internal fun settings(access: DatabaseAccess, port: Int = free(), pool: Int = DEFAULT_POOL): Configuration =
+internal fun settings(access: DatabaseAccess, port: Int = free(), pool: Int = DEFAULT_SIZE): Configuration =
     Configuration(
         database = access,
         pool = pool,
@@ -59,15 +62,15 @@ internal fun get(port: Int, path: String, token: String? = null): HttpResponse<S
     }
 
 /**
- * Polls [answered] until it reports the wanted status, so a case can say "readiness comes back"
- * without pinning how long a health check takes to notice.
+ * Polls [observed] until it reports [wanted], so a case can say "readiness comes back" without
+ * pinning how long a health check takes to notice.
  *
- * @return the last status seen, so a failure names what was actually being answered.
+ * @return the last value seen, so a failure names what was actually being answered.
  */
-internal fun awaited(wanted: Int, within: Int = 100, answered: () -> Int): Int {
-    var last = 0
-    repeat(within) {
-        last = answered()
+internal fun <T> awaited(wanted: T, observed: () -> T): T {
+    var last = observed()
+    repeat(ATTEMPTS) {
+        last = observed()
         if (last == wanted) {
             return last
         }

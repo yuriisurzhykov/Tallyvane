@@ -10,11 +10,20 @@ import kotlinx.serialization.Serializable
  * making a reader redo that logic is an invitation to get it wrong.
  */
 @Serializable
-internal data class Detail(val status: String, val ready: Boolean, val checks: List<Checked>) {
+internal data class Detail(
+    val status: String,
+    val ready: Boolean,
+    val checks: List<Checked>,
+) {
     /**
      * One dependency's answer. `tookMs` is an integer of milliseconds: an alert threshold reads
      * `3`, not `0.003`, and no reader has to parse a duration format.
      */
     @Serializable
-    internal data class Checked(val name: String, val status: String, val tookMs: Long, val cause: Cause? = null)
+    internal data class Checked(
+        val name: String,
+        val status: String,
+        val tookMs: Long,
+        val cause: Cause? = null,
+    )
 }

@@ -10,7 +10,7 @@ import kotlinx.coroutines.runBlocking
 import tallyvane.platform.health.HealthRoutes
 import tallyvane.platform.health.ServiceToken
 import tallyvane.platform.http.Api
-import tallyvane.platform.http.FailureTranslator
+import tallyvane.platform.http.problems.FailureTranslator
 import tallyvane.platform.http.TraceHeader
 import tallyvane.platform.kernel.IdGenerator
 import tallyvane.platform.kernel.Secret

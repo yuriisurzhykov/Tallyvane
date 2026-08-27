@@ -1,4 +1,7 @@
-package tallyvane.platform.http
+package tallyvane.platform.http.status
+
+import tallyvane.platform.http.FieldError
+import tallyvane.platform.http.problems.Problem
 
 /**
  * The [Answers] the renderer hands out, and the only implementation there is.
@@ -6,7 +9,7 @@ package tallyvane.platform.http
  * `internal`, and that visibility is the whole guarantee rather than tidiness: if a module could
  * name this type it could construct one, and with one in hand it could build a [Problem] anywhere
  * — which is exactly the hole the receiver design closes. `Api` holds the single instance and
- * passes it only into [Problems.of] and [FailureTranslator.translate].
+ * passes it only into [tallyvane.platform.http.problems.Problems.of] and [tallyvane.platform.http.problems.FailureTranslator.translate].
  *
  * It could not be nested inside [Answers]: Kotlin has no `internal` members in an interface, so
  * nesting would have made it public and given every module a constructor. Found by the compiler,

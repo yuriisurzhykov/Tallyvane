@@ -1,4 +1,7 @@
-package tallyvane.platform.http
+package tallyvane.platform.http.problems
+
+import tallyvane.platform.http.problems.Problem
+import tallyvane.platform.http.status.Answers
 
 /**
  * Turns a failure that escaped as an exception into a [Problem].
@@ -12,7 +15,7 @@ package tallyvane.platform.http
  * own technical failures, a capability knows its own, and `platform:http` may know neither. Each
  * link answers for what it recognises and passes the rest along.
  *
- * [translate] takes an [Answers] receiver for the same reason [Problems.of] does: it is the only
+ * [translate] takes an [tallyvane.platform.http.status.Answers] receiver for the same reason [Problems.of] does: it is the only
  * source of a [Problem], and a translator is the other place allowed to hold one.
  */
 public interface FailureTranslator {

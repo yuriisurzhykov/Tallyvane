@@ -84,20 +84,14 @@ public object PostgresFixture {
     public fun migrated(): DatabaseAccess = accessTo(created(from = template))
 
     /**
-     * Runs [block] with the database frozen, then thaws it — for the one question that cannot be
-     * asked of a healthy database: what an application does while its database stops answering,
-     * and whether it recovers without being restarted.
+     * Runs [block] with the database not answering, then lets it answer again — for cases about what
+     * an application does while its database is unreachable, and whether it recovers on its own.
      *
-     * Pause rather than stop, because stopping the container releases its mapped port and the next
-     * start would hand out a different one, so the application under test would be pointed at a
-     * door that no longer exists. A paused container keeps the port and simply stops answering.
+     * The container is paused rather than stopped, so the mapped port survives and whatever is
+     * pointed at it stays pointed at it.
      *
-     * A capability, not the container: callers still cannot reach the container itself (ADR-057),
-     * because the moment they can, one of them configures it.
-     *
-     * **This freezes the server for every database in it.** Kotest runs specs sequentially by
-     * default, which is what makes that acceptable; a spec that opted into concurrency alongside
-     * this one would see failures it did not cause.
+     * **This freezes the server for every database in it**, so nothing else may be running against
+     * the fixture at the same time. Kotest's default sequential execution is what makes that hold.
      */
     public fun <T> frozen(block: () -> T): T {
         val docker = DockerClientFactory.instance().client()

@@ -4,10 +4,13 @@ import ch.qos.logback.classic.Logger
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
+import io.ktor.http.HttpStatusCode
 import org.slf4j.LoggerFactory
 import org.slf4j.event.Level
 import tallyvane.app.config.Configuration
+import tallyvane.app.config.EnvironmentConfiguration
 import tallyvane.platform.kernel.Secret
+import tallyvane.platform.persistence.DEFAULT_SIZE
 import tallyvane.platform.persistence.DatabaseAccess
 import java.net.ServerSocket
 import java.net.URI
@@ -23,13 +26,17 @@ import kotlin.time.toJavaDuration
  */
 private const val NOWHERE = "jdbc:postgresql://localhost:1/nothing"
 
-private const val TOKEN = "a-service-token-of-at-least-forty-characters-length"
+/**
+ * Derived from the only rule about a token, so no literal here has to agree with a constant
+ * elsewhere.
+ */
+private val TOKEN = "t".repeat(EnvironmentConfiguration.TOKEN_FLOOR)
 
 private fun free(): Int = ServerSocket(0).use { it.localPort }
 
 private fun settings(port: Int, level: Level = Level.INFO): Configuration = Configuration(
     database = DatabaseAccess(url = NOWHERE, user = "nobody", password = Secret("nothing")),
-    pool = 2,
+    pool = DEFAULT_SIZE,
     port = port,
     level = level,
     healthToken = Secret(TOKEN),
@@ -66,7 +73,7 @@ class ApplicationSpec :
 
                     val answer = get(port, "/api/v1/health/live")
 
-                    answer.statusCode() shouldBe 200
+                    answer.statusCode() shouldBe HttpStatusCode.OK.value
                     answer.body() shouldContain "up"
                 }
             }
@@ -80,7 +87,7 @@ class ApplicationSpec :
                 Application(settings(port)).use { application ->
                     application.start()
 
-                    get(port, "/health/ready".let { "/api/v1$it" }).statusCode() shouldBe 503
+                    get(port, "/api/v1/health/ready").statusCode() shouldBe HttpStatusCode.ServiceUnavailable.value
                 }
             }
 

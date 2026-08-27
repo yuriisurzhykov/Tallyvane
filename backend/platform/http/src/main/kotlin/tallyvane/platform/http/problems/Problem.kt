@@ -1,14 +1,15 @@
-package tallyvane.platform.http
+package tallyvane.platform.http.problems
 
 import kotlinx.serialization.Serializable
+import tallyvane.platform.http.FieldError
 
 /**
  * One error answer, in the shape §11.6 fixed and RFC 9457 defines.
  *
  * There is no way to construct one outside `platform:http`: the constructor is `internal` and the
- * factories live on [Answers], which a module only ever receives as a receiver inside
+ * factories live on [tallyvane.platform.http.status.Answers], which a module only ever receives as a receiver inside
  * [Problems.of] or [FailureTranslator.translate]. So a route cannot answer with a problem of its
- * own devising — it can only hand back a [Refused], which pairs a failure with the table that
+ * own devising — it can only hand back a [tallyvane.platform.http.Refused], which pairs a failure with the table that
  * knows what it means.
  *
  * @property type stable identifier of the *kind* of failure, and the field a client branches on.

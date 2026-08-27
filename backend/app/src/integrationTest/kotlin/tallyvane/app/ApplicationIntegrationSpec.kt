@@ -4,13 +4,15 @@ import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.string.shouldNotContain
+import io.ktor.http.HttpStatusCode
 import tallyvane.platform.persistence.DatabaseAccess
 import tallyvane.platform.persistence.PostgresFixture
 import java.sql.DriverManager
 
-private const val OK = 200
+// Ktor's own vocabulary rather than two numbers of ours: the server names them the same way.
+private val OK = HttpStatusCode.OK.value
 
-private const val UNAVAILABLE = 503
+private val UNAVAILABLE = HttpStatusCode.ServiceUnavailable.value
 
 /**
  * The process against a real database, over a real socket.

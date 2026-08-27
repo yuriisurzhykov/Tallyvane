@@ -1,4 +1,7 @@
-package tallyvane.platform.http
+package tallyvane.platform.http.status
+
+import tallyvane.platform.http.FieldError
+import tallyvane.platform.http.problems.Problem
 
 /**
  * The only source of a [Problem] a module can reach.
@@ -12,11 +15,11 @@ package tallyvane.platform.http
  *
  * `Problem.forbidden()` as a public factory was the first design, and it made the contract
  * breakable in one line: a route could answer with a problem it built itself, never touch its
- * module's [Problems] table, and nothing — no type, no rule — would notice. The mapping table was
+ * module's [tallyvane.platform.http.problems.Problems] table, and nothing — no type, no rule — would notice. The mapping table was
  * required to *exist* by `failure-has-problems` and required to be *used* by nothing.
  *
- * Handing the factories out as a receiver closes that. Only [Problems.of] and
- * [FailureTranslator.translate] run with an `Answers` in scope, because only the renderer has one
+ * Handing the factories out as a receiver closes that. Only [tallyvane.platform.http.problems.Problems.of] and
+ * [tallyvane.platform.http.problems.FailureTranslator.translate] run with an `Answers` in scope, because only the renderer has one
  * and it is the renderer that calls them. Outside those two methods a module has no way to make a
  * `Problem` at all — not a discouraged way, none.
  *

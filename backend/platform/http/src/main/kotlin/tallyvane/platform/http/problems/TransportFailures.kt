@@ -1,7 +1,8 @@
-package tallyvane.platform.http
+package tallyvane.platform.http.problems
 
 import io.ktor.server.plugins.BadRequestException
 import io.ktor.server.plugins.NotFoundException
+import tallyvane.platform.http.status.Answers
 
 /**
  * The link that translates the framework's own failures — the ones that happen before any module
@@ -20,8 +21,8 @@ internal class TransportFailures : FailureTranslator {
         // Ktor's parsing and negotiation failures all arrive as this, including a body that is not
         // the JSON its content type claims.
         is BadRequestException -> malformed(READ)
-        is NotFoundException -> missing()
-        else -> null
+        is NotFoundException   -> missing()
+        else                   -> null
     }
 
     private companion object {

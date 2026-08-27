@@ -1,6 +1,7 @@
-package tallyvane.platform.http
+package tallyvane.platform.http.status
 
 import io.ktor.http.HttpStatusCode
+import tallyvane.platform.http.problems.Problem
 
 /**
  * What a status the framework answered on its own becomes.

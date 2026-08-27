@@ -4,21 +4,18 @@ import io.kotest.assertions.throwables.shouldThrowAny
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.isActive
+import org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager
+import tallyvane.platform.kernel.TransactionRunner
 import tallyvane.platform.kernel.Verdict
 import tallyvane.platform.persistence.DatabaseAccess
 import tallyvane.platform.persistence.PostgresFixture
 import java.sql.DriverManager
 
-private const val REQUESTED_POOL = 3
-
 /**
- * How many times, and how long between, the connection count is polled: HikariCP fills to
- * `minimumIdle` on a housekeeping thread, so the number arrives shortly after first use rather than
- * during it.
+ * Asked for and then observed on the server. Any number would do as long as the case can tell it
+ * apart from a default, which is the whole point of the case.
  */
-private const val ATTEMPTS = 50
-
-private const val PAUSE_MILLIS = 100L
+private const val REQUESTED_POOL = 3
 
 /**
  * The lifecycle of the objects the composition root owns.
@@ -36,10 +33,10 @@ class PlatformWiringSpec :
                 val access = PostgresFixture.migrated()
                 val platform = PlatformWiring(settings(access, port = 0))
 
-                platform.persistence.transactions.inTransaction { Verdict.Commit(Unit) }
+                platform.persistence.transactions.touched()
                 platform.close()
 
-                shouldThrowAny { platform.persistence.transactions.inTransaction { Verdict.Commit(Unit) } }
+                shouldThrowAny { platform.persistence.transactions.touched() }
             }
 
             // B2. Work abandoned by a bounded health check lives in this scope; if shutdown leaves
@@ -59,7 +56,7 @@ class PlatformWiringSpec :
                 val access = PostgresFixture.migrated()
 
                 PlatformWiring(settings(access, port = 0, pool = REQUESTED_POOL)).use { platform ->
-                    platform.persistence.transactions.inTransaction { Verdict.Commit(Unit) }
+                    platform.persistence.transactions.touched()
 
                     connectionsTo(access) shouldBe REQUESTED_POOL
                 }
@@ -68,35 +65,33 @@ class PlatformWiringSpec :
     )
 
 /**
+ * One transaction that actually issues a statement, which is the only kind that needs the pool:
+ * Exposed asks for a connection when a statement does, so an empty block would run happily against
+ * a closed pool. See `app/README.md` for the case where that mattered.
+ */
+private suspend fun TransactionRunner.touched(): Boolean = inTransaction {
+    Verdict.Commit(TransactionManager.current().exec("select 1") { rows -> rows.next() } ?: false)
+}
+
+/**
  * Backends attached to that database, counted from a connection of its own and excluding itself.
  *
- * Polled rather than read once: HikariCP fills up to `minimumIdle` on a housekeeping thread, so the
- * count arrives shortly after the first use rather than during it — measured in
- * `playground/pool-occupancy`, where eight appeared about two seconds in.
+ * Polled through [awaited], because HikariCP fills the pool on a housekeeping thread and the count
+ * arrives shortly after the first use rather than during it.
  */
-private fun connectionsTo(access: DatabaseAccess): Int {
-    val database = access.url.substringAfterLast('/')
-    var seen = 0
-    repeat(ATTEMPTS) {
-        seen = DriverManager
-            .getConnection(access.url, access.user, access.password.revealed())
-            .use { connection ->
-                connection
-                    .prepareStatement(
-                        "select count(*) from pg_stat_activity " +
-                            "where datname = ? and pid <> pg_backend_pid()",
-                    ).use { statement ->
-                        statement.setString(1, database)
-                        statement.executeQuery().use { rows ->
-                            rows.next()
-                            rows.getInt(1)
-                        }
+private fun connectionsTo(access: DatabaseAccess): Int = awaited(REQUESTED_POOL) {
+    DriverManager
+        .getConnection(access.url, access.user, access.password.revealed())
+        .use { connection ->
+            connection
+                .prepareStatement(
+                    "select count(*) from pg_stat_activity where datname = ? and pid <> pg_backend_pid()",
+                ).use { statement ->
+                    statement.setString(1, access.url.substringAfterLast('/'))
+                    statement.executeQuery().use { rows ->
+                        rows.next()
+                        rows.getInt(1)
                     }
-            }
-        if (seen >= REQUESTED_POOL) {
-            return seen
+                }
         }
-        Thread.sleep(PAUSE_MILLIS)
-    }
-    return seen
 }

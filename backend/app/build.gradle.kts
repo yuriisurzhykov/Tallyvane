@@ -32,9 +32,15 @@ dependencies {
 
     integrationTestImplementation(testFixtures(projects.platform.persistence))
     integrationTestImplementation(testFixtures(projects.platform.kernel))
+    // The suite talks HTTP, so it names statuses in Ktor's vocabulary rather than as bare numbers.
+    integrationTestImplementation(libs.ktor.server.core)
     integrationTestImplementation(libs.kotest.runner.junit5)
     integrationTestImplementation(libs.kotest.assertions.core)
     integrationTestImplementation(libs.kotlinx.coroutines.core)
     integrationTestImplementation(libs.testcontainers.postgresql)
+    // A case that closes the pool has to issue a real statement to notice: an empty transaction
+    // never asks the pool for a connection, so Exposed is named here rather than borrowed.
+    integrationTestImplementation(libs.exposed.core)
+    integrationTestImplementation(libs.exposed.jdbc)
     integrationTestRuntimeOnly(libs.postgresql)
 }

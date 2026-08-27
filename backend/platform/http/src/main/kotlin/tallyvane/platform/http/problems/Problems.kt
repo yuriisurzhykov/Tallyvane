@@ -1,5 +1,6 @@
-package tallyvane.platform.http
+package tallyvane.platform.http.problems
 
+import tallyvane.platform.http.status.Answers
 import tallyvane.platform.kernel.Failure
 
 /**
@@ -7,10 +8,10 @@ import tallyvane.platform.kernel.Failure
  *
  * ### What makes it unavoidable rather than merely available
  *
- * [of] runs with an [Answers] receiver, and that receiver is the only source of a [Problem]
+ * [of] runs with an [tallyvane.platform.http.status.Answers] receiver, and that receiver is the only source of a [Problem]
  * anywhere. The renderer supplies it; nobody else has one. So a module cannot produce an error
  * answer outside this method — and since the only way a route can *answer* with a failure is
- * [Refused], which cannot be constructed without a `Problems<F>` of the matching `F`, the route
+ * [tallyvane.platform.http.Refused], which cannot be constructed without a `Problems<F>` of the matching `F`, the route
  * must hold one, must ask for it in its constructor, and `app` must build it. Every link is the
  * compiler's, not a reviewer's.
  *

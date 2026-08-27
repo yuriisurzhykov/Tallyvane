@@ -3,40 +3,23 @@ package tallyvane.platform.kernel
 /**
  * A value that must not appear in a log line, an exception message or a crash dump.
  *
- * ### The defect this closes
+ * Wrap anything a deploy supplies as a credential — a database password, a service token — and the
+ * enclosing object becomes safe to print: `toString()` yields `***`, including through the generated
+ * `toString()` of a `data class` that holds one.
  *
- * `DatabaseAccess` was a `data class` holding `password: String`, so its generated `toString()`
- * printed the password along with everything else. Nothing had leaked yet, but nothing prevented
- * it either: one interpolation of the whole object into a log line, or one exception message that
- * included it, and a database password would have been written to disk. §17 forbids leaking
- * internal detail into anything a reader can see, and a type is a better guard than a rule
- * nobody can enforce.
+ * `==` is safe to use on two of these: the comparison examines every character of both values rather
+ * than stopping at the first difference, so it does not reveal through timing how much of a guess was
+ * right. It does compare lengths first, and that reveals the length — a length is not the secret, and
+ * concealing it would cost a hash on every comparison.
  *
- * Two secrets exist as of 2026-08-26 — the database password and the health service token — which
- * is why this is a shared type rather than a `toString()` override on one class.
- *
- * ### Why comparison is constant-time
- *
- * `==` on strings returns as soon as two characters differ, so the time it takes reveals how much
- * of a guess was right. Given enough attempts that recovers a secret one character at a time. This
- * comparison looks at every character of both values whatever it finds.
- *
- * The length is compared first, and that does leak the length. Hiding it would mean hashing both
- * sides on every comparison; a length is not the secret, and paying a hash on every request to
- * conceal it would be the wrong trade. [tallyvane.platform.health.ServiceToken] makes the same
- * call for the same reason.
- *
- * ### What this type does not do
- *
- * It does not validate. An empty secret is a configuration question, not a property of the type:
- * `ServiceToken` treats an empty expected value as a closed door on purpose, and a length floor
- * for a specific setting belongs to whatever reads that setting.
+ * It validates nothing. Whether an empty or short value is acceptable belongs to whatever reads that
+ * particular setting, because the answer differs per setting.
  */
 public class Secret(private val value: String) {
     /**
-     * The value, for the one place that has to hand it to a driver or compare it.
+     * The value, for the one place that has to hand it to a driver.
      *
-     * Named to be conspicuous at the call site: `access.password.revealed()` reads as a decision,
+     * Named to be conspicuous at a call site: `access.password.revealed()` reads as a decision,
      * where `access.password` would read as an accident.
      */
     public fun revealed(): String = value

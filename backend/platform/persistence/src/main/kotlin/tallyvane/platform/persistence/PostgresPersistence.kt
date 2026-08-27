@@ -10,6 +10,14 @@ import tallyvane.platform.kernel.TransactionRunner
 import kotlin.time.Duration.Companion.seconds
 
 /**
+ * How many connections a pool holds unless told otherwise — the one place this number is written.
+ *
+ * Eight comes from the memory budget in `ops/README.md`. It is a default rather than a constant
+ * inside the class so that a deploy can override it and nothing else has to name a number.
+ */
+public const val DEFAULT_SIZE: Int = 8
+
+/**
  * [Persistence] over a JDBC connection pool and Exposed.
  *
  * One object owns the connection pool, the Exposed database and the dispatcher that
@@ -23,16 +31,28 @@ import kotlin.time.Duration.Companion.seconds
  * [Persistence] for the same reason: whoever built the pool closes it, and a consumer
  * that merely runs transactions must not be able to shut it down.
  *
+ * ### Constructing one does not require a reachable database
+ *
+ * The constructor never acquires a connection, so it succeeds against a database that is
+ * down and the first failure surfaces from the first transaction instead. Two consequences
+ * for a caller: a process can start and report itself unready rather than not existing, and
+ * a pool that has been built recovers on its own once the database answers again — without
+ * a restart.
+ *
  * @param access where the database is; says nothing about who started it, so the
  * same factory serves a container in tests and a compose service in production.
+ * @param size how many connections to hold, and therefore also the parallelism of the
+ * dispatcher blocking work runs on — the two are one number by construction. Defaults to
+ * [DEFAULT_SIZE], which the deploy overrides; a caller that has no opinion should not have
+ * to invent one.
  */
-public class PostgresPersistence(access: DatabaseAccess) :
+public class PostgresPersistence(access: DatabaseAccess, private val size: Int = DEFAULT_SIZE) :
     Persistence,
     AutoCloseable {
     private val pool: HikariDataSource = HikariDataSource(configuration(access))
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    private val blocking = Dispatchers.IO.limitedParallelism(POOL_SIZE)
+    private val blocking = Dispatchers.IO.limitedParallelism(size)
 
     private val database =
         Database.connect(
@@ -58,7 +78,8 @@ public class PostgresPersistence(access: DatabaseAccess) :
         jdbcUrl = access.url
         username = access.user
         password = access.password.revealed()
-        maximumPoolSize = POOL_SIZE
+        maximumPoolSize = size
+        initializationFailTimeout = DEFER_FIRST_FAILURE
         connectionTimeout = CONNECTION_TIMEOUT_MILLIS
         validationTimeout = VALIDATION_TIMEOUT_MILLIS
         keepaliveTime = KEEPALIVE_MILLIS
@@ -95,9 +116,10 @@ public class PostgresPersistence(access: DatabaseAccess) :
         )
 
         /**
-         * `ops/README.md`'s memory budget fixes this, and the dispatcher follows it.
+         * Negative means Hikari builds the pool without acquiring a connection and defers the
+         * first failure to the first `getConnection`.
          */
-        const val POOL_SIZE = 8
+        const val DEFER_FIRST_FAILURE = -1L
 
         /**
          * Waiting for a free connection. Chooses "slow" over "failed" under a burst.

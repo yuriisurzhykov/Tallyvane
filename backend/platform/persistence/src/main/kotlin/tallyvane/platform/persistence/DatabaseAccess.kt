@@ -14,13 +14,8 @@ import tallyvane.platform.kernel.Secret
  * Says nothing about who started the database, so a container, a compose service and
  * a URL from an environment variable are all describable by it.
  *
- * ### Why the password is a [Secret] and not a `String`
- *
- * This is a `data class`, so its generated `toString()` prints every field. With a plain
- * `String` password, one interpolation of the whole object into a log line — or one
- * exception message that included it — would have written a database password to disk.
- * Nothing had leaked; nothing prevented it either. Changed 2026-08-26, when a second
- * secret (the health service token) made "how a secret behaves" worth one home rather
- * than a `toString()` override here.
+ * Safe to log whole: this is a `data class`, so `toString()` prints every field, and the
+ * password is a [Secret] precisely so that printing it yields `***`. Reaching the value
+ * takes [Secret.revealed], which is conspicuous at a call site.
  */
 public data class DatabaseAccess(val url: String, val user: String, val password: Secret)

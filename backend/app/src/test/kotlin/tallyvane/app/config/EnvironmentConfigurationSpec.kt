@@ -8,10 +8,18 @@ import io.kotest.matchers.string.shouldNotContain
 import org.slf4j.event.Level
 import tallyvane.platform.kernel.EnvironmentFake
 import tallyvane.platform.kernel.Secret
+import tallyvane.platform.persistence.DEFAULT_SIZE
 
 private const val PASSWORD_VALUE = "a-database-password-nobody-should-ever-see-in-a-log"
 
 private const val TOKEN_VALUE = "a-service-token-of-at-least-forty-characters-length"
+
+/**
+ * A token under the floor, spelled so that it cannot turn up inside a refusal by coincidence — the
+ * case below asserts a value is never quoted, and a sentinel that collides with the message's own
+ * words would prove nothing. See `app/README.md`.
+ */
+private const val BRIEF_TOKEN = "qzx-under-the-floor-qzx"
 
 /**
  * A complete environment, as a deploy would supply it. Cases that test a refusal remove one key
@@ -47,7 +55,7 @@ class EnvironmentConfigurationSpec :
                 val configuration = read(complete())
 
                 configuration.port shouldBe EnvironmentConfiguration.DEFAULT_PORT
-                configuration.pool shouldBe EnvironmentConfiguration.DEFAULT_POOL
+                configuration.pool shouldBe DEFAULT_SIZE
                 configuration.level shouldBe Level.INFO
             }
 
@@ -120,7 +128,7 @@ class EnvironmentConfigurationSpec :
             // deploy from reaching that state by accident.
             "refuses a health token shorter than the floor" {
                 val said = refusal(
-                    complete().apply { put(EnvironmentConfiguration.HEALTH_TOKEN, "short") },
+                    complete().apply { put(EnvironmentConfiguration.HEALTH_TOKEN, BRIEF_TOKEN) },
                 )
 
                 said shouldContain EnvironmentConfiguration.HEALTH_TOKEN
@@ -130,10 +138,10 @@ class EnvironmentConfigurationSpec :
             // likely place for a secret to be quoted "helpfully".
             "never quotes a value in a refusal, only the name of the variable" {
                 val said = refusal(
-                    complete().apply { put(EnvironmentConfiguration.HEALTH_TOKEN, "short") },
+                    complete().apply { put(EnvironmentConfiguration.HEALTH_TOKEN, BRIEF_TOKEN) },
                 )
 
-                said shouldNotContain "short"
+                said shouldNotContain BRIEF_TOKEN
                 said shouldNotContain PASSWORD_VALUE
             }
 
