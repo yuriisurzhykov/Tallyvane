@@ -41,14 +41,22 @@ private sealed interface Refusal : Failure {
     data object Range : Refusal
 
     data object Owner : Refusal
+
+    data object Absent : Refusal
 }
 
 private class Refusals : Problems<Refusal> {
     override fun Answers.of(failure: Refusal): Problem = when (failure) {
         is Refusal.Range -> invalid(listOf(FieldError("salary_min_cents", "range.invalid")))
         is Refusal.Owner -> forbidden("Not yours")
+        is Refusal.Absent -> missing(ABSENT_DETAIL)
     }
 }
+
+/**
+ * A module's own 404, distinguishable from the one an unmatched path produces.
+ */
+private const val ABSENT_DETAIL = "No payslip for August"
 
 /**
  * Routes that exercise each of the four guarantees `Api` claims.
@@ -65,6 +73,8 @@ private class Probes(private val problems: Refusals) : RouteModule {
         // no expression here that produces a `Problem` — the route cannot make one.
         route.get("/refused") { call.respond(Refused(Refusal.Range, problems)) }
         route.get("/forbidden") { call.respond(Refused(Refusal.Owner, problems)) }
+        route.get("/absent") { call.respond(Refused(Refusal.Absent, problems)) }
+        route.get("/nothing") { call.respond(HttpStatusCode.NoContent) }
         route.get("/boom") {
             error("jdbc:postgresql://tallyvane:hunter2@10.0.0.4:5432/db is unreachable")
         }
@@ -217,6 +227,20 @@ class ApiSpec :
                 }
             }
 
+            "a module's own 404 keeps its detail, and is not overwritten by the unmatched-path one" {
+                testApplication {
+                    application { api().install(this) }
+
+                    val answer = client.get("/api/v1/probes/absent")
+
+                    answer.status shouldBe HttpStatusCode.NotFound
+                    answer.bodyAsText() shouldContain ABSENT_DETAIL
+                    // The module's own type, not the generic one an unmatched path gets: the two are
+                    // different failures and a client must be able to tell them apart.
+                    answer.bodyAsText() shouldContain "errors/not-found"
+                }
+            }
+
             "an unknown path answers in the error shape, like everything else" {
                 testApplication {
                     application { api().install(this) }
@@ -225,6 +249,34 @@ class ApiSpec :
 
                     answer.status shouldBe HttpStatusCode.NotFound
                     answer.headers["Content-Type"]!! shouldContain "application/problem+json"
+                    // RFC 9457 §4.2.1: no meaning beyond the status code, so no type of ours.
+                    answer.bodyAsText() shouldContain """"type":"about:blank""""
+                    answer.bodyAsText() shouldContain """"title":"Not Found""""
+                }
+            }
+
+            "a status the framework answers on its own gets the shape without being named" {
+                testApplication {
+                    application { api().install(this) }
+
+                    // POST to a route that only accepts GET. Nothing in `Api` mentions 405.
+                    val answer = client.post("/api/v1/probes/fine")
+
+                    answer.status shouldBe HttpStatusCode.MethodNotAllowed
+                    answer.headers["Content-Type"]!! shouldContain "application/problem+json"
+                    answer.bodyAsText() shouldContain """"status":405"""
+                    answer.bodyAsText() shouldContain "trace_id"
+                }
+            }
+
+            "a status below 400 is left alone, because it is not a failure" {
+                testApplication {
+                    application { api().install(this) }
+
+                    val answer = client.get("/api/v1/probes/nothing")
+
+                    answer.status shouldBe HttpStatusCode.NoContent
+                    answer.bodyAsText() shouldBe ""
                 }
             }
 

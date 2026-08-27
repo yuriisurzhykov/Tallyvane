@@ -50,12 +50,15 @@ kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 # -server-content-negotiation:   installs a converter; carries no format of its own.
 # -serialization-kotlinx-json:   the converter itself, over kotlinx-serialization.
 # -server-status-pages:          the single place an escaped exception becomes a response.
+# -server-call-logging:          one line per request. Taken by a spike to measure whether its
+#                                line carries our trace ids; see playground/http.
 # -server-test-host:             runs the application in-process, without opening a port.
 ktor-server-core = { group = "io.ktor", name = "ktor-server-core", version.ref = "ktor" }
 ktor-server-cio = { group = "io.ktor", name = "ktor-server-cio", version.ref = "ktor" }
 ktor-server-content-negotiation = { group = "io.ktor", name = "ktor-server-content-negotiation", version.ref = "ktor" }
 ktor-serialization-kotlinx-json = { group = "io.ktor", name = "ktor-serialization-kotlinx-json", version.ref = "ktor" }
 ktor-server-status-pages = { group = "io.ktor", name = "ktor-server-status-pages", version.ref = "ktor" }
+ktor-server-call-logging = { group = "io.ktor", name = "ktor-server-call-logging", version.ref = "ktor" }
 ktor-server-test-host = { group = "io.ktor", name = "ktor-server-test-host", version.ref = "ktor" }
 
 # Kotest

@@ -172,6 +172,10 @@ components:
         Any failure, in one shape (§11.6, RFC 9457). A route never invents a status or a `type`:
         both come from a closed set in the platform, so a client can branch on `type` and expect
         it to stay put (ADR-062).
+
+        This includes the statuses the server produces before any endpoint is reached — an unknown
+        path, a method an endpoint does not accept. Those carry `about:blank` and no `detail`, and
+        they are not listed per operation below, because they are not any one operation's answer.
       headers:
         traceparent:
           $ref: "#/components/headers/Traceparent"
@@ -304,10 +308,17 @@ components:
           description: |
             Stable identifier of the *kind* of failure, and the field a client branches on. It
             survives rewording of `title` and `detail`.
+
+            `about:blank` means what RFC 9457 section 4.2.1 says it means: the failure has no
+            semantics beyond its status code, and `title` is that code's own phrase. It is what a
+            status the server produced without reaching any endpoint carries — an unknown path, a
+            method an endpoint does not accept. A client telling "no such resource" apart from "no
+            such address" branches on this field, which is the reason it is not one value for both.
           examples:
             - https://tallyvane.com/errors/validation-failed
             - https://tallyvane.com/errors/malformed-request
             - https://tallyvane.com/errors/internal
+            - about:blank
         title:
           type: string
           description: The kind in human words, identical for every occurrence of one `type`.

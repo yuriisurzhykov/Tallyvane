@@ -1,7 +1,12 @@
 package tallyvane.platform.http
 
 /**
- * The only source of a [Problem] in the whole backend.
+ * The only source of a [Problem] a module can reach.
+ *
+ * Not the only source there is, and the distinction became load-bearing on 2026-08-26: [Statuses]
+ * also makes one, for the statuses Ktor answers on its own. That port is `internal`, so no module can
+ * name it — which is why this one can still promise a module seven meanings and no way to invent an
+ * eighth.
  *
  * ### Why a receiver instead of a companion
  *

@@ -85,7 +85,8 @@ line. A route responds with a value and arranges none of it, so none of it can b
 **The framework's own failures are translated by the platform, at the head of every chain.**
 `TransportFailures` maps Ktor's `BadRequestException` to a 400 and `NotFoundException` to a 404, and
 `Api` prepends it rather than trusting `app` to — a transport failure happens before any module's
-code runs. Ktor's bodiless 404 for an unmatched path is given the same shape by a `status` handler.
+code runs. The statuses Ktor answers with no exception at all are covered separately, by the amendment
+below.
 
 Both were found by asking whether the slice was actually finished, and both were real: a malformed
 JSON body was answering **500** — a client's typo presented as our outage, and logged at ERROR as
@@ -150,3 +151,43 @@ can be not called, whereas an interceptor cannot be skipped.
 **`@SerialName` on every property instead of a naming strategy.** Rejected: the first DTO that
 omits one ships `salaryMinCents` into a contract promising `salary_min_cents`, and nothing fails.
 The strategy is experimental API, and the opt-in sits on the one file that needs it.
+
+## Amendment, 2026-08-26 — a bare status is dressed by what it is, not by its code
+
+The first version gave Ktor's bodiless 404 the error shape with a `StatusPages` handler on the code
+404. That handler fires for **every** answer carrying that code, so a module answering
+`missing("No payslip for August")` had its document replaced by the generic one and its `detail`
+discarded. Found by an automated review of the slice-11 diff, confirmed by a test, and the two answers
+were indistinguishable to a client: "no such payslip" and "no such address" read identically.
+
+Two candidate repairs were rejected. A flag on the call marking a document as already rendered leaves
+the trigger on the code and moves correctness into something every future renderer must remember to
+set. A fallback route in place of the handler was measured and does not work: method-agnostic, it wins
+against a real route with a mismatched method and turns a 405 into a 404; method-specific, it leaves
+every other method's unmatched path bodiless.
+
+**Decided: the renderer keys on what is being sent.** Ktor hands a status it produced itself through
+the send pipeline *as* an `HttpStatusCode`, while anything with content arrives as content — measured,
+not assumed. The interceptor already there dresses the first and leaves the second alone, above a
+threshold of 400 so a 204 stays empty and a redirect is untouched. No status code is named in
+`platform:http` at all, which is what makes the guarantee general: 405 gained a body without a line
+about 405, and so will anything else Ktor decides to answer.
+
+A module can still send a bare status of its own, and it is wrapped like any other. Nothing is lost by
+that — a bare status has no `detail` to discard, which is precisely how it differs from the handler
+this replaces.
+
+**Decided: `about:blank`, not an eighth meaning in `Answers`.** RFC 9457 §4.2.1 registers it for a
+problem with "no additional semantics beyond that of the HTTP status code", with `title` being the
+status's recommended phrase. So a framework status needs no `type` of ours, no `detail`, and no list of
+codes maintained anywhere — the question "how many statuses must we cover" has no answer to keep in
+sync. The rendering is `internal interface Statuses`, with `AboutBlank` nested inside it: a separate
+port because it changes for a separate reason, and separate from `Answers` because `Answers` is public
+and handed to modules, where an eighth factory would hand every module the power to name a status.
+`Answers`' own claim to be "the only source of a `Problem` in the whole backend" was corrected in the
+same pass — it is the only source a *module* can reach, and `problem-has-no-public-source` still holds
+because `Statuses` is `internal`.
+
+On the wire this changed two things: an unmatched path now answers `"type": "about:blank"` instead of
+`https://tallyvane.com/errors/not-found`, and a 405 has a body. `docs/openapi.yaml` was updated to
+match in the same pass.
