@@ -1,4 +1,4 @@
-package tallyvane.platform.persistence
+package tallyvane.platform.persistence.observability
 
 import org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager
 import tallyvane.platform.kernel.TransactionRunner
@@ -30,7 +30,7 @@ import tallyvane.platform.observability.health.HealthCheck
  * detail, not a property of the database. `select 1` needs a connection and a round trip
  * either way.
  *
- * The verdict is [Verdict.Rollback] because a probe must leave nothing behind. Nothing was
+ * The verdict is [tallyvane.platform.kernel.Verdict.Rollback] because a probe must leave nothing behind. Nothing was
  * written, so the two verdicts have the same effect here — the choice states the intent for
  * the next reader rather than changing behaviour.
  *
@@ -54,7 +54,7 @@ public class DatabaseAnswers(private val transactions: TransactionRunner) : Heal
      * block deliberately takes none: the port is about boundaries, and naming Exposed in its
      * signature would put a driver in `platform:kernel`.
      */
-    private fun answered(): Boolean = TransactionManager.current().exec(PROBE) { rows ->
+    private fun answered(): Boolean = TransactionManager.Companion.current().exec(PROBE) { rows ->
         rows.next() && rows.getInt(1) == 1
     } ?: false
 

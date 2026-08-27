@@ -20,7 +20,7 @@ import tallyvane.platform.observability.health.HealthCheck
 import tallyvane.platform.observability.health.HealthReport
 import tallyvane.platform.observability.health.HealthReporter
 import tallyvane.platform.persistence.DatabaseAccess
-import tallyvane.platform.persistence.DatabaseAnswers
+import tallyvane.platform.persistence.observability.DatabaseAnswers
 import tallyvane.platform.persistence.FlywayMigrations
 import tallyvane.platform.persistence.MigrationsApplied
 import tallyvane.platform.persistence.PostgresPersistence

@@ -1,9 +1,12 @@
 package tallyvane.platform.health
 
-import io.ktor.http.*
-import io.ktor.server.application.*
-import io.ktor.server.response.*
-import io.ktor.server.routing.*
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
+import io.ktor.server.application.ApplicationCall
+import io.ktor.server.response.header
+import io.ktor.server.response.respond
+import io.ktor.server.routing.Route
+import io.ktor.server.routing.get
 import tallyvane.platform.http.BasePath
 import tallyvane.platform.http.RouteModule
 import tallyvane.platform.observability.health.HealthReporter
@@ -42,10 +45,7 @@ import tallyvane.platform.observability.health.HealthReporter
  * a 200 with no cache directives is a legitimate thing to cache — which would eventually mean a
  * cheerful "up" served from a cache while the application is on the floor.
  */
-public class HealthRoutes(
-    private val reporter: HealthReporter,
-    private val token: ServiceToken,
-) : RouteModule {
+public class HealthRoutes(private val reporter: HealthReporter, private val token: ServiceToken) : RouteModule {
 
     override val basePath: BasePath = BasePath("/health")
 

@@ -8,6 +8,7 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 import tallyvane.platform.observability.health.Ailment
 import tallyvane.platform.observability.health.Health
 import tallyvane.platform.observability.health.HealthCheck
+import tallyvane.platform.persistence.observability.DatabaseAnswers
 
 /**
  * `DatabaseAnswers` against a real Postgres, and against one it cannot reach.

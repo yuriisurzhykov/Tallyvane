@@ -23,6 +23,7 @@ import kotlinx.serialization.json.jsonObject
 import org.slf4j.LoggerFactory
 import tallyvane.platform.http.problems.FailureTranslator
 import tallyvane.platform.http.problems.Problem
+import tallyvane.platform.http.problems.Problems
 import tallyvane.platform.http.problems.TransportFailures
 import tallyvane.platform.http.status.Answers
 import tallyvane.platform.http.status.Rfc9457Answers
@@ -45,7 +46,7 @@ import tallyvane.platform.observability.log.TraceContext
  * 2. **Every response says which trace it was**, in the `traceparent` header — including the
  *    ones with no body, which is why the header exists as well as the body field.
  * 3. **A [Refused] renders correctly or not at all.** The table is asked here, with the
- *    [tallyvane.platform.http.status.Answers] only this class holds; status comes from the document, the content type is
+ *    [Answers] only this class holds; status comes from the document, the content type is
  *    `application/problem+json`, and the trace id is added to the body so it reaches the screen
  *    the user is looking at. A route hands over a failure and its table, and arranges none of
  *    this.
@@ -137,7 +138,7 @@ public class Api(
     /**
      * The two ways an error answer comes to exist, both dressed here.
      *
-     * A [Refused] is a module's failure and its table, asked with the [tallyvane.platform.http.status.Answers] nobody else holds. A
+     * A [Refused] is a module's failure and its table, asked with the [Answers] nobody else holds. A
      * bare [HttpStatusCode] is the framework answering by itself — an unmatched path, a method the
      * route does not accept — and it becomes a document too, from the status alone.
      *
@@ -199,7 +200,7 @@ public class Api(
 
     /**
      * The one instance of the only source of a [Problem]. Held here, never handed out: modules
-     * receive it as a receiver inside [tallyvane.platform.http.problems.Problems.of] and [FailureTranslator.translate], which is
+     * receive it as a receiver inside [Problems.of] and [FailureTranslator.translate], which is
      * what makes those two the only places an error answer can be made.
      */
     private val answers: Answers = Rfc9457Answers()

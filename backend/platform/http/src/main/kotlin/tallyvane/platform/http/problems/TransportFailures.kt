@@ -21,8 +21,8 @@ internal class TransportFailures : FailureTranslator {
         // Ktor's parsing and negotiation failures all arrive as this, including a body that is not
         // the JSON its content type claims.
         is BadRequestException -> malformed(READ)
-        is NotFoundException   -> missing()
-        else                   -> null
+        is NotFoundException -> missing()
+        else -> null
     }
 
     private companion object {

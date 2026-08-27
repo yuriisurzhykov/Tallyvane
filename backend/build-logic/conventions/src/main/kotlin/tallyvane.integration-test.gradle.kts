@@ -18,20 +18,19 @@ testing.suites.register<JvmTestSuite>("integrationTest") {
     }
 }
 
-// Deliberately NOT wired into `check`: these tests cost a container, and running
-// them is opt-in locally (`./gradlew integrationTest`) and mandatory in CI.
-// The message is a literal rather than built from captured script values, which
-// the configuration cache cannot serialise.
+// `check` compiles these tests but does not run them: running costs a container (ADR-057).
+// The message is a literal, because the configuration cache cannot serialise captured
+// script values.
 tasks.register("integrationTestNotice") {
     group = "verification"
-    description = "States that integration tests were not part of this check."
+    description = "States that integration tests were compiled but not run by this check."
     doLast {
-        logger.lifecycle("check excluded integrationTest; run './gradlew integrationTest' to include it.")
+        logger.lifecycle("check compiled integrationTest but did not run it; use './gradlew integrationTest'.")
     }
 }
 
 tasks.named("check") {
-    dependsOn("integrationTestNotice")
+    dependsOn("integrationTestNotice", "compileIntegrationTestKotlin")
 }
 
 // detekt's default source set list does not know about a suite added here.

@@ -4,12 +4,12 @@ import tallyvane.app.config.Configuration
 import tallyvane.platform.health.HealthRoutes
 import tallyvane.platform.health.ServiceToken
 import tallyvane.platform.http.Api
-import tallyvane.platform.http.problems.FailureTranslator
 import tallyvane.platform.http.TraceHeader
+import tallyvane.platform.http.problems.FailureTranslator
 import tallyvane.platform.observability.health.HealthCheck
 import tallyvane.platform.observability.health.HealthReporter
-import tallyvane.platform.persistence.DatabaseAnswers
 import tallyvane.platform.persistence.MigrationsApplied
+import tallyvane.platform.persistence.observability.DatabaseAnswers
 import kotlin.time.Duration.Companion.seconds
 
 /**

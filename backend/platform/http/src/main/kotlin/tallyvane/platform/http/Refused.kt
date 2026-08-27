@@ -17,7 +17,7 @@ import tallyvane.platform.kernel.Failure
  *
  * The type parameter is the enforcement. `Refused(failure, problems)` does not compile unless the
  * table maps that exact failure branch, so a route cannot answer a `jobs` failure with a
- * `documents` table, cannot answer without a table at all, and cannot invent a [tallyvane.platform.http.problems.Problem] — it has
+ * `documents` table, cannot answer without a table at all, and cannot invent a [Problem] — it has
  * no way to make one.
  *
  * Rendering happens later and elsewhere: the send pipeline recognises this, asks the table, and
