@@ -1,0 +1,17 @@
+{
+  "common": {
+    "productName": "Tallyvane"
+  },
+  "landing": {
+    "tagline": "A personal system for running a job search.",
+    "faqWhatTitle": "What does it actually do?",
+    "faqWhatAnswer": "Captures a job posting in one click from LinkedIn or an ATS page, keeps a running log of every message and interview round against it, tailors a résumé from a bank of bullets, and puts the full interview brief in front of me before any call — plus a Telegram nudge whenever a thread's gone quiet or a follow-up is due.",
+    "faqSpreadsheetTitle": "Why not just a spreadsheet?",
+    "faqSpreadsheetAnswer": "I tried. It survives about a week before a cell goes stale, and it has no memory of a LinkedIn thread or an email that happened outside of it.",
+    "faqNotDoTitle": "What does it not do?",
+    "faqNotDoAnswer": "Apply on my behalf, scrape LinkedIn from a server, or know about a posting I didn't capture myself.",
+    "faqWhoForTitle": "Who is this for?",
+    "faqWhoForAnswer": "Right now, one person: me, running one job search.",
+    "footerTagline": "Built as a personal tool for one job search."
+  }
+}
