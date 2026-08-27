@@ -1,5 +1,6 @@
 package tallyvane.migrate
 
+import tallyvane.platform.kernel.Secret
 import tallyvane.platform.persistence.DatabaseAccess
 import tallyvane.platform.persistence.FlywayMigrations
 
@@ -26,7 +27,7 @@ fun main() {
         DatabaseAccess(
             url = required(URL),
             user = required(USER),
-            password = required(PASSWORD),
+            password = Secret(required(PASSWORD)),
         )
     val applied = FlywayMigrations(access).apply()
     println("Applied ${applied.count} migration(s). Schema version: ${applied.version ?: "none"}.")

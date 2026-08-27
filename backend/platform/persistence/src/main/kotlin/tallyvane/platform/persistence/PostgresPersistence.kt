@@ -57,7 +57,7 @@ public class PostgresPersistence(access: DatabaseAccess) :
     private fun configuration(access: DatabaseAccess): HikariConfig = HikariConfig().apply {
         jdbcUrl = access.url
         username = access.user
-        password = access.password
+        password = access.password.revealed()
         maximumPoolSize = POOL_SIZE
         connectionTimeout = CONNECTION_TIMEOUT_MILLIS
         validationTimeout = VALIDATION_TIMEOUT_MILLIS

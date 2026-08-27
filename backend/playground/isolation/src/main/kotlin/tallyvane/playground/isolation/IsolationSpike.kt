@@ -1,5 +1,6 @@
 package tallyvane.playground.isolation
 
+import tallyvane.platform.kernel.Secret
 import tallyvane.platform.persistence.DatabaseAccess
 import java.sql.Connection
 import java.sql.SQLException
@@ -8,11 +9,11 @@ private val access =
     DatabaseAccess(
         url = System.getProperty("spike.url", "jdbc:postgresql://localhost:5436/demo"),
         user = System.getProperty("spike.user", "demo"),
-        password = System.getProperty("spike.password", "demo"),
+        password = Secret(System.getProperty("spike.password", "demo")),
     )
 
 private fun connect(isolation: Int = Connection.TRANSACTION_READ_COMMITTED): Connection =
-    java.sql.DriverManager.getConnection(access.url, access.user, access.password).apply {
+    java.sql.DriverManager.getConnection(access.url, access.user, access.password.revealed()).apply {
         autoCommit = false
         transactionIsolation = isolation
     }

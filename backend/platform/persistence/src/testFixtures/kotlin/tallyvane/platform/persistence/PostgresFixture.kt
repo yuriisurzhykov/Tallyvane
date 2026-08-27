@@ -1,6 +1,8 @@
 package tallyvane.platform.persistence
 
+import org.testcontainers.DockerClientFactory
 import org.testcontainers.containers.PostgreSQLContainer
+import tallyvane.platform.kernel.Secret
 import java.sql.DriverManager
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -82,6 +84,32 @@ public object PostgresFixture {
     public fun migrated(): DatabaseAccess = accessTo(created(from = template))
 
     /**
+     * Runs [block] with the database frozen, then thaws it — for the one question that cannot be
+     * asked of a healthy database: what an application does while its database stops answering,
+     * and whether it recovers without being restarted.
+     *
+     * Pause rather than stop, because stopping the container releases its mapped port and the next
+     * start would hand out a different one, so the application under test would be pointed at a
+     * door that no longer exists. A paused container keeps the port and simply stops answering.
+     *
+     * A capability, not the container: callers still cannot reach the container itself (ADR-057),
+     * because the moment they can, one of them configures it.
+     *
+     * **This freezes the server for every database in it.** Kotest runs specs sequentially by
+     * default, which is what makes that acceptable; a spec that opted into concurrency alongside
+     * this one would see failures it did not cause.
+     */
+    public fun <T> frozen(block: () -> T): T {
+        val docker = DockerClientFactory.instance().client()
+        docker.pauseContainerCmd(container.containerId).exec()
+        return try {
+            block()
+        } finally {
+            docker.unpauseContainerCmd(container.containerId).exec()
+        }
+    }
+
+    /**
      * Built once per JVM, then left without a connection: Postgres refuses to clone a
      * template while anyone is attached to it, and Flyway closes its own connections
      * when `migrate` returns.
@@ -115,6 +143,6 @@ public object PostgresFixture {
     private fun accessTo(database: String): DatabaseAccess = DatabaseAccess(
         url = "jdbc:postgresql://${container.host}:${container.getMappedPort(PORT)}/$database",
         user = container.username,
-        password = container.password,
+        password = Secret(container.password),
     )
 }

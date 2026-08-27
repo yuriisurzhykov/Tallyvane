@@ -55,7 +55,7 @@ class MigrationsAppliedIntegrationSpec :
  * would be 1 or more.
  */
 private fun schemasIn(access: DatabaseAccess): Int =
-    DriverManager.getConnection(access.url, access.user, access.password).use { connection ->
+    DriverManager.getConnection(access.url, access.user, access.password.revealed()).use { connection ->
         connection.createStatement().use { statement ->
             statement
                 .executeQuery(

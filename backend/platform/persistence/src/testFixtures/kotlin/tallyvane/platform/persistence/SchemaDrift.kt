@@ -62,7 +62,7 @@ public class SchemaDrift(private val access: DatabaseAccess) {
      * never named are [unmappedTables], not this.
      */
     public fun from(vararg tables: Table): List<String> {
-        val database = Database.connect(access.url, user = access.user, password = access.password)
+        val database = Database.connect(access.url, user = access.user, password = access.password.revealed())
         return transaction(database) {
             MigrationUtils.statementsRequiredForDatabaseMigration(tables = tables, withLogs = false)
         }
@@ -98,7 +98,7 @@ public class SchemaDrift(private val access: DatabaseAccess) {
         }.toSet()
 
     private fun catalogTables(): List<String> =
-        DriverManager.getConnection(access.url, access.user, access.password).use { connection ->
+        DriverManager.getConnection(access.url, access.user, access.password.revealed()).use { connection ->
             connection.createStatement().use { statement ->
                 statement.executeQuery(CATALOG).use { rows ->
                     buildList {

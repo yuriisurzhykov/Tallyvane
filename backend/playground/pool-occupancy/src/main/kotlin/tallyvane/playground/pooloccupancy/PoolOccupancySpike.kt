@@ -3,6 +3,7 @@ package tallyvane.playground.pooloccupancy
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import kotlinx.coroutines.runBlocking
+import tallyvane.platform.kernel.Secret
 import tallyvane.platform.kernel.Verdict
 import tallyvane.platform.persistence.DatabaseAccess
 import tallyvane.platform.persistence.PostgresPersistence
@@ -10,7 +11,7 @@ import java.sql.DriverManager
 
 private val url = System.getProperty("spike.url", "jdbc:postgresql://localhost:5440/demo")
 private val dbUser = System.getProperty("spike.user", "demo")
-private val dbPassword = System.getProperty("spike.password", "demo")
+private val dbPassword = Secret(System.getProperty("spike.password", "demo"))
 
 /** Production pool size, as `PostgresPersistence` hardcodes it. */
 private const val POOL_SIZE = 8
@@ -26,7 +27,7 @@ private const val SPEC_CASES = 7
  * workers, which have no `datname`.
  */
 private fun backends(): Int =
-    DriverManager.getConnection(url, dbUser, dbPassword).use { connection ->
+    DriverManager.getConnection(url, dbUser, dbPassword.revealed()).use { connection ->
         connection.createStatement().use { statement ->
             statement
                 .executeQuery(
@@ -40,7 +41,7 @@ private fun backends(): Int =
     }
 
 private fun limit(): String =
-    DriverManager.getConnection(url, dbUser, dbPassword).use { connection ->
+    DriverManager.getConnection(url, dbUser, dbPassword.revealed()).use { connection ->
         connection.createStatement().use { statement ->
             statement.executeQuery("show max_connections").use { rows ->
                 rows.next()
@@ -66,7 +67,7 @@ private fun pool(named: String, size: Int, idle: Int?): HikariDataSource {
             poolName = named
             jdbcUrl = url
             username = dbUser
-            password = dbPassword
+            password = dbPassword.revealed()
             maximumPoolSize = size
             idle?.let { minimumIdle = it }
         }

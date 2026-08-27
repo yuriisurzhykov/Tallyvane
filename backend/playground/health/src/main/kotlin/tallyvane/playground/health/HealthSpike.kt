@@ -13,6 +13,7 @@ import tallyvane.platform.http.Api
 import tallyvane.platform.http.FailureTranslator
 import tallyvane.platform.http.TraceHeader
 import tallyvane.platform.kernel.IdGenerator
+import tallyvane.platform.kernel.Secret
 import tallyvane.platform.observability.health.Ailment
 import tallyvane.platform.observability.health.Health
 import tallyvane.platform.observability.health.HealthCheck
@@ -30,7 +31,7 @@ private val access =
     DatabaseAccess(
         url = System.getProperty("spike.url", "jdbc:postgresql://localhost:5441/demo"),
         user = System.getProperty("spike.user", "demo"),
-        password = System.getProperty("spike.password", "demo"),
+        password = Secret(System.getProperty("spike.password", "demo")),
     )
 
 private val bound = 2.seconds

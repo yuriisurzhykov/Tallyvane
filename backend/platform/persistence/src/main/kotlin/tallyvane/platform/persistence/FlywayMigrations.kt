@@ -46,7 +46,7 @@ public class FlywayMigrations(private val access: DatabaseAccess) : Migrations {
 
     private fun flyway(): Flyway = Flyway
         .configure()
-        .dataSource(access.url, access.user, access.password)
+        .dataSource(access.url, access.user, access.password.revealed())
         .jdbcProperties(mapOf("options" to lockBound.asConnectionOption()))
         .locations(LOCATION)
         .schemas(SCHEMA)

@@ -8,7 +8,7 @@ import java.sql.Connection
 import java.sql.DriverManager
 
 private fun <T> on(access: DatabaseAccess, read: (Connection) -> T): T =
-    DriverManager.getConnection(access.url, access.user, access.password).use(read)
+    DriverManager.getConnection(access.url, access.user, access.password.revealed()).use(read)
 
 private fun query(access: DatabaseAccess, sql: String): String? = on(access) { connection ->
     connection.createStatement().use { statement ->

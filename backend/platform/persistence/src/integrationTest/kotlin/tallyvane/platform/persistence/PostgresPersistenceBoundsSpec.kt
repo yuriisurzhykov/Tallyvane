@@ -100,7 +100,7 @@ class PostgresPersistenceBoundsSpec :
     )
 
 private fun withTable(access: DatabaseAccess) =
-    DriverManager.getConnection(access.url, access.user, access.password).use { connection ->
+    DriverManager.getConnection(access.url, access.user, access.password.revealed()).use { connection ->
         connection.createStatement().use { statement ->
             statement.execute("create table handles (handle text not null)")
             statement.execute("create unique index handles_handle on handles (handle)")
@@ -111,7 +111,7 @@ private fun withTable(access: DatabaseAccess) =
  * A transaction that has written [CLASH] and will not commit, so anything else writing it waits.
  */
 private fun blocking(access: DatabaseAccess): Connection =
-    DriverManager.getConnection(access.url, access.user, access.password).apply {
+    DriverManager.getConnection(access.url, access.user, access.password.revealed()).apply {
         autoCommit = false
         createStatement().use { it.execute("insert into handles (handle) values ('$CLASH')") }
     }
