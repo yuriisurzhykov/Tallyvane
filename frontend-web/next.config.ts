@@ -8,8 +8,13 @@ import type { NextConfig } from "next";
  * unprocessed and fail the moment it hit a `.tsx` file or a bare `{path}`
  * import assertion the bundler doesn't recognise.
  */
+const workspaceRoot = new URL("..", import.meta.url).pathname;
+
 const config: NextConfig = {
     transpilePackages: ["design-token-engine", "frontend-shared", "content-kit"],
+    output: "standalone",
+    outputFileTracingRoot: workspaceRoot,
+    turbopack: { root: workspaceRoot },
 };
 
 export default config;

@@ -17,7 +17,7 @@ permissions:
 
 jobs:
   image:
-    name: Build and publish
+    name: Build Backend and publish
     runs-on: ubuntu-latest
     # Written in full and in lower case rather than derived from github.repository:
     # that variable is `yuriisurzhykov/Tallyvane`, and ghcr.io rejects a capital letter
