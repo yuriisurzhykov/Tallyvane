@@ -46,6 +46,7 @@ import tallyvane.platform.observability.health.HealthReporter
  * cheerful "up" served from a cache while the application is on the floor.
  */
 public class HealthRoutes(private val reporter: HealthReporter, private val token: ServiceToken) : RouteModule {
+
     override val basePath: BasePath = BasePath("/health")
 
     private val presented = Presented()
@@ -70,12 +71,18 @@ public class HealthRoutes(private val reporter: HealthReporter, private val toke
             val report = reporter.report()
             call.uncached()
             val code = if (report.ready) HttpStatusCode.OK else HttpStatusCode.ServiceUnavailable
-            call.respond(code, presented.summary(report))
+            call.respond(
+                status = code,
+                message = presented.summary(report),
+            )
         }
     }
 
     private fun ApplicationCall.uncached() {
-        response.header(HttpHeaders.CacheControl, "no-store")
+        response.header(
+            name = HttpHeaders.CacheControl,
+            value = "no-store",
+        )
     }
 
     private companion object {

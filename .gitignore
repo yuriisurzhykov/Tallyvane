@@ -44,6 +44,11 @@ secrets/
 tmp/
 .cache/
 
+# ---------- Generated deployment files ----------
+# Produced from ops/cloudflared/config.yml.template during deployment. Committing it would
+# put a second, stale copy of the ingress rules next to the template that defines them.
+ops/cloudflared/config.yml
+
 # ---------- Deliberately NOT ignored ----------
 # packages/frontend-shared/src/shared/ui/theme/generated/  — compiled design
 #   tokens are committed on purpose; `tokens:check` verifies they match a

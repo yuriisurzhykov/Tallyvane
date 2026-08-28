@@ -221,6 +221,35 @@ call an `internal` declaration, so the constructor and `of` are
 principles concede a broad catch. The suppressions stay here so they do
 not appear at every call site.
 
+## 2026-08-26 — two ports arrived with slice 13
+
+**`Secret`, because a `data class` prints everything it holds.** `DatabaseAccess` was a `data class`
+with `password: String`, so its generated `toString()` printed the password. Nothing had leaked, and
+nothing prevented it: one interpolation of the whole object into a log line, or one exception message
+that carried it, and a database password reaches disk. §17 forbids that, and a type enforces it where
+a convention cannot.
+
+It became a shared type rather than a `toString()` override on `DatabaseAccess` because a second
+secret arrived in the same slice — the health service token — and "how a secret behaves" is one rule
+with two users. Equality is constant-time, so the type is also usable for comparing a presented
+credential; `ServiceToken` still carries its own comparison, and folding the two into one is worth
+doing when that class is next opened.
+
+The change reached about twenty construction and read sites — the fixture, `:migrate`, five spikes and
+the persistence suites. Every read is now a visible `revealed()`, which is the point: the leak was
+possible precisely because reading a password looked like reading a string.
+
+**`Environment`, because `System.getenv` cannot be set from a test.** The JVM exposes the process
+environment read-only. Slice 13 promised that a refusal names *every* missing variable, and there is
+no way to test that against a machine's own environment — so the port exists to let a case state the
+environment it is describing. `Environment.Process` nests on it, same as `Clock.Wall` and
+`IdGenerator.Uuid7`, and `Process` was added to `NESTED_IMPL_ALLOW`, which widens what
+`nested-impl-is-pure` inspects rather than relaxing it.
+
+Unlike time and identifiers, this one has no gate: there is no `no-ambient-env` rule, so nothing stops
+a file from calling `System.getenv` directly. Worth adding, not added here — a new gate is its own
+decision.
+
 ## Understandable, scalable, extensible
 
 A reader looking for "what time is it" finds `Clock`, not a static import.

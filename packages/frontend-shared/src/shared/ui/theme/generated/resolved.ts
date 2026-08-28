@@ -78,6 +78,12 @@ export const resolved = {
                 "elevation3": "0px 12px 32px 0px hsl(30 5% 7% / 60%)"
             },
             "text": {
+                "hero": {
+                    "size": "clamp(2.25rem, 1.5rem + 3vw, 3.5rem)",
+                    "line": "1.1",
+                    "weight": "700",
+                    "tracking": "-0.02em"
+                },
                 "display": {
                     "size": "2.25rem",
                     "line": "2.75rem",
@@ -226,6 +232,12 @@ export const resolved = {
                 "elevation3": "0px 12px 32px 0px hsl(30 5% 7% / 60%)"
             },
             "text": {
+                "hero": {
+                    "size": "clamp(2.25rem, 1.5rem + 3vw, 3.5rem)",
+                    "line": "1.1",
+                    "weight": "700",
+                    "tracking": "-0.02em"
+                },
                 "display": {
                     "size": "2.25rem",
                     "line": "2.75rem",

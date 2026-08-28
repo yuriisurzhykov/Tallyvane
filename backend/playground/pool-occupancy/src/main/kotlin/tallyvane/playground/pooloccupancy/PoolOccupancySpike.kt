@@ -3,17 +3,16 @@ package tallyvane.playground.pooloccupancy
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import kotlinx.coroutines.runBlocking
+import tallyvane.platform.kernel.Secret
 import tallyvane.platform.kernel.Verdict
+import tallyvane.platform.persistence.DEFAULT_SIZE
 import tallyvane.platform.persistence.DatabaseAccess
 import tallyvane.platform.persistence.PostgresPersistence
 import java.sql.DriverManager
 
 private val url = System.getProperty("spike.url", "jdbc:postgresql://localhost:5440/demo")
 private val dbUser = System.getProperty("spike.user", "demo")
-private val dbPassword = System.getProperty("spike.password", "demo")
-
-/** Production pool size, as `PostgresPersistence` hardcodes it. */
-private const val POOL_SIZE = 8
+private val dbPassword = Secret(System.getProperty("spike.password", "demo"))
 
 private const val SETTLE_MILLIS = 2_000L
 
@@ -26,7 +25,7 @@ private const val SPEC_CASES = 7
  * workers, which have no `datname`.
  */
 private fun backends(): Int =
-    DriverManager.getConnection(url, dbUser, dbPassword).use { connection ->
+    DriverManager.getConnection(url, dbUser, dbPassword.revealed()).use { connection ->
         connection.createStatement().use { statement ->
             statement
                 .executeQuery(
@@ -40,7 +39,7 @@ private fun backends(): Int =
     }
 
 private fun limit(): String =
-    DriverManager.getConnection(url, dbUser, dbPassword).use { connection ->
+    DriverManager.getConnection(url, dbUser, dbPassword.revealed()).use { connection ->
         connection.createStatement().use { statement ->
             statement.executeQuery("show max_connections").use { rows ->
                 rows.next()
@@ -66,7 +65,7 @@ private fun pool(named: String, size: Int, idle: Int?): HikariDataSource {
             poolName = named
             jdbcUrl = url
             username = dbUser
-            password = dbPassword
+            password = dbPassword.revealed()
             maximumPoolSize = size
             idle?.let { minimumIdle = it }
         }
@@ -76,7 +75,7 @@ private fun pool(named: String, size: Int, idle: Int?): HikariDataSource {
 fun main() {
     println("Connecting to $url as $dbUser")
     println("max_connections on this server: ${limit()}")
-    println("PostgresPersistence pool size:  $POOL_SIZE")
+    println("PostgresPersistence pool size:  $DEFAULT_SIZE")
     println()
 
     println("=== one PostgresPersistence, the way the application will own it")
@@ -112,14 +111,14 @@ fun main() {
     } catch (refused: Exception) {
         println("  with ${many.size} instances built, the server had no slot left:")
         println("    ${refused.message?.lineSequence()?.first()}")
-        println("  ${many.size} x $POOL_SIZE exceeds ${limitOrUnknown()}, and the refusal fell on the counter's own")
+        println("  ${many.size} x $DEFAULT_SIZE exceeds ${limitOrUnknown()}, and the refusal fell on the counter's own")
         println("  connection - a spec holding this many pools cannot even be observed")
     }
     many.forEach { it.close() }
 
     println()
     println("=== the same pool size, but minimumIdle=1")
-    pool("lazy", size = POOL_SIZE, idle = 1).use {
+    pool("lazy", size = DEFAULT_SIZE, idle = 1).use {
         Thread.sleep(SETTLE_MILLIS)
         report("idle, never asked for a connection:")
         it.connection.close()

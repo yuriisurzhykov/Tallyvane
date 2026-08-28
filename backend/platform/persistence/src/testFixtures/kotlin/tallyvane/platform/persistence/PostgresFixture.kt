@@ -1,6 +1,8 @@
 package tallyvane.platform.persistence
 
+import org.testcontainers.DockerClientFactory
 import org.testcontainers.containers.PostgreSQLContainer
+import tallyvane.platform.kernel.Secret
 import java.sql.DriverManager
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -82,6 +84,26 @@ public object PostgresFixture {
     public fun migrated(): DatabaseAccess = accessTo(created(from = template))
 
     /**
+     * Runs [block] with the database not answering, then lets it answer again — for cases about what
+     * an application does while its database is unreachable, and whether it recovers on its own.
+     *
+     * The container is paused rather than stopped, so the mapped port survives and whatever is
+     * pointed at it stays pointed at it.
+     *
+     * **This freezes the server for every database in it**, so nothing else may be running against
+     * the fixture at the same time. Kotest's default sequential execution is what makes that hold.
+     */
+    public fun <T> frozen(block: () -> T): T {
+        val docker = DockerClientFactory.instance().client()
+        docker.pauseContainerCmd(container.containerId).exec()
+        return try {
+            block()
+        } finally {
+            docker.unpauseContainerCmd(container.containerId).exec()
+        }
+    }
+
+    /**
      * Built once per JVM, then left without a connection: Postgres refuses to clone a
      * template while anyone is attached to it, and Flyway closes its own connections
      * when `migrate` returns.
@@ -115,6 +137,6 @@ public object PostgresFixture {
     private fun accessTo(database: String): DatabaseAccess = DatabaseAccess(
         url = "jdbc:postgresql://${container.host}:${container.getMappedPort(PORT)}/$database",
         user = container.username,
-        password = container.password,
+        password = Secret(container.password),
     )
 }

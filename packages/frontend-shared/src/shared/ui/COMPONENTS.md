@@ -126,7 +126,7 @@ never mutates.
 
 | Component        | Purpose                                                                                               | Base | Env    |
 |------------------|-------------------------------------------------------------------------------------------------------|------|--------|
-| `Text`           | Renders one of the ten text styles; polymorphic element. The only way type is applied.                | —    | server |
+| `Text`           | Renders one of the eleven text styles; polymorphic element. The only way type is applied.             | —    | server |
 | `Numeric`        | Tabular figures and slashed zero, right-aligned by default. Every salary, count and date in a column. | —    | server |
 | `Truncate`       | Line clamp with the full value reachable.                                                             | —    | server |
 | `VisuallyHidden` | Screen-reader-only text; the partner of every icon-only control.                                      | —    | server |

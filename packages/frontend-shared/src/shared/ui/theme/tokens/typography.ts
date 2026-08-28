@@ -20,13 +20,21 @@ import { definePrimitives } from "design-token-engine";
  * reviewed table (§8) where each was chosen against the other, and a ratio
  * would quietly re-derive one of them.
  *
- * Sizes are fixed, not fluid. `clamp()` earns its complexity on a page spanning
- * phone to billboard; this is a console with a bounded content width, where a
- * heading that resizes with the viewport only makes two windows side by side
- * disagree.
- *
- * Specification: docs/frontend/01-shared-design-tokens.md §8.
- */
+     * Sizes are fixed, not fluid. `clamp()` earns its complexity on a page spanning
+     * phone to billboard; this is a console with a bounded content width, where a
+     * heading that resizes with the viewport only makes two windows side by side
+     * disagree.
+     *
+     * Step 9 is the one deliberate exception, added for the public marketing
+     * pages (`frontend-web`'s `(public)` route group), not the console: that
+     * surface spans phone to desktop with no second window to disagree with,
+     * and a single hero headline benefits from scaling with the viewport the
+     * console's own reasoning above argues against. Consumed only by the
+     * `hero` composite in `composites/text-styles.ts` — nothing in the console
+     * itself reaches for step 9.
+     *
+     * Specification: docs/frontend/01-shared-design-tokens.md §8.
+     */
 export const typography = definePrimitives({
     /**
      * `var(--font-ibm-plex-sans)`, not a quoted family name. Those custom
@@ -85,6 +93,7 @@ export const typography = definePrimitives({
         6: "1.5rem",    // 24
         7: "1.75rem",   // 28
         8: "2.25rem",   // 36
+        9: "clamp(2.25rem, 1.5rem + 3vw, 3.5rem)", // 36 to 56, hero only -- see comment above
     },
 
     line: {
@@ -96,6 +105,10 @@ export const typography = definePrimitives({
         6: "2rem",      // 32
         7: "2.25rem",   // 36
         8: "2.75rem",   // 44
+        // Unitless, unlike every step above: a fixed rem line-height would not
+        // track a fluid size, and 1.1 stays proportional at every width step 9
+        // resolves to.
+        9: "1.1",
     },
 
     /**

@@ -1,0 +1,19 @@
+# The public site. Serves a placeholder for now: the real landing page belongs to
+# frontend-web, which has no image yet, and putting it in nginx would mean building something
+# that has to be taken out again.
+server {
+    listen 80;
+    server_name ${TALLYVANE_DOMAIN};
+
+    access_log /var/log/nginx/access.log tallyvane;
+
+    root /srv/www/site;
+    index index.html;
+
+    location /api/ {
+        proxy_pass http://backend;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_set_header Host $host;
+    }
+}

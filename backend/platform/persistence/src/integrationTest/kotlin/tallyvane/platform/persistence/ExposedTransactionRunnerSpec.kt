@@ -25,7 +25,7 @@ private class MarksSubject(private val access: DatabaseAccess, override val tran
     }
 
     override suspend fun survivingWrites(): Int =
-        DriverManager.getConnection(access.url, access.user, access.password).use { connection ->
+        DriverManager.getConnection(access.url, access.user, access.password.revealed()).use { connection ->
             connection.createStatement().use { statement ->
                 statement.executeQuery("select count(*) from marks").use { rows ->
                     rows.next()
@@ -70,7 +70,7 @@ class ExposedTransactionRunnerSpec : TransactionRunnerConformance() {
 
     override suspend fun fresh(): Subject {
         val access = PostgresFixture.empty()
-        DriverManager.getConnection(access.url, access.user, access.password).use { connection ->
+        DriverManager.getConnection(access.url, access.user, access.password.revealed()).use { connection ->
             connection.createStatement().use { statement ->
                 statement.execute("create table marks (n integer not null)")
             }

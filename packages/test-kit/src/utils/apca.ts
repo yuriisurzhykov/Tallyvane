@@ -39,6 +39,8 @@ const LEVEL = {
  * than belonging to whichever app happened to write it first.
  */
 const STYLE_LEVEL: Readonly<Record<string, number>> = {
+    /** Fluid 36→56px / 700 — public marketing hero, past every heading threshold. */
+    "text-hero": LEVEL.heading,
     /** 36px/600 — a headline by any reading. */
     "text-display": LEVEL.heading,
     /** 28, 24 and 20px at weight 600, all past the 18px/600 mark. */

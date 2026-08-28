@@ -234,6 +234,14 @@
  * One class sets size, leading, weight and tracking together, so there is no
  * way to apply three of the four.
  * ------------------------------------------------------------------------ */
+/* Public marketing pages only -- see `theme/composites/text-styles.ts`'s own comment on `hero`. */
+@utility text-hero {
+    font-size: var(--ds-text-hero-size);
+    line-height: var(--ds-text-hero-line);
+    font-weight: var(--ds-text-hero-weight);
+    letter-spacing: var(--ds-text-hero-tracking);
+}
+
 @utility text-display {
     font-size: var(--ds-text-display-size);
     line-height: var(--ds-text-display-line);

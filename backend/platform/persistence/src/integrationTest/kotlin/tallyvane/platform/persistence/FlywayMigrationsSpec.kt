@@ -12,7 +12,7 @@ import java.sql.SQLException
 private const val PLATFORM_BASELINE = "20260825020000"
 
 private fun <T> on(access: DatabaseAccess, read: (Connection) -> T): T =
-    DriverManager.getConnection(access.url, access.user, access.password).use(read)
+    DriverManager.getConnection(access.url, access.user, access.password.revealed()).use(read)
 
 private fun run(access: DatabaseAccess, vararg statements: String) {
     on(access) { connection ->

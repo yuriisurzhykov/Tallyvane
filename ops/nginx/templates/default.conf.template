@@ -1,0 +1,23 @@
+# The file name is load-bearing: this overwrites the image's own conf.d/default.conf, whose
+# server block is the "Welcome to nginx!" page. Left in place, that page would answer every
+# request whose Host matches none of the three below.
+server {
+    listen 80 default_server;
+    server_name _;
+
+    # Replaces the http-level access_log the base nginx.conf sets. Two access_log directives
+    # at the same level add up; one at a nested level replaces what it inherits.
+    access_log /var/log/nginx/access.log tallyvane;
+
+    # For the container health check only. Not reachable from outside: the tunnel forwards
+    # exactly three hostnames, and each matches a server block of its own.
+    location = /healthz {
+        access_log off;
+        default_type text/plain;
+        return 200 "ok\n";
+    }
+
+    location / {
+        return 404;
+    }
+}

@@ -1,0 +1,56 @@
+# Read first, and that is load-bearing: conf.d/*.conf is included in name order, and a
+# log_format has to be defined before the access_log directive that names it.
+
+# Behind the tunnel every request arrives from the cloudflared container, so $remote_addr
+# would be one and the same container address for the whole internet — and any per-address
+# rule built on it would treat the world as a single client. Cloudflare puts the real address
+# in CF-Connecting-IP. It is honoured only when the peer is inside the edge network, which
+# nothing outside this machine can join.
+set_real_ip_from 172.28.0.0/24;
+real_ip_header CF-Connecting-IP;
+real_ip_recursive off;
+
+# One line of JSON per request. `escape=json` is what stops a quote or a backslash in a user
+# agent from producing a line no parser can read.
+#
+# $request_id is nginx's own: 32 hexadecimal characters, the same shape as a W3C trace id.
+# Deriving a traceparent from it so this line and the application's lines share one
+# identifier is an open item in backend/.plans/backend-infra-cache-wiring.md, not something
+# this file does yet. $http_cf_ray is Cloudflare's identifier for the same request, which is
+# the only way to line a request here up with what their dashboard shows.
+log_format tallyvane escape=json '{'
+    '"time":"$time_iso8601",'
+    '"request_id":"$request_id",'
+    '"cf_ray":"$http_cf_ray",'
+    '"traceparent":"$http_traceparent",'
+    '"client":"$remote_addr",'
+    '"host":"$host",'
+    '"method":"$request_method",'
+    '"uri":"$request_uri",'
+    '"protocol":"$server_protocol",'
+    '"status":$status,'
+    '"bytes":$body_bytes_sent,'
+    '"duration":$request_time,'
+    '"referer":"$http_referer",'
+    '"agent":"$http_user_agent"'
+'}';
+
+# The version number is free reconnaissance for anyone picking an exploit to try.
+server_tokens off;
+
+# The Ktor server. One named group, shared by every hostname that exposes an API, because there
+# is one server — while the decision that a given hostname exposes it at all is per-hostname and
+# lives in that hostname's own file.
+#
+# A literal name here is resolved once, at startup, and nginx refuses to start if it fails. That
+# is accepted deliberately: `app` is in the same composition, so its absence is a fault rather
+# than a state to tolerate, and it should be loud. The consequence to know about is that a
+# recreated container gets a new address which nginx will not notice — measured, and handled by
+# a reload in ops/apply.sh.
+upstream backend {
+    server app:8080;
+    # Keeps established connections to the backend and reuses them, instead of paying a TCP
+    # handshake per request. Requires the two proxy_ directives in each location; without them
+    # this line is silently ineffective.
+    keepalive 16;
+}

@@ -15,13 +15,13 @@ import io.ktor.server.routing.post
 import kotlinx.serialization.Serializable
 import org.slf4j.LoggerFactory
 import org.slf4j.event.Level
-import tallyvane.platform.http.Answers
+import tallyvane.platform.http.status.Answers
 import tallyvane.platform.http.Api
 import tallyvane.platform.http.BasePath
-import tallyvane.platform.http.FailureTranslator
+import tallyvane.platform.http.problems.FailureTranslator
 import tallyvane.platform.http.FieldError
-import tallyvane.platform.http.Problem
-import tallyvane.platform.http.Problems
+import tallyvane.platform.http.problems.Problem
+import tallyvane.platform.http.problems.Problems
 import tallyvane.platform.http.Refused
 import tallyvane.platform.http.RouteModule
 import tallyvane.platform.http.TraceHeader

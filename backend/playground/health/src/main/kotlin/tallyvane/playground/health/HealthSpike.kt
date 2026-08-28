@@ -10,16 +10,17 @@ import kotlinx.coroutines.runBlocking
 import tallyvane.platform.health.HealthRoutes
 import tallyvane.platform.health.ServiceToken
 import tallyvane.platform.http.Api
-import tallyvane.platform.http.FailureTranslator
+import tallyvane.platform.http.problems.FailureTranslator
 import tallyvane.platform.http.TraceHeader
 import tallyvane.platform.kernel.IdGenerator
+import tallyvane.platform.kernel.Secret
 import tallyvane.platform.observability.health.Ailment
 import tallyvane.platform.observability.health.Health
 import tallyvane.platform.observability.health.HealthCheck
 import tallyvane.platform.observability.health.HealthReport
 import tallyvane.platform.observability.health.HealthReporter
 import tallyvane.platform.persistence.DatabaseAccess
-import tallyvane.platform.persistence.DatabaseAnswers
+import tallyvane.platform.persistence.observability.DatabaseAnswers
 import tallyvane.platform.persistence.FlywayMigrations
 import tallyvane.platform.persistence.MigrationsApplied
 import tallyvane.platform.persistence.PostgresPersistence
@@ -30,7 +31,7 @@ private val access =
     DatabaseAccess(
         url = System.getProperty("spike.url", "jdbc:postgresql://localhost:5441/demo"),
         user = System.getProperty("spike.user", "demo"),
-        password = System.getProperty("spike.password", "demo"),
+        password = Secret(System.getProperty("spike.password", "demo")),
     )
 
 private val bound = 2.seconds

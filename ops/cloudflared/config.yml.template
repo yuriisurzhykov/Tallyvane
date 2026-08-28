@@ -1,0 +1,19 @@
+# Substituted by ops/deploy.sh into config.yml, which is generated and not committed.
+#
+# Ingress is matched top to bottom, so the entry without a hostname has to come last: it is
+# the catch-all, and Cloudflare answers 404 for any hostname not named above it. That is the
+# reason a request for a subdomain nobody configured never reaches this machine at all.
+#
+# Every hostname points at the same nginx. Routing by hostname and by path is nginx's job,
+# not the tunnel's — the tunnel would be able to do it, but then routing would live in two
+# places, and moving away from Cloudflare later would mean rewriting the half kept here.
+tunnel: ${TUNNEL_ID}
+credentials-file: /etc/cloudflared/credentials.json
+ingress:
+  - hostname: ${DOMAIN}
+    service: http://nginx:80
+  - hostname: app.${DOMAIN}
+    service: http://nginx:80
+  - hostname: admin.${DOMAIN}
+    service: http://nginx:80
+  - service: http_status:404

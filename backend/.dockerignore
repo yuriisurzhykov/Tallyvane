@@ -1,0 +1,14 @@
+# The build context is everything under backend/, which includes every module's build
+# directory and the Gradle caches — gigabytes of files the image has no use for, all of which
+# would otherwise be sent to the daemon before the first instruction runs.
+#
+# So: exclude everything, then name the two things the Dockerfile actually copies. Each is
+# named twice, the directory and its contents, because a rule that re-includes only the
+# contents leaves the directory itself excluded — the copy still works, and every build warns
+# about it.
+**
+
+!app/build/install/app
+!app/build/install/app/**
+!migrate/build/install/migrate
+!migrate/build/install/migrate/**

@@ -6,8 +6,8 @@ import java.io.File
  * Every schema a migration names that is not the schema its module owns, with
  * foreign-key clauses left out.
  *
- * §4.6 draws the line exactly there: "Внешние ключи между схемами разрешены,
- * соединения — нет." So `references identity.users (id)` is legal and
+ * §4.6 draws the line exactly there: a foreign key across schemas is allowed, a
+ * join across them is not. So `references identity.users (id)` is legal and
  * `join jobs.companies` is not, in the same file.
  *
  * This exists because the Kotlin gates cannot see it. `own-schema-only` and

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The only logback.xml in the build, and it belongs to `app` because a library that shipped
+  one would put a second on the classpath, and which of two wins is undefined.
+
+  Everything authored lives in the fragment `platform:observability` owns; this file exists
+  to include it. The root level in that fragment is a starting value only: `Application.start`
+  sets it from configuration (ADR-056), so `TALLYVANE_LOG_LEVEL` wins over what is written here.
+-->
+<configuration>
+    <include resource="logback-tallyvane.xml"/>
+</configuration>

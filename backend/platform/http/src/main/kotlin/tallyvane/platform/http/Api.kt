@@ -21,6 +21,13 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonObject
 import org.slf4j.LoggerFactory
+import tallyvane.platform.http.problems.FailureTranslator
+import tallyvane.platform.http.problems.Problem
+import tallyvane.platform.http.problems.Problems
+import tallyvane.platform.http.problems.TransportFailures
+import tallyvane.platform.http.status.Answers
+import tallyvane.platform.http.status.Rfc9457Answers
+import tallyvane.platform.http.status.Statuses
 import tallyvane.platform.observability.log.Trace
 import tallyvane.platform.observability.log.TraceContext
 
@@ -201,7 +208,7 @@ public class Api(
     /**
      * The other source of a [Problem], for the statuses no module asked for. A separate port because
      * it changes for a separate reason, and because [Answers] must not gain the ability to name a
-     * status — see [Statuses].
+     * status — see [tallyvane.platform.http.status.Statuses].
      */
     private val statuses: Statuses = Statuses.AboutBlank()
 

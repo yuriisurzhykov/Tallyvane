@@ -26,7 +26,7 @@ private object Absent : Table("absent") {
 }
 
 private fun create(access: DatabaseAccess, ddl: String) {
-    DriverManager.getConnection(access.url, access.user, access.password).use { connection ->
+    DriverManager.getConnection(access.url, access.user, access.password.revealed()).use { connection ->
         connection.createStatement().use { it.execute(ddl) }
     }
 }

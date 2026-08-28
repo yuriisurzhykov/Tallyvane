@@ -1,5 +1,7 @@
 package tallyvane.platform.persistence
 
+import tallyvane.platform.kernel.Secret
+
 /**
  * How to reach a database: the module's own vocabulary for it.
  *
@@ -11,5 +13,9 @@ package tallyvane.platform.persistence
  *
  * Says nothing about who started the database, so a container, a compose service and
  * a URL from an environment variable are all describable by it.
+ *
+ * Safe to log whole: this is a `data class`, so `toString()` prints every field, and the
+ * password is a [Secret] precisely so that printing it yields `***`. Reaching the value
+ * takes [Secret.revealed], which is conspicuous at a call site.
  */
-public data class DatabaseAccess(val url: String, val user: String, val password: String)
+public data class DatabaseAccess(val url: String, val user: String, val password: Secret)

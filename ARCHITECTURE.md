@@ -3907,6 +3907,8 @@ export function useStrings<N extends Namespace>(
 ): (key: KeyOf<N>, vars?: Record<string, string | number>) => string;
 ```
 
+The dictionary itself lives in each app (`frontend-web/src/app/i18n`), not inside `frontend-shared`. `shared/i18n` is the lookup factory only — the same split ADR-032 already applied to `content-kit`, so shared stays free of product vocabulary. The `pipeline` / `brief` namespaces in the example above are illustrative.
+
 Подстановка переменных простая и предсказуемая: `{name}` заменяется значением. Множественные формы — отдельные ключи с
 суффиксами, без внешней библиотеки: на текущем объёме полноценный движок множественного числа избыточен.
 
@@ -4781,7 +4783,12 @@ Opportunity Score рядом. Капстоун Фазы 2: демонстрир�
 литералов.
 
 **ADR-010. Ручное внедрение зависимостей без контейнера.** На этом масштабе контейнер добавляет неявность, не убирая
-работы.
+работы. Split into a file on 2026-08-26, when `app` made the question concrete: the conclusion stands, and the record now
+names what it refuses and what it merely postpones. Refused outright are Koin and a hand-rolled service locator, both
+because they turn "forgot a dependency, so it did not compile" into a runtime failure. Metro and kotlin-inject are
+**deferred, not rejected** — they keep that property, so the argument with them is about volume of work, not safety — and
+the condition for revisiting is named: after infrastructure, authentication with access levels, and the cache are
+finished. Полный разбор — [ADR-010](docs/adr/ADR-010-manual-wiring.md).
 
 **ADR-011. Единое приложение Next.js на все три поверхности, размещённое на своём VPS.** Появление CMS сделало серверный
 рендер обязательным для публичной части; раз рантайм Node всё равно нужен, отдельное SPA рядом становится лишней

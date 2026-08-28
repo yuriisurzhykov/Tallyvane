@@ -60,6 +60,16 @@ adding a `transitionHeight`-shaped composite once this batch and the other
 three land, at which point `Panel`'s own `className` gains one more token
 and nothing about its public API changes.
 
+**2026-08-27 — that deferral was later reversed, then the reversal snapped.**
+`transition-geometry` landed on `Panel` (reusing popover duration, not a
+fourth composite — `adapters/tailwind.css` records why). The remaining snap
+was not missing duration. `data-[starting-style]:h-0` is not a class this
+theme can emit (`--spacing-*: initial`; `h-0` is the same trap
+`Drawer.tsx`'s `inset: 0` already documents), and the Next apps did not
+`@source` this package, so even `h-(--collapsible-panel-height)` was absent
+from `frontend-web`'s stylesheet. The pin is now numeric `height: 0` while
+`transitionStatus` is `starting`/`ending`.
+
 ## SOLID
 
 Single responsibility: the trigger/panel open-close relationship and its
@@ -69,5 +79,4 @@ Open/closed: a new disclosure shape is a new `className` at the call site,
 never a new prop here. Dependency inversion: `aria-expanded`/`aria-controls`
 wiring, the `data-panel-open`/`data-open`/`data-closed` state attributes,
 and Enter/Space activation on the trigger's real `<button>` are all Base
-UI's; this file owns only tokens and the one deliberately-deferred animation
-decision above.
+UI's; this file owns only tokens.

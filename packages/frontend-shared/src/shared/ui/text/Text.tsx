@@ -2,6 +2,7 @@ import { useRender } from "@base-ui/react/use-render";
 import { mergeProps } from "@base-ui/react/merge-props";
 
 export type TextVariant =
+    | "hero"
     | "display"
     | "title1"
     | "title2"
@@ -26,6 +27,7 @@ type TextColorProps =
 export type TextProps = useRender.ComponentProps<"span"> & { readonly variant: TextVariant } & TextColorProps;
 
 const VARIANT_CLASS: Record<TextVariant, string> = {
+    hero: "text-hero",
     display: "text-display",
     title1: "text-title1",
     title2: "text-title2",
@@ -52,7 +54,7 @@ const TONE_CLASS: Record<"info" | "attention" | "success" | "danger", string> = 
 };
 
 /**
- * Headings (`display`, `title1`–`title3`) default to `<span>`, not a real
+ * Headings (`hero`, `display`, `title1`–`title3`) default to `<span>`, not a real
  * `<h1>`–`<h6>`: axe's heading-order and one-`<h1>` rules assume a document
  * outline, and this component has no way to know whether a given usage is
  * the page's one true heading or the fifteenth card title in a list. Reusing
@@ -71,6 +73,7 @@ function defaultTagFor(variant: TextVariant): "p" | "span" {
         case "body":
         case "bodyStrong":
             return "p";
+        case "hero":
         case "display":
         case "title1":
         case "title2":
@@ -92,7 +95,7 @@ function resolveColorClassName(tone: TextColorProps["tone"], color: TextColorPro
     return COLOR_CLASS[color ?? "primary"];
 }
 
-/** Renders one of the ten text styles on a polymorphic element. The only way type is applied. */
+/** Renders one of the eleven text styles on a polymorphic element. The only way type is applied. */
 export function Text({ variant, tone, color, render, className, ...props }: TextProps) {
     const classNames = `${ VARIANT_CLASS[variant] } ${ resolveColorClassName(tone, color) }`;
 

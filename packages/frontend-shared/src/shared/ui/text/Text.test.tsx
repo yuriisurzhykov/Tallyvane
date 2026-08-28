@@ -3,6 +3,7 @@ import { render, screen } from "@testing-library/react";
 import { Text, type TextProps, type TextVariant } from "./Text";
 
 const VARIANT_CLASS: Record<TextVariant, string> = {
+    hero: "text-hero",
     display: "text-display",
     title1: "text-title1",
     title2: "text-title2",

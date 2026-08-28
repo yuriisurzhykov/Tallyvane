@@ -317,6 +317,31 @@ source set, not a rule that applies uniformly to every one of them.
 Full record, including the per-module and `arch-tests` alternatives:
 [ADR-060](../../../docs/adr/ADR-060-schema-drift-gate.md).
 
+## 2026-08-26 — the pool stopped requiring a reachable database, and stopped knowing its own size
+
+Two changes, both from slice 13 building the composition root.
+
+**`initializationFailTimeout` is negative now.** Hikari's default is to acquire a connection while
+constructing the pool and to throw when it cannot. Measured in `playground/health`: a spike pointed at
+a stopped database died before it could listen on a port. The consequence was worse than an ugly
+failure — `/health/ready` could never report the one state it exists for, "running and unable to
+serve", because there was no running process to report it.
+
+A second effect came free and is pinned by a case in `app`: once built, the pool keeps trying, so a
+database that comes back turns readiness green again without a restart. The full sequence — 200, freeze
+the container, 503, thaw, 200 — is in `ApplicationIntegrationSpec`, using `PostgresFixture.frozen`,
+which pauses the container rather than stopping it so the mapped port survives.
+
+**The pool size is a constructor parameter.** `POOL_SIZE = 8` was a constant in the class, and eight is
+a property of the server §16.2 budgets for, not of the class. What the class owns is the invariant that
+the dispatcher's parallelism equals the pool size, and it still owns exactly that. Thirteen call sites
+now name a number; the spikes and the suites pass the production eight, so nothing about their behaviour
+changed.
+
+**`DatabaseAccess.password` is a `Secret`.** It was a plain `String` in a `data class`, which prints
+every field — see `platform/kernel/README.md` for the reasoning and the reach of the change. Reads are
+`access.password.revealed()`.
+
 ## Why it is understandable, scalable, extensible
 
 A module that needs a database in tests applies one plugin and takes

@@ -4,6 +4,7 @@ import kotlinx.coroutines.runBlocking
 import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
+import tallyvane.platform.kernel.Secret
 import tallyvane.platform.kernel.Verdict
 import tallyvane.platform.persistence.DatabaseAccess
 import tallyvane.platform.persistence.PostgresPersistence
@@ -23,11 +24,11 @@ private val access =
     DatabaseAccess(
         url = System.getProperty("spike.url", "jdbc:postgresql://localhost:5433/demo"),
         user = System.getProperty("spike.user", "demo"),
-        password = System.getProperty("spike.password", "demo"),
+        password = Secret(System.getProperty("spike.password", "demo")),
     )
 
 private fun sql(statement: String) {
-    DriverManager.getConnection(access.url, access.user, access.password).use { connection ->
+    DriverManager.getConnection(access.url, access.user, access.password.revealed()).use { connection ->
         connection.createStatement().use { it.execute(statement) }
     }
 }
@@ -37,7 +38,7 @@ private fun sql(statement: String) {
  * transaction is still holding.
  */
 private fun committed(): Int =
-    DriverManager.getConnection(access.url, access.user, access.password).use { connection ->
+    DriverManager.getConnection(access.url, access.user, access.password.revealed()).use { connection ->
         connection.createStatement().use { statement ->
             statement.executeQuery("select count(*) from spike_rows").use { rows ->
                 rows.next()
