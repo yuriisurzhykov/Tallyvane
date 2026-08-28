@@ -1,0 +1,1 @@
+RUN cp -rL frontend-web/.next/standalone /tmp/standalone

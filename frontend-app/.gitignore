@@ -1,0 +1,11 @@
+# ---------- Node ----------
+node_modules/
+
+.next/
+.turbo/
+dist/
+coverage/
+*.tsbuildinfo
+.npm/
+.pnpm-store/
+next-env.d.ts

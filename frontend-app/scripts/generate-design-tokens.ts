@@ -10,15 +10,15 @@
  * would drag this compiler into the bundle.
  *
  * The theme SOURCE lives in the `frontend-shared` package, not in this app —
- * `frontend-web` and `frontend-app` have identical copies of this script pointed at the same
- * `THEME_DIR`, so there is one generated artefact, not two that could
- * silently disagree (see `packages/frontend-shared/README.md`, "Token
- * generation stays two call sites, one destination"). `compilerInput` is
- * imported as a real package dependency (`frontend-shared`, `workspace:*`);
- * `THEME_DIR` is a monorepo-relative filesystem path because this script
- * writes files directly and runs under `tsx`, never through Next's bundler,
- * so the Turbopack tsconfig-`paths` trap this repo has hit before does not
- * apply here.
+ * `frontend-web` and `frontend-admin` have identical copies of this script
+ * pointed at the same `THEME_DIR`, so there is one generated artefact, not
+ * three that could silently disagree (see `packages/frontend-shared/README.md`,
+ * "Token generation stays two call sites, one destination" — now three).
+ * `compilerInput` is imported as a real package dependency (`frontend-shared`,
+ * `workspace:*`); `THEME_DIR` is a monorepo-relative filesystem path because
+ * this script writes files directly and runs under `tsx`, never through
+ * Next's bundler, so the Turbopack tsconfig-`paths` trap this repo has hit
+ * before does not apply here.
  *
  * Run through `pnpm tokens:generate`.
  */

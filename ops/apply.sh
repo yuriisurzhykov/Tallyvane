@@ -42,16 +42,21 @@ credentials="${TUNNEL_CREDENTIALS:-/srv/secrets/tallyvane/tunnel-credentials.jso
 # shellcheck disable=SC2016  # envsubst wants the literal names, not their values.
 envsubst '${TUNNEL_ID} ${DOMAIN}' <cloudflared/config.yml.template >cloudflared/config.yml
 
-echo "-- validating the nginx configuration"
+# The backend chain first, because the check below needs it: nginx names `app` in an upstream
+# group, and a literal name there is resolved when nginx starts. With no such container in the
+# network the check fails on the first deploy that introduces it — the check blocking the deploy
+# it exists to protect. Compose waits for migrations to finish before starting the server.
+echo "-- starting the backend"
+docker compose up -d db migrate app
+
 # Through the image's real entrypoint, so the templates are substituted first: checking the
-# template directory would prove nothing, because the file nginx reads does not exist until
-# that entrypoint writes it.
-#
-# -T and /dev/null keep this command away from standard input whether or not there is a
-# terminal on the other end.
+# template directory would prove nothing, because the file nginx reads does not exist until that
+# entrypoint writes it. -T and /dev/null keep this command away from standard input whether or
+# not there is a terminal on the other end.
+echo "-- validating the nginx configuration"
 docker compose run --rm --no-deps -T nginx nginx -t </dev/null
 
-echo "-- starting"
+echo "-- starting the edge"
 docker compose up -d --remove-orphans
 docker compose ps
 
