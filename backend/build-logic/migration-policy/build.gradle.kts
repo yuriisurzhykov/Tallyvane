@@ -16,22 +16,25 @@ detekt {
     buildUponDefaultConfig = true
     parallel = true
     config.setFrom(rootProject.layout.projectDirectory.dir("..").file("config/detekt/detekt.yml"))
-    source.setFrom("src/main/kotlin")
+    source.setFrom("src/main/kotlin", "src/test/kotlin")
 }
 
 gradlePlugin {
     plugins {
-        register("root") {
-            id = "tallyvane.root"
-            implementationClass = "tallyvane.gradle.root.TallyvaneRootPlugin"
+        register("migrationPolicy") {
+            id = "tallyvane.migration-policy"
+            implementationClass = "tallyvane.gradle.migrationpolicy.MigrationPolicyPlugin"
         }
     }
 }
 
 dependencies {
-    implementation(project(":graph"))
-    implementation(project(":migration-policy"))
-    implementation(project(":verification"))
+    testImplementation(libs.kotest.runner.junit5)
+    testImplementation(libs.kotest.assertions.core)
+}
+
+tasks.withType<Test>().configureEach {
+    useJUnitPlatform()
 }
 
 tasks.named("check") {

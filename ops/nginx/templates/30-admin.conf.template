@@ -9,6 +9,9 @@ server {
     access_log /var/log/nginx/access.log tallyvane;
 
     location /api/ {
+        # See 10-site.conf.template's comment on the same line: nodelay lets one page load's
+        # own parallel calls through immediately instead of queuing them.
+        limit_req zone=api burst=20 nodelay;
         proxy_pass http://backend;
         proxy_http_version 1.1;
         proxy_set_header Connection "";

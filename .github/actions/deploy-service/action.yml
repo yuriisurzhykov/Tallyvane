@@ -1,0 +1,56 @@
+name: Deploy service
+description: >-
+  Rolls out one service's freshly-published image on the server, over the CI-only forced-command
+  SSH key (ops/provision/25-ci-key.sh, ops/deploy-wrapper.sh).
+
+inputs:
+  service-name:
+    description: One of app, frontend-web, frontend-app, frontend-admin.
+    required: true
+  image-ref:
+    description: The full image reference just published, e.g. ghcr.io/owner/tallyvane-backend:v1.2.3.
+    required: true
+  ssh-host:
+    description: user@host for the deploy account, e.g. deploy@203.0.113.10.
+    required: true
+  ssh-known-hosts:
+    description: >-
+      The server's public host key in known_hosts format (ssh-keyscan's own output) — pinned
+      rather than accepted on first connect, so a compromised network path cannot substitute a
+      different host silently.
+    required: true
+  ssh-key:
+    description: The CI-only private key, restricted server-side to running exactly one command.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    # A dedicated, disposable SSH_ASKPASS-free config rather than the runner's own ~/.ssh: this
+    # key and host pin have no business surviving past this one job.
+    - name: Configure SSH
+      shell: bash
+      env:
+        SSH_KEY: ${{ inputs.ssh-key }}
+        SSH_KNOWN_HOSTS: ${{ inputs.ssh-known-hosts }}
+      run: |
+        install -d -m 700 "$RUNNER_TEMP/deploy-ssh"
+        printf '%s\n' "$SSH_KEY" > "$RUNNER_TEMP/deploy-ssh/key"
+        chmod 600 "$RUNNER_TEMP/deploy-ssh/key"
+        printf '%s\n' "$SSH_KNOWN_HOSTS" > "$RUNNER_TEMP/deploy-ssh/known_hosts"
+        chmod 600 "$RUNNER_TEMP/deploy-ssh/known_hosts"
+
+    # The forced command on the server (deploy-wrapper.sh) reads what is sent here from
+    # $SSH_ORIGINAL_COMMAND — sshd runs the forced command regardless, this is only what that
+    # script is told the caller asked for, and it treats every word of it as untrusted input.
+    - name: Roll out ${{ inputs.service-name }}
+      shell: bash
+      env:
+        SSH_HOST: ${{ inputs.ssh-host }}
+        SERVICE_NAME: ${{ inputs.service-name }}
+        IMAGE_REF: ${{ inputs.image-ref }}
+      run: |
+        ssh -i "$RUNNER_TEMP/deploy-ssh/key" \
+          -o UserKnownHostsFile="$RUNNER_TEMP/deploy-ssh/known_hosts" \
+          -o StrictHostKeyChecking=yes \
+          "$SSH_HOST" "$SERVICE_NAME $IMAGE_REF"

@@ -6,6 +6,9 @@ server {
     access_log /var/log/nginx/access.log tallyvane;
 
     location /api/ {
+        # burst=20, nodelay: a page load's own handful of parallel calls clears immediately
+        # rather than queuing one by one, which plain (non-nodelay) bursting would do.
+        limit_req zone=api burst=20 nodelay;
         proxy_pass http://backend;
         proxy_http_version 1.1;
         proxy_set_header Connection "";

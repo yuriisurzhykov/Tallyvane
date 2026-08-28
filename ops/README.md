@@ -8,7 +8,8 @@ provision/            one file per step of preparing a bare machine
   provision.sh        runs the steps in order
 docker-compose.yml    cloudflared, nginx, db
 deploy.sh             runs on your machine: copies this directory to the server, then calls apply.sh
-apply.sh              runs on the server: generates, validates, starts, reports
+apply.sh              runs on the server: generates, validates, starts, reports; also --rollout/--retire
+deploy-wrapper.sh      the one command CI's forced-command SSH key may run
 nginx/templates/      server blocks, substituted by the image's own entrypoint
 cloudflared/          the tunnel's ingress template
 init/                 runs once, when Postgres first creates its data directory
@@ -90,6 +91,17 @@ genuinely different load profiles. See ARCHITECTURE.md §3.2/§16 for both updat
 Typst and cwebp are not containers — they are static binaries inside the server
 image, invoked as short-lived processes.
 
+As of 2026-08-28, `app` and each of the three frontends is declared twice —
+`app-blue`/`app-green`, `frontend-web-blue`/`frontend-web-green`, and so on — for
+per-service blue-green (the CD plan's §2-3). Exactly one colour of each pair actually
+runs in steady state; the other exists only in the compose file, behind
+`profiles: [blue-green]` so a bare `docker compose up -d` cannot start it by accident.
+`apply.sh --rollout <service>` is the only thing that starts the idle colour, cuts
+nginx over to it, and `apply.sh --retire <service>` is the only thing that stops the
+one being replaced — see the two dated entries below for why nginx's own upstream
+declarations, not `apply.sh`'s choice of which colour to start, turned out to be the
+binding constraint on that shape.
+
 ## No inbound ports
 
 `cloudflared` opens an outbound tunnel; traffic arrives through it. The firewall
@@ -165,12 +177,44 @@ it just means V8's ceiling cannot be read as a precise dial for a container this
 carry none yet: the numbers are supposed to come from `docker stats` against these
 containers, and a guessed limit is a limit that kills a working process for no reason.
 
+## Continuous deployment: a forced-command key, not the administrator's own
+
+Every tagged push that publishes an image (`.github/workflows/publish-*.yml`) also deploys it,
+through `.github/actions/deploy-service` and one SSH key that exists for no other purpose.
+
+That key is a **second** entry in the same `deploy` user's `authorized_keys`
+(`ops/provision/25-ci-key.sh`), not a second user. `ops/provision/60-docker.sh` already
+documents why: the `docker` group `deploy` needs in order to run `docker compose` is
+root-equivalent on this host regardless — a second, sudo-less user would still need that same
+group, so it would not have added the isolation it looks like it would. What actually contains
+the key is `restrict,command="…/deploy-wrapper.sh"`: `restrict` (OpenSSH 7.2+) strips
+port/X11/agent forwarding, a pty and `~/.ssh/rc` in one word, and the forced command means sshd
+runs `deploy-wrapper.sh` no matter what the client asked to run — a leaked key can end up
+nowhere but there.
+
+`deploy-wrapper.sh` reads what the client *actually* asked for from `$SSH_ORIGINAL_COMMAND` — two
+words, a service name and an image reference — and treats both as untrusted input rather than
+something to `eval`: a service name against a fixed list, an image reference against an
+allow-list of characters, because that value is written into `.env`, which `apply.sh` later
+`source`s, and a shell metacharacter surviving into that file would run as this user the next
+time `apply.sh` starts. Only once both check out does it update `.env` and call `apply.sh
+--rollout <service>`.
+
+Three secrets the workflow needs, none of them the administrator's own credentials:
+
+| Secret | Holds |
+| --- | --- |
+| `TALLYVANE_DEPLOY_KEY` | The private half of the keypair `25-ci-key.sh` asks for — generated for this purpose only. |
+| `TALLYVANE_DEPLOY_HOST` | `deploy@<host>`, the same form `deploy.sh`'s own `TALLYVANE_SSH` takes. |
+| `TALLYVANE_SSH_KNOWN_HOSTS` | The server's host key, from `ssh-keyscan <host>` — pinned rather than accepted on first connect from a GitHub-hosted runner, which has no prior relationship with this server to trust on. |
+
 ## What this tree deliberately does not do yet
 
-- **Rate limits.** nginx is the right place for the coarse per-address kind, but the
-  thresholds are an open decision, and a limit invented here would be a number with
-  nothing behind it. The accurate per-account kind belongs to the application and
-  needs a counter store.
+- **The accurate, per-account rate limit.** `00-common.conf.template`'s `limit_req_zone` (10
+  req/s per address, `burst=20 nodelay`, confirmed as a conscious estimate rather than a
+  measurement — there is no real traffic yet to measure) is the coarse, per-address layer only.
+  The accurate kind belongs to the application, keyed by session rather than address, and needs
+  a counter store that does not exist yet (§11.2).
 - **Timeouts.** Left at nginx's defaults. They matter once something is being
   proxied, and nothing is yet.
 - **Host configuration as data.** `provision/` is idempotent shell, not a
@@ -439,3 +483,85 @@ level replaces what it inherits. Hence `access_log` inside each server block.
 
 Measured rather than reasoned about: eight requests produced eight JSON lines and
 zero lines in the `main` format.
+
+## 2026-08-28 — a `map` naming an upstream block still isn't caught by `nginx -t` on a typo
+
+Blue-green (§16, the CD plan) needs `proxy_pass` to point at whichever of two colours is
+currently active, and a `map`-selected variable whose value happens to equal the *name* of a
+statically-declared `upstream` block is a different mechanism from the bare-hostname-in-a-variable
+form already rejected above — worth re-testing on its own rather than assumed to share that
+form's failure mode just because both put a variable in `proxy_pass`.
+
+Built two throwaway `nginx:alpine` containers as upstreams (`backend-blue`, `backend-green`,
+distinguished by their own body), one edge container with `upstream app_blue`/`app_green`, `map
+$active_color $group { default app_blue; green app_green; }`, and `proxy_pass http://$group;`.
+
+**Keepalive is genuinely preserved when the map's value matches a real upstream name.** Six
+requests through the edge container to the correctly-mapped colour, read back from the
+*upstream's own* access log (`$connection`/`$connection_requests`, not the edge's): all six landed
+on `connection=1`, `connection_requests` counting 1 through 7 — one TCP connection, reused, not a
+new handshake per request. This is the behaviour the plan hoped a live test would confirm rather
+than assume, and it did.
+
+**A typo in the `map` is not caught by `nginx -t`, and that is the deciding fact.** Changing the
+`green` branch to a nonexistent name (`app_gren`) and running `nginx -t` reported *"configuration
+file test is successful"* — the exact silence the bare-hostname form was rejected for. The failure
+surfaces only at request time: `502`, with `no resolver defined to resolve app_gren` in the error
+log — nginx falls back to trying to resolve the unmatched string as a real hostname, exactly the
+dynamic-resolution path the earlier rejection already ruled out, once the string stops matching a
+known upstream. A `map` does not get checked against the upstream names declared in the same file
+at `nginx -t` time, so this is indistinguishable, at build time, from a typo in the bare-hostname
+form — a typo would only be caught once nginx guesses wrong.
+
+For contrast, the same typo written as a **literal** `proxy_pass http://app_gren;` (no variable at
+all) fails `nginx -t` immediately: `host not found in upstream "app_gren"`, exit code 1 — confirming
+the 2026-08-27 finding above still holds and pointing at the actual fix.
+
+**Decision: blue-green switches colour by regenerating the literal `proxy_pass` target, not by a
+`map`-selected variable.** The variable form is measurably no safer than the one already rejected
+on the one property that matters most here — a typo distinguishable from a real outage before
+traffic ever reaches it — despite genuinely solving the keepalive question in its favour. `apply.sh
+--rollout <service>` rewrites the hostname template's `proxy_pass` line with the new colour's
+literal upstream name and runs the existing `nginx -t` validation before `nginx -s reload`, the same
+two-step deploy.sh/apply.sh already uses for every other nginx change.
+
+## 2026-08-28 — declaring both colours permanently would double every memory budget in this file, so the rollout adds and removes a `server` line instead
+
+Naming `app_blue`/`app_green` as two permanently-declared `upstream` blocks (the shape this
+document's own §2 draft assumed at first) turned out to have a consequence the earlier finding
+above did not cover: **every `server` line nginx has ever been told about is resolved when the
+config loads, whether or not any `location` actually sends it traffic.** Measured directly —
+declared an `upstream` with one server pointing at a genuinely running container and a second
+pointing at one that was merely `docker stop`ped, with **no** `location` in the file referencing the
+second one at all: `nginx -t` still failed, `host not found in upstream`, on the unreferenced line.
+Marking that same line `down` did not change the result — `down` tells nginx not to *send* traffic
+there, not to skip resolving it.
+
+That rules out the two-upstream-blocks shape outright for this deployment. Declaring `app_blue` and
+`app_green` (and the six more pairs for the three frontends) permanently would require **both**
+containers of **every** rollout-eligible service running at all times, not only during a rollout's
+cutover window — doubling `app`, `frontend-web`, `frontend-app` and `frontend-admin`'s combined
+memory footprint permanently, which was never the number this deployment's headroom was checked
+against (§ above and `backend-infra-cache-wiring.md` both size for one copy of each, briefly two
+during a rollout — never two, indefinitely, of all four at once).
+
+**What holds up instead, verified against real containers through a full cutover:** the upstream
+group keeps its *one* existing name (`backend`, `frontend_web`, …) forever — `proxy_pass` in the
+three hostname templates never changes at all. What `apply.sh --rollout` edits is only the list of
+`server` lines *inside* that one already-existing block, in three steps, each its own `nginx -t` +
+`nginx -s reload`:
+
+1. Start the idle colour's container. Add its `server` line, marked `down`. Reload — traffic
+   provably stays 100% on the active colour (verified: five requests, all five still answered by
+   the old colour, not a blend).
+2. Cutover: in one reload, remove `down` from the new colour's line and add it to the old colour's.
+   Verified atomic, not a blend — five requests immediately after answered 100% from the new colour,
+   zero from the old one, with no round-robin mixing observed at any point.
+3. Once the grace period ends: remove the old colour's line entirely, reload — **before** stopping
+   its container. Verified that reload succeeds. Only then is the old colour's container stopped;
+   verified that a *later*, unrelated reload still succeeds afterwards, because nothing in the
+   config still names it.
+
+Getting the order of steps 3's two halves backwards is exactly the bug this section exists to avoid:
+stop the container first and nginx refuses to reload for *every* hostname on the next unrelated
+change, not only the one whose colour was being retired.

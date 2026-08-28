@@ -1,0 +1,54 @@
+name: Scan image
+description: >-
+  Fails the calling job if the image carries a CRITICAL or HIGH vulnerability with a fix
+  available, and always uploads the full scan to the repository's Security tab.
+
+inputs:
+  image-ref:
+    description: The image to scan, e.g. ghcr.io/owner/tallyvane-backend:abc1234 (a tag or a digest both work).
+    required: true
+
+runs:
+  using: composite
+  steps:
+    # Pinned by commit, not by tag: this exact action was the vector for a real supply-chain
+    # compromise on 2026-03-19 (GHSA-69fq-xp46-6x23) that stole CI runner memory for
+    # secrets — every tag except 0.35.0 was affected, retroactively, at the registry. A tag can
+    # be moved to point at a different commit after the fact; a commit SHA cannot. ed142fd is
+    # v0.36.0, published after the incident and cryptographically signed, checked here rather
+    # than assumed: https://api.github.com/repos/aquasecurity/trivy-action/git/tags/a9c7b0f.
+    - name: Run Trivy
+      uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+      with:
+        image-ref: ${{ inputs.image-ref }}
+        format: sarif
+        output: trivy-results.sarif
+        severity: CRITICAL,HIGH
+        # Without this, the SARIF still carries every severity regardless of the `severity`
+        # input above (reported upstream: aquasecurity/trivy-action#309) — this keeps the
+        # uploaded report itself limited to what this gate actually cares about.
+        limit-severities-for-sarif: true
+        # A base image's own CVE with no released fix would otherwise block every publish
+        # indefinitely on something nobody here can act on yet — this keeps the gate meaning
+        # "there is something to fix," not "there is unpatched noise in the base image."
+        ignore-unfixed: true
+        exit-code: "0" # upload-sarif below needs the file even on a failing scan; see next step
+
+    # Uploaded unconditionally, including a failing scan — a security tab that only ever shows
+    # clean scans would be worse than none, since a look there could never reveal the run that
+    # actually found something.
+    - name: Upload results to the Security tab
+      if: always()
+      uses: github/codeql-action/upload-sarif@v4
+      with:
+        sarif_file: trivy-results.sarif
+
+    # The actual gate, kept separate from Trivy's own `exit-code` so upload-sarif always runs
+    # first regardless of the outcome.
+    - name: Fail on a fixable CRITICAL or HIGH
+      shell: bash
+      run: |
+        if grep -q '"level": *"error"' trivy-results.sarif; then
+          echo "::error::Trivy found a fixable CRITICAL or HIGH vulnerability in ${{ inputs.image-ref }} — see the Security tab."
+          exit 1
+        fi

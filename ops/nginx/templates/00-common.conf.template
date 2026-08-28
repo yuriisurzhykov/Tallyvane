@@ -38,37 +38,69 @@ log_format tallyvane escape=json '{'
 # The version number is free reconnaissance for anyone picking an exploit to try.
 server_tokens off;
 
+# A coarse, per-address limit on /api/ — Cloudflare's own free-tier rule (10 s window, 10 s ban)
+# is close to useless against anything patient (backend/.plans/backend-infra-cache-wiring.md),
+# so this is the layer that actually blunts a scripted single client. It is deliberately not the
+# accurate, per-account limit §11.2 will eventually need: that one needs a counter store keyed by
+# session, which does not exist yet, and a number invented for it now would be exactly the kind
+# of guess this repository's own rules warn against.
+#
+# $binary_remote_addr, not $remote_addr: nginx's own documentation states the fixed-width binary
+# form keeps each tracked state at 128 bytes on a 64-bit platform against a variable-width
+# string for the other — the reason this zone's size is a real, checkable number rather than a
+# guess. 10 megabytes holds roughly 8,000 concurrently tracked addresses; this project's real
+# traffic is nowhere near that, and the number is cheap to raise later without changing the rate
+# itself, which is the setting that actually matters to a real visitor.
+limit_req_zone $binary_remote_addr zone=api:10m rate=10r/s;
+
 # The Ktor server. One named group, shared by every hostname that exposes an API, because there
 # is one server — while the decision that a given hostname exposes it at all is per-hostname and
 # lives in that hostname's own file.
 #
 # A literal name here is resolved once, at startup, and nginx refuses to start if it fails. That
-# is accepted deliberately: `app` is in the same composition, so its absence is a fault rather
-# than a state to tolerate, and it should be loud. The consequence to know about is that a
-# recreated container gets a new address which nginx will not notice — measured, and handled by
-# a reload in ops/apply.sh.
+# is accepted deliberately: the primary colour is in the same composition, so its absence is a
+# fault rather than a state to tolerate, and it should be loud. The consequence to know about is
+# that a recreated container gets a new address which nginx will not notice — measured, and
+# handled by a reload in ops/apply.sh.
+#
+# Two `server` lines, not one, for every group below — blue/green (CD plan §2-3), and this shape
+# is deliberate rather than the more obvious "swap which one upstream block proxy_pass names":
+# nginx resolves every declared `server` at load time whether or not any `location` sends it
+# traffic, `down` or not, measured against a stopped container (ops/README.md, 2026-08-28). A
+# `map`-selected upstream *name* was tried first and abandoned for a different, sharper reason —
+# same entry, the paragraph above this one. PRIMARY always carries traffic; SECONDARY always
+# carries `down` and, outside a rollout, mirrors PRIMARY's own colour — so in steady state both
+# lines name the one container that is actually running, and `apply.sh --rollout` is the only
+# thing that ever makes them differ, only for as long as a rollout is in flight. A cutover is one
+# reload that swaps which colour sits in which variable, never a blend of the two: verified live,
+# not assumed — five requests immediately after a swap answered 100% from the new colour, zero
+# from the old one.
 upstream backend {
-    server app:8080;
+    server ${TALLYVANE_APP_PRIMARY}:8080;
+    server ${TALLYVANE_APP_SECONDARY}:8080 down;
     # Keeps established connections to the backend and reuses them, instead of paying a TCP
     # handshake per request. Requires the two proxy_ directives in each location; without them
-    # this line is silently ineffective.
+    # this line is silently ineffective. Confirmed to survive the PRIMARY/SECONDARY substitution
+    # above: the connection reused across seven consecutive requests, not opened per request.
     keepalive 16;
 }
 
-# Three applications (ADR-032, ADR-065), three named groups, same reasoning as `backend`
-# above: a literal name here fails loudly at startup if the container it names does not
-# exist, which is what makes a typo distinguishable from a container that is genuinely down.
+# Three applications (ADR-032, ADR-065), three named groups, same reasoning and the same
+# PRIMARY/SECONDARY shape as `backend` above.
 upstream frontend_web {
-    server frontend-web:3000;
+    server ${TALLYVANE_FRONTEND_WEB_PRIMARY}:3000;
+    server ${TALLYVANE_FRONTEND_WEB_SECONDARY}:3000 down;
     keepalive 16;
 }
 
 upstream frontend_app {
-    server frontend-app:3000;
+    server ${TALLYVANE_FRONTEND_APP_PRIMARY}:3000;
+    server ${TALLYVANE_FRONTEND_APP_SECONDARY}:3000 down;
     keepalive 16;
 }
 
 upstream frontend_admin {
-    server frontend-admin:3000;
+    server ${TALLYVANE_FRONTEND_ADMIN_PRIMARY}:3000;
+    server ${TALLYVANE_FRONTEND_ADMIN_SECONDARY}:3000 down;
     keepalive 16;
 }

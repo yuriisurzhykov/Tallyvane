@@ -22,6 +22,93 @@ x-log-bound: &log-bound
     max-size: 50m
     max-file: "5"
 
+# Blue/green (CD plan §2-3): each rollout-eligible service is declared TWICE, once per
+# colour, sharing everything but its name. Anchors carry the shared half so a colour pair
+# cannot drift into two specs that quietly disagree with each other over time.
+#
+# `profiles` keeps a bare `docker compose up -d` (typed by hand, without going through
+# apply.sh) from starting either colour at all — nginx measurably refuses to (re)load once
+# any upstream it declares names a container that is not running (ops/README.md,
+# 2026-08-28), so which colour is "the one actually running" must always be a deliberate
+# choice apply.sh makes by naming it explicitly, never an accident of a bare `up`.
+x-app: &app-defaults
+  image: ${BACKEND_IMAGE:?BACKEND_IMAGE must be set}
+  restart: unless-stopped
+  profiles: [ blue-green ]
+  environment:
+    TALLYVANE_DB_URL: jdbc:postgresql://db:5432/tallyvane
+    TALLYVANE_DB_USER: tallyvane
+    TALLYVANE_DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+    TALLYVANE_HEALTH_TOKEN: ${TALLYVANE_HEALTH_TOKEN:?TALLYVANE_HEALTH_TOKEN must be set}
+    TALLYVANE_LOG_LEVEL: ${TALLYVANE_LOG_LEVEL:-INFO}
+    # -javaagent alongside -XX:MaxRAMPercentage in the same value, same reasoning as the
+    # heap/mem_limit pairing this line already carries: two settings that only make sense read
+    # together stay written together, not one here and one guessed at from a second file.
+    JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=66 -javaagent:/opt/tallyvane/opentelemetry-javaagent.jar
+    OTEL_SERVICE_NAME: tallyvane-app
+    OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:?OTEL_EXPORTER_OTLP_ENDPOINT must be set}
+    OTEL_EXPORTER_OTLP_HEADERS: ${OTEL_EXPORTER_OTLP_HEADERS:?OTEL_EXPORTER_OTLP_HEADERS must be set}
+    # ADR-067: renames the agent's own Logback MDC keys so they stop overwriting TraceContext's
+    # trace_id/span_id (ADR-056) instead of coexisting with them.
+    OTEL_INSTRUMENTATION_COMMON_LOGGING_TRACE_ID_KEY: otel_trace_id
+    OTEL_INSTRUMENTATION_COMMON_LOGGING_SPAN_ID_KEY: otel_span_id
+  mem_limit: 576m
+  depends_on:
+    db:
+      condition: service_healthy
+    migrate:
+      condition: service_completed_successfully
+  networks: [ edge, data ]
+  logging: *log-bound
+  healthcheck:
+    test: [ "CMD", "curl", "--fail", "--silent", "--output", "/dev/null", "http://127.0.0.1:8080/api/v1/health/live" ]
+    interval: 10s
+    timeout: 3s
+    retries: 3
+    start_period: 20s
+
+x-frontend-web: &frontend-web-defaults
+  image: ${FRONTEND_WEB_IMAGE:?FRONTEND_WEB_IMAGE must be set}
+  restart: unless-stopped
+  profiles: [ blue-green ]
+  mem_limit: 256m
+  networks: [ edge ]
+  logging: *log-bound
+  healthcheck:
+    test: [ "CMD", "wget", "--quiet", "--tries=1", "--output-document=/dev/null", "http://127.0.0.1:3000/" ]
+    interval: 10s
+    timeout: 3s
+    retries: 3
+    start_period: 10s
+
+x-frontend-app: &frontend-app-defaults
+  image: ${FRONTEND_APP_IMAGE:?FRONTEND_APP_IMAGE must be set}
+  restart: unless-stopped
+  profiles: [ blue-green ]
+  mem_limit: 384m
+  networks: [ edge ]
+  logging: *log-bound
+  healthcheck:
+    test: [ "CMD", "wget", "--quiet", "--tries=1", "--output-document=/dev/null", "http://127.0.0.1:3000/today" ]
+    interval: 10s
+    timeout: 3s
+    retries: 3
+    start_period: 10s
+
+x-frontend-admin: &frontend-admin-defaults
+  image: ${FRONTEND_ADMIN_IMAGE:?FRONTEND_ADMIN_IMAGE must be set}
+  restart: unless-stopped
+  profiles: [ blue-green ]
+  mem_limit: 192m
+  networks: [ edge ]
+  logging: *log-bound
+  healthcheck:
+    test: [ "CMD", "wget", "--quiet", "--tries=1", "--output-document=/dev/null", "http://127.0.0.1:3000/pages" ]
+    interval: 10s
+    timeout: 3s
+    retries: 3
+    start_period: 10s
+
 services:
   # Nothing listens on a port of this machine. cloudflared opens an outbound connection to
   # Cloudflare and receives requests through it, so the firewall can refuse every inbound
@@ -62,6 +149,20 @@ services:
       # server name — every real hostname then falls through to the default server and gets a
       # 404, and `nginx -t` reports success. See the dated entry in ops/README.md.
       TALLYVANE_DOMAIN: ${DOMAIN:?DOMAIN must be set}
+      # Blue/green (§2 of the CD plan): PRIMARY carries traffic, SECONDARY is always
+      # declared too — marked `down` in 00-common.conf.template — because nginx resolves
+      # every declared upstream server at load time whether or not any location sends it
+      # traffic (measured, ops/README.md 2026-08-28). In steady state both point at the
+      # same, single running container; only apply.sh --rollout ever makes them differ,
+      # and only for as long as a rollout is actually in flight.
+      TALLYVANE_APP_PRIMARY: app-${APP_ACTIVE_COLOR:-blue}
+      TALLYVANE_APP_SECONDARY: app-${APP_ACTIVE_COLOR:-blue}
+      TALLYVANE_FRONTEND_WEB_PRIMARY: frontend-web-${FRONTEND_WEB_ACTIVE_COLOR:-blue}
+      TALLYVANE_FRONTEND_WEB_SECONDARY: frontend-web-${FRONTEND_WEB_ACTIVE_COLOR:-blue}
+      TALLYVANE_FRONTEND_APP_PRIMARY: frontend-app-${FRONTEND_APP_ACTIVE_COLOR:-blue}
+      TALLYVANE_FRONTEND_APP_SECONDARY: frontend-app-${FRONTEND_APP_ACTIVE_COLOR:-blue}
+      TALLYVANE_FRONTEND_ADMIN_PRIMARY: frontend-admin-${FRONTEND_ADMIN_ACTIVE_COLOR:-blue}
+      TALLYVANE_FRONTEND_ADMIN_SECONDARY: frontend-admin-${FRONTEND_ADMIN_ACTIVE_COLOR:-blue}
     volumes:
       # conf.d is deliberately not mounted. The entrypoint writes generated configuration
       # into it, and templates/default.conf.template overwrites the image's own welcome-page
@@ -95,100 +196,36 @@ services:
     networks: [ data ]
     logging: *log-bound
 
-  app:
-    image: ${BACKEND_IMAGE:?BACKEND_IMAGE must be set}
-    restart: unless-stopped
-    environment:
-      TALLYVANE_DB_URL: jdbc:postgresql://db:5432/tallyvane
-      TALLYVANE_DB_USER: tallyvane
-      TALLYVANE_DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
-      TALLYVANE_HEALTH_TOKEN: ${TALLYVANE_HEALTH_TOKEN:?TALLYVANE_HEALTH_TOKEN must be set}
-      TALLYVANE_LOG_LEVEL: ${TALLYVANE_LOG_LEVEL:-INFO}
-      # This line and mem_limit below are one setting in two halves, and separating them is the
-      # bug to avoid: a JVM reads its container's limit and sizes the heap as a percentage of
-      # it, so 66% with no limit means 66% of the whole machine. Measured: 382 MiB against a
-      # 576 MB limit, 4.9 GiB against none. §16.2's "JVM 576, heap 384" is this pair.
-      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=66
-    mem_limit: 576m
-    # Both conditions, not just the database: starting the server before migrations finish would
-    # point it at a schema that does not yet match the code.
-    depends_on:
-      db:
-        condition: service_healthy
-      migrate:
-        condition: service_completed_successfully
-    # `edge` so nginx can reach it, `data` so it can reach the database. Nothing else is on both.
-    networks: [ edge, data ]
-    logging: *log-bound
-    healthcheck:
-      # The liveness address, which by design touches nothing: it answers whether the process is
-      # running, not whether its dependencies are. Readiness is a different address, and it is
-      # for the deploy to read, not for a restart policy to act on.
-      test: [ "CMD", "curl", "--fail", "--silent", "--output", "/dev/null", "http://127.0.0.1:8080/api/v1/health/live" ]
-      interval: 10s
-      timeout: 3s
-      retries: 3
-      start_period: 20s
+  # Two containers, not one: apply.sh --rollout starts the idle colour beside whichever one
+  # is currently primary, cuts nginx over, and only then retires the old one — see §2-3 of
+  # the CD plan and the anchors above. §16.2's "JVM 576, heap 384" is JAVA_TOOL_OPTIONS
+  # (there) paired with mem_limit (here); measured: 382 MiB against this 576 MB limit,
+  # 4.9 GiB against none.
+  app-blue:
+    <<: *app-defaults
+  app-green:
+    <<: *app-defaults
 
   # Three applications, not one shared process (ADR-032 split admin off; ADR-065 split the
   # console off too) — each its own container, its own crash domain, its own `mem_limit`.
   # None talks to Postgres directly: the browser and each app's own server-side content
   # fetch both go through Ktor (ADR-012), never straight to `db`, which is why `edge` is
-  # the only network any of the three joins.
-  frontend-web:
-    image: ${FRONTEND_WEB_IMAGE:?FRONTEND_WEB_IMAGE must be set}
-    restart: unless-stopped
-    # ADR-065's estimate: public pages only, cache-friendly, no held-open connections.
-    # Like every number in this file that says "estimate," to be replaced by a `docker
-    # stats` reading once there is real traffic rather than adjusted by guesswork before
-    # then. No NODE_OPTIONS here: Node reads this limit from its own cgroup and sizes its
-    # default heap conservatively by itself — measured on this exact image, no flag
-    # needed, the same way `db`'s and `app`'s limits are set without a Postgres- or
-    # JVM-specific tuning knob layered underneath the container limit.
-    mem_limit: 256m
-    networks: [ edge ]
-    logging: *log-bound
-    healthcheck:
-      test: [ "CMD", "wget", "--quiet", "--tries=1", "--output-document=/dev/null", "http://127.0.0.1:3000/" ]
-      interval: 10s
-      timeout: 3s
-      retries: 3
-      start_period: 10s
+  # the only network any of the three joins. Each also comes in a blue/green pair for the
+  # same reason `app` does — ADR-065's mem_limit estimates are unchanged, only duplicated.
+  frontend-web-blue:
+    <<: *frontend-web-defaults
+  frontend-web-green:
+    <<: *frontend-web-defaults
 
-  frontend-app:
-    image: ${FRONTEND_APP_IMAGE:?FRONTEND_APP_IMAGE must be set}
-    restart: unless-stopped
-    # ADR-065's estimate: partial SSR plus Server-Sent Events connections held open for as
-    # long as a console tab stays open — heavier and less predictable than the public
-    # site's profile, hence the larger number despite being the newest, least-built app of
-    # the three. Measured once under 192m and 384m alike: Node's own heap ceiling reported
-    # ~259 MB either way rather than tracking the limit precisely — worth knowing before
-    # trusting the ceiling as a precise dial, not a reason to avoid `mem_limit` itself,
-    # which the kernel still enforces regardless of what V8 reports.
-    mem_limit: 384m
-    networks: [ edge ]
-    logging: *log-bound
-    healthcheck:
-      test: [ "CMD", "wget", "--quiet", "--tries=1", "--output-document=/dev/null", "http://127.0.0.1:3000/today" ]
-      interval: 10s
-      timeout: 3s
-      retries: 3
-      start_period: 10s
+  frontend-app-blue:
+    <<: *frontend-app-defaults
+  frontend-app-green:
+    <<: *frontend-app-defaults
 
-  frontend-admin:
-    image: ${FRONTEND_ADMIN_IMAGE:?FRONTEND_ADMIN_IMAGE must be set}
-    restart: unless-stopped
-    # ADR-032's estimate, unchanged by ADR-065: single owner, low concurrency, smaller
-    # route tree than either sibling.
-    mem_limit: 192m
-    networks: [ edge ]
-    logging: *log-bound
-    healthcheck:
-      test: [ "CMD", "wget", "--quiet", "--tries=1", "--output-document=/dev/null", "http://127.0.0.1:3000/pages" ]
-      interval: 10s
-      timeout: 3s
-      retries: 3
-      start_period: 10s
+  frontend-admin-blue:
+    <<: *frontend-admin-defaults
+  frontend-admin-green:
+    <<: *frontend-admin-defaults
 
   db:
     # The one place this tag is written. `PostgresFixture` must run the same image: musl and
