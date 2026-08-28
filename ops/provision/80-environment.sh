@@ -43,6 +43,14 @@ else
   add_key POSTGRES_PASSWORD "$(openssl rand -hex 32)"
 fi
 
+# Opens the detailed health report. The application refuses to start on anything shorter than 40
+# characters; 32 bytes as hex is 64, so this cannot accidentally fall under the floor.
+if has_key TALLYVANE_HEALTH_TOKEN; then
+  ok "TALLYVANE_HEALTH_TOKEN already set"
+else
+  add_key TALLYVANE_HEALTH_TOKEN "$(openssl rand -hex 32)"
+fi
+
 chown "$TALLYVANE_USER:$TALLYVANE_USER" "$env_file"
 chmod 600 "$env_file"
 

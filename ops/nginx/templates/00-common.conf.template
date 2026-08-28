@@ -37,3 +37,20 @@ log_format tallyvane escape=json '{'
 
 # The version number is free reconnaissance for anyone picking an exploit to try.
 server_tokens off;
+
+# The Ktor server. One named group, shared by every hostname that exposes an API, because there
+# is one server — while the decision that a given hostname exposes it at all is per-hostname and
+# lives in that hostname's own file.
+#
+# A literal name here is resolved once, at startup, and nginx refuses to start if it fails. That
+# is accepted deliberately: `app` is in the same composition, so its absence is a fault rather
+# than a state to tolerate, and it should be loud. The consequence to know about is that a
+# recreated container gets a new address which nginx will not notice — measured, and handled by
+# a reload in ops/apply.sh.
+upstream backend {
+    server app:8080;
+    # Keeps established connections to the backend and reuses them, instead of paying a TCP
+    # handshake per request. Requires the two proxy_ directives in each location; without them
+    # this line is silently ineffective.
+    keepalive 16;
+}

@@ -70,5 +70,13 @@ done
 }
 echo "nginx healthy"
 
+# nginx resolves the names in its upstream groups once, at startup, and keeps the addresses.
+# A recreated container can come back on a different one, and nginx would go on using the old
+# address until something told it otherwise. `-s reload` re-reads the configuration and
+# re-resolves: new worker processes start on the new configuration while the old ones finish the
+# requests they already accepted, so nothing is dropped.
+docker compose exec -T nginx nginx -s reload
+echo "-- nginx reloaded, upstream addresses re-resolved"
+
 # Read by deploy.sh to know which hostnames to ask for. Keep it last.
 echo "DOMAIN=$DOMAIN"

@@ -79,6 +79,60 @@ services:
       retries: 3
       start_period: 5s
 
+  # Applies migrations and exits. ADR-051: the deploy migrates, the server never does it at
+  # startup — which is what lets the readiness probe verify the schema rather than report on work
+  # it just did itself. It reads the same three database variables the server does.
+  migrate:
+    image: ${BACKEND_IMAGE:?BACKEND_IMAGE must be set}
+    restart: "no"
+    command: [ "java", "-cp", "/opt/tallyvane/migrate/lib/*", "tallyvane.migrate.MigrateKt" ]
+    environment:
+      TALLYVANE_DB_URL: jdbc:postgresql://db:5432/tallyvane
+      TALLYVANE_DB_USER: tallyvane
+      # Mapped from the database's own variable rather than repeated in .env: one password, one
+      # place, and no way for the two to disagree.
+      TALLYVANE_DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [ data ]
+    logging: *log-bound
+
+  app:
+    image: ${BACKEND_IMAGE:?BACKEND_IMAGE must be set}
+    restart: unless-stopped
+    environment:
+      TALLYVANE_DB_URL: jdbc:postgresql://db:5432/tallyvane
+      TALLYVANE_DB_USER: tallyvane
+      TALLYVANE_DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+      TALLYVANE_HEALTH_TOKEN: ${TALLYVANE_HEALTH_TOKEN:?TALLYVANE_HEALTH_TOKEN must be set}
+      TALLYVANE_LOG_LEVEL: ${TALLYVANE_LOG_LEVEL:-INFO}
+      # This line and mem_limit below are one setting in two halves, and separating them is the
+      # bug to avoid: a JVM reads its container's limit and sizes the heap as a percentage of
+      # it, so 66% with no limit means 66% of the whole machine. Measured: 382 MiB against a
+      # 576 MB limit, 4.9 GiB against none. §16.2's "JVM 576, heap 384" is this pair.
+      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=66
+    mem_limit: 576m
+    # Both conditions, not just the database: starting the server before migrations finish would
+    # point it at a schema that does not yet match the code.
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    # `edge` so nginx can reach it, `data` so it can reach the database. Nothing else is on both.
+    networks: [ edge, data ]
+    logging: *log-bound
+    healthcheck:
+      # The liveness address, which by design touches nothing: it answers whether the process is
+      # running, not whether its dependencies are. Readiness is a different address, and it is
+      # for the deploy to read, not for a restart policy to act on.
+      test: [ "CMD", "curl", "--fail", "--silent", "--output", "/dev/null", "http://127.0.0.1:8080/api/v1/health/live" ]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 20s
+
   db:
     # The one place this tag is written. `PostgresFixture` must run the same image: musl and
     # glibc disagree on text collation, so a different build of the same major version can
