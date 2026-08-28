@@ -10,6 +10,9 @@ export const metadata: Metadata = {
     // Cloudflare Access like admin — but it is still a private dashboard with
     // no reason to appear in a search index.
     robots: { index: false, follow: false },
+    // Read by ops/deploy.sh's smoke check — see the identical comment in
+    // frontend-web/app/layout.tsx.
+    other: { "tallyvane-surface": "app" },
 };
 
 /**

@@ -1,0 +1,51 @@
+name: Publish Frontend Web Image
+
+on:
+  push:
+    branches: [ master ]
+    tags: [ 'frontend-web-v*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
+
+# `packages: write` is what lets the run's own GITHUB_TOKEN publish to ghcr.io. No
+# separate secret exists for this, and none is needed.
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  image:
+    name: Build frontend-web and publish
+    runs-on: ubuntu-latest
+    # Written in full and in lower case rather than derived from github.repository —
+    # same reasoning as publish-backend.yml.
+    env:
+      IMAGE: ghcr.io/yuriisurzhykov/tallyvane-frontend-web
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # No "Prepare workspace" step here, unlike frontend-backend-tests.yml: the
+      # Dockerfile's own builder stage runs `pnpm install --frozen-lockfile` inside the
+      # image, against the exact same committed lockfile. Installing a second copy on the
+      # runner first would only be spent time nothing downstream reads — `docker build`
+      # never sees the runner's own `node_modules`.
+      #
+      # Tagged by commit SHA on every push (catches a broken Dockerfile immediately);
+      # only a `frontend-web-v*` tag additionally logs in and publishes, independently of
+      # the backend's and the other two frontends' own tags (ADR-065's release
+      # consequence) — a change to one never forces a rebuild of the others.
+      - name: Build the image
+        run: docker build -f frontend-web/Dockerfile -t "$IMAGE:${{ github.sha }}" .
+
+      - name: Log in to the registry
+        if: startsWith(github.ref, 'refs/tags/frontend-web-v')
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Publish under the tag
+        if: startsWith(github.ref, 'refs/tags/frontend-web-v')
+        run: |
+          docker tag "$IMAGE:${{ github.sha }}" "$IMAGE:${{ github.ref_name }}"
+          docker push "$IMAGE:${{ github.ref_name }}"

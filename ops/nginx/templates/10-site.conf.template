@@ -1,19 +1,27 @@
-# The public site. Serves a placeholder for now: the real landing page belongs to
-# frontend-web, which has no image yet, and putting it in nginx would mean building something
-# that has to be taken out again.
+# The public site: frontend-web (ADR-065 narrowed it to this hostname alone).
 server {
     listen 80;
     server_name ${TALLYVANE_DOMAIN};
 
     access_log /var/log/nginx/access.log tallyvane;
 
-    root /srv/www/site;
-    index index.html;
-
     location /api/ {
         proxy_pass http://backend;
         proxy_http_version 1.1;
         proxy_set_header Connection "";
         proxy_set_header Host $host;
+    }
+
+    location / {
+        proxy_pass http://frontend_web;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_set_header Host $host;
+        # Cloudflare always terminates TLS before this machine ever sees the request — nginx
+        # itself only ever receives plain HTTP from cloudflared on the edge network. Without
+        # this, frontend-web would see every request as http and could make a wrong call
+        # anywhere it branches on scheme (a redirect, a secure-cookie decision later).
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-Host $host;
     }
 }

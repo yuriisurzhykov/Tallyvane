@@ -10,7 +10,6 @@ docker-compose.yml    cloudflared, nginx, db
 deploy.sh             runs on your machine: copies this directory to the server, then calls apply.sh
 apply.sh              runs on the server: generates, validates, starts, reports
 nginx/templates/      server blocks, substituted by the image's own entrypoint
-nginx/www/            three placeholder pages, one per hostname
 cloudflared/          the tunnel's ingress template
 init/                 runs once, when Postgres first creates its data directory
 .env.example          the shape of the file that lives on the server
@@ -75,15 +74,18 @@ that admits it.
 
 ## Containers
 
-`docker-compose.yml` holds `cloudflared`, `nginx` and `db`. The Ktor server and the
-two frontends join it when their images exist; there is no Dockerfile in this
-repository yet, so a service for them here would be a placeholder nobody can run.
+`docker-compose.yml` holds `cloudflared`, `nginx`, `db`, the Ktor server (`app`/`migrate`)
+and, as of 2026-08-28, all three Next.js applications: `frontend-web`, `frontend-app` and
+`frontend-admin`.
 
-Two frontend containers rather than one is a deliberate change (ADR-032, and
-see the ARCHITECTURE.md §3.2/§16 update it made): the admin surface needed to
-be a genuinely separate application — no workspace dependency on the console,
-so a developer cannot import one into the other by accident — not just a
-different route inside the same process.
+Three frontend containers rather than one is a deliberate progression, not a single
+decision — ADR-032 split `frontend-admin` off (the admin surface needed to be a genuinely
+separate application, no workspace dependency on the console, so a developer cannot import
+one into the other by accident — not just a different route inside the same process), and
+ADR-065 later split the console itself into `frontend-app` for a different reason: it grew
+its own server-rendering and Server-Sent-Events requirements, no longer borrowed from
+`frontend-web`'s, and a shared container meant a shared `mem_limit` for two surfaces with
+genuinely different load profiles. See ARCHITECTURE.md §3.2/§16 for both updates.
 
 Typst and cwebp are not containers — they are static binaries inside the server
 image, invoked as short-lived processes.
@@ -143,15 +145,25 @@ has the reasoning, including why no container is forbidden to swap.
 | --- | --- |
 | PostgreSQL | 384 MB |
 | JVM | 576 MB (heap 384) |
-| Node — `frontend-web` | 320 MB |
+| Node — `frontend-web` | 256 MB (ADR-065: public pages only, cache-friendly) |
+| Node — `frontend-app` | 384 MB (ADR-065: partial SSR plus held-open SSE connections) |
 | Node — `frontend-admin` | 192 MB (estimate — single owner, low concurrency, smaller route tree; replace with a measured number once it's real) |
 | cloudflared | 48 MB |
 | typst / cwebp at peak | 64 MB |
-| Left to the OS and page cache | ~464 MB (was ~640 MB with one Node process; ADR-032 spends some of that margin on admin isolation) |
+| Left to the OS and page cache | shrinks further with each frontend split; this table has not been recalculated against the real 3.768 GiB machine below it |
 
-`mem_limit` is declared for `db` only. nginx and cloudflared carry none yet: the
-numbers are supposed to come from `docker stats` against these containers, and a
-guessed limit is a limit that kills a working process for no reason.
+All three Node numbers are estimates of the same kind ADR-032 already gave
+`frontend-admin`'s — to be replaced by a `docker stats` reading once each application
+carries real traffic. One measurement already exists and is worth recording here rather
+than only in `docker-compose.yml`'s comments: under both a 192m and a 384m `mem_limit`,
+Node's own `v8.getHeapStatistics().heap_size_limit` reported roughly 259 MB either way,
+not a number that tracked the container limit precisely. The kernel still enforces
+`mem_limit` regardless of what V8's own ceiling says, so this does not weaken the limit —
+it just means V8's ceiling cannot be read as a precise dial for a container this small.
+
+`mem_limit` is declared for `db`, `app` and all three frontends. nginx and cloudflared
+carry none yet: the numbers are supposed to come from `docker stats` against these
+containers, and a guessed limit is a limit that kills a working process for no reason.
 
 ## What this tree deliberately does not do yet
 

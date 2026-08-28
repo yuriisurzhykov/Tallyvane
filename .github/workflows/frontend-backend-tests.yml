@@ -43,11 +43,10 @@ jobs:
       - name: Run unit tests
         run: pnpm run test
 
-      # frontend-admin has no Playwright suite yet, so this is the only place
-      # its `next build` gets exercised at all; frontend-web's own build is
-      # also re-run here, redundant with the one its e2e webServer already
-      # does in visual-tests.yml, but a single fan-out step is simpler than
-      # skipping one app.
+      # Neither frontend-app nor frontend-admin has a Playwright suite yet, so this is the
+      # only place either one's `next build` gets exercised at all; frontend-web's own
+      # build is also re-run here, redundant with the one its e2e webServer already does
+      # in visual-tests.yml, but a single fan-out step is simpler than skipping one app.
       - name: Build
         run: pnpm run build
 

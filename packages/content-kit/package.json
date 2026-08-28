@@ -5,7 +5,7 @@
   "type": "module",
   "description": "The ADR-013 'block type defined once' system — content-page/media-asset entities and every content-block widget — held as its own package because both frontend (public render) and frontend-admin (editor + live preview) need the exact same definition, not two that could drift.",
   "engines": {
-    "node": ">=22.12.0"
+    "node": ">=24.0.0"
   },
   "exports": {
     "./entities/content-page": "./src/entities/content-page/index.ts",

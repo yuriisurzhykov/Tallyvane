@@ -10,6 +10,11 @@ export const metadata: Metadata = {
     // reason to appear in a search index even if that boundary were ever
     // misconfigured — a second, independent reason it should never be found.
     robots: { index: false, follow: false },
+    // Read by ops/deploy.sh's smoke check — see the identical comment in
+    // frontend-web/app/layout.tsx. Here the check is inverted: this marker must
+    // NOT be reachable without a session, since Cloudflare Access is supposed
+    // to answer before the request ever gets this far.
+    other: { "tallyvane-surface": "admin" },
 };
 
 /**

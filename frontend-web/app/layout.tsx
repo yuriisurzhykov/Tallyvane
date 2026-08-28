@@ -7,6 +7,10 @@ import "./globals.css";
 export const metadata: Metadata = {
     title: enDictionary.common.productName,
     description: enDictionary.landing.tagline,
+    // Read by ops/deploy.sh's smoke check: proof that this hostname is answered by this
+    // application specifically, not by nginx's own welcome page or another app entirely —
+    // status 200 alone was once produced by all three hostnames sharing one built-in page.
+    other: { "tallyvane-surface": "site" },
 };
 
 /**

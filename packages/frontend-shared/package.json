@@ -5,7 +5,7 @@
   "type": "module",
   "description": "The FSD `shared` layer, extracted from frontend-web/ so it can be a real dependency of both frontend-web (blog + console) and frontend-admin instead of code either of them could otherwise reach into. Ships zero business vocabulary — see ARCHITECTURE.md §12.5 and the `shared-has-no-domain` rule this package exists to keep true across two apps instead of one.",
   "engines": {
-    "node": ">=22.12.0"
+    "node": ">=24.0.0"
   },
   "exports": {
     "./ui/theme": "./src/shared/ui/theme/index.ts",

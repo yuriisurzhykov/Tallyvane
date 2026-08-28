@@ -4,13 +4,13 @@
   "private": true,
   "packageManager": "pnpm@11.22.0",
   "engines": {
-    "node": ">=22.12.0"
+    "node": ">=24.0.0"
   },
-  "//devEngines": "The version development and CI actually use, as opposed to the minimum `engines` will tolerate. `pnpm/setup` reads it, so the CI workflows name no Node version of their own. The floor is 22.12 because Vite 8 / Rolldown refuse anything older; a bare `22` coerces to 22.0.0 and pnpm then skips their optional native bindings as engine-incompatible.",
+  "//devEngines": "The version development and CI actually use, as opposed to the minimum `engines` will tolerate. `pnpm/setup` reads it, so the CI workflows name no Node version of their own. 24 rather than 22: Node 22 moved from Active to Maintenance LTS on 2025-10-21, where it only receives security fixes, while 24 has been Active LTS since 2025-10-28 — the better default for a project just starting out. Vite 8 / Rolldown's own `engines.node` (`^20.19.0 || >=22.12.0`, checked directly in their package.json) is an open-ended `>=`, not capped at the 22.x line, so this move needed no compatibility check beyond that one already-satisfied floor.",
   "devEngines": {
     "runtime": {
       "name": "node",
-      "version": "^22.12.0",
+      "version": "^24.0.0",
       "onFail": "download"
     }
   },

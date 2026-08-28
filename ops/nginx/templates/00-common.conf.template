@@ -54,3 +54,21 @@ upstream backend {
     # this line is silently ineffective.
     keepalive 16;
 }
+
+# Three applications (ADR-032, ADR-065), three named groups, same reasoning as `backend`
+# above: a literal name here fails loudly at startup if the container it names does not
+# exist, which is what makes a typo distinguishable from a container that is genuinely down.
+upstream frontend_web {
+    server frontend-web:3000;
+    keepalive 16;
+}
+
+upstream frontend_app {
+    server frontend-app:3000;
+    keepalive 16;
+}
+
+upstream frontend_admin {
+    server frontend-admin:3000;
+    keepalive 16;
+}

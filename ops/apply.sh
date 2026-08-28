@@ -42,12 +42,16 @@ credentials="${TUNNEL_CREDENTIALS:-/srv/secrets/tallyvane/tunnel-credentials.jso
 # shellcheck disable=SC2016  # envsubst wants the literal names, not their values.
 envsubst '${TUNNEL_ID} ${DOMAIN}' <cloudflared/config.yml.template >cloudflared/config.yml
 
-# The backend chain first, because the check below needs it: nginx names `app` in an upstream
-# group, and a literal name there is resolved when nginx starts. With no such container in the
-# network the check fails on the first deploy that introduces it — the check blocking the deploy
-# it exists to protect. Compose waits for migrations to finish before starting the server.
-echo "-- starting the backend"
-docker compose up -d db migrate app
+# The backend chain and all three frontends first, because the check below needs every one
+# of them: nginx names `app`, `frontend-web`, `frontend-app` and `frontend-admin` in upstream
+# groups, and a literal name there is resolved when nginx starts. With any one of those
+# containers missing from the network, the check fails on the first deploy that introduces it
+# — the check blocking the deploy it exists to protect (measured: stopping the three frontends
+# and re-running `nginx -t` reproduces the exact "host not found in upstream" failure already
+# documented here for `app`). Compose waits for migrations to finish before starting the server;
+# the three frontends have no such dependency on each other or on the backend.
+echo "-- starting the backend and the frontends"
+docker compose up -d db migrate app frontend-web frontend-app frontend-admin
 
 # Through the image's real entrypoint, so the templates are substituted first: checking the
 # template directory would prove nothing, because the file nginx reads does not exist until that

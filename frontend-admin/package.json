@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "engines": {
-    "node": ">=22.12.0"
+    "node": ">=24.0.0"
   },
   "scripts": {
     "dev": "next dev -p 3200",
@@ -32,8 +32,10 @@
     "tsx": "^4",
     "typescript": "^5"
   },
-  "//": "design-token-engine is a devDependency on purpose, same reasoning as frontend-web/package.json: the compiler is build-time only. frontend-shared and content-kit are regular dependencies: their code IS the runtime bundle here.",
+  "//": "design-token-engine is a devDependency on purpose, same reasoning as frontend-web/package.json: the compiler is build-time only. frontend-shared and content-kit are regular dependencies: their code IS the runtime bundle here. @swc/helpers and @next/env are pinned as direct dependencies to work around a real, currently-open Next.js 16.3.1 bug — see the identical note in frontend-web/package.json for the full explanation and the exact failure each prevents.",
   "dependencies": {
+    "@next/env": "16.3.1",
+    "@swc/helpers": "0.5.23",
     "content-kit": "workspace:*",
     "frontend-shared": "workspace:*",
     "next": "^16.3.1",

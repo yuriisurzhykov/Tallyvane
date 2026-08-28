@@ -1,6 +1,4 @@
-# The edge and the database for a single VPS. The Ktor server and the two frontends join
-# this file when their images exist — there is no Dockerfile in this repository yet, so a
-# service for them here would be a placeholder nobody could run.
+# The edge, the database and the three Next.js frontends for a single VPS.
 #
 # Values are written here rather than in a `.env` this file would interpolate. A committed
 # `.env` is forbidden in this repository, and not as a formality: it is the file people reach
@@ -69,7 +67,6 @@ services:
       # into it, and templates/default.conf.template overwrites the image's own welcome-page
       # server by name; a read-only mount would defeat both.
       - ./nginx/templates:/etc/nginx/templates:ro
-      - ./nginx/www:/srv/www:ro
     networks: [ edge ]
     logging: *log-bound
     healthcheck:
@@ -132,6 +129,66 @@ services:
       timeout: 3s
       retries: 3
       start_period: 20s
+
+  # Three applications, not one shared process (ADR-032 split admin off; ADR-065 split the
+  # console off too) — each its own container, its own crash domain, its own `mem_limit`.
+  # None talks to Postgres directly: the browser and each app's own server-side content
+  # fetch both go through Ktor (ADR-012), never straight to `db`, which is why `edge` is
+  # the only network any of the three joins.
+  frontend-web:
+    image: ${FRONTEND_WEB_IMAGE:?FRONTEND_WEB_IMAGE must be set}
+    restart: unless-stopped
+    # ADR-065's estimate: public pages only, cache-friendly, no held-open connections.
+    # Like every number in this file that says "estimate," to be replaced by a `docker
+    # stats` reading once there is real traffic rather than adjusted by guesswork before
+    # then. No NODE_OPTIONS here: Node reads this limit from its own cgroup and sizes its
+    # default heap conservatively by itself — measured on this exact image, no flag
+    # needed, the same way `db`'s and `app`'s limits are set without a Postgres- or
+    # JVM-specific tuning knob layered underneath the container limit.
+    mem_limit: 256m
+    networks: [ edge ]
+    logging: *log-bound
+    healthcheck:
+      test: [ "CMD", "wget", "--quiet", "--tries=1", "--output-document=/dev/null", "http://127.0.0.1:3000/" ]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+  frontend-app:
+    image: ${FRONTEND_APP_IMAGE:?FRONTEND_APP_IMAGE must be set}
+    restart: unless-stopped
+    # ADR-065's estimate: partial SSR plus Server-Sent Events connections held open for as
+    # long as a console tab stays open — heavier and less predictable than the public
+    # site's profile, hence the larger number despite being the newest, least-built app of
+    # the three. Measured once under 192m and 384m alike: Node's own heap ceiling reported
+    # ~259 MB either way rather than tracking the limit precisely — worth knowing before
+    # trusting the ceiling as a precise dial, not a reason to avoid `mem_limit` itself,
+    # which the kernel still enforces regardless of what V8 reports.
+    mem_limit: 384m
+    networks: [ edge ]
+    logging: *log-bound
+    healthcheck:
+      test: [ "CMD", "wget", "--quiet", "--tries=1", "--output-document=/dev/null", "http://127.0.0.1:3000/today" ]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+  frontend-admin:
+    image: ${FRONTEND_ADMIN_IMAGE:?FRONTEND_ADMIN_IMAGE must be set}
+    restart: unless-stopped
+    # ADR-032's estimate, unchanged by ADR-065: single owner, low concurrency, smaller
+    # route tree than either sibling.
+    mem_limit: 192m
+    networks: [ edge ]
+    logging: *log-bound
+    healthcheck:
+      test: [ "CMD", "wget", "--quiet", "--tries=1", "--output-document=/dev/null", "http://127.0.0.1:3000/pages" ]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
 
   db:
     # The one place this tag is written. `PostgresFixture` must run the same image: musl and

@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import type { NextConfig } from "next";
 
 /**
@@ -11,13 +12,36 @@ import type { NextConfig } from "next";
  * `content-kit` is deliberately not listed: this app does not depend on it
  * yet (ARCHITECTURE.md §12.5's open question). Add it here in the same
  * change that adds it to `package.json`, not before.
+ *
+ * `fileURLToPath`, not `new URL(...).pathname` directly — see
+ * `frontend-web/next.config.ts`'s identical comment for the Windows
+ * drive-letter failure this avoids.
  */
-const workspaceRoot = new URL("..", import.meta.url).pathname;
+const workspaceRoot = fileURLToPath(new URL("..", import.meta.url));
 
 const config: NextConfig = {
     transpilePackages: ["design-token-engine", "frontend-shared"],
     output: "standalone",
     outputFileTracingRoot: workspaceRoot,
     turbopack: { root: workspaceRoot },
+    // Works around the same open Next.js 16.3.1 bug as the `@swc/helpers`/`@next/env`
+    // dependency pins in package.json — see frontend-web/next.config.ts's identical
+    // comment; verified here too, not assumed to carry over just because the version
+    // matches.
+    outputFileTracingIncludes: {
+        "/*": [
+            "./node_modules/@swc/helpers/**/*",
+            "./node_modules/@next/env/**/*",
+            // See frontend-web/next.config.ts's identical comment: react/react-dom are
+            // direct dependencies, physically present under node-linker=hoisted, and the
+            // tracer still omits them — verified here too, not assumed to carry over.
+            "./node_modules/react/**/*",
+            "./node_modules/react-dom/**/*",
+        ],
+    },
+    // See frontend-web/next.config.ts's identical comment: `sharp` is an unused
+    // optionalDependency of `next`, accounted for most of this image's size, and is
+    // removed in the Dockerfile after the tracer's own exclusion option failed to touch
+    // its native libraries through three different glob shapes.
 };
 export default config;
