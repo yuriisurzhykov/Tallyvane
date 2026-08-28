@@ -3,6 +3,7 @@ package tallyvane.migrate
 import tallyvane.platform.kernel.Secret
 import tallyvane.platform.persistence.DatabaseAccess
 import tallyvane.platform.persistence.FlywayMigrations
+import java.util.Locale
 
 private const val URL = "TALLYVANE_DB_URL"
 private const val USER = "TALLYVANE_DB_USER"
@@ -23,6 +24,9 @@ private fun required(name: String): String =
  * match.
  */
 fun main() {
+    // Flyway and pgjdbc localise their messages by JVM locale, and this command's output is read
+    // from a deploy log.
+    Locale.setDefault(Locale.ENGLISH)
     val access =
         DatabaseAccess(
             url = required(URL),

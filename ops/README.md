@@ -7,7 +7,8 @@ provision/            one file per step of preparing a bare machine
   lib.sh              shared reporting, idempotent file writes, verified manual steps
   provision.sh        runs the steps in order
 docker-compose.yml    cloudflared, nginx, db
-deploy.sh             copies this directory to the server and brings the composition up
+deploy.sh             runs on your machine: copies this directory to the server, then calls apply.sh
+apply.sh              runs on the server: generates, validates, starts, reports
 nginx/templates/      server blocks, substituted by the image's own entrypoint
 nginx/www/            three placeholder pages, one per hostname
 cloudflared/          the tunnel's ingress template
@@ -128,10 +129,15 @@ per-address rate limit would treat the world as a single client.
 
 ## Memory budget
 
-Numbers below are ARCHITECTURE.md §16.2's, written for a 2 GB machine. The machine
-is 3 GB with 100 GB of disk (stated by the author, 2026-08-26), and recalculating
-this table is an open item in `backend/.plans/backend-infra-cache-wiring.md` — it is
-left as it stands rather than adjusted by guesswork.
+Numbers below are ARCHITECTURE.md §16.2's, written for a 2 GB machine. Docker reports
+**3.768 GiB** on the real one (measured 2026-08-27; it had been carried as "3 GB" from
+a figure stated in conversation), and recalculating this table is an open item in
+`backend/.plans/backend-infra-cache-wiring.md` — it is left as it stands rather than
+adjusted by guesswork.
+
+A 2 GB swap file backs all of it, with `vm.swappiness` at 20 — insurance against a
+spike becoming a kill, not a routine tier of memory. The `swap` step in `provision/`
+has the reasoning, including why no container is forbidden to swap.
 
 | Component | Budget |
 | --- | --- |
@@ -200,7 +206,7 @@ Two of the five apply here and the rest do not, and saying so is more useful tha
 stretching the vocabulary.
 
 **Single responsibility** is the organising idea of `provision/`: one file per step,
-each with one concern and one verification. It is why `--from 50` is a resume rather
+each with one concern and one verification. It is why `--from docker` is a resume rather
 than a rerun, and why a failure names a step instead of a line number.
 
 **Interface segregation** describes the two networks. `edge` and `data` exist so
@@ -316,6 +322,101 @@ down for next time: in that dashboard, only `A`, `AAAA` and `CNAME` for the host
 being routed may be deleted. `MX` and `TXT` are the domain's mail — SPF, DMARC,
 autodiscover — and removing them breaks mail rather than a web page. In this zone
 there was no `MX` at all, which means mail is not being received; noted, not acted on.
+
+## 2026-08-27 — the first deployment from the repository, and what it proved
+
+`deploy.sh` ran end to end against the real machine: files copied, the tunnel's
+configuration generated, the nginx configuration validated before being applied, three
+containers started, and the smoke check answered `200` on all three hostnames with
+**three different surface markers** — `site`, `app`, `admin`.
+
+That last part is the whole point of the markers. Earlier the same day three hostnames
+answered `200` through the tunnel while all three were being served by the same
+built-in nginx welcome page. Status codes proved the path; only the markers proved
+routing.
+
+**The real client address works, and this is the check the local probe could not
+make.** When the templates were written, `set_real_ip_from` could only be reasoned
+about: there was no Cloudflare in front of a container on a laptop and therefore no
+`CF-Connecting-IP` header. Against the deployed stack the access log carries the
+visitor's own address — an IPv6 address from a browser, an IPv4 one from `curl` on
+another machine — where without it every line would have read as the cloudflared
+container's address, and any future per-address rule would have treated the whole
+internet as one client.
+
+**Memory at rest**, from `docker stats` with no traffic and no database connections:
+cloudflared 16.8 MiB, nginx 5.0 MiB, PostgreSQL 26.6 MiB of its 384 MiB limit.
+
+These are a floor, not a working set, and deliberately not used as `mem_limit` values.
+`shared_buffers` is 192 MB that PostgreSQL maps as it needs it; nginx has served a
+handful of requests; nothing has exercised any of them. A limit derived from an idle
+reading is a limit that kills a working process the first time it does its job. nginx
+and cloudflared therefore still carry no limit at all — with 3.7 GiB present and about
+50 MiB in use, there is nothing yet for a limit to protect anything from. The number
+becomes meaningful when the JVM and two Node processes exist, and it has to be measured
+under load then.
+
+**What the machine spends before we do.** With the three containers holding about 50 MiB
+between them, `free -h` reports 903 MiB used of 3.8 GiB and 2.9 GiB available. That
+roughly 850 MiB is the kernel, the Docker daemon, containerd, journald and fail2ban —
+none of which appears in a budget table written per service. It is the number that makes
+the recalculation worth doing rather than guessing: against 2.9 GiB available, the
+planned JVM, two Node processes and PostgreSQL come to about 1.5 GiB and fit with room,
+where against a nominal "3 GB" they looked tight.
+
+Swap is a 2 GB file at `vm.swappiness = 20`, verified by reading
+`/proc/sys/vm/swappiness` rather than the file that sets it, and present in `/etc/fstab`
+so it survives a reboot.
+
+**The role bounds are on the real database**, not only in the local probe:
+`pg_roles.rolconfig` reads
+`{statement_timeout=15s,lock_timeout=3s,idle_in_transaction_session_timeout=60s}`.
+They were applied by `init/` at the moment the volume was created, which is the only
+moment they can be applied without recreating it.
+
+One incidental observation from the log, worth knowing before `/api` exists: a request
+for `/api/v1/health/` was answered `404` after nginx looked for
+`/srv/www/site/api/v1/health/index.html`. Every path on every hostname is currently
+served from the static root. That changes when a proxy route is added, and that is when
+an `upstream` block appears in this tree for the first time.
+
+## 2026-08-27 — Cloudflare Access on the admin hostname, and what the smoke check asserts
+
+`admin.<domain>` is a Cloudflare Access self-hosted application. A request without a
+session never reaches the tunnel: Cloudflare answers `302` to a login page on the team
+domain, together with `www-authenticate: Cloudflare-Access`. Login is by email one-time
+PIN, with Google as a second method.
+
+The order was one-time PIN first, then the application and its policy, then Google —
+deliberately, so that the hostname was protected before anything depended on an external
+identity provider working. A detail from Cloudflare's own documentation that is easy to
+lose: **the one-time PIN provider has to be added before any policy exists**, or a visitor
+sees the email field and never receives a code.
+
+The team domain is auto-generated — `wispy-credit-8503.cloudflareaccess.com` here — and it
+is embedded in the Google OAuth client's authorised origin and redirect URI. Renaming the
+team after configuring Google means editing Google again, which is why the name is worth
+settling first.
+
+`deploy.sh` asserts the opposite thing for this hostname than for the other two. The two
+public surfaces must answer `200` with their marker; admin must answer with a challenge
+**and** must not return the page. Both halves matter: a check that only looked for a
+challenge would still pass if Access were removed and something else happened to redirect.
+
+It matches on `www-authenticate: Cloudflare-Access` or on a redirect to
+`cloudflareaccess.com`, accepting either. One alone is brittle — the header is the current
+shape and the redirect the older one — and matching the redirect's full target would tie
+the check to the team name, which is configuration rather than a property of being
+protected.
+
+The condition was exercised against the real response and three fabricated ones before
+being trusted: Access removed with the page served, Access removed with an empty body, and
+a challenge present while the page leaked anyway. The first passes, the other three fail,
+including the last — which is the case a careless version of this check would have missed.
+
+Access itself is not in this repository. It is dashboard configuration, and describing it
+as code would mean Cloudflare's API or Terraform; neither is set up, and this is recorded
+as a gap rather than left to be discovered.
 
 ## 2026-08-27 — a server-level access_log replaces, an http-level one adds
 

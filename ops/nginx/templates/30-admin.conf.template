@@ -1,0 +1,12 @@
+# The admin surface. A genuinely separate application, not a route inside the console
+# (ADR-032), and the one hostname that sits behind Cloudflare Access — an identity check the
+# request clears before it ever reaches the tunnel, which is why there is no VPN.
+server {
+    listen 80;
+    server_name admin.${TALLYVANE_DOMAIN};
+
+    access_log /var/log/nginx/access.log tallyvane;
+
+    root /srv/www/admin;
+    index index.html;
+}

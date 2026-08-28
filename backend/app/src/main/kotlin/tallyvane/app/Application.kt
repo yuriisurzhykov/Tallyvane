@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory
 import tallyvane.app.config.Configuration
 import tallyvane.app.config.EnvironmentConfiguration
 import tallyvane.platform.kernel.Environment
+import java.util.Locale
 import java.util.concurrent.CountDownLatch
 
 /**
@@ -35,6 +36,9 @@ public class Application(private val configuration: Configuration) : AutoCloseab
      * started with (ADR-056).
      */
     public fun start() {
+        // Library messages follow the JVM locale, and pgjdbc ships translations — so a log line
+        // would otherwise be in whatever language the host runs in, and ungreppable across hosts.
+        Locale.setDefault(Locale.ENGLISH)
         rootLogger().level = Level.toLevel(configuration.level.name)
         server = embeddedServer(
             factory = CIO,

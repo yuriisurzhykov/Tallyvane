@@ -1,0 +1,12 @@
+# The console. A separate server block rather than a path inside the site, because that is
+# what the deployment actually is: frontend-web serves this hostname, and /api/* on it goes
+# to the Ktor server (ARCHITECTURE.md §16, ADR-032).
+server {
+    listen 80;
+    server_name app.${TALLYVANE_DOMAIN};
+
+    access_log /var/log/nginx/access.log tallyvane;
+
+    root /srv/www/app;
+    index index.html;
+}

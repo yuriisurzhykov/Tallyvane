@@ -1,9 +1,6 @@
-# One service so far. The rest of ARCHITECTURE.md §16.1 — server, two frontends,
-# cloudflared, backup — arrive with the images they need, which do not exist yet.
-#
-# `db` is here ahead of them because it closes a debt rather than anticipating one: the
-# Postgres tag lived in the test fixture and in prose, with nothing able to notice a
-# disagreement.
+# The edge and the database for a single VPS. The Ktor server and the two frontends join
+# this file when their images exist — there is no Dockerfile in this repository yet, so a
+# service for them here would be a placeholder nobody could run.
 #
 # Values are written here rather than in a `.env` this file would interpolate. A committed
 # `.env` is forbidden in this repository, and not as a formality: it is the file people reach
@@ -11,7 +8,77 @@
 # anything secret appears here only as a `${VAR}` reference with no default, resolved from the
 # deploy's own environment, and everything non-secret is written in the open where a reviewer
 # reads it in the diff.
+#
+# The project name is pinned because compose otherwise derives it from the directory name,
+# which is `ops` in a clone and `tallyvane` on the server.
+name: tallyvane
+
+# 50 MB per file, five files, per container. The host's Docker daemon is configured with the
+# same numbers, and this repeats them on purpose: `/etc/docker/daemon.json` is not in this
+# repository, so a rebuilt machine would come up with no bound at all and nothing would say
+# so. `logging` governs stdout and stderr only — which is why every service here logs there
+# rather than to a file of its own.
+x-log-bound: &log-bound
+  driver: json-file
+  options:
+    max-size: 50m
+    max-file: "5"
+
 services:
+  # Nothing listens on a port of this machine. cloudflared opens an outbound connection to
+  # Cloudflare and receives requests through it, so the firewall can refuse every inbound
+  # port except SSH.
+  cloudflared:
+    image: cloudflare/cloudflared:2026.8.2
+    restart: unless-stopped
+    # The image's entrypoint is already `cloudflared --no-autoupdate`.
+    command: tunnel --config /etc/cloudflared/config.yml run
+    volumes:
+      # Generated from config.yml.template during deployment, and not committed.
+      - ./cloudflared/config.yml:/etc/cloudflared/config.yml:ro
+      # Deliberately outside the tree deploy.sh syncs, so `rsync --delete` can never reach
+      # it. The file belongs to uid 65532 and to nobody else — 65532 is the user this image
+      # runs as, which is what lets the container keep its own non-root user. Granting the
+      # process root inside the container to read one file is the trade this avoids.
+      - ${TUNNEL_CREDENTIALS:-/srv/secrets/tallyvane/tunnel-credentials.json}:/etc/cloudflared/credentials.json:ro
+    networks: [ edge ]
+    # Waiting for healthy, not merely started: the tunnel announces itself to Cloudflare as
+    # soon as it connects, and requests arrive immediately. Starting it while nginx is still
+    # coming up turns a restart into a short burst of 502s.
+    depends_on:
+      nginx:
+        condition: service_healthy
+    logging: *log-bound
+
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    environment:
+      # The image's entrypoint runs envsubst over templates/ and writes the result into
+      # conf.d/. The filter confines substitution to this one prefix: without it, envsubst
+      # would replace every `${...}` naming any environment variable that happens to exist.
+      NGINX_ENVSUBST_FILTER: ^TALLYVANE_
+      # `:?` is the only thing standing between a missing domain and a silent misroute, so it
+      # must not grow a default. Measured: with the variable absent, envsubst leaves
+      # `${TALLYVANE_DOMAIN}` in the file verbatim and nginx accepts it as a perfectly valid
+      # server name — every real hostname then falls through to the default server and gets a
+      # 404, and `nginx -t` reports success. See the dated entry in ops/README.md.
+      TALLYVANE_DOMAIN: ${DOMAIN:?DOMAIN must be set}
+    volumes:
+      # conf.d is deliberately not mounted. The entrypoint writes generated configuration
+      # into it, and templates/default.conf.template overwrites the image's own welcome-page
+      # server by name; a read-only mount would defeat both.
+      - ./nginx/templates:/etc/nginx/templates:ro
+      - ./nginx/www:/srv/www:ro
+    networks: [ edge ]
+    logging: *log-bound
+    healthcheck:
+      test: [ "CMD", "wget", "--quiet", "--tries=1", "--output-document=/dev/null", "http://127.0.0.1/healthz" ]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
   db:
     # The one place this tag is written. `PostgresFixture` must run the same image: musl and
     # glibc disagree on text collation, so a different build of the same major version can
@@ -49,14 +116,36 @@ services:
       # Runs once, when the data directory is first created.
       - ./init:/docker-entrypoint-initdb.d:ro
     # §16.2 allots PostgreSQL 384 MB, and limits are per service so a spike in one container
-    # cannot kill its neighbours.
+    # cannot kill its neighbours. nginx and cloudflared carry no limit yet: the numbers are
+    # supposed to come from `docker stats` against these containers, and a guess here would
+    # be a limit that kills a working process for no reason.
     mem_limit: 384m
+    networks: [ data ]
+    logging: *log-bound
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB" ]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 30s
+
+networks:
+  # cloudflared reaches nginx and nothing else. The subnet is pinned rather than left to
+  # Docker because nginx has to name it: behind the tunnel the peer address is a container
+  # address, and set_real_ip_from needs the exact range to accept a forwarded client address
+  # from it.
+  edge:
+    ipam:
+      config:
+        - subnet: 172.28.0.0/24
+  # PostgreSQL has no business reaching the internet or being reachable from the tunnel.
+  # `internal` removes the network's route out; the server will join both networks, and it
+  # will be the only thing that can see the database.
+  data:
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.28.1.0/24
 
 volumes:
   pgdata:
