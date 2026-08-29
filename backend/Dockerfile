@@ -24,6 +24,15 @@ RUN apk add --no-cache curl \
 
 FROM eclipse-temurin:21-jre
 
+# Unused, and vulnerable as shipped: this base image's Canonical rock layer includes Pebble
+# (a service-manager binary, github.com/canonical/pebble) that Adoptium's own entrypoint
+# never calls — confirmed against the image's real build history via the registry API, not
+# assumed from the file merely existing: Ubuntu's own rock build clears entrypoint/cmd right
+# after adding that layer, and Adoptium sets its own (`/__cacert_entrypoint.sh`). Trivy
+# flagged its embedded Go stdlib directly (CVE-2026-33818 and seven siblings, 2026-08-28);
+# deleting the file removes the surface rather than a component this image has any use for.
+RUN rm -f /usr/bin/pebble
+
 # Two trees, deliberately not merged into one lib/. Measured 2026-08-27: the two dependency
 # graphs resolve kotlin-reflect to 2.3.21 for the server and 2.3.20 for migrations, so a single
 # classpath would carry both and which one won would depend on ordering.
