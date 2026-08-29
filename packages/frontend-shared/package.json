@@ -5,7 +5,7 @@
   "type": "module",
   "description": "The FSD `shared` layer, extracted from frontend-web/ so it can be a real dependency of both frontend-web (blog + console) and frontend-admin instead of code either of them could otherwise reach into. Ships zero business vocabulary — see ARCHITECTURE.md §12.5 and the `shared-has-no-domain` rule this package exists to keep true across two apps instead of one.",
   "engines": {
-    "node": ">=22.12.0"
+    "node": ">=24.0.0"
   },
   "exports": {
     "./ui/theme": "./src/shared/ui/theme/index.ts",
@@ -83,6 +83,7 @@
     "./api": "./src/shared/api/index.ts",
     "./i18n": "./src/shared/i18n/index.ts",
     "./lib": "./src/shared/lib/index.ts",
+    "./lib/register-otel": "./src/shared/lib/register-otel.ts",
     "./config": "./src/shared/config/index.ts",
     "./blocks": "./src/shared/blocks/index.ts",
     "./package.json": "./package.json"
@@ -94,11 +95,12 @@
     "arch:graph": "depcruise src --config .dependency-cruiser.cjs",
     "test": "vitest run"
   },
-  "//": "design-token-engine is a regular dependency, not dev: compiler.config.ts is imported (as data) from each consuming app's own tokens:generate script, which lives outside this package. @base-ui/react, lucide-react and the two @tanstack/* packages below are regular dependencies too, unlike the test tooling further down: components built on them ship in both apps' runtime bundles. @tanstack/react-table and @tanstack/react-virtual back DataTable (ADR-031's own named gap Base UI does not cover: a headless, virtualized table).",
+  "//": "design-token-engine is a regular dependency, not dev: compiler.config.ts is imported (as data) from each consuming app's own tokens:generate script, which lives outside this package. @base-ui/react, lucide-react and the two @tanstack/* packages below are regular dependencies too, unlike the test tooling further down: components built on them ship in both apps' runtime bundles. @tanstack/react-table and @tanstack/react-virtual back DataTable (ADR-031's own named gap Base UI does not cover: a headless, virtualized table). @vercel/otel is a regular dependency for the opposite reason from the rest of this list — it never ships in the client bundle at all, only in each app's own instrumentation.ts, which Next.js runs server-side only; it lives here because the registration call itself (shared/lib/register-otel.ts) is identical for every app that calls it.",
   "dependencies": {
     "@base-ui/react": "^1.7.0",
     "@tanstack/react-table": "^9.1.2",
     "@tanstack/react-virtual": "^3.14.10",
+    "@vercel/otel": "^2.1.3",
     "design-token-engine": "workspace:*",
     "lucide-react": "^1.32.0",
     "react": "^19.2.8",

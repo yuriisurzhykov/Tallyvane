@@ -1,5 +1,15 @@
 # ADR-032. Three subdomains, two applications, two shared packages
 
+**Partially superseded by [ADR-065](ADR-065-console-is-a-third-application.md).**
+This record's admin-isolation reasoning stands unchanged — `frontend-admin`
+is still the separate, network-isolated application described below. What no
+longer holds is the specific claim that `tallyvane.com` and
+`app.tallyvane.com` remain one process: ADR-065 gives the console its own
+server-rendering and Server-Sent-Events requirements that ADR-011's
+"redundant entity" argument didn't anticipate, and splits it into a third
+application, `frontend-app`. Read this record for why admin is separate, and
+ADR-065 for why the console became separate too.
+
 Amends ADR-011 rather than overturning it. ADR-011's core claim — one Node
 runtime is needed for public SSR anyway, so a second one next to it is a
 redundant entity — still holds for the pair it was actually about: the public

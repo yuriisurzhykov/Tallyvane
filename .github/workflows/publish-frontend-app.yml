@@ -1,0 +1,66 @@
+name: Publish Frontend App Image
+
+on:
+  push:
+    branches: [ master ]
+    tags: [ 'frontend-app-v*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
+
+permissions:
+  contents: read
+  packages: write
+  security-events: write
+
+jobs:
+  image:
+    name: Build frontend-app and publish
+    runs-on: ubuntu-latest
+    env:
+      IMAGE: ghcr.io/yuriisurzhykov/tallyvane-frontend-app
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # See publish-frontend-web.yml's identical comment: no "Prepare workspace" step,
+      # same reasoning, same independent-tag consequence of ADR-065.
+      - name: Build the image
+        run: docker build -f frontend-app/Dockerfile -t "$IMAGE:${{ github.sha }}" .
+
+      - name: Scan for vulnerabilities
+        if: startsWith(github.ref, 'refs/tags/frontend-app-v')
+        uses: ./.github/actions/scan-image
+        with:
+          image-ref: "${{ env.IMAGE }}:${{ github.sha }}"
+
+      - name: Log in to the registry
+        if: startsWith(github.ref, 'refs/tags/frontend-app-v')
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Publish under the tag
+        if: startsWith(github.ref, 'refs/tags/frontend-app-v')
+        run: |
+          docker tag "$IMAGE:${{ github.sha }}" "$IMAGE:${{ github.ref_name }}"
+          docker push "$IMAGE:${{ github.ref_name }}"
+
+  deploy:
+    name: Deploy frontend-app
+    needs: image
+    if: startsWith(github.ref, 'refs/tags/frontend-app-v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          sparse-checkout: .github/actions/deploy-service
+          sparse-checkout-cone-mode: false
+
+      - uses: ./.github/actions/deploy-service
+        with:
+          service-name: frontend-app
+          image-ref: ghcr.io/yuriisurzhykov/tallyvane-frontend-app:${{ github.ref_name }}
+          ssh-host: ${{ secrets.TALLYVANE_DEPLOY_HOST }}
+          ssh-known-hosts: ${{ secrets.TALLYVANE_SSH_KNOWN_HOSTS }}
+          ssh-key: ${{ secrets.TALLYVANE_DEPLOY_KEY }}

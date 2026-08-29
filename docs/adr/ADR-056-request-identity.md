@@ -2,7 +2,11 @@
 
 ## Status
 
-Accepted.
+Accepted. The "no OpenTelemetry SDK, no collector, no spans" clause in the Decision below is
+superseded by [ADR-067](ADR-067-opentelemetry-java-agent-for-spans-and-a-collector.md) once
+Grafana Cloud gave that data somewhere to go — the rest of this record (W3C shape, `TraceContext`
+as a coroutine-safe MDC element, the split-by-role Logback configuration) still holds and is not
+touched by that decision.
 
 ## Context
 

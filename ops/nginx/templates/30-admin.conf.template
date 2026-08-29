@@ -1,19 +1,29 @@
-# The admin surface. A genuinely separate application, not a route inside the console
-# (ADR-032), and the one hostname that sits behind Cloudflare Access — an identity check the
-# request clears before it ever reaches the tunnel, which is why there is no VPN.
+# The admin surface: frontend-admin, a genuinely separate application, not a route inside
+# the console (ADR-032), and the one hostname that sits behind Cloudflare Access — an
+# identity check the request clears before it ever reaches the tunnel, which is why there
+# is no VPN.
 server {
     listen 80;
     server_name admin.${TALLYVANE_DOMAIN};
 
     access_log /var/log/nginx/access.log tallyvane;
 
-    root /srv/www/admin;
-    index index.html;
-
     location /api/ {
+        # See 10-site.conf.template's comment on the same line: nodelay lets one page load's
+        # own parallel calls through immediately instead of queuing them.
+        limit_req zone=api burst=20 nodelay;
         proxy_pass http://backend;
         proxy_http_version 1.1;
         proxy_set_header Connection "";
         proxy_set_header Host $host;
+    }
+
+    location / {
+        proxy_pass http://frontend_admin;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-Host $host;
     }
 }

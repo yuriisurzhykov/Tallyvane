@@ -10,7 +10,7 @@
  * would drag this compiler into the bundle.
  *
  * The theme SOURCE lives in the `frontend-shared` package, not in this app —
- * `frontend-admin` has an identical copy of this script pointed at the same
+ * `frontend-app` and `frontend-admin` have identical copies of this script pointed at the same
  * `THEME_DIR`, so there is one generated artefact, not two that could
  * silently disagree (see `packages/frontend-shared/README.md`, "Token
  * generation stays two call sites, one destination"). `compilerInput` is
@@ -99,7 +99,7 @@ const BANNER = [
     "/*",
     " * AUTO-GENERATED FILE. DO NOT EDIT MANUALLY.",
     " * Source: packages/frontend-shared/src/shared/ui/theme/{tokens,contracts,themes,composites}/",
-    " * Generator: frontend-web/scripts/generate-design-tokens.ts (frontend-admin has an identical copy)",
+    " * Generator: frontend-web/scripts/generate-design-tokens.ts (frontend-app and frontend-admin have identical copies)",
     " *",
     " * Already-resolved token data, holding no `{reference}` strings and needing",
     " * no compiler to read. This is the only token artefact a non-CSS consumer",

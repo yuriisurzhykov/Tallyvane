@@ -6,6 +6,22 @@
 #
 # That split is deliberate. Compiling here would mean a JDK and a Gradle cache inside the
 # build, which is slower and duplicates caching that CI already does for the test run.
+
+# The OpenTelemetry Java agent (ADR-067): a downloaded binary, not a dependency any module
+# compiles against, so it gets a build stage of its own and a checksum rather than trust in the
+# network path that fetched it. The hash was computed once, from this exact release's asset —
+# aquasecurity/trivy-action's own supply-chain compromise (2026-03-19, GHSA-69fq-xp46-6x23,
+# scan-image/action.yml's own comment has the story) is the reason a third-party binary this
+# image ships is never trusted on the strength of a version tag alone.
+FROM alpine:3.22 AS otel-agent
+ARG OTEL_JAVAAGENT_VERSION=v2.31.1
+ARG OTEL_JAVAAGENT_SHA256=bbf83c151b6400709e2f225bdd07a04f839d9d13b8b93464241333fd25d3e3ba
+RUN apk add --no-cache curl \
+    && curl --fail --location --silent --show-error \
+      --output /tmp/opentelemetry-javaagent.jar \
+      "https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/${OTEL_JAVAAGENT_VERSION}/opentelemetry-javaagent.jar" \
+    && echo "${OTEL_JAVAAGENT_SHA256}  /tmp/opentelemetry-javaagent.jar" | sha256sum -c -
+
 FROM eclipse-temurin:21-jre
 
 # Two trees, deliberately not merged into one lib/. Measured 2026-08-27: the two dependency
@@ -14,6 +30,7 @@ FROM eclipse-temurin:21-jre
 WORKDIR /opt/tallyvane
 COPY app/build/install/app app
 COPY migrate/build/install/migrate migrate
+COPY --from=otel-agent /tmp/opentelemetry-javaagent.jar opentelemetry-javaagent.jar
 
 # The image ships with a root account it has no use for. Same reasoning as the tunnel's
 # credentials file: the process gets what it needs to run and nothing else.

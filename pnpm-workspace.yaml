@@ -1,6 +1,7 @@
 packages:
   - 'packages/*'
   - 'frontend-web'
+  - 'frontend-app'
   - 'frontend-admin'
 
 # Install-time scripts are blocked unless a package appears here with an

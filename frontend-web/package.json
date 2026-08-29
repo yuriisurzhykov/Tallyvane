@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "engines": {
-    "node": ">=22.12.0"
+    "node": ">=24.0.0"
   },
   "scripts": {
     "dev": "next dev",
@@ -44,8 +44,10 @@
     "tsx": "^4",
     "typescript": "^5"
   },
-  "//": "design-token-engine is a devDependency on purpose: the compiler is build-time only and must never reach a bundle. Runtime consumers read the generated output instead. frontend-shared and content-kit are regular dependencies: their theme, api, i18n and block-rendering code IS the runtime bundle, for both this app and frontend-admin.",
+  "//": "design-token-engine is a devDependency on purpose: the compiler is build-time only and must never reach a bundle. Runtime consumers read the generated output instead. frontend-shared and content-kit are regular dependencies: their theme, api, i18n and block-rendering code IS the runtime bundle, for both this app and frontend-admin. @swc/helpers and @next/env are pinned as direct dependencies, each at the exact version pnpm already resolves transitively through next, purely to work around a real, currently-open Next.js 16.3.1 bug (vercel/next.js#97358): the standalone-output file tracer leaves both reachable only through the pnpm store, never recreating the top-level symlink `require()` needs — reproduced locally against a `NODE_ENV=production` container specifically (the missing `@next/env` require only fires under that condition, which is exactly the condition a real deployment always runs under). Declaring both directly is what makes pnpm hoist a real top-level `node_modules/` entry the tracer can find; delete both lines, and the matching `outputFileTracingIncludes` in next.config.ts, the day upstream ships a fix and a plain `next build` still boots without them.",
   "dependencies": {
+    "@next/env": "16.3.1",
+    "@swc/helpers": "0.5.23",
     "content-kit": "workspace:*",
     "frontend-shared": "workspace:*",
     "next": "^16.3.1",

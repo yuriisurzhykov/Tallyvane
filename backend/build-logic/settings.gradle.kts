@@ -21,6 +21,7 @@ dependencyResolutionManagement {
 
 include(":conventions")
 include(":graph")
+include(":migration-policy")
 include(":verification")
 include(":root")
 include(":ktlint-rules")

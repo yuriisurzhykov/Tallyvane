@@ -6,11 +6,15 @@ below it**, and only through the importee's `index.ts`.
 ```
 app       providers, global styles, registry composition
 views     whole screens          (canonical FSD calls this layer "pages")
-widgets   composite blocks (console-only — content-block types live in the content-kit package)
-features  user scenarios
-entities  business entities (console-only — content-page/media-asset live in content-kit)
 shared    the frontend-shared package: design system, API client, i18n, block contract, primitives
 ```
+
+No local `widgets`, `features` or `entities` here (ADR-065): this app now
+serves the public surface only, which renders `content-kit`'s blocks and
+carries no product-domain slices of its own. The console's entities,
+features and widgets — `job`, `pipeline-table`, `apply-to-job` and the rest —
+moved to [`frontend-app`](../frontend-app/README.md) when it became a
+separate application.
 
 `shared` has no local directory here any more — it moved to the
 `frontend-shared` workspace package (ADR-032) because `frontend-admin`, a

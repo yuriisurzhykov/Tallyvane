@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Showcase for Tier 0+ reusable components. Imports frontend-shared today; will also read stories from frontend-web/src and frontend-admin/src once those layers have Tier 3+ components of their own. See docs/frontend/02-component-testing-architecture.md for why this is its own package rather than living inside frontend-shared.",
   "engines": {
-    "node": ">=22.12.0"
+    "node": ">=24.0.0"
   },
   "scripts": {
     "storybook": "storybook dev -p 6006",

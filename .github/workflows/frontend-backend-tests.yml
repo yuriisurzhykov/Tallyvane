@@ -43,11 +43,10 @@ jobs:
       - name: Run unit tests
         run: pnpm run test
 
-      # frontend-admin has no Playwright suite yet, so this is the only place
-      # its `next build` gets exercised at all; frontend-web's own build is
-      # also re-run here, redundant with the one its e2e webServer already
-      # does in visual-tests.yml, but a single fan-out step is simpler than
-      # skipping one app.
+      # Neither frontend-app nor frontend-admin has a Playwright suite yet, so this is the
+      # only place either one's `next build` gets exercised at all; frontend-web's own
+      # build is also re-run here, redundant with the one its e2e webServer already does
+      # in visual-tests.yml, but a single fan-out step is simpler than skipping one app.
       - name: Build
         run: pnpm run build
 
@@ -57,6 +56,23 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          # The migration check below diffs against the base commit, which a
+          # shallow (depth-1) checkout does not have locally.
+          fetch-depth: 0
+
+      # Picks which commit is "before this release" — the pull request's base for a
+      # pull_request event, the previous tip of the branch for a push — so
+      # checkAdditiveMigrations (tallyvane.migration-policy, ADR-066), run below as part of
+      # `./gradlew check`, has one answer to diff against regardless of which event triggered it.
+      - name: Determine base commit for the migration check
+        id: migration-base
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "sha=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "sha=${{ github.event.before }}" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Setup Java
         uses: actions/setup-java@v5
@@ -78,12 +94,14 @@ jobs:
         run: chmod +x ./gradlew
         working-directory: backend
 
-      # Module graph vs modules.yaml, ktlint, detekt, Konsist, and every
-      # module's unit tests. `check`, not `arch`: `arch` stops at the analysis
-      # gates, so calling it here ran no module test at all on a push.
+      # Module graph vs modules.yaml, ktlint, detekt, Konsist, the additive-migration
+      # policy (ADR-066), and every module's unit tests. `check`, not `arch`: `arch` stops
+      # at the analysis gates, so calling it here ran no module test at all on a push.
       - name: Verification
         run: ./gradlew check --no-daemon
         working-directory: backend
+        env:
+          MIGRATION_POLICY_BASE_SHA: ${{ steps.migration-base.outputs.sha }}
 
       # Separate because these need Docker for a real Postgres, which is why they
       # are opt-in locally. The runner has it; Testcontainers starts the

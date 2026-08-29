@@ -1,19 +1,33 @@
-# The console. A separate server block rather than a path inside the site, because that is
-# what the deployment actually is: frontend-web serves this hostname, and /api/* on it goes
-# to the Ktor server (ARCHITECTURE.md §16, ADR-032).
+# The console: frontend-app, a separate application from frontend-web (ADR-065) with a
+# separate container and mem_limit. /api/* on this hostname still goes to the Ktor server
+# (ARCHITECTURE.md §16, ADR-032/ADR-012) — including, eventually, the console's
+# Server-Sent Events endpoint, which never passes through frontend-app at all. This
+# location does not yet carry the two settings that endpoint will need
+# (`proxy_buffering off` and a heartbeat-aware timeout, per ADR-065) — there is no such
+# endpoint on the backend yet either, and adding the nginx side first would be untestable
+# and unreviewable on its own.
 server {
     listen 80;
     server_name app.${TALLYVANE_DOMAIN};
 
     access_log /var/log/nginx/access.log tallyvane;
 
-    root /srv/www/app;
-    index index.html;
-
     location /api/ {
+        # See 10-site.conf.template's comment on the same line: nodelay lets one page load's
+        # own parallel calls through immediately instead of queuing them.
+        limit_req zone=api burst=20 nodelay;
         proxy_pass http://backend;
         proxy_http_version 1.1;
         proxy_set_header Connection "";
         proxy_set_header Host $host;
+    }
+
+    location / {
+        proxy_pass http://frontend_app;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-Host $host;
     }
 }

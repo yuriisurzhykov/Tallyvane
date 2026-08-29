@@ -30,6 +30,7 @@ gradlePlugin {
 
 dependencies {
     implementation(project(":graph"))
+    implementation(project(":migration-policy"))
     implementation(project(":verification"))
 }
 
