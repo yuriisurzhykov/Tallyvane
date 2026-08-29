@@ -115,8 +115,11 @@ agent's zero-code Ktor and JDBC instrumentation, confirmed live to already cover
 line of application code, is exactly the coverage hand-instrumentation would have to rebuild by
 hand, for the same result.
 
-**Wait for a schema-drift-style "prove it live" gate before trusting the key rename in
-production.** Recorded as a real gap rather than smoothed over: the rename was confirmed against
-the merged pull request that defines it, not re-run against a live process, because Docker Desktop
-stopped responding partway through the investigation session. `backend/playground/observability-otel/README.md`
-names the exact command to close that gap before this ships.
+**Ship the key rename on documentation alone, without a live re-run.** Considered and rejected
+partway through the investigation session, when Docker Desktop stopped responding and made the
+obvious re-run briefly unavailable — recorded as a real gap rather than smoothed over at the time.
+Closed the same day without Docker: `PlatformWiring` builds its connection pool lazily, so `:app`
+starts and serves `/api/v1/health/live` with no database reachable at all, which was enough to
+observe a real agent-instrumented Ktor CIO request. `otel_trace_id`/`otel_span_id` matched the
+exported span exactly, and `trace_id`/`span_id` were untouched —
+`backend/playground/observability-otel/README.md`'s dated entry has the full transcript.

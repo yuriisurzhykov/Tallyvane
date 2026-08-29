@@ -46,6 +46,7 @@ x-app: &app-defaults
     # together stay written together, not one here and one guessed at from a second file.
     JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=66 -javaagent:/opt/tallyvane/opentelemetry-javaagent.jar
     OTEL_SERVICE_NAME: tallyvane-app
+    OTEL_RESOURCE_ATTRIBUTES: service.namespace=tallyvane
     OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:?OTEL_EXPORTER_OTLP_ENDPOINT must be set}
     OTEL_EXPORTER_OTLP_HEADERS: ${OTEL_EXPORTER_OTLP_HEADERS:?OTEL_EXPORTER_OTLP_HEADERS must be set}
     # ADR-067: renames the agent's own Logback MDC keys so they stop overwriting TraceContext's
@@ -71,6 +72,14 @@ x-frontend-web: &frontend-web-defaults
   image: ${FRONTEND_WEB_IMAGE:?FRONTEND_WEB_IMAGE must be set}
   restart: unless-stopped
   profiles: [ blue-green ]
+  # @vercel/otel (frontend-shared's registerTallyvaneOtel, called from each app's own
+  # instrumentation.ts) reads these three exactly as written — the same OTLP endpoint and
+  # token the backend agent uses (ADR-067), one Grafana Cloud project for all four services.
+  environment:
+    OTEL_SERVICE_NAME: tallyvane-frontend-web
+    OTEL_RESOURCE_ATTRIBUTES: service.namespace=tallyvane
+    OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:?OTEL_EXPORTER_OTLP_ENDPOINT must be set}
+    OTEL_EXPORTER_OTLP_HEADERS: ${OTEL_EXPORTER_OTLP_HEADERS:?OTEL_EXPORTER_OTLP_HEADERS must be set}
   mem_limit: 256m
   networks: [ edge ]
   logging: *log-bound
@@ -85,6 +94,11 @@ x-frontend-app: &frontend-app-defaults
   image: ${FRONTEND_APP_IMAGE:?FRONTEND_APP_IMAGE must be set}
   restart: unless-stopped
   profiles: [ blue-green ]
+  environment:
+    OTEL_SERVICE_NAME: tallyvane-frontend-app
+    OTEL_RESOURCE_ATTRIBUTES: service.namespace=tallyvane
+    OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:?OTEL_EXPORTER_OTLP_ENDPOINT must be set}
+    OTEL_EXPORTER_OTLP_HEADERS: ${OTEL_EXPORTER_OTLP_HEADERS:?OTEL_EXPORTER_OTLP_HEADERS must be set}
   mem_limit: 384m
   networks: [ edge ]
   logging: *log-bound
@@ -99,6 +113,11 @@ x-frontend-admin: &frontend-admin-defaults
   image: ${FRONTEND_ADMIN_IMAGE:?FRONTEND_ADMIN_IMAGE must be set}
   restart: unless-stopped
   profiles: [ blue-green ]
+  environment:
+    OTEL_SERVICE_NAME: tallyvane-frontend-admin
+    OTEL_RESOURCE_ATTRIBUTES: service.namespace=tallyvane
+    OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:?OTEL_EXPORTER_OTLP_ENDPOINT must be set}
+    OTEL_EXPORTER_OTLP_HEADERS: ${OTEL_EXPORTER_OTLP_HEADERS:?OTEL_EXPORTER_OTLP_HEADERS must be set}
   mem_limit: 192m
   networks: [ edge ]
   logging: *log-bound

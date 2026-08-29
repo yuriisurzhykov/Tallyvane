@@ -127,14 +127,29 @@ already-merged property names for the agent version this spike ran
 `otel.instrumentation.common.logging.trace-id`/`span-id` form an abandoned sibling PR proposed
 first (#18765, closed in #18851's favour).
 
-**Not independently re-run against a live process**, unlike the collision finding above: Docker
-Desktop stopped responding partway through this investigation (`failed to connect to the docker
-API`, no `Docker Desktop`/`com.docker.backend` process left running) — outside this session's
-control, and not something to force past. What is verified is the property names themselves,
-against the actual merged pull request rather than a blog post's paraphrase of it. Re-running the
-same reproduction command block above with
-`OTEL_INSTRUMENTATION_COMMON_LOGGING_TRACE_ID_KEY=otel_trace_id` and
-`OTEL_INSTRUMENTATION_COMMON_LOGGING_SPAN_ID_KEY=otel_span_id` added, and confirming the JSON log
-line then carries both `trace_id`/`span_id` (unchanged, `TraceContext`'s own) and
-`otel_trace_id`/`otel_span_id` (the agent's) side by side, is the one thing worth doing before
-trusting this in production — flagged here rather than silently assumed.
+**Re-run live and confirmed, 2026-08-28, once Docker Desktop was reachable again.** Docker
+Desktop had stopped responding partway through the first pass of this investigation, so the
+rename was initially recorded against the merged pull request only, not against a real process —
+that gap is closed now. Reproduced without Docker at all this time: `PlatformWiring` builds its
+connection pool lazily (`backend/platform/persistence/README.md`), so `:app:run` starts and
+serves `/api/v1/health/live` with `TALLYVANE_DB_URL` pointed at a port nothing listens on. A
+temporary one-line `intercept(ApplicationCallPipeline.Call) { ... }` in `Application.kt` (added,
+exercised, then fully reverted — `git diff` empty afterwards) gave a log line to observe inside a
+real, agent-instrumented Ktor CIO request, since neither `/health/live` nor any of this codebase's
+own routes log anything of their own per request.
+
+With `OTEL_INSTRUMENTATION_COMMON_LOGGING_TRACE_ID_KEY=otel_trace_id` and
+`OTEL_INSTRUMENTATION_COMMON_LOGGING_SPAN_ID_KEY=otel_span_id` set, one request to
+`/api/v1/health/live` produced:
+
+```
+[otel.javaagent] ... 'GET /api/v1/health/live' : b11d0e6676cf68f8f6492b15af00d438 6bc743e26b952afc SERVER [tracer: io.opentelemetry.ktor-3.0...]
+{"loggerName":"mdc-verify","mdc":{"otel_trace_id":"b11d0e6676cf68f8f6492b15af00d438","otel_span_id":"6bc743e26b952afc",
+  "trace_id":"01a049aee9a1750f8a8e6de278cefdaf","span_id":"886342c569ba5099","trace_flags":"03"},"formattedMessage":"handling a request"}
+```
+
+`otel_trace_id`/`otel_span_id` match the exported SERVER span's own identifiers exactly — the
+renamed keys do carry the real span, not a stale or empty value. `trace_id`/`span_id` — `ADR-056`'s
+own, unrelated identifiers — are present and unchanged, proving the rename removed the collision
+rather than merely hiding it. (`trace_flags` was left at its default key name, since nothing in
+this codebase already owns that name; it is purely additive and was never part of the conflict.)

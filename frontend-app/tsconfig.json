@@ -47,6 +47,7 @@
     "scripts/**/*.ts",
     "steiger.config.ts",
     "next.config.ts",
+    "instrumentation.ts",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts"
   ],
