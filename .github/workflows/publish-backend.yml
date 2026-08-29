@@ -56,7 +56,7 @@ jobs:
       # Only on a tag, same as the publish steps below: scanning is cheap, but there is no
       # sense spending the time on a commit that is never going to be published anyway.
       - name: Scan for vulnerabilities
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/backend-v')
         uses: ./.github/actions/scan-image
         with:
           image-ref: "${{ env.IMAGE }}:${{ github.sha }}"
@@ -64,11 +64,11 @@ jobs:
       # Every push builds, which is what catches a broken Dockerfile. Only a tag
       # publishes, so the registry holds versions somebody meant to deploy.
       - name: Log in to the registry
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/backend-v')
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
       - name: Publish under the tag
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/backend-v')
         run: |
           docker tag "$IMAGE:${{ github.sha }}" "$IMAGE:${{ github.ref_name }}"
           docker push "$IMAGE:${{ github.ref_name }}"
@@ -76,7 +76,7 @@ jobs:
   deploy:
     name: Deploy app
     needs: image
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/backend-v')
     runs-on: ubuntu-latest
     steps:
       # Sparse: this job needs the composite action's own files and nothing else the
