@@ -8,7 +8,7 @@
 # about it.
 **
 
-!app/build/install/app
-!app/build/install/app/**
+!server/build/install/server
+!server/build/install/server/**
 !migrate/build/install/migrate
 !migrate/build/install/migrate/**
