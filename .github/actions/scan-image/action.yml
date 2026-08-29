@@ -1,7 +1,10 @@
 name: Scan image
 description: >-
   Fails the calling job if the image carries a CRITICAL or HIGH vulnerability with a fix
-  available, and always uploads the full scan to the repository's Security tab.
+  available. Always uploads the full scan both to the repository's Security tab and as a
+  plain downloadable artifact — every caller runs on a release tag, and the Security tab's
+  alert list only shows the default branch, so the artifact is the one place a failing run's
+  detail is reliably reachable.
 
 inputs:
   image-ref:
@@ -43,12 +46,24 @@ runs:
       with:
         sarif_file: trivy-results.sarif
 
-    # The actual gate, kept separate from Trivy's own `exit-code` so upload-sarif always runs
-    # first regardless of the outcome.
+    # A plain, always-downloadable copy — every caller of this action runs on a release tag,
+    # never a branch push (measured, 2026-08-28: the Security tab's own alert list only shows
+    # the default branch by default, github/codeql-action#3578's maintainer confirms this
+    # directly), so a failing scan's detail would otherwise be unreachable through the UI at
+    # all. This is the one place to actually read what a failing gate found.
+    - name: Upload the raw report
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: trivy-results
+        path: trivy-results.sarif
+
+    # The actual gate, kept separate from Trivy's own `exit-code` so both uploads above always
+    # run first regardless of the outcome.
     - name: Fail on a fixable CRITICAL or HIGH
       shell: bash
       run: |
         if grep -q '"level": *"error"' trivy-results.sarif; then
-          echo "::error::Trivy found a fixable CRITICAL or HIGH vulnerability in ${{ inputs.image-ref }} — see the Security tab."
+          echo "::error::Trivy found a fixable CRITICAL or HIGH vulnerability in ${{ inputs.image-ref }} — download the trivy-results artifact from this run for detail."
           exit 1
         fi
