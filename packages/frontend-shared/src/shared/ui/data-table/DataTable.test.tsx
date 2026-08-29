@@ -314,6 +314,32 @@ describe("DataTable", () => {
         });
     });
 
+    describe("horizontal scroll sync", () => {
+        it("mirrors Body's scrollLeft onto Header's, since the two never share one scroll container", () => {
+            renderBasicTable();
+            const body = screen.getByTestId("data-table-body");
+            const [header] = screen.getAllByRole("rowgroup");
+            if (!header) throw new Error("Expected Header's own rowgroup to be in the document");
+
+            body.scrollLeft = 120;
+            fireEvent.scroll(body);
+
+            expect(header.scrollLeft).toBe(120);
+        });
+
+        it("does not affect Body when Header alone changes scrollLeft — the sync is one-directional", () => {
+            renderBasicTable();
+            const body = screen.getByTestId("data-table-body");
+            const [header] = screen.getAllByRole("rowgroup");
+            if (!header) throw new Error("Expected Header's own rowgroup to be in the document");
+
+            header.scrollLeft = 80;
+            fireEvent.scroll(header);
+
+            expect(body.scrollLeft).toBe(0);
+        });
+    });
+
     describe("layout passthrough", () => {
         it("merges a caller-provided className onto Root's own layout classes", () => {
             renderBasicTable("col-span-2");

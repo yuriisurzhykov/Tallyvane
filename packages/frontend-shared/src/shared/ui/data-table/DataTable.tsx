@@ -1,3 +1,5 @@
+"use client";
+
 import { Root } from "./Root";
 import { Header } from "./Header";
 import { Body } from "./Body";

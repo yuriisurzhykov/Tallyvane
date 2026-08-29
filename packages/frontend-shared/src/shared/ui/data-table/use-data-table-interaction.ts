@@ -12,6 +12,7 @@ export interface DataTableInteraction {
     readonly activeCell: DataTableActiveCell;
     readonly moveActiveCell: (rowIndex: number, columnIndex: number) => void;
     readonly scrollElementRef: RefObject<HTMLDivElement | null>;
+    readonly headerScrollElementRef: RefObject<HTMLDivElement | null>;
     readonly virtualizer: Virtualizer<HTMLDivElement, HTMLDivElement>;
 }
 
@@ -35,6 +36,7 @@ export function useDataTableInteraction<TData extends RowData>(
     const [expandedRowIds, setExpandedRowIds] = useState<Record<string, boolean>>({});
     const [activeCell, setActiveCell] = useState<DataTableActiveCell>({ rowIndex: 0, columnIndex: 0 });
     const scrollElementRef = useRef<HTMLDivElement>(null);
+    const headerScrollElementRef = useRef<HTMLDivElement>(null);
 
     const getScrollElement = useCallback(() => scrollElementRef.current, []);
     const getItemKey = useCallback((index: number) => rows[index]?.id ?? index, [rows]);
@@ -67,5 +69,5 @@ export function useDataTableInteraction<TData extends RowData>(
         [rows.length, columnCount, virtualizer],
     );
 
-    return { expandedRowIds, toggleRowExpanded, activeCell, moveActiveCell, scrollElementRef, virtualizer };
+    return { expandedRowIds, toggleRowExpanded, activeCell, moveActiveCell, scrollElementRef, headerScrollElementRef, virtualizer };
 }

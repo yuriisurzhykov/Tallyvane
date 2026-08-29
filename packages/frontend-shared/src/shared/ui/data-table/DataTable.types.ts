@@ -23,6 +23,8 @@ export interface DataTableMeta<TData extends RowData> {
     readonly table: ReactTable<DataTableFeatures, TData>;
     readonly virtualizer: Virtualizer<HTMLDivElement, HTMLDivElement>;
     readonly scrollElementRef: RefObject<HTMLDivElement | null>;
+    /** `Header`'s own scroll position, kept in sync with `scrollElementRef`'s horizontal offset — see `Body.tsx`'s own comment for why two separate elements need this rather than one shared scroll container. */
+    readonly headerScrollElementRef: RefObject<HTMLDivElement | null>;
     readonly renderExpandedRow?: (row: TData) => ReactNode;
     readonly expandRowLabel?: string;
     readonly collapseRowLabel?: string;

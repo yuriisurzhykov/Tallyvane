@@ -40,7 +40,7 @@ export function Root<TData extends RowData>({
     const hasRowExpansion = renderExpandedRow !== undefined;
     const columnCount = table.getAllLeafColumns().length + (hasRowExpansion ? 1 : 0);
 
-    const { expandedRowIds, toggleRowExpanded, activeCell, moveActiveCell, scrollElementRef, virtualizer } =
+    const { expandedRowIds, toggleRowExpanded, activeCell, moveActiveCell, scrollElementRef, headerScrollElementRef, virtualizer } =
         useDataTableInteraction(rows, columnCount);
 
     /**
@@ -61,6 +61,7 @@ export function Root<TData extends RowData>({
                 table,
                 virtualizer,
                 scrollElementRef,
+                headerScrollElementRef,
                 ...(renderExpandedRow ? { renderExpandedRow } : {}),
                 ...(expandRowLabel ? { expandRowLabel } : {}),
                 ...(collapseRowLabel ? { collapseRowLabel } : {}),
@@ -76,6 +77,7 @@ export function Root<TData extends RowData>({
             moveActiveCell,
             table,
             virtualizer,
+            headerScrollElementRef,
             renderExpandedRow,
             expandRowLabel,
             collapseRowLabel,

@@ -1,9 +1,10 @@
+import type { UIEvent } from "react";
 import { cn } from "../../lib";
 import { useDataTableContext } from "./data-table-context";
 import { Row } from "./Row";
 import type { DataTableBodyProps } from "./DataTable.types";
 
-const BODY_CLASS = "relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden";
+const BODY_CLASS = "relative min-h-0 flex-1 overflow-auto";
 
 /**
  * The actual scroll/virtualization container — only the rows
@@ -30,16 +31,30 @@ const BODY_CLASS = "relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden";
  * `sidebar`, `popover`, `modal`, `toast`, `tooltip` — describes "a
  * non-overlay header pinned above a sibling scroll region"). Resolved here
  * by not needing sticky at all: `Header` is simply outside the scrolling
- * region, and columns size by flex proportion (`flex: <size> 1 0%`, not an
- * absolute pixel width) rather than a fixed pixel width, so there is no
- * horizontal overflow for the two elements to fall out of sync over in the
- * first place. Flagged in this component's own README as a real design
- * decision, not a silent simplification.
+ * region.
+ *
+ * **Horizontal scroll, added 2026-08-28: `Body` owns the one real
+ * scrollbar, `Header` mirrors it.** `Cell`'s and `Header`'s cells now carry
+ * a real `minWidth` (the same number driving their flex-grow weight), so a
+ * narrow viewport stops shrinking columns into illegible slivers and
+ * instead makes this row genuinely wider than the viewport — exactly what
+ * `overflow-auto` here is for. `Header`'s own rowgroup clips with
+ * `overflow-x-hidden` (no second, redundant scrollbar) and its `scrollLeft`
+ * is set directly from this element's `onScroll`, because two separate
+ * elements (the paragraph above) cannot share one native scroll position —
+ * a plain assignment on scroll is simpler and has no observed lag versus a
+ * `requestAnimationFrame`-batched version, and there is nothing else this
+ * component does on every scroll event to batch it against.
  */
 export function Body({ className }: DataTableBodyProps) {
     const { meta } = useDataTableContext();
     const virtualItems = meta.virtualizer.getVirtualItems();
     const headerRowCount = meta.table.getHeaderGroups().length;
+
+    function syncHeaderScroll(event: UIEvent<HTMLDivElement>) {
+        const headerElement = meta.headerScrollElementRef.current;
+        if (headerElement) headerElement.scrollLeft = event.currentTarget.scrollLeft;
+    }
 
     return (
         <div
@@ -48,6 +63,7 @@ export function Body({ className }: DataTableBodyProps) {
             data-testid="data-table-body"
             // Opt-in marker `contrast-wcag.ts`'s virtualized-scroll-clip check looks for: this container clips overscan rows by design, so a node found only partially inside it is not really obscured.
             data-virtualized-scroll-container=""
+            onScroll={syncHeaderScroll}
             className={cn(BODY_CLASS, className)}
         >
             <div style={{ height: meta.virtualizer.getTotalSize(), position: "relative" }}>

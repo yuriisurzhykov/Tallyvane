@@ -1,9 +1,10 @@
 import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
 import { cn, CONTROL_ICON_CLASS } from "../../lib";
+import { Truncate } from "../truncate";
 import { useDataTableContext } from "./data-table-context";
 import type { DataTableHeaderProps } from "./DataTable.types";
 
-const HEADER_ROWGROUP_CLASS = "flex-none border-b border-border-subtle";
+const HEADER_ROWGROUP_CLASS = "flex-none overflow-x-hidden border-b border-border-subtle";
 const HEADER_ROW_CLASS = "flex";
 const HEADER_CELL_CLASS = "min-w-0 px-inline-tight text-caption text-text-muted";
 const SORT_BUTTON_CLASS =
@@ -34,13 +35,19 @@ function SortIcon({ sorted }: { readonly sorted: false | "asc" | "desc" }) {
  * `columnheader`. It is alignment chrome, not a heading — a blank
  * `columnheader` fails axe `empty-table-header`, and that rule's own
  * incorrect example is exactly `aria-label` on an empty header.
+ *
+ * `overflow-x-hidden` plus `headerScrollElementRef` (`Body`'s own comment
+ * has the horizontal-scroll story): this rowgroup never shows its own
+ * scrollbar, but `Body`'s `onScroll` sets its `scrollLeft` directly, so the
+ * header's columns stay aligned with the body's without the two elements
+ * ever sharing one scroll container.
  */
 export function Header({ className }: DataTableHeaderProps) {
     const { meta } = useDataTableContext();
     const headerGroups = meta.table.getHeaderGroups();
 
     return (
-        <div role="rowgroup" className={ cn(HEADER_ROWGROUP_CLASS, className) }>
+        <div ref={ meta.headerScrollElementRef } role="rowgroup" className={ cn(HEADER_ROWGROUP_CLASS, className) }>
             { headerGroups.map((headerGroup, groupIndex) => (
                 <div role="row" key={ headerGroup.id } aria-rowindex={ groupIndex + 1 } className={ HEADER_ROW_CLASS }>
                     { meta.hasRowExpansion ? (
@@ -61,17 +68,21 @@ export function Header({ className }: DataTableHeaderProps) {
                                 aria-colindex={ headerIndex + 1 + (meta.hasRowExpansion ? 1 : 0) }
                                 aria-sort={ canSort ? sortAriaValue(sorted) : undefined }
                                 aria-colspan={ header.colSpan > 1 ? header.colSpan : undefined }
-                                style={ { flex: `${ String(header.getSize()) } 1 0%` } }
+                                style={ { flex: `${ String(header.getSize()) } 1 0%`, minWidth: header.getSize() } }
                                 className={ HEADER_CELL_CLASS }
                             >
                                 { header.isPlaceholder ? null : canSort ? (
                                     <button type="button" className={ SORT_BUTTON_CLASS }
                                             onClick={ header.column.getToggleSortingHandler() }>
-                                        <meta.table.FlexRender header={ header }/>
+                                        <Truncate className="min-w-0">
+                                            <meta.table.FlexRender header={ header }/>
+                                        </Truncate>
                                         <SortIcon sorted={ sorted }/>
                                     </button>
                                 ) : (
-                                    <meta.table.FlexRender header={ header }/>
+                                    <Truncate className="min-w-0">
+                                        <meta.table.FlexRender header={ header }/>
+                                    </Truncate>
                                 ) }
                             </div>
                         );

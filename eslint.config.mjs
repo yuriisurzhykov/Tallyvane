@@ -50,7 +50,10 @@ function routesPolicy(layers) {
     };
 }
 
-const FRONTEND_LAYERS = ["entities", "features", "widgets", "views", "app"];
+// frontend-web has no local entities/features/widgets (ADR-065 moved the console's own stack to
+// frontend-app) — its only local layer under src/ is views.
+const WEB_LAYERS = ["views", "app"];
+const CONSOLE_LAYERS = ["entities", "features", "widgets", "views", "app"];
 const ADMIN_LAYERS = ["features", "widgets", "views", "app"];
 
 const TS_FILES = ["**/*.ts", "**/*.tsx", "**/*.mts"];
@@ -92,7 +95,12 @@ function appBoundariesBlock(appDir, layers) {
             "boundaries/include": [`${appDir}/**/*.{ts,tsx}`],
             "import-x/resolver-next": [
                 createTypeScriptImportResolver({
-                    project: ["frontend-web/tsconfig.json", "frontend-admin/tsconfig.json", "packages/*/tsconfig.json"],
+                    project: [
+                        "frontend-web/tsconfig.json",
+                        "frontend-app/tsconfig.json",
+                        "frontend-admin/tsconfig.json",
+                        "packages/*/tsconfig.json",
+                    ],
                     // A workspace genuinely has several tsconfigs; the resolver
                     // suggests merging them behind project references, which
                     // would couple packages that are deliberately independent.
@@ -281,9 +289,14 @@ export default [
     },
 
     // ---------------------------------------------------------------------
-    // FRONTEND-WEB — blog + console
+    // FRONTEND-WEB — the public site: landing, blog, docs, changelog, legal
     // ---------------------------------------------------------------------
-    appBoundariesBlock("frontend-web", FRONTEND_LAYERS),
+    appBoundariesBlock("frontend-web", WEB_LAYERS),
+
+    // ---------------------------------------------------------------------
+    // FRONTEND-APP — the console, split out from frontend-web by ADR-065
+    // ---------------------------------------------------------------------
+    appBoundariesBlock("frontend-app", CONSOLE_LAYERS),
 
     // ---------------------------------------------------------------------
     // FRONTEND-ADMIN — CMS admin, a separate app since ADR-032
@@ -295,6 +308,7 @@ export default [
     {
         files: [
             "frontend-web/**/*.tsx",
+            "frontend-app/**/*.tsx",
             "frontend-admin/**/*.tsx",
             "packages/frontend-shared/**/*.tsx",
             // content-kit is empty scaffolding today, but every public
@@ -342,6 +356,7 @@ export default [
     {
         files: [
             "frontend-web/src/**/*.tsx",
+            "frontend-app/src/**/*.tsx",
             "frontend-admin/src/**/*.tsx",
             "packages/frontend-shared/src/shared/**/*.tsx",
             "packages/content-kit/src/**/*.tsx",
@@ -371,6 +386,7 @@ export default [
     {
         files: [
             "frontend-web/src/**/*.{ts,tsx}",
+            "frontend-app/src/**/*.{ts,tsx}",
             "frontend-admin/src/**/*.{ts,tsx}",
             "packages/content-kit/src/**/*.{ts,tsx}",
         ],
@@ -433,7 +449,12 @@ export default [
     },
 
     {
-        files: ["frontend-web/steiger.config.ts", "frontend-admin/steiger.config.ts", "packages/*/steiger.config.ts"],
+        files: [
+            "frontend-web/steiger.config.ts",
+            "frontend-app/steiger.config.ts",
+            "frontend-admin/steiger.config.ts",
+            "packages/*/steiger.config.ts",
+        ],
         rules: {
             /**
              * `@feature-sliced/steiger-plugin` does not ship usable types for

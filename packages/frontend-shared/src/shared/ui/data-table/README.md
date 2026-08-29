@@ -295,3 +295,118 @@ caller who does not use row expansion sees and supplies nothing about it.
 `@tanstack/react-table`/`@tanstack/react-virtual` themselves — the one file
 that would need to change if either library's API changed shape again (as
 v8→v9 already did once) is `DataTable.tsx` itself.
+
+## 2026-08-28 — the real entry point was missing `"use client"`, and neither Storybook nor Vitest could have caught it
+
+Discovered the first time `DataTable` was imported into an actual Next.js
+Server Component (`frontend-admin`'s `admin-page-list` view) — a case
+neither of this component's two existing test surfaces exercises:
+Storybook renders everything client-side already, and `DataTable.test.tsx`
+runs under Vitest/jsdom, which has no concept of the server/client
+component boundary at all. Turbopack's build failed with `You're importing
+a module that depends on useEffect into a React Server Component module`,
+pointing at `Cell.tsx`, `Row.tsx` and `data-table-context.ts`.
+
+`Root.tsx` already carries `"use client"` — but nothing imports `Cell`,
+`Row`, `Header` or `Body` *through* `Root.tsx`. `DataTable.tsx` (this
+compound's real, only public entry point, per its own `package.json`
+export) imports all five directly and had no directive of its own, so a
+Server Component importing `{ DataTable }` reached `Cell.tsx`'s `useEffect`
+and `data-table-context.ts`'s `createContext` without ever crossing a
+declared client boundary — and, transitively through `cn` from
+`shared/lib`, the same barrel this file's own header comment already
+documents as pulling in `useDebouncedAutosave` for anyone who imports it
+without one (the exact `register-otel.ts` incident this repository already
+has one dated record of, now a second one).
+
+Fixed by moving `"use client"` to `DataTable.tsx` itself — the one file
+every consumer's import actually passes through, regardless of which of
+the five parts happens to need a client-only hook internally. `Root.tsx`'s
+own directive is now redundant (nothing reaches it except through
+`DataTable.tsx`, which already establishes the boundary) but left in place
+rather than removed in the same pass that found the real bug — a second,
+narrower cleanup, not mixed into this fix.
+
+**The gap this closes for the next component, not just this one:** a
+compound whose only test coverage is Storybook and jsdom has never actually
+been proven safe to import from a real Server Component tree — that proof
+only exists once something outside this package does exactly that, which
+is what happened here, three sessions after this component was declared
+done.
+
+## 2026-08-28 — narrow cells overlapped instead of truncating, caught on a real phone
+
+Reported directly against `admin-page-list` on an actual phone, not
+guessed at: with all four of that view's columns given equal flex weight
+on a ~370px-wide viewport, the "Updated" column's `2026-08-20` had nowhere
+near enough width, wrapped onto a second line inside its `Cell`, and that
+second line visually overlapped the row rendered directly below it —
+`useVirtualizer`'s `estimateSize: () => ROW_HEIGHT_PX` positions every row
+at a fixed 32px offset from the last regardless of what its content
+actually needs, so a cell that wraps does not push anything below it down,
+it just paints over it.
+
+Root cause was broader than the one column that happened to show it:
+`Cell`'s and `Header`'s own classes (`min-w-0 flex items-center`, `min-w-0`)
+allow a flex item to shrink below its content's width, but nothing then
+stops that content from wrapping once it does — the fixed-32px-row
+contract this component has always had (`ROW_HEIGHT_PX`, the "Density"
+section above) implicitly requires every cell to stay single-line, and
+nothing enforced that until a real column got genuinely too narrow to
+hold its content on one line. Desktop-width call sites never hit this
+because their columns rarely need to shrink that far.
+
+Fixed by wrapping each `Cell`'s and `Header`'s rendered content in this
+package's own `Truncate` (Tier 0, already built for exactly "line clamp
+with the full value reachable") rather than a bare Tailwind `truncate`
+class — `Cell` additionally passes the raw `cell.getValue()`, stringified,
+as `Truncate`'s `fullValue` when it is a primitive (string/number/`Date`),
+so a truncated date or title is still readable via the native `title`
+tooltip rather than silently lossy. A custom `cell` renderer's returned
+element (a `Badge`) has no one string to show this way and gets no
+`fullValue` — not a regression, since it never had one.
+
+**Column width is still the call site's decision** — this fix stops narrow
+columns from breaking, not from being narrow. The user's own proposed
+resolution, applied the same day: see the "rows scroll instead of
+shrinking" entry below.
+
+## 2026-08-28 — rows scroll horizontally instead of shrinking into illegible columns
+
+The truncation fix above stopped the overlap, but on a genuinely narrow
+viewport (`admin-page-list`'s four equal-weight columns on a ~370px phone)
+every cell still rendered nothing but "…" — not broken, but not usable
+either. Raised as an open question with four options (hide columns below a
+breakpoint, weight columns unevenly, a card layout on mobile, or accept
+truncation); the user's own answer was a fifth, better option none of
+those four named: let the row scroll horizontally instead of shrinking at
+all, the standard pattern for a table that genuinely does not fit.
+
+**Every column now carries a real `minWidth`, not just a flex-grow
+weight.** `Cell` and `Header` already sized columns via `flex: <size> 1
+0%` — a pure proportional split with no floor, which is exactly what let a
+column shrink to an unreadable sliver in the first place. Both now add
+`minWidth: <size>` using that same number, so a column still grows to fill
+extra space on a wide screen (unchanged desktop behaviour) but never
+shrinks below it — once every column's minimum sums past the viewport,
+the row is genuinely wider than its container, which is what makes the
+new `overflow-auto` on `Body` show a real, native scrollbar instead of an
+invisible one that never activates. `size` defaults to `150` when a column
+def sets none — confirmed by reading `columnSizingFeature.utils.js`'s own
+`getDefaultColumnSizingColumnDef` rather than assumed from memory of v8 —
+so four unsized columns floor at 600px combined, comfortably wider than a
+phone and comfortably narrower than a laptop.
+
+**`Body` scrolls; `Header` mirrors it, one-directionally.** `Header` and
+`Body` are still two separate elements (the "why this is not one shared
+`position: sticky` region" reasoning above is unchanged) — they cannot
+share one native scroll position, so `Body`'s `onScroll` sets `Header`'s
+`scrollLeft` to match on every event. `Header` itself carries
+`overflow-x-hidden`, not `overflow-x-auto`: a second, independently
+draggable scrollbar on the header would let it drift out of sync with the
+body it is supposed to label, and there is no case where scrolling the
+header first is a real user action to support. `DataTable.test.tsx`'s new
+"horizontal scroll sync" cases assert both directions explicitly: `Body`
+scrolling moves `Header`, and `Header` scrolling (fired the same way, in
+case a future change ever attaches its own listener by accident) moves
+nothing.
