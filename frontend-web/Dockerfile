@@ -8,6 +8,12 @@
 #     docker build -f frontend-web/Dockerfile -t tallyvane-frontend-web .
 
 FROM node:24-alpine AS base
+# Alpine's own packages, not Node's — `node:24-alpine` is a mutable tag, a snapshot from
+# whenever it was last published, not necessarily today's patched openssl. `update` and
+# `upgrade` stay in one RUN: split across two, Docker's layer cache could keep serving a
+# stale index against a newer upgrade indefinitely (measured, 2026-08-28: Trivy caught
+# CVE-2026-14456 in libssl3/libcrypto3 on exactly this base image).
+RUN apk update && apk upgrade --no-cache
 RUN corepack enable
 
 FROM base AS deps
@@ -91,6 +97,13 @@ ENV HOSTNAME=0.0.0.0
 # kept in the same place instead of one of them here.
 RUN addgroup --system --gid 1001 nodejs \
   && adduser --system --uid 1001 nextjs
+
+# npm ships inside the base node image, but nothing in this stage ever runs it — the
+# standalone server below starts with a plain `node` command. Removing it removes its own
+# vendored dependencies with it, rather than leaving unused, unpatched code sitting in the
+# image: Trivy caught three CVEs directly under npm's own node_modules (brace-expansion,
+# ip-address, tar), none of them reachable from this application's own code at all.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 
 # The standalone tree already nests under frontend-web/ — outputFileTracingRoot points
 # at the workspace root, one level above this app, so tracing mirrors that one level of

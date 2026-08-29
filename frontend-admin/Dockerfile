@@ -8,6 +8,8 @@
 #     docker build -f frontend-admin/Dockerfile -t tallyvane-frontend-admin .
 
 FROM node:24-alpine AS base
+# See frontend-web/Dockerfile's comment on this exact line for why.
+RUN apk update && apk upgrade --no-cache
 RUN corepack enable
 
 FROM base AS deps
@@ -47,6 +49,9 @@ ENV HOSTNAME=0.0.0.0
 
 RUN addgroup --system --gid 1001 nodejs \
   && adduser --system --uid 1001 nextjs
+
+# See frontend-web/Dockerfile's comment on this exact line for why.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 
 # No public/ directory here yet either — see frontend-web/Dockerfile's comment on the
 # equivalent line for why that COPY is absent rather than forgotten.
