@@ -37,11 +37,11 @@ include(":platform:health")
 // ---------------------------------------------------------------------------
 // Composition root and architecture tests.
 // ---------------------------------------------------------------------------
-include(":app")
+include(":server")
 include(":arch-tests")
 
 // The one-shot migration command ADR-051 calls for: run by the deploy, never by the
-// application at startup. Outside modules.yaml for the same reason `app` and
+// application at startup. Outside modules.yaml for the same reason `server` and
 // `arch-tests` are — it is not a platform capability and not a feature.
 include(":migrate")
 

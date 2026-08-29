@@ -15,7 +15,7 @@
 # into .env, which apply.sh later `source`s, and a shell metacharacter surviving into that file
 # would run as this user the next time apply.sh starts.
 #
-#   ssh -i deploy-only-key deploy@host "app ghcr.io/owner/tallyvane-backend:v1.2.3"
+#   ssh -i deploy-only-key deploy@host "server ghcr.io/owner/tallyvane-backend:v1.2.3"
 
 set -euo pipefail
 
@@ -31,12 +31,12 @@ read -r service image_ref extra <<<"$original"
 }
 
 case "$service" in
-app) env_key=BACKEND_IMAGE ;;
+server) env_key=BACKEND_IMAGE ;;
 frontend-web) env_key=FRONTEND_WEB_IMAGE ;;
 frontend-app) env_key=FRONTEND_APP_IMAGE ;;
 frontend-admin) env_key=FRONTEND_ADMIN_IMAGE ;;
 *)
-  echo "unknown service: '$service' (expected app, frontend-web, frontend-app, or frontend-admin)" >&2
+  echo "unknown service: '$service' (expected server, frontend-web, frontend-app, or frontend-admin)" >&2
   exit 1
   ;;
 esac

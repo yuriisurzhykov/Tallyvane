@@ -13,7 +13,7 @@
 #   apply.sh --rollout <service>    blue/green cutover for one service (CD plan §3)
 #   apply.sh --retire <service>     stops the colour a rollout left running for its grace window
 #
-# <service> is one of: app, frontend-web, frontend-app, frontend-admin — the four services
+# <service> is one of: server, frontend-web, frontend-app, frontend-admin — the four services
 # docker-compose.yml declares as blue/green pairs. `db`, `migrate`, `nginx` and `cloudflared`
 # have no colour; nothing here rolls them out.
 
@@ -43,11 +43,11 @@ service=""
 case "${1:-}" in
 --rollout)
   mode=rollout
-  service="${2:?--rollout needs a service name: app, frontend-web, frontend-app, or frontend-admin}"
+  service="${2:?--rollout needs a service name: server, frontend-web, frontend-app, or frontend-admin}"
   ;;
 --retire)
   mode=retire
-  service="${2:?--retire needs a service name: app, frontend-web, frontend-app, or frontend-admin}"
+  service="${2:?--retire needs a service name: server, frontend-web, frontend-app, or frontend-admin}"
   ;;
 "") ;;
 *)
@@ -63,9 +63,9 @@ esac
 
 require_known_service() {
   case "$1" in
-  app | frontend-web | frontend-app | frontend-admin) ;;
+  server | frontend-web | frontend-app | frontend-admin) ;;
   *)
-    echo "unknown service: $1 (expected app, frontend-web, frontend-app, or frontend-admin)" >&2
+    echo "unknown service: $1 (expected server, frontend-web, frontend-app, or frontend-admin)" >&2
     return 1
     ;;
   esac
@@ -73,7 +73,7 @@ require_known_service() {
 
 color_var_for() {
   case "$1" in
-  app) echo APP_ACTIVE_COLOR ;;
+  server) echo SERVER_ACTIVE_COLOR ;;
   frontend-web) echo FRONTEND_WEB_ACTIVE_COLOR ;;
   frontend-app) echo FRONTEND_APP_ACTIVE_COLOR ;;
   frontend-admin) echo FRONTEND_ADMIN_ACTIVE_COLOR ;;
@@ -95,7 +95,7 @@ idle_color() {
 # Upserts KEY=VALUE into .env in place — idempotent, the same discipline provision/lib.sh's
 # write_file applies to host files, here applied to the one file deploy.sh never syncs and
 # apply.sh is consequently the only writer of. Exported immediately too, so a caller that reads
-# $APP_ACTIVE_COLOR right after calling this sees the new value without re-sourcing the file.
+# $SERVER_ACTIVE_COLOR right after calling this sees the new value without re-sourcing the file.
 set_env_var() {
   local key="$1" value="$2"
   if grep -q "^${key}=" .env; then
@@ -126,13 +126,13 @@ render_common_conf() {
   # literally `^TALLYVANE_`, find none, and silently substitute nothing at all.
   # shellcheck disable=SC2016  # envsubst wants the literal names, not their values.
   docker compose exec -T \
-    -e TALLYVANE_APP_PRIMARY="$1" -e TALLYVANE_APP_SECONDARY="$2" \
+    -e TALLYVANE_SERVER_PRIMARY="$1" -e TALLYVANE_SERVER_SECONDARY="$2" \
     -e TALLYVANE_FRONTEND_WEB_PRIMARY="$3" -e TALLYVANE_FRONTEND_WEB_SECONDARY="$4" \
     -e TALLYVANE_FRONTEND_APP_PRIMARY="$5" -e TALLYVANE_FRONTEND_APP_SECONDARY="$6" \
     -e TALLYVANE_FRONTEND_ADMIN_PRIMARY="$7" -e TALLYVANE_FRONTEND_ADMIN_SECONDARY="$8" \
     nginx sh -c '
       set -e
-      vars="\${TALLYVANE_APP_PRIMARY} \${TALLYVANE_APP_SECONDARY}"
+      vars="\${TALLYVANE_SERVER_PRIMARY} \${TALLYVANE_SERVER_SECONDARY}"
       vars="$vars \${TALLYVANE_FRONTEND_WEB_PRIMARY} \${TALLYVANE_FRONTEND_WEB_SECONDARY}"
       vars="$vars \${TALLYVANE_FRONTEND_APP_PRIMARY} \${TALLYVANE_FRONTEND_APP_SECONDARY}"
       vars="$vars \${TALLYVANE_FRONTEND_ADMIN_PRIMARY} \${TALLYVANE_FRONTEND_ADMIN_SECONDARY}"
@@ -148,10 +148,10 @@ render_common_conf() {
 # reassert steady state (--retire), and with one during a rollout's two cutover reloads.
 reload_upstreams() {
   local override_service="${1:-}" override_primary="${2:-}" override_secondary="${3:-}"
-  local app_p app_s web_p web_s appfe_p appfe_s admin_p admin_s
+  local server_p server_s web_p web_s appfe_p appfe_s admin_p admin_s
 
-  app_p="app-$(current_color app)"
-  app_s="$app_p"
+  server_p="server-$(current_color server)"
+  server_s="$server_p"
   web_p="frontend-web-$(current_color frontend-web)"
   web_s="$web_p"
   appfe_p="frontend-app-$(current_color frontend-app)"
@@ -160,9 +160,9 @@ reload_upstreams() {
   admin_s="$admin_p"
 
   case "$override_service" in
-  app)
-    app_p="$override_primary"
-    app_s="$override_secondary"
+  server)
+    server_p="$override_primary"
+    server_s="$override_secondary"
     ;;
   frontend-web)
     web_p="$override_primary"
@@ -179,7 +179,7 @@ reload_upstreams() {
   "") ;;
   esac
 
-  render_common_conf "$app_p" "$app_s" "$web_p" "$web_s" "$appfe_p" "$appfe_s" "$admin_p" "$admin_s"
+  render_common_conf "$server_p" "$server_s" "$web_p" "$web_s" "$appfe_p" "$appfe_s" "$admin_p" "$admin_s"
 }
 
 wait_healthy_service() {
@@ -199,7 +199,7 @@ wait_healthy_service() {
   return 1
 }
 
-# app only: polls /api/v1/health/ready directly on the container, bypassing nginx entirely. The
+# server only: polls /api/v1/health/ready directly on the container, bypassing nginx entirely. The
 # Docker healthcheck (wait_healthy_service, used for the frontends) only calls /health/live,
 # which by design consults nothing (ADR-063) — it proves the process started, not that it may
 # serve traffic. /health/ready needs no service token; only the detailed breakdown does.
@@ -224,7 +224,7 @@ wait_ready() {
 smoke_check_service() {
   local service="$1" host status body headers
   case "$service" in
-  app)
+  server)
     host="app.${DOMAIN}"
     status="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 20 "https://${host}/api/v1/health/ready" || true)"
     [ "$status" = 200 ] || {
@@ -275,11 +275,11 @@ do_rollout() {
 
   echo "-- rolling out $service: $active (active) -> $idle (idle)"
 
-  if [ "$service" = app ]; then
+  if [ "$service" = server ]; then
     # Before the idle colour starts, not after — a schema the new colour needs but the old
     # colour has not been told to tolerate yet is exactly what ADR-066 exists to rule out, and
     # this is the one moment that matters. Explicit rather than left to `depends_on`: a scoped
-    # `up -d app-<colour>` does not reliably re-run a one-shot dependency that already exited
+    # `up -d server-<colour>` does not reliably re-run a one-shot dependency that already exited
     # successfully once, for a previous release.
     echo "-- applying migrations for the new image"
     docker compose run --rm migrate
@@ -289,7 +289,7 @@ do_rollout() {
   docker compose up -d "$idle_container"
 
   echo "-- waiting for $idle_container"
-  if [ "$service" = app ]; then
+  if [ "$service" = server ]; then
     wait_ready "$idle_container"
   else
     wait_healthy_service "$idle_container"
@@ -365,7 +365,7 @@ credentials="${TUNNEL_CREDENTIALS:-/srv/secrets/tallyvane/tunnel-credentials.jso
   exit 1
 }
 
-app_color="$(current_color app)"
+server_color="$(current_color server)"
 web_color="$(current_color frontend-web)"
 appfe_color="$(current_color frontend-app)"
 admin_color="$(current_color frontend-admin)"
@@ -376,9 +376,9 @@ admin_color="$(current_color frontend-admin)"
 # check fails on the first deploy that introduces it. Compose waits for migrations to finish
 # before starting the server; the three frontends have no such dependency on each other or on the
 # backend.
-echo "-- starting the backend and the frontends (blue/green: $app_color/$web_color/$appfe_color/$admin_color)"
+echo "-- starting the backend and the frontends (blue/green: $server_color/$web_color/$appfe_color/$admin_color)"
 docker compose up -d db migrate \
-  "app-${app_color}" "frontend-web-${web_color}" "frontend-app-${appfe_color}" "frontend-admin-${admin_color}"
+  "server-${server_color}" "frontend-web-${web_color}" "frontend-app-${appfe_color}" "frontend-admin-${admin_color}"
 
 # Through the image's real entrypoint, so the templates are substituted first: checking the
 # template directory would prove nothing, because the file nginx reads does not exist until that

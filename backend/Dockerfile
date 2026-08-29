@@ -2,7 +2,7 @@
 #
 # It compiles nothing. The distributions have to exist before this is built:
 #
-#     ./gradlew :app:installDist :migrate:installDist
+#     ./gradlew :server:installDist :migrate:installDist
 #
 # That split is deliberate. Compiling here would mean a JDK and a Gradle cache inside the
 # build, which is slower and duplicates caching that CI already does for the test run.
@@ -37,7 +37,7 @@ RUN rm -f /usr/bin/pebble
 # graphs resolve kotlin-reflect to 2.3.21 for the server and 2.3.20 for migrations, so a single
 # classpath would carry both and which one won would depend on ordering.
 WORKDIR /opt/tallyvane
-COPY app/build/install/app app
+COPY server/build/install/server server
 COPY migrate/build/install/migrate migrate
 COPY --from=otel-agent /tmp/opentelemetry-javaagent.jar opentelemetry-javaagent.jar
 
@@ -51,12 +51,12 @@ USER tallyvane
 # publishes none — nginx reaches the container over the docker network.
 EXPOSE 8080
 
-# `java` directly, not the bin/app script Gradle generates. That script is bash, so calling it
-# would tie this image to a base that has a shell; this form runs on any of them, which keeps
+# `java` directly, not the bin/server script Gradle generates. That script is bash, so calling
+# it would tie this image to a base that has a shell; this form runs on any of them, which keeps
 # the choice of base image a one-line decision rather than a rewrite.
 #
 # The `*` is expanded by the JVM, not by a shell — a wildcard classpath entry is a Java
-# feature. Safe within one tree: `app/lib` holds exactly one kotlin-reflect.
+# feature. Safe within one tree: `server/lib` holds exactly one kotlin-reflect.
 #
 # No heap setting here on purpose. A JVM reads the container's memory limit by itself and takes
 # 25% of it, which is a conservative default and a safe one. Raising that to the 66% §16.2
@@ -64,4 +64,4 @@ EXPOSE 8080
 # it is a percentage of — because measured, 66% with no limit present means 66% of the whole
 # machine: 4.9 GiB on the machine this was measured on. Keeping the two together makes that
 # combination impossible rather than merely warned about.
-CMD ["java", "-cp", "/opt/tallyvane/app/lib/*", "tallyvane.app.Application"]
+CMD ["java", "-cp", "/opt/tallyvane/server/lib/*", "tallyvane.server.Application"]

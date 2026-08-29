@@ -76,8 +76,8 @@ limit_req_zone $binary_remote_addr zone=api:10m rate=10r/s;
 # not assumed — five requests immediately after a swap answered 100% from the new colour, zero
 # from the old one.
 upstream backend {
-    server ${TALLYVANE_APP_PRIMARY}:8080;
-    server ${TALLYVANE_APP_SECONDARY}:8080 down;
+    server ${TALLYVANE_SERVER_PRIMARY}:8080;
+    server ${TALLYVANE_SERVER_SECONDARY}:8080 down;
     # Keeps established connections to the backend and reuses them, instead of paying a TCP
     # handshake per request. Requires the two proxy_ directives in each location; without them
     # this line is silently ineffective. Confirmed to survive the PRIMARY/SECONDARY substitution

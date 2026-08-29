@@ -1,4 +1,4 @@
-package tallyvane.app
+package tallyvane.server
 
 import org.koin.core.Koin
 

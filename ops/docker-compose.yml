@@ -22,7 +22,7 @@ x-log-bound: &log-bound
     max-size: 50m
     max-file: "5"
 
-# Groups app and all three frontends under one Grafana Cloud project view (ADR-067). One
+# Groups server and all three frontends under one Grafana Cloud project view (ADR-067). One
 # anchor, same reasoning as x-log-bound above: four services agreeing on this value is the
 # point, so it is written once and referenced, not retyped identically four times.
 x-otel-namespace: &otel-namespace service.namespace=tallyvane
@@ -36,7 +36,7 @@ x-otel-namespace: &otel-namespace service.namespace=tallyvane
 # any upstream it declares names a container that is not running (ops/README.md,
 # 2026-08-28), so which colour is "the one actually running" must always be a deliberate
 # choice apply.sh makes by naming it explicitly, never an accident of a bare `up`.
-x-app: &app-defaults
+x-server: &server-defaults
   image: ${BACKEND_IMAGE:?BACKEND_IMAGE must be set}
   restart: unless-stopped
   profiles: [ blue-green ]
@@ -50,7 +50,7 @@ x-app: &app-defaults
     # heap/mem_limit pairing this line already carries: two settings that only make sense read
     # together stay written together, not one here and one guessed at from a second file.
     JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=66 -javaagent:/opt/tallyvane/opentelemetry-javaagent.jar
-    OTEL_SERVICE_NAME: tallyvane-app
+    OTEL_SERVICE_NAME: tallyvane-server
     OTEL_RESOURCE_ATTRIBUTES: *otel-namespace
     OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:?OTEL_EXPORTER_OTLP_ENDPOINT must be set}
     OTEL_EXPORTER_OTLP_HEADERS: ${OTEL_EXPORTER_OTLP_HEADERS:?OTEL_EXPORTER_OTLP_HEADERS must be set}
@@ -179,8 +179,8 @@ services:
       # traffic (measured, ops/README.md 2026-08-28). In steady state both point at the
       # same, single running container; only apply.sh --rollout ever makes them differ,
       # and only for as long as a rollout is actually in flight.
-      TALLYVANE_APP_PRIMARY: app-${APP_ACTIVE_COLOR:-blue}
-      TALLYVANE_APP_SECONDARY: app-${APP_ACTIVE_COLOR:-blue}
+      TALLYVANE_SERVER_PRIMARY: server-${SERVER_ACTIVE_COLOR:-blue}
+      TALLYVANE_SERVER_SECONDARY: server-${SERVER_ACTIVE_COLOR:-blue}
       TALLYVANE_FRONTEND_WEB_PRIMARY: frontend-web-${FRONTEND_WEB_ACTIVE_COLOR:-blue}
       TALLYVANE_FRONTEND_WEB_SECONDARY: frontend-web-${FRONTEND_WEB_ACTIVE_COLOR:-blue}
       TALLYVANE_FRONTEND_APP_PRIMARY: frontend-app-${FRONTEND_APP_ACTIVE_COLOR:-blue}
@@ -225,17 +225,17 @@ services:
   # the CD plan and the anchors above. §16.2's "JVM 576, heap 384" is JAVA_TOOL_OPTIONS
   # (there) paired with mem_limit (here); measured: 382 MiB against this 576 MB limit,
   # 4.9 GiB against none.
-  app-blue:
-    <<: *app-defaults
-  app-green:
-    <<: *app-defaults
+  server-blue:
+    <<: *server-defaults
+  server-green:
+    <<: *server-defaults
 
   # Three applications, not one shared process (ADR-032 split admin off; ADR-065 split the
   # console off too) — each its own container, its own crash domain, its own `mem_limit`.
   # None talks to Postgres directly: the browser and each app's own server-side content
   # fetch both go through Ktor (ADR-012), never straight to `db`, which is why `edge` is
   # the only network any of the three joins. Each also comes in a blue/green pair for the
-  # same reason `app` does — ADR-065's mem_limit estimates are unchanged, only duplicated.
+  # same reason `server` does — ADR-065's mem_limit estimates are unchanged, only duplicated.
   frontend-web-blue:
     <<: *frontend-web-defaults
   frontend-web-green:

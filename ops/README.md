@@ -75,7 +75,7 @@ that admits it.
 
 ## Containers
 
-`docker-compose.yml` holds `cloudflared`, `nginx`, `db`, the Ktor server (`app`/`migrate`)
+`docker-compose.yml` holds `cloudflared`, `nginx`, `db`, the Ktor server (`server`/`migrate`)
 and, as of 2026-08-28, all three Next.js applications: `frontend-web`, `frontend-app` and
 `frontend-admin`.
 
@@ -91,8 +91,8 @@ genuinely different load profiles. See ARCHITECTURE.md §3.2/§16 for both updat
 Typst and cwebp are not containers — they are static binaries inside the server
 image, invoked as short-lived processes.
 
-As of 2026-08-28, `app` and each of the three frontends is declared twice —
-`app-blue`/`app-green`, `frontend-web-blue`/`frontend-web-green`, and so on — for
+As of 2026-08-28, `server` and each of the three frontends is declared twice —
+`server-blue`/`server-green`, `frontend-web-blue`/`frontend-web-green`, and so on — for
 per-service blue-green (the CD plan's §2-3). Exactly one colour of each pair actually
 runs in steady state; the other exists only in the compose file, behind
 `profiles: [blue-green]` so a bare `docker compose up -d` cannot start it by accident.
@@ -173,7 +173,7 @@ not a number that tracked the container limit precisely. The kernel still enforc
 `mem_limit` regardless of what V8's own ceiling says, so this does not weaken the limit —
 it just means V8's ceiling cannot be read as a precise dial for a container this small.
 
-`mem_limit` is declared for `db`, `app` and all three frontends. nginx and cloudflared
+`mem_limit` is declared for `db`, `server` and all three frontends. nginx and cloudflared
 carry none yet: the numbers are supposed to come from `docker stats` against these
 containers, and a guessed limit is a limit that kills a working process for no reason.
 
@@ -565,3 +565,17 @@ three hostname templates never changes at all. What `apply.sh --rollout` edits i
 Getting the order of steps 3's two halves backwards is exactly the bug this section exists to avoid:
 stop the container first and nginx refuses to reload for *every* hostname on the next unrelated
 change, not only the one whose colour was being retired.
+
+## 2026-08-28 — the backend's service renamed from `app` to `server`
+
+The backend's Gradle module (and everything in `ops/` mirroring its name — `app`/`app-blue`/`app-green`
+in `docker-compose.yml`, `apply.sh`'s and `deploy-wrapper.sh`'s `app` case, `TALLYVANE_APP_PRIMARY`/
+`SECONDARY`) was renamed to `server` to stop reading as the same word as `frontend-app` (the console,
+`app.<domain>`) in conversation and in this directory's own file names — two unrelated services that
+happened to share one word. `apply.sh --rollout app` is now `apply.sh --rollout server`;
+`APP_ACTIVE_COLOR` in `.env` is now `SERVER_ACTIVE_COLOR`.
+
+Left alone, on purpose: the public hostname `app.<domain>` still names `frontend-app`, unrelated to
+this rename, and the two dated entries above this one keep the names (`app_blue`, `upstream app`)
+that were actually typed during those spikes — a dated entry records what was measured at the time,
+not what a later rename would have called it.

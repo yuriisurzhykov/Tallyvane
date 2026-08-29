@@ -60,11 +60,11 @@ internal fun expectedPackage(path: String): String? {
     val normalised = path.replace('\\', '/')
     val platform = Regex("""/platform/([^/]+)/src/(?:main|test)/kotlin(?:/|$)""").find(normalised)
     val feature = Regex("""/modules/([^/]+)/([^/]+)/src/(?:main|test)/kotlin(?:/|$)""").find(normalised)
-    val inApp = Regex("""/app/src/(?:main|test)/kotlin(?:/|$)""").containsMatchIn(normalised)
+    val inServer = Regex("""/server/src/(?:main|test)/kotlin(?:/|$)""").containsMatchIn(normalised)
     return when {
         platform != null -> "tallyvane.platform.${platform.groupValues[1]}"
         feature != null -> "tallyvane.${feature.groupValues[1]}.${feature.groupValues[2]}"
-        inApp -> "tallyvane.app"
+        inServer -> "tallyvane.server"
         else -> null
     }
 }

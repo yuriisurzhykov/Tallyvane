@@ -39,7 +39,7 @@ private fun relativeToRoot(dir: File): String = dir.relativeTo(konsistRoot()).in
 
 private fun kotlinDirs(root: File, sourceSets: List<String>): List<File> {
     val markers = sourceSets.map { set -> "/src/$set/kotlin" }
-    return listOf("platform", "app", "modules")
+    return listOf("platform", "server", "modules")
         .map { File(root, it) }
         .filter { it.isDirectory }
         .flatMap { top ->

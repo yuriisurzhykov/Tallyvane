@@ -76,7 +76,7 @@ class GraphCheckUnlistedSpec :
                 .findings(
                     ModulesYamlFake(),
                     IncludedProjectsFake(
-                        paths = setOf(":platform:kernel", ":app", ":playground:isolation"),
+                        paths = setOf(":platform:kernel", ":server", ":playground:isolation"),
                         dependencies = emptyMap(),
                     ),
                 ).shouldBeEmpty()

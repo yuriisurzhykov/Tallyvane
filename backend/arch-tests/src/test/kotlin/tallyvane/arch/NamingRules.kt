@@ -36,12 +36,16 @@ internal fun noFakeInMain(scope: KoScope): List<String> = scope
     .filter { it.namedLikeFake() }
     .map { it.where() }
 
+// The id stays `app-has-no-logic` (ArchRule.kt) after the module's 2026-08-28 rename to
+// `server` — it is cited by name in ADR-010, ADR-047 and ADR-063, and an ADR is a record of a
+// decision at the time it was made, not something rewritten for a later rename. Only what the
+// rule actually checks moved: `server/src/` and `tallyvane.server..` below, not the id above it.
 internal fun appHasNoLogic(scope: KoScope): List<String> = scope
     .classesAndInterfacesAndObjects(includeNested = false)
     .withoutException("app-has-no-logic")
     .filter { declaration ->
-        unixPath(declaration.containingFile).contains("/app/src/") ||
-            declaration.resideInPackage("tallyvane.app..")
+        unixPath(declaration.containingFile).contains("/server/src/") ||
+            declaration.resideInPackage("tallyvane.server..")
     }.filter { declaration ->
         !declaration.name.endsWith("Wiring") &&
             !declaration.name.endsWith("Configuration") &&
