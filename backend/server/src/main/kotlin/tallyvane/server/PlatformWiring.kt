@@ -3,12 +3,12 @@ package tallyvane.server
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import tallyvane.server.config.Configuration
 import tallyvane.platform.kernel.IdGenerator
 import tallyvane.platform.persistence.FlywayMigrations
 import tallyvane.platform.persistence.Migrations
 import tallyvane.platform.persistence.Persistence
 import tallyvane.platform.persistence.PostgresPersistence
+import tallyvane.server.config.Configuration
 
 /**
  * The platform's own objects: one per capability, built once, closed once.

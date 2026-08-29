@@ -1,6 +1,5 @@
 package tallyvane.server
 
-import tallyvane.server.config.Configuration
 import tallyvane.platform.health.HealthRoutes
 import tallyvane.platform.health.ServiceToken
 import tallyvane.platform.http.Api
@@ -10,6 +9,7 @@ import tallyvane.platform.observability.health.HealthCheck
 import tallyvane.platform.observability.health.HealthReporter
 import tallyvane.platform.persistence.MigrationsApplied
 import tallyvane.platform.persistence.observability.DatabaseAnswers
+import tallyvane.server.config.Configuration
 import kotlin.time.Duration.Companion.seconds
 
 /**

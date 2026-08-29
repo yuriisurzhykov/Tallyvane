@@ -1,11 +1,11 @@
 package tallyvane.server
 
 import org.slf4j.event.Level
-import tallyvane.server.config.Configuration
-import tallyvane.server.config.EnvironmentConfiguration
 import tallyvane.platform.kernel.Secret
 import tallyvane.platform.persistence.DEFAULT_SIZE
 import tallyvane.platform.persistence.DatabaseAccess
+import tallyvane.server.config.Configuration
+import tallyvane.server.config.EnvironmentConfiguration
 import java.net.ServerSocket
 import java.net.URI
 import java.net.http.HttpClient
