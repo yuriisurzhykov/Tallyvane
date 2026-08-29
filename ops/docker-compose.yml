@@ -22,6 +22,11 @@ x-log-bound: &log-bound
     max-size: 50m
     max-file: "5"
 
+# Groups app and all three frontends under one Grafana Cloud project view (ADR-067). One
+# anchor, same reasoning as x-log-bound above: four services agreeing on this value is the
+# point, so it is written once and referenced, not retyped identically four times.
+x-otel-namespace: &otel-namespace service.namespace=tallyvane
+
 # Blue/green (CD plan §2-3): each rollout-eligible service is declared TWICE, once per
 # colour, sharing everything but its name. Anchors carry the shared half so a colour pair
 # cannot drift into two specs that quietly disagree with each other over time.
@@ -46,7 +51,7 @@ x-app: &app-defaults
     # together stay written together, not one here and one guessed at from a second file.
     JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=66 -javaagent:/opt/tallyvane/opentelemetry-javaagent.jar
     OTEL_SERVICE_NAME: tallyvane-app
-    OTEL_RESOURCE_ATTRIBUTES: service.namespace=tallyvane
+    OTEL_RESOURCE_ATTRIBUTES: *otel-namespace
     OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:?OTEL_EXPORTER_OTLP_ENDPOINT must be set}
     OTEL_EXPORTER_OTLP_HEADERS: ${OTEL_EXPORTER_OTLP_HEADERS:?OTEL_EXPORTER_OTLP_HEADERS must be set}
     # ADR-067: renames the agent's own Logback MDC keys so they stop overwriting TraceContext's
@@ -77,7 +82,7 @@ x-frontend-web: &frontend-web-defaults
   # token the backend agent uses (ADR-067), one Grafana Cloud project for all four services.
   environment:
     OTEL_SERVICE_NAME: tallyvane-frontend-web
-    OTEL_RESOURCE_ATTRIBUTES: service.namespace=tallyvane
+    OTEL_RESOURCE_ATTRIBUTES: *otel-namespace
     OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:?OTEL_EXPORTER_OTLP_ENDPOINT must be set}
     OTEL_EXPORTER_OTLP_HEADERS: ${OTEL_EXPORTER_OTLP_HEADERS:?OTEL_EXPORTER_OTLP_HEADERS must be set}
   mem_limit: 256m
@@ -96,7 +101,7 @@ x-frontend-app: &frontend-app-defaults
   profiles: [ blue-green ]
   environment:
     OTEL_SERVICE_NAME: tallyvane-frontend-app
-    OTEL_RESOURCE_ATTRIBUTES: service.namespace=tallyvane
+    OTEL_RESOURCE_ATTRIBUTES: *otel-namespace
     OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:?OTEL_EXPORTER_OTLP_ENDPOINT must be set}
     OTEL_EXPORTER_OTLP_HEADERS: ${OTEL_EXPORTER_OTLP_HEADERS:?OTEL_EXPORTER_OTLP_HEADERS must be set}
   mem_limit: 384m
@@ -115,7 +120,7 @@ x-frontend-admin: &frontend-admin-defaults
   profiles: [ blue-green ]
   environment:
     OTEL_SERVICE_NAME: tallyvane-frontend-admin
-    OTEL_RESOURCE_ATTRIBUTES: service.namespace=tallyvane
+    OTEL_RESOURCE_ATTRIBUTES: *otel-namespace
     OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:?OTEL_EXPORTER_OTLP_ENDPOINT must be set}
     OTEL_EXPORTER_OTLP_HEADERS: ${OTEL_EXPORTER_OTLP_HEADERS:?OTEL_EXPORTER_OTLP_HEADERS must be set}
   mem_limit: 192m
