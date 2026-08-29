@@ -1,7 +1,7 @@
 /*
  * AUTO-GENERATED FILE. DO NOT EDIT MANUALLY.
  * Source: packages/frontend-shared/src/shared/ui/theme/{tokens,contracts,themes,composites}/
- * Generator: frontend-web/scripts/generate-design-tokens.ts (frontend-admin has an identical copy)
+ * Generator: frontend-web/scripts/generate-design-tokens.ts (frontend-app and frontend-admin have identical copies)
  *
  * Already-resolved token data, holding no `{reference}` strings and needing
  * no compiler to read. This is the only token artefact a non-CSS consumer
