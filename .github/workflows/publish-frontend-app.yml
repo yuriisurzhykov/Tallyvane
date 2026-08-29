@@ -2,7 +2,6 @@ name: Publish Frontend App Image
 
 on:
   push:
-    branches: [ master ]
     tags: [ 'frontend-app-v*' ]
 
 concurrency:

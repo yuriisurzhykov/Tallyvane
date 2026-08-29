@@ -2,7 +2,6 @@ name: Publish Backend Image
 
 on:
   push:
-    branches: [ master ]
     tags: [ 'backend-v*' ]
 
 concurrency:
