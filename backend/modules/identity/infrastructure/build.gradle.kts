@@ -9,6 +9,10 @@ dependencies {
     api(projects.modules.identity.application)
     api(projects.modules.identity.contract)
     implementation(projects.platform.cache)
+    implementation(projects.platform.persistence)
+    implementation(libs.exposed.core)
+    implementation(libs.exposed.jdbc)
+    implementation(libs.exposed.kotlin.datetime)
     // `-nolibs`: no native binary bundled — installed on the image instead
     // (backend/Dockerfile), the maintainer's own recommended shape.
     implementation(libs.argon2.jvm.nolibs)
@@ -31,6 +35,12 @@ dependencies {
     testImplementation(libs.ktor.client.mock)
 
     integrationTestImplementation(testFixtures(projects.modules.identity.application))
+    integrationTestImplementation(testFixtures(projects.platform.persistence))
+    integrationTestImplementation(testFixtures(projects.platform.kernel))
     integrationTestImplementation(libs.kotest.runner.junit5)
     integrationTestImplementation(libs.kotest.assertions.core)
+    integrationTestImplementation(libs.kotlinx.coroutines.core)
+    integrationTestImplementation(libs.exposed.core)
+    integrationTestImplementation(libs.exposed.jdbc)
+    integrationTestRuntimeOnly(libs.postgresql)
 }
