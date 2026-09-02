@@ -25,6 +25,7 @@ dependencyResolutionManagement {
 // ---------------------------------------------------------------------------
 include(":platform:kernel")
 include(":platform:events")
+include(":platform:cache")
 include(":platform:persistence")
 include(":platform:http")
 include(":platform:outbox")
@@ -63,11 +64,9 @@ include(":playground:http")
 // The authoritative dependency manifest is modules.yaml; the shape to copy is
 // modules/_template, which is deliberately NOT included here so Gradle ignores
 // it.
-//
-// Milestone 1 will add, in this order:
-//   include(":modules:identity:contract")
-//   include(":modules:identity:domain")
-//   include(":modules:identity:application")
-//   include(":modules:identity:infrastructure")
-//   include(":modules:identity:web")
 // ---------------------------------------------------------------------------
+include(":modules:identity:contract")
+include(":modules:identity:domain")
+include(":modules:identity:application")
+include(":modules:identity:infrastructure")
+include(":modules:identity:web")
