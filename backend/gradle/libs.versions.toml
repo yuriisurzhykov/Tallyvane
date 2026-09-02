@@ -25,6 +25,10 @@ exposed = "1.4.0"
 hikari = "7.1.0"
 flyway = "13.3.0"
 
+# Argon2id password hashing. `-nolibs`: the native library is installed on the host/image
+# (backend/Dockerfile), not bundled — the maintainer's own recommendation.
+argon2 = "2.12"
+
 # YAML
 snakeyaml = "2.4"
 
@@ -92,6 +96,9 @@ flyway-database-postgresql = { group = "org.flywaydb", name = "flyway-database-p
 ktlint-cli-ruleset-core = { group = "com.pinterest.ktlint", name = "ktlint-cli-ruleset-core", version.ref = "ktlintEngine" }
 ktlint-rule-engine-core = { group = "com.pinterest.ktlint", name = "ktlint-rule-engine-core", version.ref = "ktlintEngine" }
 ktlint-test = { group = "com.pinterest.ktlint", name = "ktlint-test", version.ref = "ktlintEngine" }
+
+# Argon2id. `-nolibs`: no bundled native binaries — see the `argon2` version comment above.
+argon2-jvm-nolibs = { group = "de.mkammerer", name = "argon2-jvm-nolibs", version.ref = "argon2" }
 
 # SnakeYAML
 snakeyaml = { group = "org.yaml", name = "snakeyaml", version.ref = "snakeyaml" }

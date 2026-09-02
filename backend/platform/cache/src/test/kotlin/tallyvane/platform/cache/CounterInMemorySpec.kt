@@ -59,4 +59,28 @@ class CounterInMemorySpec :
 
             counter.increment("identity:sign-in:a@example.com", 15.minutes) shouldBe 2
         }
+
+        "count reports zero for a key never seen" {
+            val counter = Counter.InMemory(MutableClockFake(Instant.parse("2026-01-01T00:00:00Z")))
+            counter.count("identity:sign-in:a@example.com", 15.minutes) shouldBe 0
+        }
+
+        "count reports the current tally without recording a new occurrence" {
+            val counter = Counter.InMemory(MutableClockFake(Instant.parse("2026-01-01T00:00:00Z")))
+            counter.increment("identity:sign-in:a@example.com", 15.minutes)
+            counter.increment("identity:sign-in:a@example.com", 15.minutes)
+
+            counter.count("identity:sign-in:a@example.com", 15.minutes) shouldBe 2
+            counter.count("identity:sign-in:a@example.com", 15.minutes) shouldBe 2
+        }
+
+        "count reports zero once the window has fully elapsed" {
+            val clock = MutableClockFake(Instant.parse("2026-01-01T00:00:00Z"))
+            val counter = Counter.InMemory(clock)
+            counter.increment("identity:sign-in:a@example.com", 15.minutes)
+
+            clock.advance(16.minutes)
+
+            counter.count("identity:sign-in:a@example.com", 15.minutes) shouldBe 0
+        }
     })
