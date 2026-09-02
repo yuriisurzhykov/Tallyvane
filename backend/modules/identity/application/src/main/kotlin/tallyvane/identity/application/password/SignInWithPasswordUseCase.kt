@@ -1,5 +1,7 @@
 package tallyvane.identity.application.password
 
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import tallyvane.identity.application.port.CredentialRepository
 import tallyvane.identity.application.port.LoginAttempts
 import tallyvane.identity.application.port.PasswordHasher
@@ -48,19 +50,20 @@ public interface SignInWithPasswordUseCase : UseCase {
     }
 
     /**
-     * Rate limiting for this first real consumer of [LoginAttempts] (Decorator, the same shape
-     * `LlmProvider`'s `Retrying`/`Caching`/`BudgetGuarded` already take).
+     * Decorates [SignIn] with rate limiting: counts recent failed sign-ins for the presented email
+     * and refuses once [threshold] is reached within [window], without calling [origin] at all.
      *
-     * Counts failures only, not every attempt: a legitimate user's own successful sign-in must not
-     * spend the same budget a wrong password does. The count is checked *before* calling [origin]
-     * and a failure is recorded only *after* it answers [AuthenticationOutcome.InvalidCredential].
+     * ```
+     * val limited = RateLimited(origin = SignIn(...), attempts, threshold = 5, window = 15.minutes)
+     * limited.signIn(request) // -> AuthenticationOutcome.RateLimited once 5 failures in 15 minutes
+     * ```
      *
-     * Fails closed when [attempts] itself is unavailable: [Fallback] recovers a failed count-check
-     * to [threshold] itself, which reads as "already at the limit" and refuses the attempt, rather
-     * than to a low number that would silently let every attempt through. ADR-074 names this choice
-     * for the first real caller of a `platform:cache` counter, so it is not decided again here.
-     * Recording a failure, by contrast, fails open — a store outage must not turn an honest "wrong
-     * password" into an unrelated 500 for the caller who has nothing to do with the outage.
+     * Only failed attempts count toward the threshold — a successful sign-in never spends the same
+     * budget a wrong password does — and a failure is recorded only after [origin] itself answers
+     * [AuthenticationOutcome.InvalidCredential].
+     *
+     * Why the read fails closed and the write fails open when [attempts] itself is unavailable,
+     * and why both log at the point the policy is decided: `application/README.md`.
      */
     public class RateLimited(
         private val origin: SignInWithPasswordUseCase,
@@ -70,30 +73,36 @@ public interface SignInWithPasswordUseCase : UseCase {
     ) : SignInWithPasswordUseCase {
         override suspend fun signIn(request: SignInWithPasswordRequest): AuthenticationOutcome {
             val key = rateLimitKey(request.email)
-            val count = Fallback { attempts.failuresWithin(key, window) }.orRecover { threshold.toLong() }
+            val count = Fallback { attempts.failuresWithin(key, window) }
+                .orRecover { failure ->
+                    logger.warn("Login-attempts store unavailable; failing closed for this sign-in", failure)
+                    threshold.toLong()
+                }
             if (count >= threshold) {
                 return AuthenticationOutcome.RateLimited
             }
             val outcome = origin.signIn(request)
             if (outcome == AuthenticationOutcome.InvalidCredential) {
-                Fallback { attempts.recordFailure(key, window) }.orRecover { }
+                Fallback { attempts.recordFailure(key, window) }
+                    .orRecover { failure ->
+                        logger.warn("Login-attempts store unavailable; could not record a failed sign-in", failure)
+                    }
             }
             return outcome
         }
 
         /**
          * The one place this string is built — `RateLimitedSpec` asks for the same value through
-         * this function rather than repeating the literal, so the two cannot silently drift apart.
+         * this function rather than repeating the literal, so the two cannot drift apart.
          *
-         * Named honestly, not exhaustively enforced: `cache-key-is-module-prefixed`
-         * (`platform:cache/README.md`) can only see a literal at the exact call site of
-         * `Counter.increment`/`Counter.count`, and that call now happens one layer down, inside
-         * `LoginAttemptsOverCounter`, with this key arriving as an ordinary parameter — so the
-         * Konsist rule no longer sees this specific key at all. Recorded as a known gap rather than
-         * quietly relied on.
+         * `cache-key-is-module-prefixed` (`platform:cache/README.md`) cannot see this key: it only
+         * matches a literal at the exact call site of `Counter.increment`/`Counter.count`, and
+         * that call happens one layer down, in `LoginAttemptsOverCounter`, with this key arriving
+         * as a parameter. Recorded as a known gap, not quietly relied on.
          */
         public companion object {
             private const val KEY_PREFIX = "identity:sign-in-password:"
+            private val logger: Logger = LoggerFactory.getLogger(RateLimited::class.java)
 
             internal fun rateLimitKey(email: Email): String = "$KEY_PREFIX${email.value}"
         }

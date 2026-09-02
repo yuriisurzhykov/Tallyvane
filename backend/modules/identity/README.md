@@ -53,57 +53,17 @@ calling it today would mean naming a type that does not exist. What is real is t
 modules will eventually use to ask `identity` who somebody is, published now so `jobs` and every
 capability after it can be designed against a stable contract rather than a moving one.
 
-## Why `contract` first, and why it is this small
+## Where each layer's own story lives
 
-Every other layer depends on `platform:kernel` and, where declared, on this module's own `contract`
-— never the reverse — so a contract with no domain and no application behind it is not a partial
-module, it is the one layer that can exist alone by construction. Building it first, and only it,
-means every later slice (`domain`'s entities, `application`'s use cases, the real
-`PrincipalResolver`) is designed against a boundary that will not move under it.
+This file is an index, not a fifth copy of what each layer's README already says. Why `contract`
+was built first and is this small, why `domain` and `application` are shaped the way they are, what
+each layer's own SOLID angle is, and what is still open in each — read the layer, not this file:
 
-`UserId` and `SessionId` live here rather than being written once in `identity:domain` and reused —
-`contract-is-self-contained` forbids `contract` from importing this module's own `domain` in either
-direction, and `modules.yaml` denies `domain` a dependency on `contract` just as firmly (`domain`
-may depend on nothing but `platform:kernel`). The two layers are independent by design, not by
-oversight: `identity:domain`'s eventual `User` and `Session` entities will need their own way to
-name an id, and `application` is where the two get translated into each other, not before. This is
-recorded here explicitly so the next slice does not read the two identically-shaped value objects it
-is about to write as a duplication needing to be removed — it is the layer boundary being honoured,
-not a mistake.
-
-`ServicePrincipal`, the machine half of `Principal`, is named in this file and in `Principal`'s own
-KDoc, and is not a case of the sealed interface yet. Adding it before a second service exists to
-authenticate would mean either an uninstantiable case or a guess at what a service's identity looks
-like, made without a real caller to test the guess against.
-
-## Understandable, scalable, extensible
-
-A reader looking for "what does `identity` let the rest of the system know" finds exactly one file,
-`PrincipalResolver.kt`, and nothing it points to reaches past `contract`. Adding a second kind of
-principal later is a new case on the existing sealed interface, not a redesign of the one method
-every caller already depends on. Building the actual sign-in flows behind this contract — the
-twelve use cases the design plan lists — changes none of the four files here, because nothing in
-`application` or `infrastructure` is visible to a caller of `contract` in the first place.
-
-## Migration and fault tolerance
-
-No schema yet. `identity`'s tables (`identity.users`, `identity.sessions`,
-`identity.credentials`, `identity.pending_authentications`, `identity.pepper_versions`) arrive with
-the persistence slice, each in its own migration under this module's own schema, following
-`ARCHITECTURE.md` §8.22's convention every other module will eventually use.
-
-## The SOLID angle
-
-**Single responsibility.** `PrincipalResolver` answers one question — who is this — and nothing in
-this pass's scope asks it to answer "what can they do".
-
-**Interface segregation.** One method. `ResolvedPrincipal` is a plain data holder, not a second
-surface bolted onto the resolver interface itself.
-
-**Dependency inversion.** Every future module that needs to know a caller's identity depends on this
-interface, never on `identity`'s own `domain` or `infrastructure` — the direction Clean
-Architecture and this project's own `modules.yaml` both already require, made concrete for the one
-module every other capability will eventually depend on.
-
-The remaining three principles — open/closed, Liskov — apply to the use cases and ports behind this
-contract, which do not exist yet; they belong to the slices that write them, not to this one.
+- [`contract/README.md`](contract/README.md) — the published surface, and the one Konsist false
+  positive it hit first in this tree.
+- [`domain/README.md`](domain/README.md) — the five packages, and the flat-package mistake behind
+  them.
+- [`application/README.md`](application/README.md) — the ports, the use-case grouping, and an open
+  question about a silently recovered failure that this file alone cannot close.
+- [`infrastructure/README.md`](infrastructure/README.md) — the real adapters, and why this stays one
+  Gradle module rather than one per method.

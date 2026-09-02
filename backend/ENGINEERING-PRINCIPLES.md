@@ -172,6 +172,52 @@ is a named sealed outcome for that operation — `FetchOutcome`, `LlmOutcome<T>`
 `ProcessOutcome` — not a `Result` and not this class. Two competing result types
 in one codebase is worse than either of them alone.
 
+### A recovered failure is logged where its meaning is known, not where it was thrown
+
+An adapter that reaches one outside technology reports what happened — it returns a value or it
+throws, and it does neither more nor less. Deciding that a particular failure deserves a line in the
+log, at what severity and in what words, is a policy choice about what that failure *means*, the same
+kind of choice as deciding whether to fail open or fail closed — and both belong to the same place:
+the code that already holds the policy, not the code that only holds the driver.
+
+```kotlin
+// Wrong: the adapter has decided this is worth a WARN, and has picked the words.
+override suspend fun failuresWithin(key: String, window: Duration): Long = try {
+    counter.count(key, window)
+} catch (failure: Exception) {
+    logger.warn("Counter unavailable", failure)
+    throw failure
+}
+
+// Right: the adapter only reports. The use case that already decides fail-open vs
+// fail-closed is where "this matters, and here is why" belongs too.
+override suspend fun failuresWithin(key: String, window: Duration): Long = counter.count(key, window)
+
+class RateLimited(private val attempts: LoginAttempts, /* ... */) : SignInWithPasswordUseCase {
+    override suspend fun signIn(request: SignInWithPasswordRequest): AuthenticationOutcome {
+        val count = Fallback { attempts.failuresWithin(key, window) }
+            .orRecover { failure ->
+                logger.warn("Login-attempts store unavailable; failing closed for this sign-in", failure)
+                threshold.toLong()
+            }
+        // ...
+```
+
+An adapter that also logs has quietly picked a second policy for whoever reads it, on top of the one
+the caller already decides — the same complaint this file already makes about a port that pre-empts
+fail-open/fail-closed instead of reporting and letting the caller choose.
+
+A logging facade — `org.slf4j.Logger`, never a concrete backend — is a dependency the layer holding
+that policy may take directly, the same way it already takes `kotlinx-coroutines-core`.
+`modules.yaml`'s layer allow-list governs which of this repository's own modules a layer may depend
+on; it says nothing about which third-party library coordinates a layer declares, and
+`validateModuleGraph` checks only `ProjectDependency` edges between this repository's own Gradle
+projects. `slf4j-api` on `application`'s classpath is not the same kind of edge `platform:cache`'s
+`Counter` would be: a counter's in-memory-versus-networked choice changes the correctness guarantees
+a use case has to reason about, while a logging facade with no bundled backend changes nothing a use
+case depends on. The concrete binding (`logback`) is still chosen nowhere but the composition root
+(`server`), exactly as for every other framework detail in this codebase.
+
 ### A message names the next action
 
 A diagnostic tells the reader what to do next, not merely what was observed.

@@ -7,9 +7,8 @@ import kotlin.uuid.Uuid
  * caller can act on this particular session (revoke it, show it in a "connected devices" list)
  * without ever reading `identity`'s own session table.
  *
- * `contract`'s own value object, for the same reason [UserId]'s KDoc gives: `identity:domain`'s
- * eventual `Session` entity cannot see this type, since `domain` may depend on nothing but
- * `platform:kernel`.
+ * A different type from `identity:domain`'s own `SessionId`, for the same reason [UserId]'s KDoc
+ * gives: `contract/README.md`.
  */
 @JvmInline
 public value class SessionId(public val value: Uuid)
