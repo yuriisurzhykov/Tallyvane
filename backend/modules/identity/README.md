@@ -23,30 +23,47 @@ identity/
 │   ├── session/       Session, SessionId, DeviceLabel
 │   ├── token/          TokenKind, TokenValue, TokenPair, HashedToken, TokenFamilyId,
 │   │                    TokenFamilyState, RefreshRotationDecision, RefreshRotationPolicy
-│   ├── credential/     Credential (sealed: PasswordRecord), PasswordHash
-│   └── outcome/        AuthenticationOutcome, RegisterOutcome
+│   ├── credential/     Credential (sealed: PasswordRecord, GoogleRecord), PasswordHash, GoogleSubject
+│   ├── secondfactor/   SecondFactorKind, PendingAuthenticationId, PendingAuthentication, EncryptedSecret
+│   │   └── totp/         TotpEnrollment
+│   └── outcome/        AuthenticationOutcome, RegisterOutcome, SecondFactorOutcome
 ├── application/      ports and use cases —
 │   ├── port/           TokenFactory, TokenHasher, SessionStore, PasswordHasher, UserRepository,
-│   │                    CredentialRepository, LoginAttempts
+│   │                    CredentialRepository, LoginAttempts, GoogleOAuthGateway, GoogleIdTokenVerifier,
+│   │                    PendingAuthenticationStore, SecondFactorMethod (+ nested Rfc6238),
+│   │                    SecretCipher, TotpEnrollmentStore
 │   ├── password/       RegisterWithPasswordUseCase, SignInWithPasswordUseCase (+ requests)
-│   ├── SessionIssuer.kt    — shared by every sign-in path, not one method's own file
+│   ├── googleoauth/    SignInWithGoogleOAuthUseCase (+ request) — Authorization Code + PKCE
+│   ├── googlecredential/ SignInWithGoogleCredentialUseCase (+ request) — Google Identity Services
+│   ├── google/         GoogleIdentity, GoogleSignInCompleter — shared by both Google methods
+│   ├── secondfactor/   SecondFactorMethodRegistry, VerifySecondFactorUseCase (+ request/outcome),
+│   │                    EnrollSecondFactorUseCase, ConfirmSecondFactorEnrollmentUseCase
+│   │   └── totp/         Base32, Rfc6238Totp — each tested against its own published RFC's vectors
+│   ├── SessionIssuer.kt, AuthenticationCompleter.kt — shared by every sign-in path, not one
+│   │                    method's own file
 │   └── IssuedSession.kt
-├── infrastructure/   LoginAttemptsOverCounter, password/Argon2PasswordHasher — the module's
-│                      real adapters; `password/` here is a plain package, not a Gradle module
+├── infrastructure/   the module's real adapters, grouped the same way as `application` —
+│   ├── password/       Argon2PasswordHasher
+│   ├── googleoauth/     GoogleOAuthGatewayOverHttp (Ktor's HTTP client)
+│   ├── google/          GoogleIdTokenVerifierOverJwks (Nimbus JOSE+JWT) — shared by both Google
+│   │                     methods, see `infrastructure/README.md` for why it is not under `googleoauth/`
+│   ├── secondfactor/     TinkSecretCipher (Google's Tink, AES-256-GCM)
+│   └── LoginAttemptsOverCounter.kt
 │                      (`infrastructure` splitting into one Gradle module per method is `capture`'s
 │                      own exception, ADR-073, not a general rule — see the dated correction in
 │                      `backend/.plans/identity-implementation.md`)
 └── web/              empty — arrives with the first real route
 ```
 
-`domain`'s and `application`'s subpackages mirror the split `platform:http` already uses
-(`problems/`, `status/`): a package per concept a reader would name on their own — "the token
-stuff", "the password use cases" — not a flat list of every file the layer happens to contain.
-`outcome/` and the two top-level `application` files (`SessionIssuer`, `IssuedSession`) stay outside
-any of the narrower packages because they answer to more than one of the others: an
-`AuthenticationOutcome` is not owned by `user`, `session` or `credential` more than by the other
-two, and `SessionIssuer` is shared by every sign-in path this design lists (password, both Google
-methods, second-factor verification), not by one of them.
+`domain`'s, `application`'s and `infrastructure`'s subpackages mirror the split `platform:http`
+already uses (`problems/`, `status/`): a package per concept a reader would name on their own —
+"the token stuff", "the password use cases" — not a flat list of every file the layer happens to
+contain. `outcome/` and the top-level `application` files (`SessionIssuer`, `IssuedSession`,
+`AuthenticationCompleter`) stay outside any of the narrower packages because they answer to more
+than one of the others: an `AuthenticationOutcome` is not owned by `user`, `session` or `credential`
+more than by the other two, and `SessionIssuer`/`AuthenticationCompleter` are called from every
+sign-in path this design lists (password, both Google methods, second-factor verification), not
+from one of them.
 
 No table exists yet, no route answers a request, and `PrincipalResolver` has no implementation —
 calling it today would mean naming a type that does not exist. What is real is the language other

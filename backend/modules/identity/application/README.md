@@ -4,11 +4,66 @@ Ports and use cases — the layer that turns `domain`'s types into something a c
 invoke: register, sign in, issue a session.
 
 ```
-port/       TokenFactory, TokenHasher, SessionStore, PasswordHasher, UserRepository,
-            CredentialRepository, LoginAttempts
-password/   RegisterWithPasswordUseCase, SignInWithPasswordUseCase (+ their requests)
-SessionIssuer.kt, IssuedSession.kt   — shared by every sign-in path, not one method's own file
+port/           TokenFactory, TokenHasher, SessionStore, PasswordHasher, UserRepository,
+                CredentialRepository, LoginAttempts, GoogleOAuthGateway, GoogleIdTokenVerifier,
+                PendingAuthenticationStore, SecondFactorMethod (+ nested Rfc6238), SecretCipher,
+                TotpEnrollmentStore
+password/       RegisterWithPasswordUseCase, SignInWithPasswordUseCase (+ their requests)
+googleoauth/    SignInWithGoogleOAuthUseCase (+ its request)
+googlecredential/ SignInWithGoogleCredentialUseCase (+ its request)
+google/         GoogleIdentity, GoogleSignInCompleter — shared by both Google methods, filed under
+                                                          neither because it belongs to neither alone
+secondfactor/   SecondFactorMethodRegistry, VerifySecondFactorUseCase (+ its request/outcome),
+                EnrollSecondFactorUseCase, ConfirmSecondFactorEnrollmentUseCase
+secondfactor/totp/ Base32, Rfc6238Totp — the pure encoding and math `SecondFactorMethod.Rfc6238`
+                                          composes, each independently tested against a published RFC
+SessionIssuer.kt, IssuedSession.kt, AuthenticationCompleter.kt  — shared by every method, not filed
+                                                          under any one package
 ```
+
+## Why there is no `AuthenticationMethod<TCredential>` port, despite the design plan naming one
+
+The design plan's own component diagram shows every primary sign-in method behind a shared
+`AuthenticationMethod<TCredential>` Strategy. Building it before a second real implementation
+existed to compare against would have meant extracting a shared interface on the strength of a
+prediction — `ENGINEERING-PRINCIPLES.md`'s "A Strategy is extracted from a second real
+implementation, not predicted from one" names exactly this mistake, made once already in this
+module's own history and reverted (`backend/.plans/identity-implementation.md`). Now that
+`SignInWithGoogleOAuthUseCase.SignIn` exists too, the comparison has actually been made — see the
+next section — and it found nothing worth sharing.
+
+## What `SignIn` (password) and `SignIn` (Google OAuth) do and do not have in common
+
+The only shared code between the two is three lines at the very end: build a `Principal.User`,
+call `sessions.issue(...)`, wrap the result as `SignInOutcome`. The credential check itself shares
+nothing — password is a synchronous hash comparison over `UserRepository`/`CredentialRepository`/
+`PasswordHasher`; Google is a network round trip to a third party, a JWT signature check against a
+published JWKS, and, on a first sign-in, a new account created inside a transaction. Three shared
+lines do not earn an interface; the duplication stays, recorded here rather than resolved silently
+in a diff (`backend/.plans/identity-implementation.md`, срез 6).
+
+**2026-09-02 — the *second* Google method changed this answer, for Google specifically.** Google
+Identity Services (`googlecredential/`) needed exactly the sequence Google OAuth
+(`googleoauth/`) already had: given a verified `GoogleIdentity`, find the account by `subject`,
+create one if none exists, refuse on an email collision, then issue a session. That is not three
+incidental lines — it is the entire "what happens once we trust this identity" logic, byte-for-byte
+identical, because both methods end at the same fact (`GoogleIdentity`) even though they reach it
+by different means (a code exchange vs. a token the browser already holds). `GoogleSignInCompleter`
+(`google/`) is that shared sequence, extracted once a second real caller needed it, not before —
+`ENGINEERING-PRINCIPLES.md`'s "A Strategy is extracted from a second real implementation, not
+predicted from one" is exactly this rule, satisfied this time because both callers existed before
+the interface did. Password still shares nothing with either — the comparison above still holds for
+password vs. Google, only "Google vs. Google" changed.
+
+**2026-09-02 — a third shared piece, this time across every method: `AuthenticationCompleter`.**
+`SignInWithPasswordUseCase.SignIn` and `GoogleSignInCompleter.Default` both ended with the exact
+same two lines once their own credential check succeeded: build a `Principal.User`, call
+`sessions.issue(...)`. Adding second-factor support meant that ending needed a real decision —
+issue directly, or check `SecondFactorMethodRegistry` first and create a `PendingAuthentication`
+instead — and writing that decision twice, once per method, was the same duplication risk
+`GoogleSignInCompleter` was extracted to avoid one section up. `AuthenticationCompleter` is that
+decision, in one place; both password and Google sign-in now end by calling it with a bare
+`UserId`, not by touching `SessionIssuer` themselves.
 
 ## Why `password/` is a package but `SessionIssuer` is not
 
@@ -82,6 +137,28 @@ abstract over (ADR-074). A second `Credential` case gets its own accessor when i
 each is read a different way, not dispatched by a shared "kind" parameter nobody has asked this
 port to carry yet.
 
+## Why `GoogleOAuthGateway` and `GoogleIdTokenVerifier` are two ports, not one
+
+Exchanging a code for tokens (a network call to Google) and verifying an ID token's signature (a
+cryptographic check against a published key set) are two different reasons to change: the gateway
+changes if Google's token endpoint contract changes, the verifier changes if the signing algorithm
+or key-rotation handling does. `GoogleOAuthGatewayOverHttp` (`infrastructure`) depends on
+`GoogleIdTokenVerifier` for exactly the piece it does not own — checking the token it gets back
+really is genuine — the same separation `TokenFactory`/`TokenHasher` already model for this
+module's own tokens.
+
+## Why sign-in with Google refuses an email already taken by a different credential
+
+`GoogleSignInCompleter` finds an existing account by Google `subject` alone, never by email — the
+one lookup both Google methods share. If no account has that subject *and* the email is already
+taken by some other credential —
+a password account signing up again through Google, say — this refuses rather than silently
+linking the two accounts. This is the safest default, not a settled product decision: silent
+account linking by email is a real account-takeover shape (register a password account under a
+victim's email first, then the victim's later Google sign-in gets folded into the attacker's
+account) that deserves its own review before being allowed, not an assumption made in passing
+(`backend/.plans/identity-implementation.md`, срез 6).
+
 ## `SessionIssuer`: a corrected first draft, no `TokenHasher` here yet
 
 The design this class implements described the sequence as "mint a token pair, hash it, write the
@@ -95,18 +172,103 @@ concept from a `Session` row, and designing it belongs with the persistence slic
 returns; hashing and persisting it for later validation is deferred, named here rather than
 silently dropped.
 
+## Why `SignInOutcome` exists, separate from `AuthenticationOutcome`
+
+`SignIn` originally returned bare `AuthenticationOutcome` and never called `SessionIssuer` at all —
+a "successful" sign-in produced no session and no tokens, a gap found only once something asked
+what a caller was actually supposed to do with `Success(userId)`. `AuthenticationOutcome` cannot
+grow to carry a session itself: it is a `domain` type, and `domain` may not see `IssuedSession`, an
+`application` concept (`modules.yaml`). `SignInOutcome` is the two-case wrapper this needs —
+`Issued(IssuedSession)` or `NotIssued(AuthenticationOutcome)` — reusing `AuthenticationOutcome`
+unchanged for every failure reason rather than re-declaring `InvalidCredential`/`AccountDisabled`/
+`RateLimited` a second time in a new hierarchy.
+
+## `PendingAuthenticationStore`: the same "no real implementation yet" state `SessionStore` is in
+
+`SessionStore` has stood as an interface with only a test fake behind it since срез 3, waiting for
+the persistence slice to design the storage shape. `PendingAuthenticationStore` (2026-09-02) is in
+that exact position now, for the same reason: `save`/`find`/`delete` are the whole contract
+`AuthenticationCompleter` and `VerifySecondFactorUseCase` need, and neither needs to know whether
+that ends up an Exposed table, a cache with a TTL, or something else.
+
+## `SecondFactorMethod` shipped in two halves, for a real reason, not by accident
+
+The verification half (`kind`, `isEnrolledFor`, `verify`) shipped first: it needs no encryption
+decision, so it could be built and tested — against an empty registry, since nothing implemented
+the port yet — before that decision existed. The enrollment half (`startEnrollment`,
+`confirmEnrollment`) needed the author's answer on *how a TOTP secret is encrypted at rest* first,
+asked as its own question rather than guessed — a security mechanism deserved a real decision, not
+a default picked at 3 a.m. Once answered (Tink, AES-256-GCM), both halves became one port, both
+implemented by `SecondFactorMethod.Rfc6238` — `backend/.plans/identity-implementation.md` has the
+full account, including the question as it was actually asked.
+
+## Why `SecretCipher` is reversible, when every other secret-comparing port here is not
+
+`PasswordHasher` and `TokenHasher` both compare a presented value against a stored one and never
+need the original back — Argon2id and HMAC are one-directional on purpose. TOTP breaks that
+pattern: computing the current code requires the *raw* seed, so storing only a hash (as every other
+secret in this module does) would make verification impossible. `SecretCipher` is this module's
+first reversible-encryption port for exactly that reason, over Tink's AEAD rather than hand-rolled
+`javax.crypto` — the same "audited library over self-written crypto" choice already made for JWT
+verification (`nimbus-jose-jwt`).
+
+`decrypt` throws rather than returning an outcome for a ciphertext that fails to authenticate: a
+wrong password is an expected, routine branch of sign-in; a ciphertext that fails Tink's own
+authentication tag is a corrupted row, a key rotated without re-encrypting, or tampering — not
+something this module has a policy to choose between, unlike "wrong password" or "wrong TOTP code".
+
+## `TotpEnrollmentStore`: the same "no real implementation yet" state `SessionStore` is in
+
+Same reasoning `PendingAuthenticationStore`'s own README entry already gives: `save`/`find` are
+the whole contract `SecondFactorMethod.Rfc6238` needs, and neither needs to know whether the real
+implementation ends up an Exposed table or something else — that is the persistence slice's
+decision, not this one's.
+
+## `SecondFactorMethod.Rfc6238`: base32 and the TOTP math are their own tested classes
+
+`secondfactor/totp/Base32` and `secondfactor/totp/Rfc6238Totp` exist separately from `Rfc6238`
+itself so each can be checked against a published standard's own test vectors without needing a
+`SecondFactorMethod`, a `UserRepository`, or a `TotpEnrollmentStore` in the way:
+`Base32Spec` against RFC 4648 §10, `Rfc6238TotpSpec` against both RFC 4226 Appendix D (HOTP) and
+RFC 6238 Appendix B (TOTP) — two independent RFCs' own vectors, not one checked against the other.
+A bug in either would otherwise hide behind three collaborators' worth of setup before a test could
+even reach it.
+
+The enrollment URI it returns follows the `google/google-authenticator` wiki's own Key URI Format,
+not an invented shape — `otpauth://totp/{issuer}:{email}?secret=...&issuer=...`, all three optional
+parameters (`algorithm`, `digits`, `period`) left at their documented defaults (SHA1, 6, 30s) so
+every authenticator app already assumes them without either side naming them. Percent-encoding the
+label uses a hand-written RFC 3986 encoder rather than `java.net.URLEncoder`: that class encodes a
+space as `+`, the `application/x-www-form-urlencoded` rule, which a URI's own query values do not
+follow — a `+` there would reach an authenticator app as a literal plus sign, not a decoded space.
+
+`verify` and `confirmEnrollment` both tolerate one 30-second step of clock drift either side of
+`Clock.now()` — RFC 6238's own expectation of a verifier, not a margin this module invented.
+
+## Two use cases for enrollment, where the design plan's own sketch named one
+
+The design plan lists a single `EnrollSecondFactorUseCase.kt`, dispatching by kind, for the whole
+enrollment flow. Building against that literally ran into ADR-053's "one action, one file" the
+moment "start enrollment" (hand back a provisioning payload) and "confirm enrollment" (check a code,
+activate) turned out to need different requests and different answers — the same shape of
+correction already recorded for `SessionIssuer.issue`'s return type. `EnrollSecondFactorUseCase`
+and `ConfirmSecondFactorEnrollmentUseCase` are the two actions that sketch's one name actually
+needed.
+
 ## Understandable, scalable, extensible
 
 A reader looking for "how does someone sign in with a password" finds `password/SignInWithPasswordUseCase.kt`
-and its one decorator, not a use case competing for attention with eleven others that do not exist
-yet. Adding Google OAuth as a second method is a new `google-oauth/` package and a new
-`AuthenticationMethod` case, not a change to `password/` or to `SessionIssuer`.
+and its one decorator, not a use case competing for attention with a dozen others. Adding Google
+Identity Services as a third method was a new `googlecredential/` package with its own use case,
+fourteen lines long — `google/GoogleSignInCompleter` already existed to hold the part it shared
+with `googleoauth/`, so the new package had nothing left to duplicate.
 
 ## Migration and fault tolerance
 
-No schema. `SessionStore`, `UserRepository`, `CredentialRepository` are interfaces only — their
-Postgres-backed implementations arrive with the persistence slice, and nothing here changes when they
-do, because every use case depends on the port, not on Postgres.
+No schema. `SessionStore`, `UserRepository`, `CredentialRepository`, `PendingAuthenticationStore`,
+`TotpEnrollmentStore` are interfaces only — their Postgres-backed implementations arrive with the
+persistence slice, and nothing here changes when they do, because every use case depends on the
+port, not on Postgres.
 
 ## The SOLID angle
 
@@ -118,8 +280,8 @@ knowing the other exists beyond the shared interface — the same Decorator shap
 `Retrying`/`Caching`/`BudgetGuarded` already use elsewhere in this codebase.
 
 **Liskov substitutability.** Any `SignInWithPasswordUseCase` — `SignIn`, `RateLimited`, or a test
-fake — answers the same interface with the same contract: given a request, an `AuthenticationOutcome`
-comes back, never a thrown exception for an outcome the caller is expected to handle.
+fake — answers the same interface with the same contract: given a request, a `SignInOutcome` comes
+back, never a thrown exception for an outcome the caller is expected to handle.
 
 **Interface segregation.** Each port has exactly the methods its one real caller needs —
 `LoginAttempts` has two, not a general-purpose cache API pressed into service.

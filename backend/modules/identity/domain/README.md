@@ -5,12 +5,14 @@ Entities and value objects for authentication, invisible outside `identity:appli
 `platform:kernel`).
 
 ```
-user/        User, UserId, Email
-session/     Session, SessionId, DeviceLabel
-token/       TokenKind, TokenValue, TokenPair, HashedToken, TokenFamilyId, TokenFamilyState,
-             RefreshRotationDecision, RefreshRotationPolicy
-credential/  Credential (sealed: PasswordRecord), PasswordHash
-outcome/     AuthenticationOutcome, RegisterOutcome
+user/         User, UserId, Email
+session/      Session, SessionId, DeviceLabel
+token/        TokenKind, TokenValue, TokenPair, HashedToken, TokenFamilyId, TokenFamilyState,
+              RefreshRotationDecision, RefreshRotationPolicy
+credential/   Credential (sealed: PasswordRecord, GoogleRecord), PasswordHash, GoogleSubject
+secondfactor/ SecondFactorKind, PendingAuthenticationId, PendingAuthentication, EncryptedSecret
+secondfactor/totp/ TotpEnrollment
+outcome/      AuthenticationOutcome, RegisterOutcome, SecondFactorOutcome
 ```
 
 ## What needed deciding, and what was actually built
@@ -63,6 +65,43 @@ both directions, not an oversight either module should "fix" by importing the ot
   case. `decide()` is a pure function with no I/O — it cannot reach `TokenFactory`, an
   `application`-layer port this layer is not allowed to see (`modules.yaml`) — so `Rotate` carries no
   payload. Minting the new pair is the calling use case's job, after the decision, not the policy's.
+
+## `PendingAuthentication` carries `device`, which the design's own field list did not name
+
+The design plan's field list for this entity was "who, which factors are still available, when it
+expires" — three concepts, not four. Building it that way left no way for
+[`VerifySecondFactorUseCase`](../application/README.md) to hand [`SessionIssuer`](../application/README.md)
+a device label once a second factor completes, since a `Session` needs one and re-asking the client
+for it on the `/auth/mfa/verify` request risks it silently disagreeing with the one the primary
+sign-in already presented seconds earlier. `PendingAuthentication.device` is a correction against
+the plan's sketch, the same kind of gap `SessionIssuer`'s own README entry already records for
+`issue()`'s return type — recorded here rather than silently added without comment
+(`backend/.plans/identity-implementation.md`).
+
+`availableMethods` validates non-empty in `init`: nothing constructs this case unless at least one
+[`SecondFactorKind`](secondfactor/SecondFactorKind.kt) is actually enrolled, so a
+`PendingAuthentication` that nothing could ever complete is a state this type refuses to hold.
+
+## `EncryptedSecret` is a base64 `String`, not a raw `ByteArray`
+
+TOTP's seed is the first secret in this module that must be read back — a password or token hash
+never is, so [`PasswordHash`](credential/PasswordHash.kt) and
+[`HashedToken`](token/HashedToken.kt) could stay one-directional. A `value class` over a raw
+`ByteArray` compares and hashes by reference, not content — a real Kotlin gotcha, not a
+hypothetical one — so [`EncryptedSecret`](secondfactor/EncryptedSecret.kt) wraps the
+already-base64-encoded text
+[`SecretCipher`](../application/src/main/kotlin/tallyvane/identity/application/port/SecretCipher.kt)
+hands back, the same choice `HashedToken` already made for a hash function's raw output.
+
+## `TotpEnrollment.active` starts `false`, and the field exists precisely so it can
+
+[`TotpEnrollment`](secondfactor/totp/TotpEnrollment.kt) is created the moment enrollment starts,
+before anyone has proven they can actually produce a code from it — scanning the wrong QR code, or
+a screenshot saved and never scanned at all, are both real failure modes a TOTP setup flow has to
+survive. `active` is what keeps
+[`SecondFactorMethod.isEnrolledFor`](../application/src/main/kotlin/tallyvane/identity/application/port/SecondFactorMethod.kt)
+answering `false` until `confirmEnrollment` proves the account holder captured the seed correctly —
+`application/README.md` has the full enrollment/confirm split.
 
 ## Understandable, scalable, extensible
 

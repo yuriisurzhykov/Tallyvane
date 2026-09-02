@@ -2,6 +2,8 @@ package tallyvane.identity.application.password
 
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import tallyvane.identity.application.AuthenticationCompleter
+import tallyvane.identity.application.SignInOutcome
 import tallyvane.identity.application.port.CredentialRepository
 import tallyvane.identity.application.port.LoginAttempts
 import tallyvane.identity.application.port.PasswordHasher
@@ -15,22 +17,32 @@ import tallyvane.platform.kernel.UseCase
 import kotlin.time.Duration
 
 /**
- * Checks a password credential — one action, per ADR-053, distinct from
- * [tallyvane.identity.application.password.RegisterWithPasswordUseCase].
+ * Checks a password credential and, if it is valid, issues a session — one action, per ADR-053,
+ * distinct from [tallyvane.identity.application.password.RegisterWithPasswordUseCase].
  */
 public interface SignInWithPasswordUseCase : UseCase {
-    public suspend fun signIn(request: SignInWithPasswordRequest): AuthenticationOutcome
+    public suspend fun signIn(request: SignInWithPasswordRequest): SignInOutcome
 
     /**
      * "No such account" and "wrong password" both answer [AuthenticationOutcome.InvalidCredential]
      * — the design's own rule, "never reveal that the email is unknown".
      */
-    public class SignIn(
+    public class SignIn internal constructor(
         private val users: UserRepository,
         private val credentials: CredentialRepository,
         private val passwordHasher: PasswordHasher,
+        private val completer: AuthenticationCompleter,
     ) : SignInWithPasswordUseCase {
-        override suspend fun signIn(request: SignInWithPasswordRequest): AuthenticationOutcome {
+        override suspend fun signIn(request: SignInWithPasswordRequest): SignInOutcome {
+            val outcome = checkCredential(request)
+            return if (outcome is AuthenticationOutcome.Success) {
+                completer.complete(outcome.userId, request.device)
+            } else {
+                SignInOutcome.NotIssued(outcome)
+            }
+        }
+
+        private suspend fun checkCredential(request: SignInWithPasswordRequest): AuthenticationOutcome {
             val user = users.findByEmail(request.email)
             return when {
                 user == null -> AuthenticationOutcome.InvalidCredential
@@ -55,7 +67,7 @@ public interface SignInWithPasswordUseCase : UseCase {
      *
      * ```
      * val limited = RateLimited(origin = SignIn(...), attempts, threshold = 5, window = 15.minutes)
-     * limited.signIn(request) // -> AuthenticationOutcome.RateLimited once 5 failures in 15 minutes
+     * limited.signIn(request) // -> NotIssued(RateLimited) once 5 failures happen in 15 minutes
      * ```
      *
      * Only failed attempts count toward the threshold — a successful sign-in never spends the same
@@ -71,7 +83,7 @@ public interface SignInWithPasswordUseCase : UseCase {
         private val threshold: Int,
         private val window: Duration,
     ) : SignInWithPasswordUseCase {
-        override suspend fun signIn(request: SignInWithPasswordRequest): AuthenticationOutcome {
+        override suspend fun signIn(request: SignInWithPasswordRequest): SignInOutcome {
             val key = rateLimitKey(request.email)
             val count = Fallback { attempts.failuresWithin(key, window) }
                 .orRecover { failure ->
@@ -79,16 +91,16 @@ public interface SignInWithPasswordUseCase : UseCase {
                     threshold.toLong()
                 }
             if (count >= threshold) {
-                return AuthenticationOutcome.RateLimited
+                return SignInOutcome.NotIssued(AuthenticationOutcome.RateLimited)
             }
-            val outcome = origin.signIn(request)
-            if (outcome == AuthenticationOutcome.InvalidCredential) {
+            val result = origin.signIn(request)
+            if (result == SignInOutcome.NotIssued(AuthenticationOutcome.InvalidCredential)) {
                 Fallback { attempts.recordFailure(key, window) }
                     .orRecover { failure ->
                         logger.warn("Login-attempts store unavailable; could not record a failed sign-in", failure)
                     }
             }
-            return outcome
+            return result
         }
 
         /**
