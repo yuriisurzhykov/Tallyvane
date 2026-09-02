@@ -1,6 +1,6 @@
 package tallyvane.identity.application.port
 
-import tallyvane.identity.domain.PasswordHash
+import tallyvane.identity.domain.credential.PasswordHash
 import tallyvane.platform.kernel.Secret
 
 /**

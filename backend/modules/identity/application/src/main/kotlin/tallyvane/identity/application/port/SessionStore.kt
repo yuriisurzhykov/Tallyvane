@@ -1,8 +1,8 @@
 package tallyvane.identity.application.port
 
-import tallyvane.identity.domain.Session
-import tallyvane.identity.domain.SessionId
-import tallyvane.identity.domain.UserId
+import tallyvane.identity.domain.session.Session
+import tallyvane.identity.domain.session.SessionId
+import tallyvane.identity.domain.user.UserId
 
 /**
  * Where a [Session] lives once [tallyvane.identity.application.SessionIssuer] has minted one — the

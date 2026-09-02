@@ -14,17 +14,39 @@ This file describes only what exists in this tree today; it is not a restatement
 
 ## What exists today
 
-The five-layer skeleton, and `contract`'s full published surface for this pass:
-
 ```
 identity/
-├── contract/       Principal (sealed: User), UserId, SessionId, ResolvedPrincipal,
-│                    PrincipalResolver (interface only — no implementation yet)
-├── domain/          empty — arrives with the token/session core slice
-├── application/     empty — arrives with the token/session core slice
-├── infrastructure/  empty — arrives with the password slice (the first real port implementations)
-└── web/             empty — arrives with the first real route
+├── contract/         Principal (sealed: User), UserId, SessionId, ResolvedPrincipal,
+│                      PrincipalResolver (interface only — no implementation yet)
+├── domain/           entities and value objects, grouped by the concept they belong to —
+│   ├── user/          User, UserId, Email
+│   ├── session/       Session, SessionId, DeviceLabel
+│   ├── token/          TokenKind, TokenValue, TokenPair, HashedToken, TokenFamilyId,
+│   │                    TokenFamilyState, RefreshRotationDecision, RefreshRotationPolicy
+│   ├── credential/     Credential (sealed: PasswordRecord), PasswordHash
+│   └── outcome/        AuthenticationOutcome, RegisterOutcome
+├── application/      ports and use cases —
+│   ├── port/           TokenFactory, TokenHasher, SessionStore, PasswordHasher, UserRepository,
+│   │                    CredentialRepository, LoginAttempts
+│   ├── password/       RegisterWithPasswordUseCase, SignInWithPasswordUseCase (+ requests)
+│   ├── SessionIssuer.kt    — shared by every sign-in path, not one method's own file
+│   └── IssuedSession.kt
+├── infrastructure/   LoginAttemptsOverCounter, password/Argon2PasswordHasher — the module's
+│                      real adapters; `password/` here is a plain package, not a Gradle module
+│                      (`infrastructure` splitting into one Gradle module per method is `capture`'s
+│                      own exception, ADR-073, not a general rule — see the dated correction in
+│                      `backend/.plans/identity-implementation.md`)
+└── web/              empty — arrives with the first real route
 ```
+
+`domain`'s and `application`'s subpackages mirror the split `platform:http` already uses
+(`problems/`, `status/`): a package per concept a reader would name on their own — "the token
+stuff", "the password use cases" — not a flat list of every file the layer happens to contain.
+`outcome/` and the two top-level `application` files (`SessionIssuer`, `IssuedSession`) stay outside
+any of the narrower packages because they answer to more than one of the others: an
+`AuthenticationOutcome` is not owned by `user`, `session` or `credential` more than by the other
+two, and `SessionIssuer` is shared by every sign-in path this design lists (password, both Google
+methods, second-factor verification), not by one of them.
 
 No table exists yet, no route answers a request, and `PrincipalResolver` has no implementation —
 calling it today would mean naming a type that does not exist. What is real is the language other

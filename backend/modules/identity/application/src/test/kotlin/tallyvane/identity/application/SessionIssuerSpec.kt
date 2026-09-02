@@ -5,7 +5,7 @@ import io.kotest.matchers.shouldBe
 import tallyvane.identity.application.port.SessionStoreFake
 import tallyvane.identity.application.port.TokenFactoryFake
 import tallyvane.identity.contract.Principal
-import tallyvane.identity.domain.DeviceLabel
+import tallyvane.identity.domain.session.DeviceLabel
 import tallyvane.platform.kernel.ClockFake
 import tallyvane.platform.kernel.IdGeneratorFake
 import tallyvane.platform.kernel.TransactionRunnerFake

@@ -1,7 +1,7 @@
 package tallyvane.identity.application.port
 
-import tallyvane.identity.domain.Credential
-import tallyvane.identity.domain.UserId
+import tallyvane.identity.domain.credential.Credential
+import tallyvane.identity.domain.user.UserId
 
 /**
  * Where a [Credential] lives.

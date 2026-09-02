@@ -97,9 +97,21 @@ The key-naming convention `backend/.plans/backend-infra-cache-wiring.md` called 
 with the name of the module that owns it, the same rule §4.1 already applies to a Postgres schema —
 is now `cache-key-is-module-prefixed`, a Konsist rule of the same shape as `own-schema-only`: a
 string literal passed to `increment`/`count` is read from the file's own source text and compared
-against the module name its path names. It waited for this exact call site on purpose — a rule
-guarding nothing but a synthetic fixture would have proven only that it compiles, not that it
-protects anything.
+against the module name its path names.
+
+**Correction, same day.** The paragraph above originally claimed the rule "waited for this exact
+call site" — written before checking what that call site actually looks like. `identity`'s real
+caller does not pass a literal to `Counter` at all: `LoginAttemptsOverCounter.failuresWithin` calls
+`counter.count(key, window)` where `key` is an ordinary `String` parameter built one layer up, in
+`SignInWithPasswordUseCase.RateLimited`. The rule's regex only matches a quoted string immediately
+inside `.increment(`/`.count(`, so on this file it finds nothing — not because the key is
+well-formed, but because there is no literal there to check. The rule still fails the deliberately
+dirty Konsist fixture it ships with, so it is not vacuous by construction, but it has never actually
+verified `identity`'s one real caller — that was true from the moment `LoginAttempts` was introduced
+to solve the `modules.yaml` visibility problem in the same slice, not a regression since. Catching a
+key built behind an indirection like this would need tracing the string back through the variable
+that holds it, which a regex over one file's text cannot do; recorded here as a known limit rather
+than left for the next reader to discover by tracing the same path.
 
 ## Not here
 

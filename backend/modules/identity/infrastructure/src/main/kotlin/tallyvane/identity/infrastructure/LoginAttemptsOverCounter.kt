@@ -11,7 +11,7 @@ import kotlin.time.Duration
  *
  * A thin, faithful relay: whatever [Counter] does — including throwing when its store is
  * unavailable — reaches the caller unchanged. Deciding what a failure *means* is
- * [tallyvane.identity.application.SignInWithPasswordUseCase.RateLimited]'s job, not this
+ * [tallyvane.identity.application.password.SignInWithPasswordUseCase.RateLimited]'s job, not this
  * adapter's; a port should report, not already have picked the policy for whoever reads it.
  */
 internal class LoginAttemptsOverCounter(private val counter: Counter) : LoginAttempts {

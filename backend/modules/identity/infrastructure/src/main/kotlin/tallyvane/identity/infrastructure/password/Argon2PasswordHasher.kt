@@ -2,7 +2,7 @@ package tallyvane.identity.infrastructure.password
 
 import de.mkammerer.argon2.Argon2Factory
 import tallyvane.identity.application.port.PasswordHasher
-import tallyvane.identity.domain.PasswordHash
+import tallyvane.identity.domain.credential.PasswordHash
 import tallyvane.platform.kernel.Secret
 
 /**
