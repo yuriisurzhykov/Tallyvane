@@ -102,6 +102,9 @@ exposed-jdbc = { group = "org.jetbrains.exposed", name = "exposed-jdbc", version
 # Maps `timestamptz` to `kotlin.time.Instant`, the type every instant in domain code already is.
 exposed-kotlin-datetime = { group = "org.jetbrains.exposed", name = "exposed-kotlin-datetime", version.ref = "exposed" }
 exposed-migration-jdbc = { group = "org.jetbrains.exposed", name = "exposed-migration-jdbc", version.ref = "exposed" }
+# kotlin.time.Instant column support (timestamp()/timestampWithTimeZone()) — exposed-core alone
+# has no kotlin.time type, only java.time's via a different, unwanted module.
+exposed-kotlin-datetime = { group = "org.jetbrains.exposed", name = "exposed-kotlin-datetime", version.ref = "exposed" }
 
 # HikariCP
 hikaricp = { group = "com.zaxxer", name = "HikariCP", version.ref = "hikari" }
