@@ -1,6 +1,8 @@
 package tallyvane.identity.application.secondfactor
 
+import tallyvane.platform.kernel.TransactionRunner
 import tallyvane.platform.kernel.UseCase
+import tallyvane.platform.kernel.Verdict
 
 /**
  * Starts enrolling the already-signed-in caller in one second factor — one action, per ADR-053,
@@ -21,9 +23,19 @@ public interface EnrollSecondFactorUseCase : UseCase {
      */
     public suspend fun enroll(request: EnrollSecondFactorRequest): String?
 
-    public class Enroll internal constructor(private val registry: SecondFactorMethodRegistry) :
-        EnrollSecondFactorUseCase {
-        override suspend fun enroll(request: EnrollSecondFactorRequest): String? =
-            registry.find(request.kind)?.startEnrollment(request.userId)
+    /**
+     * One [transactions.inTransaction] covers the whole method — [SecondFactorMethod.startEnrollment]
+     * reads [tallyvane.identity.application.port.UserRepository] and writes
+     * [tallyvane.identity.application.port.TotpEnrollmentStore] for TOTP, neither with a
+     * transaction of its own. Verified for real: `backend/playground/transactions/README.md`'s
+     * 2026-09-02 entry.
+     */
+    public class Enroll internal constructor(
+        private val registry: SecondFactorMethodRegistry,
+        private val transactions: TransactionRunner,
+    ) : EnrollSecondFactorUseCase {
+        override suspend fun enroll(request: EnrollSecondFactorRequest): String? = transactions.inTransaction {
+            Verdict.Commit(registry.find(request.kind)?.startEnrollment(request.userId))
+        }
     }
 }

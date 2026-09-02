@@ -5,6 +5,7 @@ import io.kotest.matchers.shouldBe
 import tallyvane.identity.application.port.SecondFactorMethodFake
 import tallyvane.identity.domain.secondfactor.SecondFactorKind
 import tallyvane.identity.domain.user.UserId
+import tallyvane.platform.kernel.TransactionRunnerFake
 import kotlin.uuid.Uuid
 
 class ConfirmSpec :
@@ -13,7 +14,11 @@ class ConfirmSpec :
 
         "a correct code dispatched to the right method activates it" {
             val totp = SecondFactorMethodFake(SecondFactorKind.TOTP, correctCode = "654321")
-            val confirm = ConfirmSecondFactorEnrollmentUseCase.Confirm(SecondFactorMethodRegistry.Default(listOf(totp)))
+            val confirm =
+                ConfirmSecondFactorEnrollmentUseCase.Confirm(
+                    SecondFactorMethodRegistry.Default(listOf(totp)),
+                    TransactionRunnerFake(),
+                )
 
             val result = confirm.confirm(ConfirmSecondFactorEnrollmentRequest(userId, SecondFactorKind.TOTP, "654321"))
 
@@ -23,7 +28,11 @@ class ConfirmSpec :
 
         "a wrong code refuses without activating anything" {
             val totp = SecondFactorMethodFake(SecondFactorKind.TOTP, correctCode = "654321")
-            val confirm = ConfirmSecondFactorEnrollmentUseCase.Confirm(SecondFactorMethodRegistry.Default(listOf(totp)))
+            val confirm =
+                ConfirmSecondFactorEnrollmentUseCase.Confirm(
+                    SecondFactorMethodRegistry.Default(listOf(totp)),
+                    TransactionRunnerFake(),
+                )
 
             val result = confirm.confirm(ConfirmSecondFactorEnrollmentRequest(userId, SecondFactorKind.TOTP, "wrong"))
 
@@ -32,7 +41,11 @@ class ConfirmSpec :
         }
 
         "a kind nothing is registered for refuses, not throws" {
-            val confirm = ConfirmSecondFactorEnrollmentUseCase.Confirm(SecondFactorMethodRegistry.Default(emptyList()))
+            val confirm =
+                ConfirmSecondFactorEnrollmentUseCase.Confirm(
+                    SecondFactorMethodRegistry.Default(emptyList()),
+                    TransactionRunnerFake(),
+                )
 
             val result = confirm.confirm(ConfirmSecondFactorEnrollmentRequest(userId, SecondFactorKind.TOTP, "654321"))
 

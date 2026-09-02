@@ -24,6 +24,12 @@ internal interface GoogleSignInCompleter {
     suspend fun complete(identity: GoogleIdentity, device: DeviceLabel): SignInOutcome
 
     /**
+     * One [transactions.inTransaction] covers the whole method — the lookup by subject included,
+     * not only the insert — because [users], [credentials] and every port [completer] itself
+     * touches open no transaction of their own; whichever use case calls them is the one that
+     * must have one open already. Verified for real, not merely argued:
+     * `backend/playground/transactions/README.md`'s 2026-09-02 entry.
+     *
      * A first sign-in for a Google identity this account has never seen creates the account and
      * its [Credential.GoogleRecord] in the same transaction; a returning one finds it by
      * [GoogleIdentity.subject] alone, never by email.
@@ -40,32 +46,32 @@ internal interface GoogleSignInCompleter {
         private val ids: IdGenerator,
         private val clock: Clock,
     ) : GoogleSignInCompleter {
-        override suspend fun complete(identity: GoogleIdentity, device: DeviceLabel): SignInOutcome {
-            val userId = findOrCreateUser(identity)
-            return if (userId == null) {
-                SignInOutcome.NotIssued(AuthenticationOutcome.InvalidCredential)
-            } else {
-                completer.complete(userId, device)
+        override suspend fun complete(identity: GoogleIdentity, device: DeviceLabel): SignInOutcome =
+            transactions.inTransaction {
+                val userId = findOrCreateUser(identity)
+                val outcome = if (userId == null) {
+                    SignInOutcome.NotIssued(AuthenticationOutcome.InvalidCredential)
+                } else {
+                    completer.complete(userId, device)
+                }
+                Verdict.Commit(outcome)
             }
-        }
 
         private suspend fun findOrCreateUser(identity: GoogleIdentity): UserId? {
             credentials.findUserIdByGoogleSubject(identity.subject)?.let { return it }
-            return transactions.inTransaction {
-                val userId = UserId(ids.next())
-                val user = User(
-                    id = userId,
-                    email = identity.email,
-                    displayName = null,
-                    createdAt = clock.now(),
-                    disabledAt = null,
-                )
-                when (users.insert(user)) {
-                    UserRepository.InsertOutcome.EMAIL_TAKEN -> Verdict.Rollback(null)
-                    UserRepository.InsertOutcome.INSERTED -> {
-                        credentials.save(userId, Credential.GoogleRecord(identity.subject))
-                        Verdict.Commit(userId)
-                    }
+            val userId = UserId(ids.next())
+            val user = User(
+                id = userId,
+                email = identity.email,
+                displayName = null,
+                createdAt = clock.now(),
+                disabledAt = null,
+            )
+            return when (users.insert(user)) {
+                UserRepository.InsertOutcome.EMAIL_TAKEN -> null
+                UserRepository.InsertOutcome.INSERTED -> {
+                    credentials.save(userId, Credential.GoogleRecord(identity.subject))
+                    userId
                 }
             }
         }

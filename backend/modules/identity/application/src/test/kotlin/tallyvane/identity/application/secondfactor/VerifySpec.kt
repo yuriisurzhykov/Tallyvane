@@ -7,9 +7,11 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import tallyvane.identity.application.SessionIssuer
 import tallyvane.identity.application.port.PendingAuthenticationStoreFake
+import tallyvane.identity.application.port.RefreshTokenStoreFake
 import tallyvane.identity.application.port.SecondFactorMethodFake
 import tallyvane.identity.application.port.SessionStoreFake
 import tallyvane.identity.application.port.TokenFactoryFake
+import tallyvane.identity.application.port.TokenHasherFake
 import tallyvane.identity.domain.outcome.SecondFactorOutcome
 import tallyvane.identity.domain.secondfactor.PendingAuthentication
 import tallyvane.identity.domain.secondfactor.PendingAuthenticationId
@@ -19,6 +21,7 @@ import tallyvane.identity.domain.user.UserId
 import tallyvane.platform.kernel.ClockFake
 import tallyvane.platform.kernel.IdGeneratorFake
 import tallyvane.platform.kernel.TransactionRunnerFake
+import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
@@ -44,12 +47,16 @@ class VerifySpec :
                 registry = SecondFactorMethodRegistry.Default(listOf(totp)),
                 sessions = SessionIssuer.Default(
                     sessions = SessionStoreFake(),
+                    refreshTokens = RefreshTokenStoreFake(),
                     tokenFactory = TokenFactoryFake(),
-                    transactions = TransactionRunnerFake(),
+                    tokenHasher = TokenHasherFake(),
                     clock = ClockFake(clockAt),
                     ids = IdGeneratorFake(),
+                    accessTokenTtl = 15.minutes,
+                    refreshTokenIdleTtl = 30.days,
                 ),
                 clock = ClockFake(clockAt),
+                transactions = TransactionRunnerFake(),
             )
 
         "an unknown pending id is refused, distinct from a wrong code" {
@@ -127,12 +134,16 @@ class VerifySpec :
                 registry = SecondFactorMethodRegistry.Default(emptyList()),
                 sessions = SessionIssuer.Default(
                     sessions = SessionStoreFake(),
+                    refreshTokens = RefreshTokenStoreFake(),
                     tokenFactory = TokenFactoryFake(),
-                    transactions = TransactionRunnerFake(),
+                    tokenHasher = TokenHasherFake(),
                     clock = ClockFake(now),
                     ids = IdGeneratorFake(),
+                    accessTokenTtl = 15.minutes,
+                    refreshTokenIdleTtl = 30.days,
                 ),
                 clock = ClockFake(now),
+                transactions = TransactionRunnerFake(),
             )
 
             val result = empty.verify(VerifySecondFactorRequest(pendingId, SecondFactorKind.TOTP, "123456"))

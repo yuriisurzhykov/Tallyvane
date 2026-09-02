@@ -7,6 +7,7 @@ import io.kotest.matchers.shouldBe
 import tallyvane.identity.application.port.SecondFactorMethodFake
 import tallyvane.identity.domain.secondfactor.SecondFactorKind
 import tallyvane.identity.domain.user.UserId
+import tallyvane.platform.kernel.TransactionRunnerFake
 import kotlin.uuid.Uuid
 
 class EnrollSpec :
@@ -15,7 +16,10 @@ class EnrollSpec :
 
         "dispatches to the registered method for the requested kind" {
             val totp = SecondFactorMethodFake(SecondFactorKind.TOTP)
-            val enroll = EnrollSecondFactorUseCase.Enroll(SecondFactorMethodRegistry.Default(listOf(totp)))
+            val enroll = EnrollSecondFactorUseCase.Enroll(
+                SecondFactorMethodRegistry.Default(listOf(totp)),
+                TransactionRunnerFake(),
+            )
 
             val payload = enroll.enroll(EnrollSecondFactorRequest(userId, SecondFactorKind.TOTP))
 
@@ -24,7 +28,10 @@ class EnrollSpec :
         }
 
         "answers null for a kind nothing is registered for, rather than throwing" {
-            val enroll = EnrollSecondFactorUseCase.Enroll(SecondFactorMethodRegistry.Default(emptyList()))
+            val enroll = EnrollSecondFactorUseCase.Enroll(
+                SecondFactorMethodRegistry.Default(emptyList()),
+                TransactionRunnerFake(),
+            )
 
             val payload = enroll.enroll(EnrollSecondFactorRequest(userId, SecondFactorKind.TOTP))
 

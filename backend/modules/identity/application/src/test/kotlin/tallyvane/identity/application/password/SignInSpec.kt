@@ -9,9 +9,11 @@ import tallyvane.identity.application.SignInOutcome
 import tallyvane.identity.application.port.CredentialRepositoryFake
 import tallyvane.identity.application.port.PasswordHasherFake
 import tallyvane.identity.application.port.PendingAuthenticationStoreFake
+import tallyvane.identity.application.port.RefreshTokenStoreFake
 import tallyvane.identity.application.port.SecondFactorMethodFake
 import tallyvane.identity.application.port.SessionStoreFake
 import tallyvane.identity.application.port.TokenFactoryFake
+import tallyvane.identity.application.port.TokenHasherFake
 import tallyvane.identity.application.port.UserRepositoryFake
 import tallyvane.identity.application.secondfactor.SecondFactorMethodRegistry
 import tallyvane.identity.domain.credential.Credential
@@ -25,6 +27,7 @@ import tallyvane.platform.kernel.ClockFake
 import tallyvane.platform.kernel.IdGeneratorFake
 import tallyvane.platform.kernel.Secret
 import tallyvane.platform.kernel.TransactionRunnerFake
+import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
@@ -44,10 +47,13 @@ class SignInSpec :
 
         fun sessionIssuer() = SessionIssuer.Default(
             sessions = SessionStoreFake(),
+            refreshTokens = RefreshTokenStoreFake(),
             tokenFactory = TokenFactoryFake(),
-            transactions = TransactionRunnerFake(),
+            tokenHasher = TokenHasherFake(),
             clock = ClockFake(Instant.parse("2026-01-01T00:00:00Z")),
             ids = IdGeneratorFake(),
+            accessTokenTtl = 15.minutes,
+            refreshTokenIdleTtl = 30.days,
         )
 
         fun authenticationCompleter(enrolledMethods: List<SecondFactorMethodFake> = emptyList()) =
@@ -76,6 +82,7 @@ class SignInSpec :
                 credentials,
                 hasher,
                 authenticationCompleter(enrolledMethods),
+                TransactionRunnerFake(),
             )
         }
 
