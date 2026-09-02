@@ -39,6 +39,8 @@ internal fun settings(access: DatabaseAccess, port: Int = free(), pool: Int = DE
         port = port,
         level = Level.INFO,
         healthToken = Secret(TOKEN),
+        tokenPepper = Secret(TOKEN),
+        tokenPepperVersion = EnvironmentConfiguration.DEFAULT_PEPPER_VERSION,
     )
 
 /**

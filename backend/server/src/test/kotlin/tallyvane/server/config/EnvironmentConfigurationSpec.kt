@@ -14,6 +14,8 @@ private const val PASSWORD_VALUE = "a-database-password-nobody-should-ever-see-i
 
 private const val TOKEN_VALUE = "a-service-token-of-at-least-forty-characters-length"
 
+private const val PEPPER_VALUE = "a-token-pepper-of-at-least-forty-characters-length!"
+
 /**
  * A token under the floor, spelled so that it cannot turn up inside a refusal by coincidence — the
  * case below asserts a value is never quoted, and a sentinel that collides with the message's own
@@ -30,6 +32,7 @@ private fun complete(): MutableMap<String, String> = mutableMapOf(
     EnvironmentConfiguration.USER to "tallyvane",
     EnvironmentConfiguration.PASSWORD to PASSWORD_VALUE,
     EnvironmentConfiguration.HEALTH_TOKEN to TOKEN_VALUE,
+    EnvironmentConfiguration.TOKEN_PEPPER to PEPPER_VALUE,
 )
 
 private fun read(values: Map<String, String>): Configuration = EnvironmentConfiguration(EnvironmentFake(values)).read()
@@ -48,6 +51,7 @@ class EnvironmentConfigurationSpec :
                 configuration.database.user shouldBe "tallyvane"
                 configuration.database.password shouldBe Secret(PASSWORD_VALUE)
                 configuration.healthToken shouldBe Secret(TOKEN_VALUE)
+                configuration.tokenPepper shouldBe Secret(PEPPER_VALUE)
             }
 
             // A6
@@ -57,6 +61,7 @@ class EnvironmentConfigurationSpec :
                 configuration.port shouldBe EnvironmentConfiguration.DEFAULT_PORT
                 configuration.pool shouldBe DEFAULT_SIZE
                 configuration.level shouldBe Level.INFO
+                configuration.tokenPepperVersion shouldBe EnvironmentConfiguration.DEFAULT_PEPPER_VERSION
             }
 
             "takes the optional values from the environment when it does supply them" {
@@ -132,6 +137,20 @@ class EnvironmentConfigurationSpec :
                 )
 
                 said shouldContain EnvironmentConfiguration.HEALTH_TOKEN
+            }
+
+            "refuses a token pepper shorter than the floor" {
+                val said = refusal(
+                    complete().apply { put(EnvironmentConfiguration.TOKEN_PEPPER, BRIEF_TOKEN) },
+                )
+
+                said shouldContain EnvironmentConfiguration.TOKEN_PEPPER
+            }
+
+            "refuses a token pepper version it cannot read" {
+                val said = refusal(complete().apply { put(EnvironmentConfiguration.TOKEN_PEPPER_VERSION, "two") })
+
+                said shouldContain EnvironmentConfiguration.TOKEN_PEPPER_VERSION
             }
 
             // A7. The refusal message is read by whoever is fixing the deploy, and it is the most

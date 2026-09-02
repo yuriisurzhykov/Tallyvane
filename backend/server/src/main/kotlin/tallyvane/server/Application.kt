@@ -51,6 +51,7 @@ public class Application(private val configuration: Configuration, private val c
             factory = CIO,
             port = configuration.port,
         ) {
+            wiring.requestPrincipal.install(this)
             wiring.api.install(this)
         }.also { server ->
             server.start(wait = false)
