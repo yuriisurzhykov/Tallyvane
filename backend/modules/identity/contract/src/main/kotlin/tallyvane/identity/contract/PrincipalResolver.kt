@@ -2,22 +2,12 @@ package tallyvane.identity.contract
 
 /**
  * The one thing any other module will ever know about `identity` — this interface, and nothing
- * else. No module reads `identity`'s tables, sees a `Session` row, or imports anything from
- * `identity:domain` or `identity:infrastructure`; every one of those is invisible outside this
- * module by the ordinary rule that a capability publishes only its `contract`.
+ * else. Every use case downstream — in `jobs`, `applications`, anywhere — receives the result as
+ * an ordinary parameter, resolved once per request, never as a second query against this
+ * interface for the same request.
  *
- * This closes option A of `backend/.plans/backend-access-and-api.md`'s "how does each module know
- * the user" question: a session cookie is turned into a [ResolvedPrincipal] exactly once, at the
- * HTTP boundary, by whatever real implementation `identity:infrastructure` supplies. Every use case
- * downstream — in `jobs`, `applications`, anywhere — receives the result as an ordinary parameter,
- * never as a second query against this interface for the same request.
- *
- * `platform:http` cannot depend on this contract directly (`platform` may never depend on
- * `modules:*`), so it exposes a generic extension point instead — "run this before every route,
- * store the result on the call" — and the composition root, `server`, is the one place that both
- * `platform:http` and this contract are visible at once, wiring the real implementation into that
- * extension point. That wiring is not this pass's slice; it arrives with the real implementation
- * over `SessionStore`, once one exists.
+ * Why this is the chosen shape, and how `server` will eventually wire the real implementation into
+ * `platform:http`'s request pipeline: `contract/README.md`.
  */
 public interface PrincipalResolver {
     /**

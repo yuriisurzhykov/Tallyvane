@@ -1,7 +1,12 @@
 package tallyvane.identity.application.password
 
+import ch.qos.logback.classic.Level
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.core.read.ListAppender
 import io.kotest.core.spec.style.StringSpec
+import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
+import org.slf4j.LoggerFactory
 import tallyvane.identity.application.port.LoginAttempts
 import tallyvane.identity.application.port.LoginAttemptsFake
 import tallyvane.identity.domain.outcome.AuthenticationOutcome
@@ -11,6 +16,7 @@ import tallyvane.platform.kernel.Secret
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 import kotlin.uuid.Uuid
+import ch.qos.logback.classic.Logger as LogbackLogger
 
 class RateLimitedSpec :
     StringSpec({
@@ -83,7 +89,56 @@ class RateLimitedSpec :
 
             outcome shouldBe AuthenticationOutcome.InvalidCredential
         }
+
+        "logs a warning naming the cause when failing closed on the read" {
+            val origin = FixedOutcomeOrigin(successfulOutcome)
+
+            val events = capturedWarnings { rateLimited(origin, BrokenLoginAttempts()).signIn(request) }
+
+            val event = events.single()
+            event.level shouldBe Level.WARN
+            event.throwableProxy.shouldNotBeNull()
+        }
+
+        "logs a warning naming the cause when failing open on the write" {
+            val origin = FixedOutcomeOrigin(AuthenticationOutcome.InvalidCredential)
+            val attempts = BrokenLoginAttempts(failFailuresWithin = false)
+
+            val events = capturedWarnings { rateLimited(origin, attempts).signIn(request) }
+
+            val event = events.single()
+            event.level shouldBe Level.WARN
+            event.throwableProxy.shouldNotBeNull()
+        }
+
+        "does not log anything when the attempts store answers normally" {
+            val origin = FixedOutcomeOrigin(successfulOutcome)
+
+            val events = capturedWarnings { rateLimited(origin, LoginAttemptsFake()).signIn(request) }
+
+            events shouldBe emptyList()
+        }
     })
+
+/**
+ * Runs [block] with a [ListAppender] attached to [SignInWithPasswordUseCase.RateLimited]'s own
+ * logger, and returns whatever it captured — this test's only way to observe the log line
+ * `ENGINEERING-PRINCIPLES.md`'s "A recovered failure is logged where its meaning is known" asks
+ * for, independent of `RateLimited`'s own return value.
+ */
+private suspend fun capturedWarnings(block: suspend () -> Unit): List<ILoggingEvent> {
+    val appender = ListAppender<ILoggingEvent>()
+    val logger = LoggerFactory.getLogger(SignInWithPasswordUseCase.RateLimited::class.java) as LogbackLogger
+    appender.start()
+    logger.addAppender(appender)
+    try {
+        block()
+    } finally {
+        logger.detachAppender(appender)
+        appender.stop()
+    }
+    return appender.list
+}
 
 /**
  * Counts calls to a [SignInWithPasswordUseCase] that always answers [outcome] — not itself a

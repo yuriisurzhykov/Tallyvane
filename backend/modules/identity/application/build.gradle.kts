@@ -14,9 +14,16 @@ dependencies {
     // Required by modules.yaml's generic application: layer allow-list, not by any port here
     // yet — nothing in this pass publishes an event (modules.yaml: publishes: []).
     api(projects.platform.events)
+    // The facade only, never a backend: ENGINEERING-PRINCIPLES.md "A recovered failure is
+    // logged where its meaning is known" — this is a library coordinate, not a `platform:*`
+    // module, so `modules.yaml`'s layer allow-list does not govern it (`validateModuleGraph`
+    // compares only project-to-project edges).
+    implementation(libs.slf4j.api)
 
     testFixturesImplementation(libs.kotest.runner.junit5)
     testFixturesImplementation(libs.kotest.assertions.core)
 
     testImplementation(testFixtures(projects.platform.kernel))
+    // Only to capture what RateLimitedSpec asserts on; the real binding stays server's choice.
+    testImplementation(libs.logback.classic)
 }

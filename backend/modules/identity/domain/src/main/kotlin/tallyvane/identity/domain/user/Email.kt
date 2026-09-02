@@ -1,14 +1,16 @@
 package tallyvane.identity.domain.user
 
 /**
- * An email address, validated for shape only — not for deliverability, which no regular
- * expression can promise anyway.
+ * An email address, validated for shape only (`local@domain.tld`) — not for deliverability, which
+ * no regular expression can promise anyway.
  *
- * Comparing two [Email] values here is case-sensitive, on purpose: this project's own persistence
- * skill settled case-insensitive lookup as a Postgres column collation
- * (`platform.case_insensitive`), not as normalisation inside the value object. Folding case here
- * too would give this type and the database two different, silently disagreeing notions of
- * "the same address".
+ * ```
+ * Email("person@example.com")  // ok
+ * Email("person@example")      // throws IllegalArgumentException — no top-level domain
+ * ```
+ *
+ * Comparison is case-sensitive despite lookup being case-insensitive in Postgres — why:
+ * `domain/README.md`.
  */
 @JvmInline
 public value class Email(public val value: String) {

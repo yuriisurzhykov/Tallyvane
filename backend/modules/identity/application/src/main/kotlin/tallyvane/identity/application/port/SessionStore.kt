@@ -8,9 +8,8 @@ import tallyvane.identity.domain.user.UserId
  * Where a [Session] lives once [tallyvane.identity.application.SessionIssuer] has minted one — the
  * only port that knows how to find, persist, or revoke one.
  *
- * No real implementation exists yet; it arrives with the persistence slice, once the storage shape
- * for a token's hash — a separate concern from a [Session] row itself — is designed. Until then,
- * only a handwritten fake in this module's own tests satisfies this interface.
+ * No real implementation exists yet; only a handwritten fake in this module's own tests satisfies
+ * this interface until the persistence slice designs the storage shape for a token's hash.
  */
 public interface SessionStore {
     public suspend fun save(session: Session)
