@@ -1,7 +1,7 @@
 package tallyvane.identity.application.port
 
-import tallyvane.identity.domain.HashedToken
-import tallyvane.identity.domain.TokenValue
+import tallyvane.identity.domain.token.HashedToken
+import tallyvane.identity.domain.token.TokenValue
 import tallyvane.platform.kernel.Secret
 import java.util.Base64
 import javax.crypto.Mac

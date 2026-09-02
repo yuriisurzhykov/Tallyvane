@@ -1,8 +1,8 @@
 package tallyvane.identity.application.port
 
-import tallyvane.identity.domain.Email
-import tallyvane.identity.domain.User
-import tallyvane.identity.domain.UserId
+import tallyvane.identity.domain.user.Email
+import tallyvane.identity.domain.user.User
+import tallyvane.identity.domain.user.UserId
 
 /**
  * Where a [User] lives.

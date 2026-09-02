@@ -1,7 +1,7 @@
 package tallyvane.identity.application.port
 
-import tallyvane.identity.domain.TokenKind
-import tallyvane.identity.domain.TokenValue
+import tallyvane.identity.domain.token.TokenKind
+import tallyvane.identity.domain.token.TokenValue
 import java.security.SecureRandom
 import java.util.Base64
 

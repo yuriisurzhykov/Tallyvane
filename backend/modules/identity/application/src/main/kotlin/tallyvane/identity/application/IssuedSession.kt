@@ -1,7 +1,7 @@
 package tallyvane.identity.application
 
-import tallyvane.identity.domain.Session
-import tallyvane.identity.domain.TokenPair
+import tallyvane.identity.domain.session.Session
+import tallyvane.identity.domain.token.TokenPair
 
 /**
  * What [SessionIssuer] hands back: the persisted [session] record, and the one and only moment

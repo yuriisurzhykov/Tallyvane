@@ -1,7 +1,7 @@
 package tallyvane.identity.application.port
 
-import tallyvane.identity.domain.TokenKind
-import tallyvane.identity.domain.TokenValue
+import tallyvane.identity.domain.token.TokenKind
+import tallyvane.identity.domain.token.TokenValue
 
 /**
  * A [TokenFactory] that yields a known, deterministic sequence instead of real randomness, so a

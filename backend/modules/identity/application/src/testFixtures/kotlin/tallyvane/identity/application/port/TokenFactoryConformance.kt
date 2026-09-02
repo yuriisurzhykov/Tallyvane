@@ -3,14 +3,14 @@ package tallyvane.identity.application.port
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
-import tallyvane.identity.domain.TokenKind
+import tallyvane.identity.domain.token.TokenKind
 
 /**
  * The behaviour every [TokenFactory] must show, whatever mints the value.
  *
  * Written once and inherited by each implementation's spec: the fake in this module's own
  * `src/test`, and [TokenFactory.Csprng] here. Both must stamp the right prefix for the requested
- * [TokenKind] and mint a value shaped exactly as [tallyvane.identity.domain.TokenValue] itself
+ * [TokenKind] and mint a value shaped exactly as [tallyvane.identity.domain.token.TokenValue] itself
  * requires — the two properties every later port depends on without re-deriving them (ADR-046).
  */
 public abstract class TokenFactoryConformance : StringSpec() {
