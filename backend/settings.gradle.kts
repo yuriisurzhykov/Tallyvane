@@ -25,6 +25,7 @@ dependencyResolutionManagement {
 // ---------------------------------------------------------------------------
 include(":platform:kernel")
 include(":platform:events")
+include(":platform:cache")
 include(":platform:persistence")
 include(":platform:idempotency")
 include(":platform:http")

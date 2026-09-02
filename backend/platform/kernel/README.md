@@ -250,6 +250,18 @@ Unlike time and identifiers, this one has no gate: there is no `no-ambient-env` 
 a file from calling `System.getenv` directly. Worth adding, not added here — a new gate is its own
 decision.
 
+## 2026-09-01 — a movable clock, for `platform:cache`
+
+`MutableClockFake` joined `ClockFake` in `src/testFixtures`, because `platform:cache`'s
+`Counter.InMemory` needed a test that could prove a rate-limit window actually closes over time,
+and `ClockFake` is deliberately one pinned instant for the whole case — `ClockFakeSpec` never asks
+for more than one "now". Adding it here rather than inside `platform:cache`'s own tests is a bet
+that it will be needed again: every future rule shaped like "this expires after a duration" —
+refresh-token idle timeout, `PendingAuthentication` expiry — needs the same thing, a clock a test
+can move forward without constructing a second collaborator and losing the first one's state.
+Advancing is one-directional on purpose: a clock a test could rewind would let a case describe a
+state wall-clock time can never actually reach.
+
 ## Understandable, scalable, extensible
 
 A reader looking for "what time is it" finds `Clock`, not a static import.

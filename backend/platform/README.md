@@ -19,6 +19,7 @@ the one module with code today:
 |-----------------|----------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------|
 | `kernel`        | Shared vocabulary: ports for time and identity, reviewed exceptions, local fallback | [kernel/README.md](kernel/README.md)                                                                     |
 | `events`        | `DomainEvent`, `EventPublisher`, `EventSubscriber`                   | [ARCHITECTURE.md](../../ARCHITECTURE.md) §4.5                                                            |
+| `cache`         | `Counter` — the primitive a rate limit is built from                 | [cache/README.md](cache/README.md)                                                                       |
 | `persistence`   | `TransactionRunner`, schema conventions, migration assembly          | [ARCHITECTURE.md](../../ARCHITECTURE.md) §4.6, §8.22                                                     |
 | `http`          | Ktor plumbing: RFC 9457 errors, authentication extraction, `RouteModule` | [ARCHITECTURE.md](../../ARCHITECTURE.md) §11.1, §11.6                                                    |
 | `idempotency`   | `Idempotency-Key`: the claim taken in the work's own transaction, the ledger of answers | [idempotency/README.md](idempotency/README.md), [ADR-086](../../docs/adr/ADR-086-a-request-is-claimed-in-the-transaction-it-runs-in.md) |
