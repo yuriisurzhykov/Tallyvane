@@ -7,22 +7,22 @@ import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import org.slf4j.LoggerFactory
+import tallyvane.identity.application.SignInOutcome
 import tallyvane.identity.application.port.LoginAttempts
 import tallyvane.identity.application.port.LoginAttemptsFake
 import tallyvane.identity.domain.outcome.AuthenticationOutcome
+import tallyvane.identity.domain.session.DeviceLabel
 import tallyvane.identity.domain.user.Email
-import tallyvane.identity.domain.user.UserId
 import tallyvane.platform.kernel.Secret
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
-import kotlin.uuid.Uuid
 import ch.qos.logback.classic.Logger as LogbackLogger
 
 class RateLimitedSpec :
     StringSpec({
-        val request = SignInWithPasswordRequest(Email("person@example.com"), Secret("whatever"))
-        val successId = UserId(Uuid.parse("00000000-0000-7000-8000-000000000001"))
-        val successfulOutcome = AuthenticationOutcome.Success(successId)
+        val request = SignInWithPasswordRequest(Email("person@example.com"), Secret("whatever"), DeviceLabel("Chrome"))
+        val notIssuedInvalid = SignInOutcome.NotIssued(AuthenticationOutcome.InvalidCredential)
+        val notIssuedDisabled = SignInOutcome.NotIssued(AuthenticationOutcome.AccountDisabled)
         // Reuses production's own key-building function rather than repeating the literal here too
         // — see SignInWithPasswordUseCase.RateLimited's own KDoc for why the function exists.
         val key = SignInWithPasswordUseCase.RateLimited.rateLimitKey(request.email)
@@ -35,27 +35,27 @@ class RateLimitedSpec :
         }
 
         "passes an attempt through under the threshold" {
-            val origin = FixedOutcomeOrigin(successfulOutcome)
+            val origin = FixedOutcomeOrigin(notIssuedDisabled)
 
-            val outcome = rateLimited(origin, LoginAttemptsFake()).signIn(request)
+            val result = rateLimited(origin, LoginAttemptsFake()).signIn(request)
 
-            outcome shouldBe successfulOutcome
+            result shouldBe notIssuedDisabled
         }
 
         "refuses without calling the origin once the threshold is reached" {
-            val origin = FixedOutcomeOrigin(AuthenticationOutcome.InvalidCredential)
+            val origin = FixedOutcomeOrigin(notIssuedInvalid)
             val attempts = LoginAttemptsFake()
             val limited = rateLimited(origin, attempts, threshold = 3)
             repeat(3) { limited.signIn(request) }
 
-            val outcome = limited.signIn(request)
+            val result = limited.signIn(request)
 
-            outcome shouldBe AuthenticationOutcome.RateLimited
+            result shouldBe SignInOutcome.NotIssued(AuthenticationOutcome.RateLimited)
             origin.calls shouldBe 3
         }
 
         "records a failure only when the origin answers InvalidCredential, not on success" {
-            val origin = FixedOutcomeOrigin(successfulOutcome)
+            val origin = FixedOutcomeOrigin(notIssuedDisabled)
             val attempts = LoginAttemptsFake()
 
             rateLimited(origin, attempts).signIn(request)
@@ -64,7 +64,7 @@ class RateLimitedSpec :
         }
 
         "does not record a failure for AccountDisabled either" {
-            val origin = FixedOutcomeOrigin(AuthenticationOutcome.AccountDisabled)
+            val origin = FixedOutcomeOrigin(notIssuedDisabled)
             val attempts = LoginAttemptsFake()
 
             rateLimited(origin, attempts).signIn(request)
@@ -73,25 +73,25 @@ class RateLimitedSpec :
         }
 
         "fails closed when the attempts store itself throws" {
-            val origin = FixedOutcomeOrigin(successfulOutcome)
+            val origin = FixedOutcomeOrigin(notIssuedDisabled)
 
-            val outcome = rateLimited(origin, BrokenLoginAttempts()).signIn(request)
+            val result = rateLimited(origin, BrokenLoginAttempts()).signIn(request)
 
-            outcome shouldBe AuthenticationOutcome.RateLimited
+            result shouldBe SignInOutcome.NotIssued(AuthenticationOutcome.RateLimited)
             origin.calls shouldBe 0
         }
 
         "recording a failure that fails to persist does not turn InvalidCredential into an error" {
-            val origin = FixedOutcomeOrigin(AuthenticationOutcome.InvalidCredential)
+            val origin = FixedOutcomeOrigin(notIssuedInvalid)
             val attempts = BrokenLoginAttempts(failFailuresWithin = false)
 
-            val outcome = rateLimited(origin, attempts).signIn(request)
+            val result = rateLimited(origin, attempts).signIn(request)
 
-            outcome shouldBe AuthenticationOutcome.InvalidCredential
+            result shouldBe notIssuedInvalid
         }
 
         "logs a warning naming the cause when failing closed on the read" {
-            val origin = FixedOutcomeOrigin(successfulOutcome)
+            val origin = FixedOutcomeOrigin(notIssuedDisabled)
 
             val events = capturedWarnings { rateLimited(origin, BrokenLoginAttempts()).signIn(request) }
 
@@ -101,7 +101,7 @@ class RateLimitedSpec :
         }
 
         "logs a warning naming the cause when failing open on the write" {
-            val origin = FixedOutcomeOrigin(AuthenticationOutcome.InvalidCredential)
+            val origin = FixedOutcomeOrigin(notIssuedInvalid)
             val attempts = BrokenLoginAttempts(failFailuresWithin = false)
 
             val events = capturedWarnings { rateLimited(origin, attempts).signIn(request) }
@@ -112,7 +112,7 @@ class RateLimitedSpec :
         }
 
         "does not log anything when the attempts store answers normally" {
-            val origin = FixedOutcomeOrigin(successfulOutcome)
+            val origin = FixedOutcomeOrigin(notIssuedDisabled)
 
             val events = capturedWarnings { rateLimited(origin, LoginAttemptsFake()).signIn(request) }
 
@@ -145,13 +145,13 @@ private suspend fun capturedWarnings(block: suspend () -> Unit): List<ILoggingEv
  * named class implementing that interface, so `usecase-has-test` does not ask it for a `Spec` of
  * its own. [asUseCase] is an anonymous object, which Konsist's `classes()` never enumerates.
  */
-private class FixedOutcomeOrigin(outcome: AuthenticationOutcome) {
+private class FixedOutcomeOrigin(outcome: SignInOutcome) {
     var calls: Int = 0
         private set
 
     val asUseCase: SignInWithPasswordUseCase =
         object : SignInWithPasswordUseCase {
-            override suspend fun signIn(request: SignInWithPasswordRequest): AuthenticationOutcome {
+            override suspend fun signIn(request: SignInWithPasswordRequest): SignInOutcome {
                 calls += 1
                 return outcome
             }

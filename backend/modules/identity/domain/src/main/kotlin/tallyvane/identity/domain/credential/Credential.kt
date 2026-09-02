@@ -5,9 +5,11 @@ package tallyvane.identity.domain.credential
  * way is a new case here, not a free-form "kind" string threaded through every port that touches
  * one.
  *
- * Only [PasswordRecord] exists this pass; `GoogleRecord` and a second-factor record arrive with
- * their own slices.
+ * A second-factor record arrives with its own slice; [PasswordRecord] and [GoogleRecord] are the
+ * two primary methods built so far.
  */
 public sealed interface Credential {
     public data class PasswordRecord(public val hash: PasswordHash) : Credential
+
+    public data class GoogleRecord(public val subject: GoogleSubject) : Credential
 }

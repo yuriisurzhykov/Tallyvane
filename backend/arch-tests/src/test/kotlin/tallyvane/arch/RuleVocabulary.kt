@@ -88,6 +88,7 @@ internal val DI_IMPORT_PREFIXES =
 internal val NESTED_IMPL_ALLOW =
     setOf(
         "Cached", "Retrying", "Abstract", "Wall", "Uuid7", "Process", "InMemory", "Csprng", "Hmac", "Default",
+        "Rfc6238",
     )
 
 internal const val PRODUCT_NAME = "Tallyvane"
