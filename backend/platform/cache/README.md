@@ -85,15 +85,25 @@ on `System.currentTimeMillis` or `Instant.now()` — the same discipline `no-amb
 enforces everywhere else, which is what let this module's own tests move time forward deterministically
 instead of sleeping a real thread to prove a window closes.
 
+## 2026-09-02 — `count`, and the key-naming rule, on `identity`'s first real call
+
+`count(key, window)` joined `increment` when `identity`'s password rate limiting became the first
+real caller: it needs to check whether a threshold is already crossed *before* doing the work of
+signing in, and only record a new occurrence on a failed attempt, not on every attempt. Without a
+peek, the only way to ask "how many so far" was to record one — which would have counted successful
+sign-ins against the same budget as failed ones.
+
+The key-naming convention `backend/.plans/backend-infra-cache-wiring.md` called for — a key starts
+with the name of the module that owns it, the same rule §4.1 already applies to a Postgres schema —
+is now `cache-key-is-module-prefixed`, a Konsist rule of the same shape as `own-schema-only`: a
+string literal passed to `increment`/`count` is read from the file's own source text and compared
+against the module name its path names. It waited for this exact call site on purpose — a rule
+guarding nothing but a synthetic fixture would have proven only that it compiles, not that it
+protects anything.
+
 ## Not here
 
-The key-naming convention `backend/.plans/backend-infra-cache-wiring.md` calls for — a key starts
-with the name of the module that owns it, the same rule §4.1 already applies to a Postgres schema —
-is not enforced by a Konsist rule yet. `own-schema-only` has a real schema-owning module to check
-today; a rule guarding `Counter` keys against nothing but a synthetic fixture would prove only that
-the rule compiles, not that it protects anything. It arrives with `identity`'s rate limiting, the
-first real call site, so the rule and the convention it guards are written together against real
-code. A general value cache, `reset`/`count` alongside `increment` should a caller need to check or
-clear a count without recording a new occurrence, and the failure behaviour of a future
-network-backed implementation are all `identity`'s rate-limiting slice or later — see ADR-074 for
-which of these is deferred and which is dropped.
+A general value cache and the failure behaviour of a future network-backed implementation are still
+`identity`'s later slices or beyond — see ADR-074 for which of these is deferred and which is
+dropped. `reset` — clearing a count outright rather than letting its window expire — has no caller
+yet either.

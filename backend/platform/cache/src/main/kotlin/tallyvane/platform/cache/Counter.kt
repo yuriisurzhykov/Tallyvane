@@ -34,6 +34,13 @@ public interface Counter {
     public suspend fun increment(key: String, window: Duration): Long
 
     /**
+     * The count so far inside [window], without recording a new occurrence — zero for a key not
+     * seen inside [window]. Lets a caller decide *before* doing the work whether it would cross a
+     * threshold, rather than paying for an [increment] it then has to imagine undoing.
+     */
+    public suspend fun count(key: String, window: Duration): Long
+
+    /**
      * Counts in this process's memory and nowhere else.
      *
      * Lost on restart, and invisible to a second instance of the application if one is ever
@@ -62,6 +69,12 @@ public interface Counter {
                     current.copy(count = current.count + 1)
                 }
             }!!.count
+        }
+
+        override suspend fun count(key: String, window: Duration): Long {
+            val now = clock.now()
+            val current = windows[key] ?: return 0
+            return if (now - current.startedAt >= window) 0 else current.count
         }
 
         /**
