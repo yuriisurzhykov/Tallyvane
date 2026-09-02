@@ -34,7 +34,14 @@ public class EnvironmentConfiguration(private val environment: Environment) {
                 pool = number(POOL, DEFAULT_SIZE, MIN_POOL..MAX_POOL, faults),
                 port = number(PORT, DEFAULT_PORT, MIN_PORT..MAX_PORT, faults),
                 level = level(faults),
-                healthToken = token(faults),
+                healthToken = token(HEALTH_TOKEN, faults),
+                tokenPepper = token(TOKEN_PEPPER, faults),
+                tokenPepperVersion = number(
+                    TOKEN_PEPPER_VERSION,
+                    DEFAULT_PEPPER_VERSION,
+                    MIN_PEPPER_VERSION..MAX_PEPPER_VERSION,
+                    faults,
+                ),
             )
         check(faults.isEmpty()) {
             faults.joinToString(separator = "\n", prefix = "Refusing to start.\n") { "  - $it" }
@@ -69,15 +76,16 @@ public class EnvironmentConfiguration(private val environment: Environment) {
     }
 
     /**
-     * Mandatory, and at least [TOKEN_FLOOR] characters. An absent token closes the detailed health
-     * report; a short one opens it to anybody willing to guess, which is worse.
+     * Mandatory, and at least [TOKEN_FLOOR] characters — shared by every secret this class reads
+     * that guards something by its own length rather than a signature: an absent one blocks
+     * whatever it guards, a short one opens that thing to anybody willing to guess, which is
+     * worse.
      */
-    private fun token(faults: MutableList<String>): Secret {
-        val raw = environment.read(HEALTH_TOKEN)
+    private fun token(name: String, faults: MutableList<String>): Secret {
+        val raw = environment.read(name)
         return when {
-            raw == null -> Secret("").also { faults += "$HEALTH_TOKEN is not set" }
-            raw.length < TOKEN_FLOOR ->
-                Secret("").also { faults += "$HEALTH_TOKEN is shorter than $TOKEN_FLOOR characters" }
+            raw == null -> Secret("").also { faults += "$name is not set" }
+            raw.length < TOKEN_FLOOR -> Secret("").also { faults += "$name is shorter than $TOKEN_FLOOR characters" }
             else -> Secret(raw)
         }
     }
@@ -103,6 +111,19 @@ public class EnvironmentConfiguration(private val environment: Environment) {
         public const val POOL: String = "TALLYVANE_DB_POOL_SIZE"
 
         /**
+         * The server-side key `TokenHasher.Hmac` mixes into every access/refresh token hash — see
+         * `identity/application/README.md` for why a pepper, not a per-user salt.
+         */
+        public const val TOKEN_PEPPER: String = "TALLYVANE_TOKEN_PEPPER"
+
+        /**
+         * Which pepper minted a hash already in storage — bumped only when the pepper itself
+         * rotates, which invalidates every session hashed under the old one. Defaults to 1, the
+         * version a fresh deployment starts on.
+         */
+        public const val TOKEN_PEPPER_VERSION: String = "TALLYVANE_TOKEN_PEPPER_VERSION"
+
+        /**
          * Long enough that nobody types one by accident.
          */
         public const val TOKEN_FLOOR: Int = 40
@@ -111,11 +132,21 @@ public class EnvironmentConfiguration(private val environment: Environment) {
 
         public const val DEFAULT_LEVEL: String = "INFO"
 
+        public const val DEFAULT_PEPPER_VERSION: Int = 1
+
         public const val MIN_PORT: Int = 1
 
         public const val MAX_PORT: Int = 65_535
 
         public const val MIN_POOL: Int = 1
+
+        public const val MIN_PEPPER_VERSION: Int = 1
+
+        /**
+         * A sanity bound that catches a typo, not a real ceiling — pepper rotations are rare and
+         * manual.
+         */
+        public const val MAX_PEPPER_VERSION: Int = 1_000
 
         /**
          * A sanity bound that catches a typo, not a tuning limit: the real ceiling is the server's

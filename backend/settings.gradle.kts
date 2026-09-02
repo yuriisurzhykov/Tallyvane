@@ -52,6 +52,7 @@ include(":migrate")
 // `check` compiles them and nothing else. See playground/README.md.
 // ---------------------------------------------------------------------------
 include(":playground:transactions")
+include(":playground:savepoints")
 include(":playground:isolation")
 include(":playground:ddl-locks")
 include(":playground:timeout-bounds")

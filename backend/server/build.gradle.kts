@@ -19,6 +19,12 @@ dependencies {
     implementation(projects.platform.observability)
     implementation(projects.platform.http)
     implementation(projects.platform.health)
+    // The composition root — the one place both `platform:http`'s generic extension point and
+    // `identity`'s real `PrincipalResolver` are visible at once (§4.4: platform may never depend
+    // on modules).
+    implementation(projects.modules.identity.contract)
+    implementation(projects.modules.identity.application)
+    implementation(projects.modules.identity.infrastructure)
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.ktor.server.core)
     implementation(libs.ktor.server.cio)

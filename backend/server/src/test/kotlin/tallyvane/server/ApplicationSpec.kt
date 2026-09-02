@@ -40,6 +40,8 @@ private fun settings(port: Int, level: Level = Level.INFO): Configuration = Conf
     port = port,
     level = level,
     healthToken = Secret(TOKEN),
+    tokenPepper = Secret(TOKEN),
+    tokenPepperVersion = EnvironmentConfiguration.DEFAULT_PEPPER_VERSION,
 )
 
 private fun get(port: Int, path: String): HttpResponse<String> = HttpClient
