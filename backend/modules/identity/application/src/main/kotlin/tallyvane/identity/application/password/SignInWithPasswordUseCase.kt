@@ -13,7 +13,9 @@ import tallyvane.identity.domain.user.Email
 import tallyvane.identity.domain.user.UserId
 import tallyvane.platform.kernel.Fallback
 import tallyvane.platform.kernel.Secret
+import tallyvane.platform.kernel.TransactionRunner
 import tallyvane.platform.kernel.UseCase
+import tallyvane.platform.kernel.Verdict
 import kotlin.time.Duration
 
 /**
@@ -27,19 +29,28 @@ public interface SignInWithPasswordUseCase : UseCase {
      * "No such account" and "wrong password" both answer [AuthenticationOutcome.InvalidCredential]
      * — the design's own rule, "never reveal that the email is unknown".
      */
+    /**
+     * One [transactions.inTransaction] covers the whole method — the credential check included,
+     * not only [completer]'s own writes — because [users]/[credentials] and every port
+     * [completer] touches open no transaction of their own; whichever use case calls them must
+     * already have one open. Verified for real, not merely argued:
+     * `backend/playground/transactions/README.md`'s 2026-09-02 entry.
+     */
     public class SignIn internal constructor(
         private val users: UserRepository,
         private val credentials: CredentialRepository,
         private val passwordHasher: PasswordHasher,
         private val completer: AuthenticationCompleter,
+        private val transactions: TransactionRunner,
     ) : SignInWithPasswordUseCase {
-        override suspend fun signIn(request: SignInWithPasswordRequest): SignInOutcome {
+        override suspend fun signIn(request: SignInWithPasswordRequest): SignInOutcome = transactions.inTransaction {
             val outcome = checkCredential(request)
-            return if (outcome is AuthenticationOutcome.Success) {
+            val result = if (outcome is AuthenticationOutcome.Success) {
                 completer.complete(outcome.userId, request.device)
             } else {
                 SignInOutcome.NotIssued(outcome)
             }
+            Verdict.Commit(result)
         }
 
         private suspend fun checkCredential(request: SignInWithPasswordRequest): AuthenticationOutcome {

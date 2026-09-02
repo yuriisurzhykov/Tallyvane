@@ -1,6 +1,8 @@
 package tallyvane.identity.application.secondfactor
 
+import tallyvane.platform.kernel.TransactionRunner
 import tallyvane.platform.kernel.UseCase
+import tallyvane.platform.kernel.Verdict
 
 /**
  * Confirms a [EnrollSecondFactorUseCase] already in progress for the caller — the second half of
@@ -16,9 +18,18 @@ public interface ConfirmSecondFactorEnrollmentUseCase : UseCase {
      */
     public suspend fun confirm(request: ConfirmSecondFactorEnrollmentRequest): Boolean
 
-    public class Confirm internal constructor(private val registry: SecondFactorMethodRegistry) :
-        ConfirmSecondFactorEnrollmentUseCase {
+    /**
+     * One [transactions.inTransaction] covers the whole method, per the same rule
+     * [EnrollSecondFactorUseCase.Enroll] states and `backend/playground/transactions/README.md`
+     * checked for real.
+     */
+    public class Confirm internal constructor(
+        private val registry: SecondFactorMethodRegistry,
+        private val transactions: TransactionRunner,
+    ) : ConfirmSecondFactorEnrollmentUseCase {
         override suspend fun confirm(request: ConfirmSecondFactorEnrollmentRequest): Boolean =
-            registry.find(request.kind)?.confirmEnrollment(request.userId, request.code) ?: false
+            transactions.inTransaction {
+                Verdict.Commit(registry.find(request.kind)?.confirmEnrollment(request.userId, request.code) ?: false)
+            }
     }
 }
