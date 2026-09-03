@@ -2,6 +2,8 @@ package tallyvane.server.config
 
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.StringSpec
+import io.kotest.matchers.nulls.shouldBeNull
+import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.string.shouldNotContain
@@ -9,6 +11,7 @@ import org.slf4j.event.Level
 import tallyvane.platform.kernel.EnvironmentFake
 import tallyvane.platform.kernel.Secret
 import tallyvane.platform.persistence.DEFAULT_SIZE
+import kotlin.time.Duration.Companion.minutes
 
 private const val PASSWORD_VALUE = "a-database-password-nobody-should-ever-see-in-a-log"
 
@@ -169,6 +172,56 @@ class EnvironmentConfigurationSpec :
 
                 printed shouldNotContain PASSWORD_VALUE
                 printed shouldContain "jdbc:postgresql://db:5432/tallyvane"
+            }
+
+            "google sign-in is off by default, without being a fault" {
+                val configuration = read(complete())
+
+                configuration.google.shouldBeNull()
+            }
+
+            "reads a complete Google configuration when all three variables are set" {
+                val configuration = read(
+                    complete().apply {
+                        put(EnvironmentConfiguration.GOOGLE_CLIENT_ID, "a-client-id")
+                        put(EnvironmentConfiguration.GOOGLE_CLIENT_SECRET, "a-client-secret")
+                        put(EnvironmentConfiguration.GOOGLE_REDIRECT_URI, "https://tallyvane.example/callback")
+                    },
+                )
+
+                val google = configuration.google.shouldNotBeNull()
+                google.clientId shouldBe "a-client-id"
+                google.redirectUri shouldBe "https://tallyvane.example/callback"
+            }
+
+            "refuses a Google configuration missing one of its three variables" {
+                val said = refusal(
+                    complete().apply {
+                        put(EnvironmentConfiguration.GOOGLE_CLIENT_ID, "a-client-id")
+                        put(EnvironmentConfiguration.GOOGLE_CLIENT_SECRET, "a-client-secret")
+                    },
+                )
+
+                said shouldContain EnvironmentConfiguration.GOOGLE_REDIRECT_URI
+            }
+
+            "cookie Secure defaults to false, and reads 'true' when set" {
+                read(complete()).cookieSecure shouldBe false
+                read(complete().apply { put(EnvironmentConfiguration.COOKIE_SECURE, "true") }).cookieSecure shouldBe true
+            }
+
+            "refuses a cookie Secure value that is neither 'true' nor 'false'" {
+                val said = refusal(complete().apply { put(EnvironmentConfiguration.COOKIE_SECURE, "yes") })
+
+                said shouldContain EnvironmentConfiguration.COOKIE_SECURE
+            }
+
+            "reads a token lifetime in minutes as a Duration" {
+                val configuration = read(
+                    complete().apply { put(EnvironmentConfiguration.ACCESS_TOKEN_TTL_MINUTES, "30") },
+                )
+
+                configuration.accessTokenTtl shouldBe 30.minutes
             }
         },
     )

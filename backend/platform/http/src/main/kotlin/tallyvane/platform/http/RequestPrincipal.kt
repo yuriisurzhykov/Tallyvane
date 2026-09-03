@@ -17,17 +17,18 @@ import tallyvane.platform.http.RequestPrincipal.Companion.of
 public class RequestPrincipal(private val resolver: RequestPrincipalResolver) {
     public fun install(application: Application) {
         application.intercept(ApplicationCallPipeline.Setup) {
-            resolver.resolve(call.request.cookies[COOKIE])?.let { call.attributes.put(KEY, it) }
+            resolver.resolve(call.request.cookies[COOKIE_NAME])?.let { call.attributes.put(KEY, it) }
             proceed()
         }
     }
 
     public companion object {
         /**
-         * Named here rather than left for each caller to spell: a session-scoped route reads it
-         * back with [of], and both sides must agree on the same key.
+         * Public so the composition root's own cookie-writing code (`identity`'s sign-in/refresh
+         * routes) names the exact same cookie [install]'s interceptor reads back — one constant,
+         * not two literals that could drift.
          */
-        private const val COOKIE = "session"
+        public const val COOKIE_NAME: String = "session"
 
         private val KEY = AttributeKey<Any>("tallyvane.principal")
 
