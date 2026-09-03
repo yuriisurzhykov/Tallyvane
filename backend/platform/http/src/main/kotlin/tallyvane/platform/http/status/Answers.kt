@@ -26,14 +26,18 @@ import tallyvane.platform.http.problems.Problems
  *
  * ### Why the set is closed
  *
- * Seven HTTP meanings, no parameters for a status or a `type`. A module picks the meaning and
+ * Nine HTTP meanings, no parameters for a status or a `type`. A module picks the meaning and
  * supplies what only it knows: which field, which code, what to say. So `type` cannot drift into
  * a free string, two modules cannot describe one kind of failure differently, and slice 14 has
  * something enumerable to write into the specification.
  *
- * An eighth meaning means editing this interface, which is the point: adding one is a decision
+ * A tenth meaning means editing this interface, which is the point: adding one is a decision
  * about the API's contract, and it should appear in a diff of the platform. [malformed] was the
- * seventh, added when a live run showed a malformed body answering 500.
+ * seventh, added when a live run showed a malformed body answering 500. [unauthorized] and
+ * [tooManyRequests] were the eighth and ninth, added when `identity` — the first module with a
+ * real credential to reject — needed both and neither of the first seven says either one:
+ * [forbidden] is "known and not allowed", not "not authenticated at all", and none of the rest
+ * says "try again later" either.
  */
 public interface Answers {
     /**
@@ -51,6 +55,13 @@ public interface Answers {
      * Understood and rejected: 422, naming the fields that offended.
      */
     public fun invalid(errors: List<FieldError>, detail: String? = null): Problem
+
+    /**
+     * No valid credential was presented at all, or the one presented was rejected: 401. Distinct
+     * from [forbidden] by what the caller can do about it — presenting a *different* credential
+     * fixes this one, and cannot fix [forbidden].
+     */
+    public fun unauthorized(detail: String? = null): Problem
 
     /**
      * The caller is known and may not do this: 403. Not 404 — whether hiding existence matters is
@@ -73,6 +84,12 @@ public interface Answers {
      * A dependency is down and the request may be retried: 503.
      */
     public fun unavailable(detail: String? = null): Problem
+
+    /**
+     * The caller itself, not a dependency, is the reason to slow down: 429. A repeated failed
+     * sign-in or second-factor check, throttled by the module that counted the attempts.
+     */
+    public fun tooManyRequests(detail: String? = null): Problem
 
     /**
      * Nobody predicted this, so it says nothing: 500 with no detail at all.

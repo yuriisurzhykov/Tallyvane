@@ -7,11 +7,12 @@
 # input. `docker compose run` reads standard input, so it swallowed the rest of the script:
 # validation passed, nothing started, and ssh reported success. A file cannot be eaten.
 #
-# Three modes, one file:
+# Four modes, one file:
 #
 #   apply.sh                        the whole stack, from nothing — disaster recovery, first boot
 #   apply.sh --rollout <service>    blue/green cutover for one service (CD plan §3)
 #   apply.sh --retire <service>     stops the colour a rollout left running for its grace window
+#   apply.sh --rollback <service>   cuts back to the colour --rollout just left running, no tag typed by hand
 #
 # <service> is one of: server, frontend-web, frontend-app, frontend-admin — the four services
 # docker-compose.yml declares as blue/green pairs. `db`, `migrate`, `nginx` and `cloudflared`
@@ -49,9 +50,13 @@ case "${1:-}" in
   mode=retire
   service="${2:?--retire needs a service name: server, frontend-web, frontend-app, or frontend-admin}"
   ;;
+--rollback)
+  mode=rollback
+  service="${2:?--rollback needs a service name: server, frontend-web, frontend-app, or frontend-admin}"
+  ;;
 "") ;;
 *)
-  echo "usage: $0 [--rollout <service>|--retire <service>]" >&2
+  echo "usage: $0 [--rollout <service>|--retire <service>|--rollback <service>]" >&2
   exit 1
   ;;
 esac
@@ -90,6 +95,29 @@ current_color() {
 
 idle_color() {
   if [ "$1" = blue ]; then echo green; else echo blue; fi
+}
+
+# server -> BACKEND_IMAGE, and so on — the .env key --rollback overwrites, parallel to
+# color_var_for() but for the image tag rather than the colour.
+image_var_for() {
+  case "$1" in
+  server) echo BACKEND_IMAGE ;;
+  frontend-web) echo FRONTEND_WEB_IMAGE ;;
+  frontend-app) echo FRONTEND_APP_IMAGE ;;
+  frontend-admin) echo FRONTEND_ADMIN_IMAGE ;;
+  esac
+}
+
+# server -> BACKEND_IMAGE_PREVIOUS, and so on — do_retire's best-effort memory of the image
+# a colour was running the moment it stopped existing, read back by do_rollback only when
+# the colour it would rather inspect directly is already gone.
+previous_image_var_for() {
+  case "$1" in
+  server) echo BACKEND_IMAGE_PREVIOUS ;;
+  frontend-web) echo FRONTEND_WEB_IMAGE_PREVIOUS ;;
+  frontend-app) echo FRONTEND_APP_IMAGE_PREVIOUS ;;
+  frontend-admin) echo FRONTEND_ADMIN_IMAGE_PREVIOUS ;;
+  esac
 }
 
 # Upserts KEY=VALUE into .env in place — idempotent, the same discipline provision/lib.sh's
@@ -261,29 +289,21 @@ smoke_check_service() {
   echo "ok: https://${host}/"
 }
 
-# ── --rollout ─────────────────────────────────────────────────────────────────────────────────
+# ── shared by --rollout and --rollback ───────────────────────────────────────────────────────
 
-do_rollout() {
+# Starts the idle colour on whatever image .env currently names for this service, waits for
+# it, cuts nginx over in two reloads, and smoke-checks the public hostname. Deliberately runs
+# no migration of any kind — do_rollout is the only caller that decides to, and do_rollback
+# must never inherit that decision by calling this instead of duplicating it (see do_rollback's
+# own comment for why running the old migrate image on a rollback would be wrong, not just
+# unnecessary).
+cutover_to_idle() {
   local service="$1"
-  require_known_service "$service"
-
   local active idle active_container idle_container
   active="$(current_color "$service")"
   idle="$(idle_color "$active")"
   active_container="${service}-${active}"
   idle_container="${service}-${idle}"
-
-  echo "-- rolling out $service: $active (active) -> $idle (idle)"
-
-  if [ "$service" = server ]; then
-    # Before the idle colour starts, not after — a schema the new colour needs but the old
-    # colour has not been told to tolerate yet is exactly what ADR-066 exists to rule out, and
-    # this is the one moment that matters. Explicit rather than left to `depends_on`: a scoped
-    # `up -d server-<colour>` does not reliably re-run a one-shot dependency that already exited
-    # successfully once, for a previous release.
-    echo "-- applying migrations for the new image"
-    docker compose run --rm migrate
-  fi
 
   echo "-- starting $idle_container"
   docker compose up -d "$idle_container"
@@ -308,15 +328,47 @@ do_rollout() {
   echo "-- $active_container stays up, marked down, for instant rollback or: $0 --retire $service"
 }
 
+# ── --rollout ─────────────────────────────────────────────────────────────────────────────────
+
+do_rollout() {
+  local service="$1"
+  require_known_service "$service"
+
+  echo "-- rolling out $service: $(current_color "$service") (active) -> $(idle_color "$(current_color "$service")") (idle)"
+
+  if [ "$service" = server ]; then
+    # Before the idle colour starts, not after — a schema the new colour needs but the old
+    # colour has not been told to tolerate yet is exactly what ADR-066 exists to rule out, and
+    # this is the one moment that matters. Explicit rather than left to `depends_on`: a scoped
+    # `up -d server-<colour>` does not reliably re-run a one-shot dependency that already exited
+    # successfully once, for a previous release.
+    echo "-- applying migrations for the new image"
+    docker compose run --rm migrate
+  fi
+
+  cutover_to_idle "$service"
+}
+
 # ── --retire ──────────────────────────────────────────────────────────────────────────────────
 
 do_retire() {
   local service="$1"
   require_known_service "$service"
 
-  local active old_container
+  local active old_container old_id old_image
   active="$(current_color "$service")"
   old_container="${service}-$(idle_color "$active")"
+
+  # Best-effort memory of what old_container was running, written before it is removed and
+  # Docker forgets — the only thing that lets --rollback still work once this colour is gone,
+  # at the cost of a fresh container start instead of an instant one. Not required for retire
+  # itself: a container already gone by some other means just means nothing new to remember,
+  # not a reason to fail the retire.
+  old_id="$(docker compose ps -aq "$old_container" 2>/dev/null || true)"
+  if [ -n "$old_id" ]; then
+    old_image="$(docker inspect --format '{{.Config.Image}}' "$old_id" 2>/dev/null || true)"
+    [ -n "$old_image" ] && set_env_var "$(previous_image_var_for "$service")" "$old_image"
+  fi
 
   # Removed from nginx's config before the container stops, never after: nginx resolves every
   # declared upstream server at load time, `down` or not, so a reload that still names a
@@ -331,6 +383,60 @@ do_retire() {
   docker compose rm -f "$old_container"
 }
 
+# ── --rollback ────────────────────────────────────────────────────────────────────────────────
+
+# Cuts back to whichever colour is currently idle, reading the image tag it needs from
+# somewhere that cannot be misremembered instead of asking a human to type it:
+#
+#   1. If the idle container still exists (do_retire has not run since the last --rollout),
+#      its own `docker inspect` is the source of truth — always exactly right, because it is
+#      the same image that colour has been running the whole time, not a value copied into
+#      .env and hoping the two never drift apart.
+#   2. If it has already been retired, fall back to *_IMAGE_PREVIOUS — do_retire's own
+#      best-effort snapshot, taken in the one moment that image tag was still knowable at all.
+#      A fresh container starts from that image instead of an already-warm one, so this path
+#      is the speed of an ordinary rollout, not an instant cutover.
+#
+# Deliberately runs no migration, forward or backward. ADR-066 already requires every
+# migration a blue-green release ships to be additive-only precisely so the colour it demotes
+# keeps working against the schema left behind — which is exactly the guarantee a rollback
+# relies on, and exactly why it does not also need to run the demoted colour's own migrate
+# image against a schema a newer one may since have advanced further: nothing needs migrating
+# in either direction. Running that older migrate image anyway would only add a dependency on
+# how it happens to behave against migrations it has never seen — unverified, and not needed
+# for anything this command does.
+do_rollback() {
+  local service="$1"
+  require_known_service "$service"
+
+  local idle idle_container image_key fallback_key container_id previous_image
+  idle="$(idle_color "$(current_color "$service")")"
+  idle_container="${service}-${idle}"
+  image_key="$(image_var_for "$service")"
+  fallback_key="$(previous_image_var_for "$service")"
+
+  container_id="$(docker compose ps -aq "$idle_container")"
+  if [ -n "$container_id" ]; then
+    previous_image="$(docker inspect --format '{{.Config.Image}}' "$container_id")"
+    [ -n "$previous_image" ] || {
+      echo "docker inspect returned no image for $idle_container — refusing to touch .env" >&2
+      return 1
+    }
+    echo "-- rollback $service: $image_key -> $previous_image (read from the still-running $idle_container)"
+  else
+    previous_image="${!fallback_key:-}"
+    [ -n "$previous_image" ] || {
+      echo "$idle_container does not exist and $fallback_key is not set in .env" >&2
+      echo "look up the previous tag yourself (git tag -l '${service}-v*' or the GHCR package page) and use --rollout" >&2
+      return 1
+    }
+    echo "-- rollback $service: $image_key -> $previous_image (from $fallback_key — $idle_container was already retired, this starts it fresh rather than cutting over instantly)"
+  fi
+
+  set_env_var "$image_key" "$previous_image"
+  cutover_to_idle "$service"
+}
+
 case "$mode" in
 rollout)
   do_rollout "$service"
@@ -339,6 +445,11 @@ rollout)
   ;;
 retire)
   do_retire "$service"
+  exit 0
+  ;;
+rollback)
+  do_rollback "$service"
+  echo "DOMAIN=$DOMAIN"
   exit 0
   ;;
 esac

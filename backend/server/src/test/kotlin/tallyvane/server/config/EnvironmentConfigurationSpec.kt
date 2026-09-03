@@ -2,6 +2,8 @@ package tallyvane.server.config
 
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.StringSpec
+import io.kotest.matchers.nulls.shouldBeNull
+import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.string.shouldNotContain
@@ -9,10 +11,13 @@ import org.slf4j.event.Level
 import tallyvane.platform.kernel.EnvironmentFake
 import tallyvane.platform.kernel.Secret
 import tallyvane.platform.persistence.DEFAULT_SIZE
+import kotlin.time.Duration.Companion.minutes
 
 private const val PASSWORD_VALUE = "a-database-password-nobody-should-ever-see-in-a-log"
 
 private const val TOKEN_VALUE = "a-service-token-of-at-least-forty-characters-length"
+
+private const val PEPPER_VALUE = "a-token-pepper-of-at-least-forty-characters-length!"
 
 /**
  * A token under the floor, spelled so that it cannot turn up inside a refusal by coincidence — the
@@ -30,6 +35,7 @@ private fun complete(): MutableMap<String, String> = mutableMapOf(
     EnvironmentConfiguration.USER to "tallyvane",
     EnvironmentConfiguration.PASSWORD to PASSWORD_VALUE,
     EnvironmentConfiguration.HEALTH_TOKEN to TOKEN_VALUE,
+    EnvironmentConfiguration.TOKEN_PEPPER to PEPPER_VALUE,
 )
 
 private fun read(values: Map<String, String>): Configuration = EnvironmentConfiguration(EnvironmentFake(values)).read()
@@ -48,6 +54,7 @@ class EnvironmentConfigurationSpec :
                 configuration.database.user shouldBe "tallyvane"
                 configuration.database.password shouldBe Secret(PASSWORD_VALUE)
                 configuration.healthToken shouldBe Secret(TOKEN_VALUE)
+                configuration.tokenPepper shouldBe Secret(PEPPER_VALUE)
             }
 
             // A6
@@ -57,6 +64,7 @@ class EnvironmentConfigurationSpec :
                 configuration.port shouldBe EnvironmentConfiguration.DEFAULT_PORT
                 configuration.pool shouldBe DEFAULT_SIZE
                 configuration.level shouldBe Level.INFO
+                configuration.tokenPepperVersion shouldBe EnvironmentConfiguration.DEFAULT_PEPPER_VERSION
             }
 
             "takes the optional values from the environment when it does supply them" {
@@ -134,6 +142,20 @@ class EnvironmentConfigurationSpec :
                 said shouldContain EnvironmentConfiguration.HEALTH_TOKEN
             }
 
+            "refuses a token pepper shorter than the floor" {
+                val said = refusal(
+                    complete().apply { put(EnvironmentConfiguration.TOKEN_PEPPER, BRIEF_TOKEN) },
+                )
+
+                said shouldContain EnvironmentConfiguration.TOKEN_PEPPER
+            }
+
+            "refuses a token pepper version it cannot read" {
+                val said = refusal(complete().apply { put(EnvironmentConfiguration.TOKEN_PEPPER_VERSION, "two") })
+
+                said shouldContain EnvironmentConfiguration.TOKEN_PEPPER_VERSION
+            }
+
             // A7. The refusal message is read by whoever is fixing the deploy, and it is the most
             // likely place for a secret to be quoted "helpfully".
             "never quotes a value in a refusal, only the name of the variable" {
@@ -150,6 +172,56 @@ class EnvironmentConfigurationSpec :
 
                 printed shouldNotContain PASSWORD_VALUE
                 printed shouldContain "jdbc:postgresql://db:5432/tallyvane"
+            }
+
+            "google sign-in is off by default, without being a fault" {
+                val configuration = read(complete())
+
+                configuration.google.shouldBeNull()
+            }
+
+            "reads a complete Google configuration when all three variables are set" {
+                val configuration = read(
+                    complete().apply {
+                        put(EnvironmentConfiguration.GOOGLE_CLIENT_ID, "a-client-id")
+                        put(EnvironmentConfiguration.GOOGLE_CLIENT_SECRET, "a-client-secret")
+                        put(EnvironmentConfiguration.GOOGLE_REDIRECT_URI, "https://tallyvane.example/callback")
+                    },
+                )
+
+                val google = configuration.google.shouldNotBeNull()
+                google.clientId shouldBe "a-client-id"
+                google.redirectUri shouldBe "https://tallyvane.example/callback"
+            }
+
+            "refuses a Google configuration missing one of its three variables" {
+                val said = refusal(
+                    complete().apply {
+                        put(EnvironmentConfiguration.GOOGLE_CLIENT_ID, "a-client-id")
+                        put(EnvironmentConfiguration.GOOGLE_CLIENT_SECRET, "a-client-secret")
+                    },
+                )
+
+                said shouldContain EnvironmentConfiguration.GOOGLE_REDIRECT_URI
+            }
+
+            "cookie Secure defaults to false, and reads 'true' when set" {
+                read(complete()).cookieSecure shouldBe false
+                read(complete().apply { put(EnvironmentConfiguration.COOKIE_SECURE, "true") }).cookieSecure shouldBe true
+            }
+
+            "refuses a cookie Secure value that is neither 'true' nor 'false'" {
+                val said = refusal(complete().apply { put(EnvironmentConfiguration.COOKIE_SECURE, "yes") })
+
+                said shouldContain EnvironmentConfiguration.COOKIE_SECURE
+            }
+
+            "reads a token lifetime in minutes as a Duration" {
+                val configuration = read(
+                    complete().apply { put(EnvironmentConfiguration.ACCESS_TOKEN_TTL_MINUTES, "30") },
+                )
+
+                configuration.accessTokenTtl shouldBe 30.minutes
             }
         },
     )

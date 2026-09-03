@@ -25,6 +25,21 @@ exposed = "1.4.0"
 hikari = "7.1.0"
 flyway = "13.3.0"
 
+# Argon2id password hashing. `-nolibs`: the native library is installed on the host/image
+# (backend/Dockerfile), not bundled — the maintainer's own recommendation.
+argon2 = "2.12"
+
+# JOSE/JWT verification (Google-issued ID tokens). Hand-rolled signature verification is a real
+# vulnerability surface (algorithm confusion among others); this is the standard, audited choice
+# for the JVM.
+nimbusJoseJwt = "10.9.1"
+
+# Authenticated encryption for a secret that must be read back (a TOTP seed), unlike a password or
+# token hash, which never is. Google's own audited, misuse-resistant AEAD library rather than
+# hand-rolled `javax.crypto` — the same "standard library over self-written crypto" choice already
+# made for JWT verification above.
+tink = "1.23.0"
+
 # YAML
 snakeyaml = "2.4"
 
@@ -60,6 +75,13 @@ ktor-serialization-kotlinx-json = { group = "io.ktor", name = "ktor-serializatio
 ktor-server-status-pages = { group = "io.ktor", name = "ktor-server-status-pages", version.ref = "ktor" }
 ktor-server-call-logging = { group = "io.ktor", name = "ktor-server-call-logging", version.ref = "ktor" }
 ktor-server-test-host = { group = "io.ktor", name = "ktor-server-test-host", version.ref = "ktor" }
+# -client-core / -client-cio: outbound calls to a third-party HTTP API (Google's token and JWKS
+# endpoints) — same engine as the server side, no second HTTP stack in the tree.
+ktor-client-core = { group = "io.ktor", name = "ktor-client-core", version.ref = "ktor" }
+ktor-client-cio = { group = "io.ktor", name = "ktor-client-cio", version.ref = "ktor" }
+ktor-client-content-negotiation = { group = "io.ktor", name = "ktor-client-content-negotiation", version.ref = "ktor" }
+# -client-mock: drives a test against a canned response, no real socket.
+ktor-client-mock = { group = "io.ktor", name = "ktor-client-mock", version.ref = "ktor" }
 
 # Kotest
 kotest-runner-junit5 = { group = "io.kotest", name = "kotest-runner-junit5", version.ref = "kotest" }
@@ -78,6 +100,9 @@ postgresql = { group = "org.postgresql", name = "postgresql", version.ref = "pos
 exposed-core = { group = "org.jetbrains.exposed", name = "exposed-core", version.ref = "exposed" }
 exposed-jdbc = { group = "org.jetbrains.exposed", name = "exposed-jdbc", version.ref = "exposed" }
 exposed-migration-jdbc = { group = "org.jetbrains.exposed", name = "exposed-migration-jdbc", version.ref = "exposed" }
+# kotlin.time.Instant column support (timestamp()/timestampWithTimeZone()) — exposed-core alone
+# has no kotlin.time type, only java.time's via a different, unwanted module.
+exposed-kotlin-datetime = { group = "org.jetbrains.exposed", name = "exposed-kotlin-datetime", version.ref = "exposed" }
 
 # HikariCP
 hikaricp = { group = "com.zaxxer", name = "HikariCP", version.ref = "hikari" }
@@ -92,6 +117,15 @@ flyway-database-postgresql = { group = "org.flywaydb", name = "flyway-database-p
 ktlint-cli-ruleset-core = { group = "com.pinterest.ktlint", name = "ktlint-cli-ruleset-core", version.ref = "ktlintEngine" }
 ktlint-rule-engine-core = { group = "com.pinterest.ktlint", name = "ktlint-rule-engine-core", version.ref = "ktlintEngine" }
 ktlint-test = { group = "com.pinterest.ktlint", name = "ktlint-test", version.ref = "ktlintEngine" }
+
+# Argon2id. `-nolibs`: no bundled native binaries — see the `argon2` version comment above.
+argon2-jvm-nolibs = { group = "de.mkammerer", name = "argon2-jvm-nolibs", version.ref = "argon2" }
+
+# JOSE/JWT. See the `nimbusJoseJwt` version comment above.
+nimbus-jose-jwt = { group = "com.nimbusds", name = "nimbus-jose-jwt", version.ref = "nimbusJoseJwt" }
+
+# Tink. See the `tink` version comment above.
+tink = { group = "com.google.crypto.tink", name = "tink", version.ref = "tink" }
 
 # SnakeYAML
 snakeyaml = { group = "org.yaml", name = "snakeyaml", version.ref = "snakeyaml" }
