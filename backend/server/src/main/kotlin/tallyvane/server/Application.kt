@@ -24,6 +24,7 @@ import java.util.concurrent.CountDownLatch
  */
 public class Application(private val configuration: Configuration) : AutoCloseable {
     private val platform = PlatformWiring(configuration)
+    private val identityWiring = IdentityWiring(platform, configuration)
 
     private val wiring = Wiring(platform, configuration)
 

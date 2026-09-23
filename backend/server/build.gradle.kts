@@ -25,6 +25,7 @@ dependencies {
     implementation(projects.modules.identity.contract)
     implementation(projects.modules.identity.application)
     implementation(projects.modules.identity.infrastructure)
+    implementation(projects.modules.identity.web)
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.ktor.server.core)
     implementation(libs.ktor.server.cio)

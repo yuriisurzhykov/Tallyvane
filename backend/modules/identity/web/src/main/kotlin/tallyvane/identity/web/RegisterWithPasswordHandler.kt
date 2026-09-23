@@ -35,9 +35,18 @@ internal class RegisterWithPasswordHandler(
             }
 
             when (val outcome = useCase.register(RegisterWithPasswordRequest(email!!, password!!, body.displayName))) {
-                is RegisterOutcome.Registered ->
-                    call.respond(HttpStatusCode.Created, RegisterResponseBody(outcome.userId.value.toString()))
-                RegisterOutcome.EmailTaken -> call.respond(Refused(RegisterFailure.EmailTaken, registerProblems))
+                is RegisterOutcome.Registered -> {
+                    call.respond(
+                        status = HttpStatusCode.Created,
+                        message = RegisterResponseBody(outcome.userId.value.toString()),
+                    )
+                }
+
+                is RegisterOutcome.EmailTaken -> {
+                    call.respond(
+                        message = Refused(failure = RegisterFailure.EmailTaken, problems = registerProblems),
+                    )
+                }
             }
         }
     }

@@ -12,8 +12,8 @@ internal class AuthenticationProblems : Problems<AuthenticationFailure> {
      * distinguish (`AuthenticationOutcome.InvalidCredential`'s own KDoc).
      */
     override fun Answers.of(failure: AuthenticationFailure): Problem = when (failure) {
-        AuthenticationFailure.InvalidCredential -> unauthorized("The presented credential was not accepted")
-        AuthenticationFailure.AccountDisabled -> forbidden("This account has been disabled")
-        AuthenticationFailure.RateLimited -> tooManyRequests("Too many attempts; try again later")
+        is AuthenticationFailure.InvalidCredential -> unauthorized("The presented credential was not accepted")
+        is AuthenticationFailure.AccountDisabled   -> forbidden("This account has been disabled")
+        is AuthenticationFailure.RateLimited       -> tooManyRequests("Too many attempts; try again later")
     }
 }

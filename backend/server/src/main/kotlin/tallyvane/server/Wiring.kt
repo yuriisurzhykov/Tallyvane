@@ -60,7 +60,9 @@ public class Wiring(private val platform: PlatformWiring, private val configurat
      * independent interceptors, per the design's own call: two separate concerns, not one
      * combined pipeline object.
      */
-    public val requestPrincipal: RequestPrincipal by lazy { RequestPrincipal(identity.requestPrincipal) }
+    public val requestPrincipal: RequestPrincipal by lazy {
+        RequestPrincipal(identity.requestPrincipal)
+    }
 
     /**
      * Both decorators, in this order, from one place: wrapping by hand at each call site is how a
