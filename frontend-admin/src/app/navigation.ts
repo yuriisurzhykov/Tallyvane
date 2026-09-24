@@ -10,8 +10,9 @@ import type { SidebarNavItem } from "frontend-shared/ui/sidebar-nav";
  * routes exist and in what order — not a piece of UI, the same distinction
  * `providers/block-registry.tsx` (§12.6) already draws for this layer.
  */
-export function adminNavItems(activeHref: "/pages" | "/media" | "/strings"): SidebarNavItem[] {
+export function adminNavItems(activeHref: "/pages" | "/media" | "/strings" | "/authentication"): SidebarNavItem[] {
     return [
+        { label: "Authentication", href: "/authentication", isActive: activeHref === "/authentication" },
         { label: "Pages", href: "/pages", isActive: activeHref === "/pages" },
         { label: "Media", href: "/media", isActive: activeHref === "/media" },
         { label: "Strings", href: "/strings", isActive: activeHref === "/strings" },
