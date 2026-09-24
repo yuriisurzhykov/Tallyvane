@@ -1,5 +1,5 @@
 export class AuthError extends Error {
-    constructor(message: string, readonly status: number, readonly retryAfter = 0) {
+    constructor(message: string, readonly status: number, readonly retryAfter = 0, readonly fieldErrors: Readonly<Record<string, string>> = {}) {
         super(message);
         this.name = "AuthError";
     }
@@ -38,9 +38,14 @@ export function createAuthClient(fetcher: typeof fetch = fetch) {
         }
         const data: unknown = response.status === 204 ? undefined : await response.json().catch(() => undefined);
         if (!response.ok) {
-            const detail = data && typeof data === "object" && "detail" in data && typeof data.detail === "string" ? data.detail : undefined;
+            const problem = data && typeof data === "object" ? data as Record<string, unknown> : {};
+            const detail = typeof problem.detail === "string" ? problem.detail : undefined;
+            const rawErrors = problem.errors ?? problem.fieldErrors;
+            const fieldErrors = rawErrors && typeof rawErrors === "object"
+                ? Object.fromEntries(Object.entries(rawErrors).filter((entry): entry is [string, string] => typeof entry[1] === "string"))
+                : {};
             const retryAfter = Number(response.headers.get("Retry-After")) || 0;
-            throw new AuthError(detail ?? (response.status === 401 ? "Your session has expired. Sign in again." : "This request could not be completed. Please try again."), response.status, retryAfter);
+            throw new AuthError(detail ?? (response.status === 401 ? "Your session has expired. Sign in again." : "This request could not be completed. Please try again."), response.status, retryAfter, fieldErrors);
         }
         return data as T;
     }

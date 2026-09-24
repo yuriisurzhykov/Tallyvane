@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { ThemeInitScript, ThemeProvider } from "frontend-shared/ui/theme";
+import { ToastRegion } from "frontend-shared/ui/toast";
 import { ibmPlexMono, ibmPlexSans } from "./fonts";
 import "./globals.css";
 
@@ -32,7 +33,7 @@ export default function RootLayout({ children }: { readonly children: React.Reac
                 <ThemeInitScript />
             </head>
             <body className="bg-surface-primary text-text-primary">
-                <ThemeProvider>{children}</ThemeProvider>
+                <ThemeProvider><ToastRegion>{children}</ToastRegion></ThemeProvider>
             </body>
         </html>
     );
