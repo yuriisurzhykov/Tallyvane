@@ -4,6 +4,7 @@ import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
+import io.kotest.assertions.throwables.shouldThrow
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -62,6 +63,30 @@ class EmailChallengesOverPostgresSpec : StringSpec({
             val second = next.issue(email, EmailChallengePurpose.EMAIL_LOGIN).shouldNotBeNull()
             next.verify(first.id, email, EmailChallengePurpose.EMAIL_LOGIN, firstCode) shouldBe false
             next.verify(second.id, email, EmailChallengePurpose.EMAIL_LOGIN, delivery.code) shouldBe true
+        }
+    }
+
+    "SMTP failure revokes the undelivered code and a later resend can recover" {
+        PostgresPersistence(PostgresFixture.migrated()).use { persistence ->
+            var fail = true
+            var deliveredCode: Secret? = null
+            val delivery = object : EmailDelivery {
+                override suspend fun sendCode(email: Email, purpose: EmailChallengePurpose, code: Secret) {
+                    if (fail) {
+                        fail = false
+                        throw IllegalStateException("mail transport unavailable")
+                    }
+                    deliveredCode = code
+                }
+            }
+            val firstRequest = challenges(persistence, delivery)
+            shouldThrow<IllegalStateException> { firstRequest.issue(email, EmailChallengePurpose.REGISTRATION, "user-id") }
+
+            val recovered = challenges(persistence, delivery, now + 60.seconds)
+                .issue(email, EmailChallengePurpose.REGISTRATION, "user-id").shouldNotBeNull()
+            deliveredCode.shouldNotBeNull()
+            challenges(persistence, delivery, now + 60.seconds)
+                .verify(recovered.id, email, EmailChallengePurpose.REGISTRATION, deliveredCode, "user-id") shouldBe true
         }
     }
 

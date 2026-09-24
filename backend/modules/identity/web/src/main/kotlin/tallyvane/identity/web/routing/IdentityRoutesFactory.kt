@@ -86,7 +86,7 @@ interface IdentityRoutesFactory {
                 handlers += EmailSignInHandler(requireNotNull(cases.signInWithEmailCode), signInResponses, authenticationProblems, validation)
             }
             cases.requestPasswordReset?.let { requestReset ->
-                handlers += RequestPasswordResetHandler(requestReset, authenticationProblems, validation)
+                handlers += RequestPasswordResetHandler(requestReset, validation, authenticationProblems)
                 handlers += ResetPasswordHandler(requireNotNull(cases.resetPassword), validation, authenticationProblems)
             }
             return AuthRoutes.Installation(
