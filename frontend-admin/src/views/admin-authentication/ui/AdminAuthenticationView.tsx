@@ -11,6 +11,7 @@ import { Select } from "frontend-shared/ui/select";
 import { Text } from "frontend-shared/ui/text";
 import { useToast } from "frontend-shared/ui/toast";
 import { adminNavItems } from "@/app/navigation";
+import { useAdminAuthenticationStrings } from "@/app/i18n";
 
 type Primary = "PASSWORD" | "GOOGLE" | "EMAIL_CODE";
 type Requirement = "DISABLED" | "IF_ENROLLED" | "REQUIRED";
@@ -29,20 +30,27 @@ interface Policy {
     advancedAcknowledged: boolean
 }
 
+const t = useAdminAuthenticationStrings("adminAuthentication");
 const labels: Record<Primary | Factor | Requirement, string> = {
-    PASSWORD: "Password", GOOGLE: "Google", EMAIL_CODE: "Email sign-in code",
-    TOTP: "Authenticator app", EMAIL_OTP: "Email verification code", BACKUP_CODE: "Backup code",
-    DISABLED: "No second factor", IF_ENROLLED: "When enrolled", REQUIRED: "Always required",
+    PASSWORD: t("password"), GOOGLE: t("google"), EMAIL_CODE: t("emailCode"),
+    TOTP: t("authenticator"), EMAIL_OTP: t("emailOtp"), BACKUP_CODE: t("backupCode"),
+    DISABLED: t("disabled"), IF_ENROLLED: t("ifEnrolled"), REQUIRED: t("required"),
 };
 const factors: Factor[] = ["TOTP", "EMAIL_OTP", "BACKUP_CODE"];
 const requirements: Requirement[] = ["DISABLED", "IF_ENROLLED", "REQUIRED"];
 
 class RequestError extends Error {
     constructor(readonly status: number) {
-        super(status === 401 ? "Sign in to your administrator account." : status === 403
-            ? "Your account does not have administrator access." : status === 409
-                ? "This policy changed elsewhere. Reload it before saving again." : "The request failed. Please try again.");
+        super();
     }
+}
+
+function failureText(reason: unknown): string {
+    if (!(reason instanceof RequestError)) return t("connectionFailed");
+    if (reason.status === 401) return t("signInAdministrator");
+    if (reason.status === 403) return t("administratorDenied");
+    if (reason.status === 409) return t("stalePolicy");
+    return t("requestFailed");
 }
 
 async function request<T>(path: string, method = "GET", body?: unknown): Promise<T> {
@@ -77,9 +85,9 @@ function Editor() {
     const dialog = useRef<HTMLDialogElement>(null);
     const { actions } = useToast();
     const fail = useCallback((reason: unknown) => {
-        const message = reason instanceof Error ? reason.message : "Could not connect. Please try again.";
+        const message = failureText(reason);
         setError(message);
-        actions.add({ title: "Authentication settings could not be loaded", description: message, tone: "danger" });
+        actions.add({ title: t("settingsLoadFailed"), description: message, tone: "danger" });
         setUnauthorized(reason instanceof RequestError && reason.status === 401);
     }, [actions]);
     const load = useCallback(async () => {
@@ -121,7 +129,7 @@ function Editor() {
             });
             const saved = await request<Policy>("policy");
             setPolicy(saved);
-            actions.add({ title: "Authentication policy saved", tone: "success" });
+            actions.add({ title: t("policySaved"), tone: "success" });
         } catch (reason) {
             fail(reason);
         } finally {
@@ -136,8 +144,8 @@ function Editor() {
         try {
             await request<unknown>("mfa/reset", "POST", { email: email.trim(), confirmation: true });
             actions.add({
-                title: "Second factors reset",
-                description: "Sessions revoked. The user must sign in and enroll again.",
+                title: t("factorsReset"),
+                description: t("factorsResetDescription"),
                 tone: "success"
             });
             setEmail("");
@@ -148,28 +156,29 @@ function Editor() {
         }
     }
 
-    return <AppShell navItems={ adminNavItems("/authentication") } title="Authentication"
-                     skipLinkLabel="Skip to content">
+    return <AppShell navItems={ adminNavItems("/authentication") } title={ t("title") }
+                     skipLinkLabel={ t("skipLink") }>
         <div className="flex flex-col gap-stack">
-            <Text variant="body">Choose how people sign in and which second factors they need. Changes apply to future
-                sign-ins.</Text>
+            <Text variant="body">{ t("description") }</Text>
             { error && <div role="alert" className="flex flex-col gap-inline">
                 <Text variant="body" tone="danger">{ error }</Text>
-                { unauthorized && <Link href="/login?returnTo=/authentication">Sign in to administration</Link> }
-                <Button tone="neutral" disabled={ busy || loading } onClick={ () => void load() }>Reload policy</Button>
+                { unauthorized && <Link href="/login?returnTo=/authentication">{ t("signInAdminLink") }</Link> }
+                <Button tone="neutral" disabled={ busy || loading }
+                        onClick={ () => void load() }>{ t("reloadPolicy") }</Button>
             </div> }
-            { loading && <Text variant="body" role="status">Loading authentication policy…</Text> }
+            { loading && <Text variant="body" role="status">{ t("loading") }</Text> }
             { !loading && policy && <>
                 <fieldset disabled={ busy } className="flex flex-col gap-stack">
-                    <legend className="sr-only">Sign-in policy</legend>
+                    <legend className="sr-only">{ t("signInPolicy") }</legend>
                     { policy.rules.map(rule => <Panel key={ rule.primary } header={ <Text
                         variant="bodyStrong">{ labels[rule.primary] }</Text> }>
                         <div className="flex flex-col gap-stack">
                             <label className="flex items-center gap-inline"><Checkbox checked={ rule.enabled }
-                                                                                      onCheckedChange={ enabled => update(rule.primary, { enabled }) }/>Allow { labels[rule.primary].toLowerCase() } sign-in</label>
+                                                                                      onCheckedChange={ enabled => update(rule.primary, { enabled }) }/>{ t("allowSignIn", { method: labels[rule.primary] }) }
+                            </label>
                             <div className="flex flex-col gap-inline">
-                                <Text variant="small" id={ `${ rule.primary }-requirement` }>Second-factor
-                                    requirement</Text>
+                                <Text variant="small"
+                                      id={ `${ rule.primary }-requirement` }>{ t("secondFactorRequirement") }</Text>
                                 <Select.Root value={ rule.requirement } disabled={ !rule.enabled }
                                              onValueChange={ value => {
                                                  if (value) update(rule.primary, { requirement: value as Requirement });
@@ -182,7 +191,7 @@ function Editor() {
                             </div>
                             <fieldset disabled={ !rule.enabled || rule.requirement === "DISABLED" }
                                       className="flex flex-wrap gap-stack">
-                                <legend>Allowed second factors</legend>
+                                <legend>{ t("allowedSecondFactors") }</legend>
                                 { factors.map(factor => <label key={ factor } className="flex items-center gap-inline">
                                     <Checkbox checked={ rule.allowedMethods.includes(factor) }
                                               onCheckedChange={ checked => update(rule.primary, {
@@ -194,23 +203,21 @@ function Editor() {
                     </Panel>) }
                 </fieldset>
                 { invalid &&
-                    <Text variant="body" role="alert" tone="danger">Enable at least one sign-in method and choose a
-                        factor for each active second-factor rule.</Text> }
+                    <Text variant="body" role="alert" tone="danger">{ t("enablePolicyError") }</Text> }
                 <div><Button tone="primary" loading={ busy } disabled={ invalid }
-                             onClick={ () => risky ? setConfirmation("advanced") : void save(false) }>Save
-                    policy</Button></div>
-                <Panel header={ <Text variant="bodyStrong">Reset a user’s second factors</Text> }>
+                             onClick={ () => risky ? setConfirmation("advanced") : void save(false) }>{ t("savePolicy") }</Button>
+                </div>
+                <Panel header={ <Text variant="bodyStrong">{ t("resetTitle") }</Text> }>
                     <form className="flex flex-col gap-stack" onSubmit={ event => {
                         event.preventDefault();
                         setConfirmation("reset");
                     } }>
-                        <Text variant="body">This revokes sessions and removes enrolled factors. Verify the user’s
-                            identity before proceeding.</Text>
-                        <label htmlFor="reset-email">Account email</label>
+                        <Text variant="body">{ t("resetHelp") }</Text>
+                        <label htmlFor="reset-email">{ t("accountEmail") }</label>
                         <Input id="reset-email" type="email" required value={ email } disabled={ busy }
                                onChange={ event => setEmail(event.target.value) }/>
-                        <div><Button tone="danger" type="submit" disabled={ busy || !email.trim() }>Reset second
-                            factors…</Button></div>
+                        <div><Button tone="danger" type="submit"
+                                     disabled={ busy || !email.trim() }>{ t("resetSecondFactors") }</Button></div>
                     </form>
                 </Panel>
             </> }
@@ -219,14 +226,14 @@ function Editor() {
                 aria-labelledby="confirmation-title"
                 className="m-auto max-w-prose rounded-control border border-border-default bg-surface-primary p-stack text-text-primary">
             <div className="flex flex-col gap-stack">
-                <h2 id="confirmation-title">{ confirmation === "advanced" ? "Allow a less independent second factor?" : "Reset second factors?" }</h2>
+                <h2 id="confirmation-title">{ confirmation === "advanced" ? t("advancedWarningTitle") : t("resetConfirmationTitle") }</h2>
                 <Text variant="body">{ confirmation === "advanced"
-                    ? "Email after Google or email-code sign-in can depend on the same inbox. Someone who controls that inbox may pass both steps. Save only if you explicitly accept this risk."
-                    : `Reset all second factors for ${ email.trim() }? Their sessions will be revoked and they must enroll again. This cannot be undone.` }</Text>
+                    ? t("advancedWarningBody")
+                    : t("resetConfirmationBody", { email: email.trim() }) }</Text>
                 <div className="flex flex-wrap gap-inline">
-                    <Button tone="neutral" autoFocus onClick={ () => setConfirmation(null) }>Cancel</Button>
+                    <Button tone="neutral" autoFocus onClick={ () => setConfirmation(null) }>{ t("cancel") }</Button>
                     <Button tone="danger"
-                            onClick={ () => confirmation === "advanced" ? void save(true) : void reset() }>{ confirmation === "advanced" ? "Accept risk and save" : "Reset and revoke sessions" }</Button>
+                            onClick={ () => confirmation === "advanced" ? void save(true) : void reset() }>{ confirmation === "advanced" ? t("acceptRiskSave") : t("resetAndRevoke") }</Button>
                 </div>
             </div>
         </dialog>

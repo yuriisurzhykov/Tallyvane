@@ -1,4 +1,7 @@
 import type { SidebarNavItem } from "frontend-shared/ui/sidebar-nav";
+import { useAdminAuthenticationStrings } from "@/app/i18n";
+
+const tAuthentication = useAdminAuthenticationStrings("adminAuthentication");
 
 /**
  * The admin's whole nav (ARCHITECTURE.md §12.2: `pages`, `media`, `strings`
@@ -12,7 +15,7 @@ import type { SidebarNavItem } from "frontend-shared/ui/sidebar-nav";
  */
 export function adminNavItems(activeHref: "/pages" | "/media" | "/strings" | "/authentication"): SidebarNavItem[] {
     return [
-        { label: "Authentication", href: "/authentication", isActive: activeHref === "/authentication" },
+        { label: tAuthentication("title"), href: "/authentication", isActive: activeHref === "/authentication" },
         { label: "Pages", href: "/pages", isActive: activeHref === "/pages" },
         { label: "Media", href: "/media", isActive: activeHref === "/media" },
         { label: "Strings", href: "/strings", isActive: activeHref === "/strings" },
