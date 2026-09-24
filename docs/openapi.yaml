@@ -358,6 +358,153 @@ paths:
         default:
           $ref: "#/components/responses/Problem"
 
+  /auth/login/password:
+    post:
+      tags: [auth]
+      operationId: signInWithPassword
+      summary: Sign in with a verified account's password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, device]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+                device: { type: string }
+      responses:
+        "200": { description: Session issued or another factor required. }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /auth/register/password:
+    post:
+      tags: [auth]
+      operationId: registerWithPassword
+      summary: Create an account and send its registration-bound email code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, minLength: 15, maxLength: 128 }
+                displayName: { type: [string, "null"] }
+      responses:
+        "201": { description: Account created; challengeId may be null if email delivery is unavailable. }
+        "409": { description: Account email already exists. }
+        "422": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /auth/mfa/verify:
+    post:
+      tags: [auth]
+      operationId: verifySignInSecondFactor
+      summary: Complete a pending sign-in with an enrolled second factor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [pendingId, kind, code]
+              properties:
+                pendingId: { type: string, format: uuid }
+                kind: { type: string }
+                code: { type: string }
+      responses:
+        "200": { description: Session issued after factor verification. }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /auth/mfa/enroll:
+    post:
+      tags: [auth]
+      operationId: beginSecondFactorEnrollment
+      summary: Begin authenticator enrollment for the signed-in account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [kind]
+              properties:
+                kind: { type: string }
+      responses:
+        "200": { description: Enrollment payload for the selected method. }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /auth/mfa/confirm:
+    post:
+      tags: [auth]
+      operationId: confirmSecondFactorEnrollment
+      summary: Confirm enrollment by verifying a code from the selected method
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [kind, code]
+              properties:
+                kind: { type: string }
+                code: { type: string }
+      responses:
+        "204": { description: Factor enrollment confirmed. }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /auth/refresh:
+    post:
+      tags: [auth]
+      operationId: refreshSession
+      summary: Rotate the refresh token and issue a new access token
+      responses:
+        "200": { description: A new session token pair was issued in cookies. }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /auth/logout:
+    post:
+      tags: [auth]
+      operationId: signOutCurrentSession
+      summary: Revoke the current session and clear its cookies
+      responses:
+        "204": { description: Current session revoked. }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /auth/logout-all:
+    post:
+      tags: [auth]
+      operationId: signOutAllSessions
+      summary: Revoke every session for the signed-in account
+      responses:
+        "204": { description: All sessions revoked. }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /auth/sessions:
+    get:
+      tags: [auth]
+      operationId: listSessions
+      summary: List sessions belonging to the signed-in account
+      responses:
+        "200": { description: Current account sessions. }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /auth/sessions/{id}:
+    delete:
+      tags: [auth]
+      operationId: revokeSession
+      summary: Revoke one session belonging to the signed-in account
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "204": { description: Session revoked. }
+        "404": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
 components:
   securitySchemes:
     serviceToken:
