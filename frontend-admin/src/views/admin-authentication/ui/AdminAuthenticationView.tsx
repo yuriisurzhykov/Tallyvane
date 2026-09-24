@@ -9,7 +9,7 @@ import { Input } from "frontend-shared/ui/input";
 import { Panel } from "frontend-shared/ui/panel";
 import { Select } from "frontend-shared/ui/select";
 import { Text } from "frontend-shared/ui/text";
-import { ToastRegion, useToast } from "frontend-shared/ui/toast";
+import { useToast } from "frontend-shared/ui/toast";
 import { adminNavItems } from "@/app/navigation";
 
 type Primary = "PASSWORD" | "GOOGLE" | "EMAIL_CODE";
@@ -63,9 +63,7 @@ async function request<T>(path: string, method = "GET", body?: unknown): Promise
 }
 
 export function AdminAuthenticationView() {
-    return <ToastRegion>
-        <Editor/>
-    </ToastRegion>;
+    return <Editor/>;
 }
 
 function Editor() {
@@ -79,9 +77,11 @@ function Editor() {
     const dialog = useRef<HTMLDialogElement>(null);
     const { actions } = useToast();
     const fail = useCallback((reason: unknown) => {
-        setError(reason instanceof Error ? reason.message : "Could not connect. Please try again.");
+        const message = reason instanceof Error ? reason.message : "Could not connect. Please try again.";
+        setError(message);
+        actions.add({ title: "Authentication settings could not be loaded", description: message, tone: "danger" });
         setUnauthorized(reason instanceof RequestError && reason.status === 401);
-    }, []);
+    }, [actions]);
     const load = useCallback(async () => {
         setLoading(true);
         setError(null);
