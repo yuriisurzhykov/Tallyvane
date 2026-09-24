@@ -75,9 +75,9 @@ class SecondFactorMethodRfc6238Spec : SecondFactorMethodConformance() {
             val totp = Rfc6238Totp()
             fun codeAt(at: Instant) = totp.codeAt(Base32().decode(secret), at)
 
-            method.verify(userId, codeAt(now - 30.seconds)) shouldBe true
-            method.verify(userId, codeAt(now + 30.seconds)) shouldBe true
-            method.verify(userId, codeAt(now - 60.seconds)) shouldBe false
+            method.verify(userId, SecondFactorProof(codeAt(now - 30.seconds))) shouldBe true
+            method.verify(userId, SecondFactorProof(codeAt(now + 30.seconds))) shouldBe true
+            method.verify(userId, SecondFactorProof(codeAt(now - 60.seconds))) shouldBe false
         }
     }
 }

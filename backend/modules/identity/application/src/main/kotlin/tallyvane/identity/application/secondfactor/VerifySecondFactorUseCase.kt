@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory
 import tallyvane.identity.application.SessionIssuer
 import tallyvane.identity.application.port.LoginAttempts
 import tallyvane.identity.application.port.PendingAuthenticationStore
+import tallyvane.identity.application.port.SecondFactorProof
 import tallyvane.identity.contract.Principal
 import tallyvane.identity.contract.UserId as ContractUserId
 import tallyvane.identity.domain.outcome.SecondFactorOutcome
@@ -64,7 +65,10 @@ public interface VerifySecondFactorUseCase : UseCase {
             val method = registry.find(request.kind)
             val verified = request.kind in pending.availableMethods &&
                 method != null &&
-                method.verify(pending.userId, request.code)
+                method.verify(
+                    pending.userId,
+                    SecondFactorProof(request.code, request.challengeId, pending.id.value.toString()),
+                )
             return if (!verified) {
                 VerifySecondFactorOutcome.NotCompleted(SecondFactorOutcome.WrongCode)
             } else {

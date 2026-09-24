@@ -2,6 +2,7 @@ package tallyvane.identity.application
 
 import tallyvane.identity.application.password.RegisterWithPasswordUseCase
 import tallyvane.identity.application.password.SignInWithPasswordUseCase
+import tallyvane.identity.application.password.ChangePasswordUseCase
 import tallyvane.identity.application.port.CredentialRepository
 import tallyvane.identity.application.port.LoginAttempts
 import tallyvane.identity.application.port.PasswordHasher
@@ -14,6 +15,7 @@ import tallyvane.identity.application.port.TokenHasher
 import tallyvane.identity.application.port.UserRepository
 import tallyvane.identity.application.email.EmailChallenges
 import tallyvane.identity.application.email.VerifyRegistrationEmailUseCase
+import tallyvane.identity.application.email.ResendRegistrationEmailUseCase
 import tallyvane.identity.application.email.RequestEmailSignInCodeUseCase
 import tallyvane.identity.application.email.SignInWithEmailCodeUseCase
 import tallyvane.identity.application.email.RequestPasswordResetUseCase
@@ -25,6 +27,12 @@ import tallyvane.identity.application.secondfactor.ConfirmSecondFactorEnrollment
 import tallyvane.identity.application.secondfactor.EnrollSecondFactorUseCase
 import tallyvane.identity.application.secondfactor.SecondFactorMethodRegistry
 import tallyvane.identity.application.secondfactor.VerifySecondFactorUseCase
+import tallyvane.identity.application.secondfactor.IssueBackupCodesUseCase
+import tallyvane.identity.application.secondfactor.BeginEmailMfaEnrollmentUseCase
+import tallyvane.identity.application.secondfactor.ConfirmEmailMfaEnrollmentUseCase
+import tallyvane.identity.application.secondfactor.RequestEmailMfaCodeUseCase
+import tallyvane.identity.application.email.BackupCodes
+import tallyvane.identity.application.port.EmailMfaEnrollmentStore
 import tallyvane.identity.application.session.ListSessionsUseCase
 import tallyvane.identity.application.session.RefreshSessionUseCase
 import tallyvane.identity.application.session.RevokeAllSessionsUseCase
@@ -57,6 +65,8 @@ public class IdentityUseCases(
     attemptWindow: Duration,
     googleOAuthGateway: GoogleOAuthGateway? = null,
     public val emailChallenges: EmailChallenges? = null,
+    backupCodes: BackupCodes? = null,
+    emailMfaEnrollmentStore: EmailMfaEnrollmentStore? = null,
 ) {
     private val registry = SecondFactorMethodRegistry.Default(factors)
     private val issuer = SessionIssuer.Default(
@@ -70,6 +80,7 @@ public class IdentityUseCases(
         SignInWithPasswordUseCase.SignIn(users, credentials, passwords, completer, transactions),
         attempts, attemptLimit, attemptWindow,
     )
+    public val changePassword: ChangePasswordUseCase = ChangePasswordUseCase.Change(users, credentials, passwords, transactions)
     public val signInWithGoogleOAuth: SignInWithGoogleOAuthUseCase? = googleOAuthGateway?.let { gateway ->
         SignInWithGoogleOAuthUseCase.SignIn(
             gateway,
@@ -78,6 +89,9 @@ public class IdentityUseCases(
     }
     public val verifyRegistrationEmail: VerifyRegistrationEmailUseCase? = emailChallenges?.let { challenges ->
         VerifyRegistrationEmailUseCase.Verify(users, challenges, transactions)
+    }
+    public val resendRegistrationEmail: ResendRegistrationEmailUseCase? = emailChallenges?.let { challenges ->
+        ResendRegistrationEmailUseCase.Send(users, challenges, transactions)
     }
     public val requestEmailSignInCode: RequestEmailSignInCodeUseCase? = emailChallenges?.let { challenges ->
         RequestEmailSignInCodeUseCase.Issue(challenges)
@@ -98,6 +112,20 @@ public class IdentityUseCases(
     public val enroll: EnrollSecondFactorUseCase = EnrollSecondFactorUseCase.Enroll(registry, transactions)
     public val confirm: ConfirmSecondFactorEnrollmentUseCase =
         ConfirmSecondFactorEnrollmentUseCase.Confirm(registry, transactions)
+    public val issueBackupCodes: IssueBackupCodesUseCase? = backupCodes?.let {
+        IssueBackupCodesUseCase.Issue(users, credentials, passwords, it, transactions)
+    }
+    public val beginEmailMfaEnrollment: BeginEmailMfaEnrollmentUseCase? =
+        if (emailChallenges != null && emailMfaEnrollmentStore != null) {
+            BeginEmailMfaEnrollmentUseCase.Begin(users, credentials, passwords, emailChallenges, transactions)
+        } else null
+    public val confirmEmailMfaEnrollment: ConfirmEmailMfaEnrollmentUseCase? =
+        if (emailChallenges != null && emailMfaEnrollmentStore != null) {
+            ConfirmEmailMfaEnrollmentUseCase.Confirm(users, emailMfaEnrollmentStore, emailChallenges, transactions)
+        } else null
+    public val requestEmailMfaCode: RequestEmailMfaCodeUseCase? = emailChallenges?.let {
+        RequestEmailMfaCodeUseCase.Request(pending, users, it, clock, transactions)
+    }
     public val refresh: RefreshSessionUseCase = RefreshSessionUseCase.Refresh(
         refreshTokens, sessions, RefreshRotationPolicy.Default(), tokens, hashes, clock,
         transactions, accessTtl, refreshIdleTtl,

@@ -29,6 +29,9 @@ internal class BackupCodeStoreOverExposed : BackupCodeStore {
         } == 1
     }
 
+    override suspend fun hasAny(userId: UserId): Boolean =
+        BackupCodesTable.selectAll().where { BackupCodesTable.userId eq userId.value }.limit(1).singleOrNull() != null
+
     private fun lockOwner(userId: UserId) {
         check(UsersTable.selectAll().where { UsersTable.id eq userId.value }.forUpdate().singleOrNull() != null)
     }

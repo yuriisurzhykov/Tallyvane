@@ -25,7 +25,7 @@ public abstract class SecondFactorMethodConformance : StringSpec() {
             val method = fresh()
 
             method.isEnrolledFor(userId()) shouldBe false
-            method.verify(userId(), IMPLAUSIBLE_CODE) shouldBe false
+            method.verify(userId(), SecondFactorProof(IMPLAUSIBLE_CODE)) shouldBe false
         }
 
         "starting enrollment does not activate it" {
@@ -55,7 +55,7 @@ public abstract class SecondFactorMethodConformance : StringSpec() {
 
             confirmed shouldBe true
             method.isEnrolledFor(userId()) shouldBe true
-            method.verify(userId(), code) shouldBe true
+            method.verify(userId(), SecondFactorProof(code)) shouldBe true
         }
 
         "once active, verify refuses a code that does not match" {
@@ -63,7 +63,7 @@ public abstract class SecondFactorMethodConformance : StringSpec() {
             val payload = method.startEnrollment(userId())
             method.confirmEnrollment(userId(), correctCodeFor(payload))
 
-            method.verify(userId(), IMPLAUSIBLE_CODE) shouldBe false
+            method.verify(userId(), SecondFactorProof(IMPLAUSIBLE_CODE)) shouldBe false
         }
     }
 

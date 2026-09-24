@@ -41,11 +41,16 @@ internal class RegisterWithPasswordHandler(
 
             when (val outcome = useCase.register(RegisterWithPasswordRequest(email!!, password!!, body.displayName))) {
                 is RegisterOutcome.Registered      -> {
-                    val challenge = emailChallenges.issue(
-                        email,
-                        EmailChallengePurpose.REGISTRATION,
-                        outcome.userId.value.toString(),
-                    )
+                    val challenge = try {
+                        emailChallenges.issue(
+                            email,
+                            EmailChallengePurpose.REGISTRATION,
+                            outcome.userId.value.toString(),
+                        )
+                    } catch (_: Exception) {
+                        // Account creation succeeds even while SMTP is unavailable; the user can resend later.
+                        null
+                    }
                     call.respond(
                         status = HttpStatusCode.Created,
                         message = RegisterResponseBody(outcome.userId.value.toString(), challenge?.id?.toString()),

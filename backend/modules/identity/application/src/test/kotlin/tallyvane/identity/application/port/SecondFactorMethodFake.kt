@@ -22,8 +22,8 @@ internal class SecondFactorMethodFake(
 
     override suspend fun isEnrolledFor(userId: UserId): Boolean = userId in enrolledUserIds
 
-    override suspend fun verify(userId: UserId, code: String): Boolean =
-        userId in enrolledUserIds && code == correctCode
+    override suspend fun verify(userId: UserId, proof: SecondFactorProof): Boolean =
+        userId in enrolledUserIds && proof.code == correctCode
 
     override suspend fun startEnrollment(userId: UserId): String {
         enrollmentStarted = userId

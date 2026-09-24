@@ -35,7 +35,8 @@ public interface EnrollSecondFactorUseCase : UseCase {
         private val transactions: TransactionRunner,
     ) : EnrollSecondFactorUseCase {
         override suspend fun enroll(request: EnrollSecondFactorRequest): String? = transactions.inTransaction {
-            Verdict.Commit(registry.find(request.kind)?.startEnrollment(request.userId))
+            val method = registry.find(request.kind)?.takeIf { it.supportsEnrollment }
+            Verdict.Commit(method?.startEnrollment(request.userId))
         }
     }
 }

@@ -12,6 +12,9 @@ import tallyvane.identity.infrastructure.email.SmtpSettings
 import tallyvane.identity.application.port.EmailDelivery
 import tallyvane.identity.application.port.AuthenticationCodes
 import tallyvane.identity.application.email.EmailChallenges
+import tallyvane.identity.application.email.BackupCodes
+import tallyvane.identity.infrastructure.persistence.BackupCodeStoreOverExposed
+import tallyvane.identity.infrastructure.persistence.EmailMfaEnrollmentStoreOverExposed
 import tallyvane.identity.infrastructure.persistence.EmailChallengeStoreOverExposed
 import tallyvane.identity.infrastructure.password.Argon2PasswordHasher
 import tallyvane.identity.infrastructure.persistence.CredentialRepositoryOverExposed
@@ -61,15 +64,25 @@ public class IdentityInfrastructureFactory {
         val factor = SecondFactorMethod.Rfc6238(
             users, TinkSecretCipher(totpKeyset), TotpEnrollmentStoreOverExposed(), clock, totpIssuer,
         )
+        val authenticationCodes = AuthenticationCodes.Hmac(pepper)
+        val backupCodes = BackupCodes(BackupCodeStoreOverExposed(), authenticationCodes, transactions)
+        val backupFactor = SecondFactorMethod.Backup(backupCodes)
+        val emailMfaEnrollmentStore = EmailMfaEnrollmentStoreOverExposed()
         val emailChallenges = emailDelivery?.let { delivery ->
-            EmailChallenges(EmailChallengeStoreOverExposed(), delivery, AuthenticationCodes.Hmac(pepper), transactions, ids, clock)
+            EmailChallenges(EmailChallengeStoreOverExposed(), delivery, authenticationCodes, transactions, ids, clock)
+        }
+        val factors = buildList {
+            add(factor)
+            add(backupFactor)
+            if (emailChallenges != null) add(SecondFactorMethod.EmailOtp(users, emailMfaEnrollmentStore, emailChallenges))
         }
         return IdentityUseCases(
             users, CredentialRepositoryOverExposed(), Argon2PasswordHasher(19456, 2, 1),
             SessionStoreOverExposed(), RefreshTokenStoreOverExposed(), PendingAuthenticationStoreOverExposed(),
-            listOf(factor), LoginAttemptsOverCounter(Counter.InMemory(clock)), TokenFactory.Csprng(),
+            factors, LoginAttemptsOverCounter(Counter.InMemory(clock)), TokenFactory.Csprng(),
             TokenHasher.Hmac(pepper, pepperVersion), transactions, clock, ids,
             accessTtl, refreshIdleTtl, pendingTtl, attemptLimit, attemptWindow, googleOAuthGateway, emailChallenges,
+            backupCodes, emailMfaEnrollmentStore,
         )
     }
 }

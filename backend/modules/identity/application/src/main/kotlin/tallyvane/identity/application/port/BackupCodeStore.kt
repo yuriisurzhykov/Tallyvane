@@ -8,4 +8,6 @@ public interface BackupCodeStore {
     public suspend fun replace(userId: UserId, hashes: List<Secret>)
 
     public suspend fun consume(userId: UserId, hash: Secret): Boolean
+
+    public suspend fun hasAny(userId: UserId): Boolean
 }

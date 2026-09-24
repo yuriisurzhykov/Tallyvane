@@ -42,13 +42,14 @@ internal class VerifySecondFactorHandler(
             val validation = FieldValidation.Accumulator()
             val pendingId = validation.field("pending_id") { PendingAuthenticationId(Uuid.parse(body.pendingId)) }
             val kind = validation.field("kind") { SecondFactorKind.valueOf(body.kind.uppercase()) }
+            val challengeId = body.challengeId?.let { validation.field("challengeId") { Uuid.parse(it) } }
             val errors = validation.errorsOrNull()
             if (errors != null) {
                 call.respond(Refused(RequestValidationFailure.FieldsInvalid(errors), validationProblems))
                 return@post
             }
 
-            val request = VerifySecondFactorRequest(pendingId!!, kind!!, body.code)
+            val request = VerifySecondFactorRequest(pendingId!!, kind!!, body.code, challengeId)
             when (val outcome = useCase.verify(request)) {
                 is VerifySecondFactorOutcome.Issued       -> {
                     val tokens = outcome.session.tokens

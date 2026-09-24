@@ -24,4 +24,8 @@ public class BackupCodes(
     public suspend fun consume(userId: UserId, code: Secret): Boolean = transactions.inTransaction {
         Verdict.Commit(store.consume(userId, codes.hash("backup:${userId.value}", code)))
     }
+
+    public suspend fun hasAny(userId: UserId): Boolean = transactions.inTransaction {
+        Verdict.Commit(store.hasAny(userId))
+    }
 }

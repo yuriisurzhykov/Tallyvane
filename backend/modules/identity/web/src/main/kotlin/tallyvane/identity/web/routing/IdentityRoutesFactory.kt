@@ -12,12 +12,18 @@ import tallyvane.identity.web.mfa.ConfirmSecondFactorEnrollmentHandler
 import tallyvane.identity.web.mfa.EnrollSecondFactorHandler
 import tallyvane.identity.web.mfa.SecondFactorProblems
 import tallyvane.identity.web.mfa.VerifySecondFactorHandler
+import tallyvane.identity.web.mfa.IssueBackupCodesHandler
+import tallyvane.identity.web.mfa.RequestEmailMfaCodeHandler
+import tallyvane.identity.web.mfa.BeginEmailMfaEnrollmentHandler
+import tallyvane.identity.web.mfa.ConfirmEmailMfaEnrollmentHandler
 import tallyvane.identity.web.oauth.GoogleOAuthHandler
 import tallyvane.identity.web.password.RequestPasswordResetHandler
 import tallyvane.identity.web.password.ResetPasswordHandler
+import tallyvane.identity.web.password.ChangePasswordHandler
 import tallyvane.identity.web.registration.RegisterProblems
 import tallyvane.identity.web.registration.RegisterWithPasswordHandler
 import tallyvane.identity.web.registration.RegistrationEmailProblems
+import tallyvane.identity.web.registration.ResendRegistrationEmailHandler
 import tallyvane.identity.web.registration.VerifyRegistrationEmailHandler
 import tallyvane.identity.web.revoke.RevokeSessionHandler
 import tallyvane.identity.web.session.ListSessionsHandler
@@ -67,6 +73,7 @@ interface IdentityRoutesFactory {
             val verifyRegistrationEmail = requireNotNull(cases.verifyRegistrationEmail)
             val handlers = mutableListOf<AuthHandler>(
                 RegisterWithPasswordHandler(cases.register, RegisterProblems(), validation, emailChallenges),
+                ChangePasswordHandler(cases.changePassword, current, validation, authenticationProblems),
                 SignInWithPasswordHandler(cases.signIn, signInResponses, authenticationProblems, validation),
                 VerifySecondFactorHandler(cases.verify, cookies, factors, validation, accessTtl, refreshTtl),
                 EnrollSecondFactorHandler(cases.enroll, current, factors, validation),
@@ -77,6 +84,19 @@ interface IdentityRoutesFactory {
                 LogoutHandler(cases.revoke, current, cookies),
                 LogoutAllHandler(cases.revokeAll, current, cookies),
             )
+            cases.issueBackupCodes?.let { issue ->
+                handlers += IssueBackupCodesHandler(issue, current, validation, authenticationProblems)
+            }
+            cases.requestEmailMfaCode?.let { request ->
+                handlers += RequestEmailMfaCodeHandler(request, factors, validation)
+            }
+            cases.beginEmailMfaEnrollment?.let { begin ->
+                handlers += BeginEmailMfaEnrollmentHandler(begin, current, authenticationProblems, validation)
+            }
+            cases.confirmEmailMfaEnrollment?.let { confirm ->
+                handlers += ConfirmEmailMfaEnrollmentHandler(confirm, current, factors, validation)
+            }
+            cases.resendRegistrationEmail?.let { resend -> handlers += ResendRegistrationEmailHandler(resend, validation) }
             cases.requestEmailSignInCode?.let { requestCode ->
                 handlers += RequestEmailSignInCodeHandler(
                     requestCode,

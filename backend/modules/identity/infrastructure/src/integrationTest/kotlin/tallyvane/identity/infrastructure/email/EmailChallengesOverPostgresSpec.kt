@@ -19,6 +19,7 @@ import tallyvane.identity.domain.user.User
 import tallyvane.identity.domain.user.UserId
 import tallyvane.identity.infrastructure.persistence.BackupCodeStoreOverExposed
 import tallyvane.identity.infrastructure.persistence.EmailChallengeStoreOverExposed
+import tallyvane.identity.infrastructure.persistence.EmailMfaEnrollmentStoreOverExposed
 import tallyvane.identity.infrastructure.persistence.UserRepositoryOverExposed
 import tallyvane.platform.kernel.ClockFake
 import tallyvane.platform.kernel.IdGenerator
@@ -145,11 +146,34 @@ class EmailChallengesOverPostgresSpec : StringSpec({
             val subject = BackupCodes(BackupCodeStoreOverExposed(), codes, persistence.transactions)
             val original = subject.issue(userId)
             original.size shouldBe 10
+            subject.hasAny(userId) shouldBe true
             val results = coroutineScope { List(8) { async { subject.consume(userId, original.first()) } }.awaitAll() }
             results.count { it } shouldBe 1
             val replacement = subject.issue(userId)
             original.forEach { subject.consume(userId, it) shouldBe false }
+            subject.hasAny(userId) shouldBe true
             replacement.forEach { subject.consume(userId, it) shouldBe true }
+            subject.hasAny(userId) shouldBe false
+        }
+    }
+
+    "email MFA enrollment is persisted only after explicit confirmation" {
+        PostgresPersistence(PostgresFixture.migrated()).use { persistence ->
+            val userId = UserId(Uuid.random())
+            val store = EmailMfaEnrollmentStoreOverExposed()
+            persistence.transactions.inTransaction {
+                UserRepositoryOverExposed().insert(User(userId, email, null, now, null))
+                Verdict.Commit(Unit)
+            }
+            persistence.transactions.inTransaction { Verdict.Commit(store.isEnrolled(userId)) } shouldBe false
+            persistence.transactions.inTransaction {
+                store.enroll(userId)
+                Verdict.Commit(store.isEnrolled(userId))
+            } shouldBe true
+            persistence.transactions.inTransaction {
+                store.unenroll(userId)
+                Verdict.Commit(store.isEnrolled(userId))
+            } shouldBe false
         }
     }
 })
