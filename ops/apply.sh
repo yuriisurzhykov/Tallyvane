@@ -488,7 +488,7 @@ admin_color="$(current_color frontend-admin)"
 # before starting the server; the three frontends have no such dependency on each other or on the
 # backend.
 echo "-- starting the backend and the frontends (blue/green: $server_color/$web_color/$appfe_color/$admin_color)"
-docker compose up -d db migrate \
+docker compose up -d db migrate mailpit \
   "server-${server_color}" "frontend-web-${web_color}" "frontend-app-${appfe_color}" "frontend-admin-${admin_color}"
 
 # Through the image's real entrypoint, so the templates are substituted first: checking the

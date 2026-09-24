@@ -57,7 +57,7 @@ failures=0
 # status code. Two 200s prove the tunnel reaches nginx; only the markers prove the hostnames
 # reach different servers — three 200s once came from three hostnames all being answered by
 # the same built-in nginx welcome page.
-for pair in ":site" "app.:app"; do
+for pair in ":site"; do
   prefix="${pair%%:*}"
   expected="${pair##*:}"
   host="${prefix}${domain}"
@@ -82,19 +82,19 @@ done
 # The second half of the condition carries as much weight as the first. Without a session the
 # page itself must not come back — a check that only looked for a challenge would still pass
 # if Access were removed and something else redirected.
-admin_host="admin.$domain"
-admin_headers="$(curl --silent --show-error --head --max-time 20 "https://$admin_host/" || true)"
-admin_body="$(curl --silent --max-time 20 "https://$admin_host/" || true)"
-guarded=no
-printf '%s' "$admin_headers" | grep -qi 'www-authenticate:.*Cloudflare-Access' && guarded=yes
-printf '%s' "$admin_headers" | grep -qi 'location:.*cloudflareaccess\.com' && guarded=yes
-
-if [ "$guarded" = yes ] && ! printf '%s' "$admin_body" | grep -q 'content="admin"'; then
-  ok "https://$admin_host -> Cloudflare Access challenge, application not served"
-else
-  printf '  !! https://%s answered without an Access challenge, or served the application to an unauthenticated request\n' "$admin_host" >&2
-  failures=$((failures + 1))
-fi
-
-[ "$failures" -eq 0 ] || die "$failures of 3 hostnames answered wrongly"
+# Temporary owner-only app gate and permanent admin/mail gate. Test every Mailpit API
+# path under the same hostname policy, not just the landing page.
+for protected in "admin.$domain/" "app.$domain/" "mail.$domain/" "mail.$domain/api/v1/messages"; do
+  headers="$(curl --silent --show-error --head --max-time 20 "https://$protected" || true)"
+  guarded=no
+  printf '%s' "$headers" | grep -qi 'www-authenticate:.*Cloudflare-Access' && guarded=yes
+  printf '%s' "$headers" | grep -qi 'location:.*cloudflareaccess\.com' && guarded=yes
+  if [ "$guarded" = yes ] && ! printf '%s' "$headers" | grep -qE '^HTTP/[^ ]+ 2[0-9][0-9]'; then
+    ok "https://$protected -> Cloudflare Access challenge"
+  else
+    printf '  !! https://%s did not enforce Cloudflare Access\n' "$protected" >&2
+    failures=$((failures + 1))
+  fi
+done
+[ "$failures" -eq 0 ] || die "$failures public/Access checks failed"
 step "Deployed"
