@@ -12,6 +12,7 @@ import tallyvane.identity.application.secondfactor.VerifySecondFactorUseCase
 import tallyvane.identity.domain.outcome.SecondFactorOutcome
 import tallyvane.identity.domain.secondfactor.PendingAuthenticationId
 import tallyvane.identity.domain.secondfactor.SecondFactorKind
+import tallyvane.identity.web.auth.RequestValidationFailure
 import tallyvane.platform.http.Refused
 import kotlin.time.Duration
 import kotlin.uuid.Uuid
@@ -39,7 +40,7 @@ internal class VerifySecondFactorHandler(
             val kind = validation.field("kind") { SecondFactorKind.valueOf(body.kind.uppercase()) }
             val errors = validation.errorsOrNull()
             if (errors != null) {
-                call.respond(Refused(RequestValidationFailure(errors), validationProblems))
+                call.respond(Refused(RequestValidationFailure.FieldsInvalid(errors), validationProblems))
                 return@post
             }
 
@@ -58,10 +59,10 @@ internal class VerifySecondFactorHandler(
 
     private suspend fun ApplicationCall.respondReason(reason: SecondFactorOutcome) {
         val failure = when (reason) {
-            SecondFactorOutcome.WrongCode -> SecondFactorFailure.WrongCode
-            SecondFactorOutcome.Expired -> SecondFactorFailure.Expired
-            SecondFactorOutcome.UnknownPending -> SecondFactorFailure.UnknownPending
-            SecondFactorOutcome.RateLimited -> SecondFactorFailure.RateLimited
+            is SecondFactorOutcome.WrongCode -> SecondFactorFailure.WrongCode
+            is SecondFactorOutcome.Expired -> SecondFactorFailure.Expired
+            is SecondFactorOutcome.UnknownPending -> SecondFactorFailure.UnknownPending
+            is SecondFactorOutcome.RateLimited -> SecondFactorFailure.RateLimited
             // Unreachable: VerifySecondFactorUseCase never returns NotCompleted(Completed(...)).
             is SecondFactorOutcome.Completed -> error("VerifySecondFactorOutcome.NotCompleted must never carry Completed")
         }

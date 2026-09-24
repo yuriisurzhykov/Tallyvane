@@ -27,6 +27,7 @@ dependencies {
     // Encrypts a TOTP secret at rest, so it can be read back to compute a code — see this
     // module's own README for why this is not hand-rolled either.
     implementation(libs.tink)
+    implementation(libs.angus.mail)
 
     testImplementation(testFixtures(projects.modules.identity.application))
     testImplementation(testFixtures(projects.platform.kernel))
@@ -44,3 +45,13 @@ dependencies {
     integrationTestImplementation(libs.exposed.jdbc)
     integrationTestRuntimeOnly(libs.postgresql)
 }
+
+tasks.register<JavaExec>("generateTotpKeyset") {
+    group = "security"
+    description = "Creates a one-time Tink AES-256-GCM keyset without printing secret material."
+    dependsOn(tasks.named("testClasses"))
+    classpath = sourceSets.named("test").get().runtimeClasspath
+    mainClass.set("tallyvane.identity.infrastructure.TotpKeysetGenerator")
+    providers.gradleProperty("keysetOutput").orNull?.let { output -> args(output) }
+}
+

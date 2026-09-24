@@ -41,6 +41,21 @@ class RegisterSpec :
             outcome.shouldBeInstanceOf<RegisterOutcome.Registered>()
         }
 
+        "new password registrations remain unverified until their email challenge is redeemed" {
+            val users = UserRepositoryFake()
+            register(users = users).register(request())
+
+            users.findByEmail(Email("person@example.com"))?.emailVerified shouldBe false
+        }
+
+        "rejects passwords outside policy before creating an account" {
+            val users = UserRepositoryFake()
+            val useCase = register(users = users)
+            val result = useCase.register(request().copy(rawPassword = Secret("too short")))
+            result shouldBe RegisterOutcome.InvalidPassword
+            users.findByEmail(Email("person@example.com")) shouldBe null
+        }
+
         "saves a password credential for the new user" {
             val credentials = CredentialRepositoryFake()
             val outcome = register(credentials = credentials).register(request())

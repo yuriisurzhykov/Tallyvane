@@ -48,9 +48,10 @@ public class Wiring(private val platform: PlatformWiring, private val configurat
                     reporter = HealthReporter.OverChecks(checks),
                     token = ServiceToken(configuration.healthToken.revealed()),
                 ),
-            ),
+            ) + identity.routes,
             failures = FailureTranslator.Chained(emptyList()),
             trace = TraceHeader(platform.ids),
+            authCsrf = identity.csrfGuard,
         )
     }
 

@@ -70,7 +70,16 @@ public class EnvironmentConfiguration(private val environment: Environment) {
                 ),
                 totpIssuer = environment.read(TOTP_ISSUER)?.takeIf { it.isNotBlank() } ?: DEFAULT_TOTP_ISSUER,
                 google = google(faults),
+                authEnabled = boolean("TALLYVANE_AUTH_ENABLED", default = false, faults),
+                totpKeyset = environment.read("TALLYVANE_TOTP_KEYSET")?.takeIf { it.isNotBlank() }?.let(::Secret),
+                authOrigins = environment.read("TALLYVANE_AUTH_ORIGINS")?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }?.toSet() ?: emptySet(),
+                smtpHost = environment.read("TALLYVANE_SMTP_HOST")?.takeIf { it.isNotBlank() },
+                smtpPort = number("TALLYVANE_SMTP_PORT", 1025, 1..65_535, faults),
+                smtpFrom = environment.read("TALLYVANE_SMTP_FROM")?.takeIf { it.isNotBlank() } ?: "noreply@surzhykov.icu",
             )
+        if (settings.authEnabled && settings.totpKeyset == null) faults += "TALLYVANE_TOTP_KEYSET is required when authentication is enabled"
+        if (settings.authEnabled && settings.authOrigins.isEmpty()) faults += "TALLYVANE_AUTH_ORIGINS is required when authentication is enabled"
+        if (settings.authEnabled && settings.smtpHost == null) faults += "TALLYVANE_SMTP_HOST is required when authentication is enabled"
         check(faults.isEmpty()) {
             faults.joinToString(separator = "\n", prefix = "Refusing to start.\n") { "  - $it" }
         }
@@ -141,19 +150,19 @@ public class EnvironmentConfiguration(private val environment: Environment) {
         number(name, fallbackMinutes, MIN_MINUTES..MAX_MINUTES, faults).minutes
 
     /**
-     * All three of [GoogleOAuthConfig]'s fields, or none — unlike [token], a variable missing here
+     * All three of [GoogleOAuthConfiguration]'s fields, or none — unlike [token], a variable missing here
      * is not itself a fault: neither Google sign-in method is required for the rest of `identity`
      * to run. A fault is raised only for a *partial* configuration (one or two of the three set),
      * since that is not "Google sign-in is off", it is a deploy that forgot a variable.
      */
-    private fun google(faults: MutableList<String>): GoogleOAuthConfig? {
+    private fun google(faults: MutableList<String>): GoogleOAuthConfiguration? {
         val clientId = environment.read(GOOGLE_CLIENT_ID)?.takeIf { it.isNotBlank() }
         val clientSecret = environment.read(GOOGLE_CLIENT_SECRET)?.takeIf { it.isNotBlank() }
         val redirectUri = environment.read(GOOGLE_REDIRECT_URI)?.takeIf { it.isNotBlank() }
         val present = listOfNotNull(clientId, clientSecret, redirectUri).size
         return when (present) {
             0 -> null
-            THREE -> GoogleOAuthConfig(clientId!!, Secret(clientSecret!!), redirectUri!!)
+            THREE -> GoogleOAuthConfiguration(clientId!!, Secret(clientSecret!!), redirectUri!!)
             else -> null.also {
                 faults += "$GOOGLE_CLIENT_ID, $GOOGLE_CLIENT_SECRET and $GOOGLE_REDIRECT_URI must be set together or not at all"
             }

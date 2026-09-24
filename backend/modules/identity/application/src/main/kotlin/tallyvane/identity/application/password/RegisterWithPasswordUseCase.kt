@@ -4,6 +4,7 @@ import tallyvane.identity.application.port.CredentialRepository
 import tallyvane.identity.application.port.PasswordHasher
 import tallyvane.identity.application.port.UserRepository
 import tallyvane.identity.domain.credential.Credential
+import tallyvane.identity.domain.credential.PasswordPolicy
 import tallyvane.identity.domain.outcome.RegisterOutcome
 import tallyvane.identity.domain.user.User
 import tallyvane.identity.domain.user.UserId
@@ -36,8 +37,10 @@ public interface RegisterWithPasswordUseCase : UseCase {
         private val transactions: TransactionRunner,
         private val ids: IdGenerator,
         private val clock: Clock,
+        private val passwordPolicy: PasswordPolicy = PasswordPolicy.Default,
     ) : RegisterWithPasswordUseCase {
         override suspend fun register(request: RegisterWithPasswordRequest): RegisterOutcome {
+            if (!passwordPolicy.accepts(request.rawPassword.revealed())) return RegisterOutcome.InvalidPassword
             val userId = UserId(ids.next())
             val now = clock.now()
             val user = User(
@@ -46,6 +49,7 @@ public interface RegisterWithPasswordUseCase : UseCase {
                 displayName = request.displayName,
                 createdAt = now,
                 disabledAt = null,
+                emailVerified = false,
             )
             val hash = passwordHasher.hash(request.rawPassword)
             return transactions.inTransaction {

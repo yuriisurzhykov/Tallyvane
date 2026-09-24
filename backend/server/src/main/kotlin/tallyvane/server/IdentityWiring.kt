@@ -2,6 +2,10 @@ package tallyvane.server
 
 import tallyvane.identity.contract.PrincipalResolver
 import tallyvane.identity.infrastructure.PrincipalResolverFactory
+import tallyvane.identity.infrastructure.IdentityInfrastructureFactory
+import tallyvane.identity.web.IdentityRoutesFactory
+import tallyvane.platform.http.RouteModule
+import tallyvane.platform.http.csrf.CsrfGuard
 import tallyvane.platform.http.RequestPrincipalResolver
 import tallyvane.platform.kernel.Clock
 import tallyvane.server.config.Configuration
@@ -15,6 +19,27 @@ import tallyvane.server.config.Configuration
  * `identity`'s own routes yet, so building the rest here would have no caller.
  */
 public class IdentityWiring(private val platform: PlatformWiring, private val configuration: Configuration) {
+    public val routes: List<RouteModule> by lazy {
+        if (!configuration.authEnabled) emptyList() else {
+            val infrastructure = IdentityInfrastructureFactory()
+            val cases = infrastructure.useCases(
+                platform.persistence.transactions, Clock.Wall(), platform.ids,
+                configuration.tokenPepper, configuration.tokenPepperVersion,
+                requireNotNull(configuration.totpKeyset), configuration.totpIssuer,
+                configuration.accessTokenTtl, configuration.refreshTokenIdleTtl,
+                configuration.pendingAuthenticationTtl, configuration.signInRateLimitThreshold,
+                configuration.signInRateLimitWindow,
+                configuration.google?.let { infrastructure.googleOAuth(it.clientId, it.clientSecret) },
+                infrastructure.smtpEmailDelivery(requireNotNull(configuration.smtpHost), configuration.smtpPort, configuration.smtpFrom),
+            )
+            listOf(IdentityRoutesFactory().routes(cases, configuration.cookieSecure,
+                configuration.accessTokenTtl, configuration.refreshTokenIdleTtl,
+                configuration.google?.clientId, configuration.google?.redirectUri))
+        }
+    }
+    public val csrfGuard: CsrfGuard? by lazy {
+        if (!configuration.authEnabled) null else IdentityRoutesFactory().csrf(configuration.authOrigins)
+    }
     /**
      * The generic [RequestPrincipalResolver] `platform:http`'s [tallyvane.platform.http.RequestPrincipal]
      * runs before every route — `identity`'s own [PrincipalResolver], adapted to the shape a

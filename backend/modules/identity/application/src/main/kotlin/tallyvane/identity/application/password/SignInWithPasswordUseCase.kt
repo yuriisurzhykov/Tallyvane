@@ -58,6 +58,7 @@ public interface SignInWithPasswordUseCase : UseCase {
             return when {
                 user == null -> AuthenticationOutcome.InvalidCredential
                 user.disabledAt != null -> AuthenticationOutcome.AccountDisabled
+                !user.emailVerified -> AuthenticationOutcome.InvalidCredential
                 else -> checkPassword(user.id, request.rawPassword)
             }
         }

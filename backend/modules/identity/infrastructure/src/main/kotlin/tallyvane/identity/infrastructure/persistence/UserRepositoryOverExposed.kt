@@ -5,6 +5,7 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.exceptions.ExposedSQLException
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
+import org.jetbrains.exposed.v1.jdbc.update
 import org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager
 import tallyvane.identity.application.port.UserRepository
 import tallyvane.identity.domain.user.Email
@@ -23,6 +24,9 @@ internal class UserRepositoryOverExposed : UserRepository {
 
     override suspend fun findById(id: UserId): User? =
         UsersTable.selectAll().where { UsersTable.id eq id.value }.singleOrNull()?.toUser()
+
+    override suspend fun markEmailVerified(id: UserId): Boolean =
+        UsersTable.update({ UsersTable.id eq id.value }) { it[emailVerified] = true } == 1
 
     /**
      * Guarded by a savepoint, not a preceding [findByEmail] — that check-then-act would race
@@ -46,6 +50,7 @@ internal class UserRepositoryOverExposed : UserRepository {
                 it[displayName] = user.displayName
                 it[createdAt] = instant.toColumn(user.createdAt)
                 it[disabledAt] = user.disabledAt?.let(instant::toColumn)
+                it[emailVerified] = user.emailVerified
             }
             connection.releaseSavepoint(savepoint)
             UserRepository.InsertOutcome.INSERTED
@@ -65,6 +70,7 @@ internal class UserRepositoryOverExposed : UserRepository {
         displayName = this[UsersTable.displayName],
         createdAt = instant.toDomain(this[UsersTable.createdAt]),
         disabledAt = this[UsersTable.disabledAt]?.let(instant::toDomain),
+        emailVerified = this[UsersTable.emailVerified],
     )
 
     private companion object {

@@ -12,6 +12,8 @@ public interface UserRepository {
 
     public suspend fun findById(id: UserId): User?
 
+    public suspend fun markEmailVerified(id: UserId): Boolean
+
     /**
      * The only way a new row is created. Reports [InsertOutcome.EMAIL_TAKEN] instead of being
      * preceded by a [findByEmail] check: under `READ COMMITTED`, two concurrent registrations for

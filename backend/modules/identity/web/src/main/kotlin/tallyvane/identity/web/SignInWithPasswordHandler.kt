@@ -1,14 +1,16 @@
 package tallyvane.identity.web
 
-import io.ktor.server.application.call
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.post
+import tallyvane.identity.application.SignInOutcome
 import tallyvane.identity.application.password.SignInWithPasswordRequest
 import tallyvane.identity.application.password.SignInWithPasswordUseCase
 import tallyvane.identity.domain.session.DeviceLabel
 import tallyvane.identity.domain.user.Email
+import tallyvane.identity.web.auth.AuthenticationProblems
+import tallyvane.identity.web.auth.RequestValidationFailure
 import tallyvane.platform.http.Refused
 import tallyvane.platform.kernel.Secret
 
@@ -31,11 +33,11 @@ internal class SignInWithPasswordHandler(
             val device = validation.field("device") { DeviceLabel(body.device) }
             val errors = validation.errorsOrNull()
             if (errors != null) {
-                call.respond(Refused(RequestValidationFailure(errors), validationProblems))
+                call.respond(Refused(RequestValidationFailure.FieldsInvalid(errors), validationProblems))
                 return@post
             }
 
-            val outcome = useCase.signIn(SignInWithPasswordRequest(email!!, password!!, device!!))
+            val outcome: SignInOutcome = useCase.signIn(SignInWithPasswordRequest(email!!, password!!, device!!))
             responses.respond(call, outcome, authenticationProblems)
         }
     }

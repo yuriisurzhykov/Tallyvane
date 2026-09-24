@@ -10,7 +10,7 @@ import tallyvane.platform.kernel.Secret
  * section, so its absence must not refuse the whole process the way [Configuration.tokenPepper]'s
  * does.
  */
-public class GoogleOAuthConfig(
+public data class GoogleOAuthConfiguration(
     public val clientId: String,
     public val clientSecret: Secret,
     public val redirectUri: String,

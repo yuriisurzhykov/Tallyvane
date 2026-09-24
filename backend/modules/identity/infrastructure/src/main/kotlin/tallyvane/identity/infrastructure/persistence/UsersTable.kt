@@ -14,6 +14,7 @@ internal object UsersTable : Table("identity.users") {
     val displayName = text("display_name").nullable()
     val createdAt = timestampWithTimeZone("created_at")
     val disabledAt = timestampWithTimeZone("disabled_at").nullable()
+    val emailVerified = bool("email_verified")
 
     override val primaryKey = PrimaryKey(id)
 }

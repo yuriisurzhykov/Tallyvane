@@ -1,7 +1,6 @@
 package tallyvane.identity.web
 
 import io.ktor.http.HttpStatusCode
-import io.ktor.server.application.call
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
@@ -9,6 +8,7 @@ import io.ktor.server.routing.post
 import tallyvane.identity.application.secondfactor.ConfirmSecondFactorEnrollmentRequest
 import tallyvane.identity.application.secondfactor.ConfirmSecondFactorEnrollmentUseCase
 import tallyvane.identity.domain.secondfactor.SecondFactorKind
+import tallyvane.identity.web.auth.RequestValidationFailure
 import tallyvane.platform.http.Refused
 
 /**
@@ -24,12 +24,12 @@ internal class ConfirmSecondFactorEnrollmentHandler(
     override fun install(route: Route) {
         route.post("/mfa/confirm") {
             val identity = currentPrincipal.resolve(call) ?: return@post
-            val body = call.receive<ConfirmRequestBody>()
+            val body = call.receive<ConfirmMfaRequestBody>()
             val validation = FieldValidation()
             val kind = validation.field("kind") { SecondFactorKind.valueOf(body.kind.uppercase()) }
             val errors = validation.errorsOrNull()
             if (errors != null) {
-                call.respond(Refused(RequestValidationFailure(errors), validationProblems))
+                call.respond(Refused(RequestValidationFailure.FieldsInvalid(errors), validationProblems))
                 return@post
             }
 

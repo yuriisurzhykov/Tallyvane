@@ -1,4 +1,4 @@
-package tallyvane.identity.web
+package tallyvane.identity.web.auth
 
 import tallyvane.platform.kernel.Failure
 

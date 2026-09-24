@@ -8,8 +8,11 @@ import io.ktor.server.routing.Route
 import io.ktor.server.routing.post
 import tallyvane.identity.application.password.RegisterWithPasswordRequest
 import tallyvane.identity.application.password.RegisterWithPasswordUseCase
+import tallyvane.identity.application.email.EmailChallenges
+import tallyvane.identity.domain.email.EmailChallengePurpose
 import tallyvane.identity.domain.outcome.RegisterOutcome
 import tallyvane.identity.domain.user.Email
+import tallyvane.identity.web.auth.RequestValidationFailure
 import tallyvane.platform.http.Refused
 import tallyvane.platform.kernel.Secret
 
@@ -21,6 +24,7 @@ internal class RegisterWithPasswordHandler(
     private val useCase: RegisterWithPasswordUseCase,
     private val registerProblems: RegisterProblems,
     private val validationProblems: RequestValidationProblems,
+    private val emailChallenges: EmailChallenges,
 ) : AuthHandler {
     override fun install(route: Route) {
         route.post("/register/password") {
@@ -30,15 +34,16 @@ internal class RegisterWithPasswordHandler(
             val password = validation.field("password") { Secret(body.password) }
             val errors = validation.errorsOrNull()
             if (errors != null) {
-                call.respond(Refused(RequestValidationFailure(errors), validationProblems))
+                call.respond(Refused(RequestValidationFailure.FieldsInvalid(errors), validationProblems))
                 return@post
             }
 
             when (val outcome = useCase.register(RegisterWithPasswordRequest(email!!, password!!, body.displayName))) {
                 is RegisterOutcome.Registered -> {
+                    val challenge = emailChallenges.issue(email, EmailChallengePurpose.REGISTRATION, outcome.userId.value.toString())
                     call.respond(
                         status = HttpStatusCode.Created,
-                        message = RegisterResponseBody(outcome.userId.value.toString()),
+                        message = RegisterResponseBody(outcome.userId.value.toString(), challenge?.id?.toString()),
                     )
                 }
 
@@ -46,6 +51,10 @@ internal class RegisterWithPasswordHandler(
                     call.respond(
                         message = Refused(failure = RegisterFailure.EmailTaken, problems = registerProblems),
                     )
+                }
+
+                is RegisterOutcome.InvalidPassword -> {
+                    call.respond(Refused(RegisterFailure.InvalidPassword, registerProblems))
                 }
             }
         }

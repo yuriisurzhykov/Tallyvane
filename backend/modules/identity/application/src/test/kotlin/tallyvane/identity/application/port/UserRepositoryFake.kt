@@ -11,6 +11,12 @@ internal class UserRepositoryFake : UserRepository {
 
     override suspend fun findById(id: UserId): User? = users[id]
 
+    override suspend fun markEmailVerified(id: UserId): Boolean {
+        val user = users[id] ?: return false
+        users[id] = user.copy(emailVerified = true)
+        return true
+    }
+
     override suspend fun insert(user: User): UserRepository.InsertOutcome {
         if (users.values.any { it.email == user.email }) {
             return UserRepository.InsertOutcome.EMAIL_TAKEN

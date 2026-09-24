@@ -111,6 +111,13 @@ class SignInSpec :
             result shouldBe SignInOutcome.NotIssued(AuthenticationOutcome.InvalidCredential)
         }
 
+        "an unverified email cannot create a password session" {
+            val signIn = withRegisteredUser(registered = user.copy(emailVerified = false))
+
+            signIn.signIn(SignInWithPasswordRequest(user.email, correctPassword, device)) shouldBe
+                SignInOutcome.NotIssued(AuthenticationOutcome.InvalidCredential)
+        }
+
         "an unknown email is rejected without revealing that it is unknown" {
             val signIn = withRegisteredUser()
 

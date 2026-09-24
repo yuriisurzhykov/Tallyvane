@@ -1,4 +1,4 @@
-package tallyvane.identity.web
+package tallyvane.identity.web.auth
 
 import tallyvane.platform.http.problems.Problem
 import tallyvane.platform.http.problems.Problems

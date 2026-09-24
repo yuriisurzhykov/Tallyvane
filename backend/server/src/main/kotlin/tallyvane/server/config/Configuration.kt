@@ -28,5 +28,11 @@ public class Configuration(
     public val signInRateLimitThreshold: Int,
     public val signInRateLimitWindow: Duration,
     public val totpIssuer: String,
-    public val google: GoogleOAuthConfig?,
+    public val google: GoogleOAuthConfiguration?,
+    public val authEnabled: Boolean = false,
+    public val totpKeyset: Secret? = null,
+    public val authOrigins: Set<String> = emptySet(),
+    public val smtpHost: String? = null,
+    public val smtpPort: Int = 1025,
+    public val smtpFrom: String = "noreply@surzhykov.icu",
 )

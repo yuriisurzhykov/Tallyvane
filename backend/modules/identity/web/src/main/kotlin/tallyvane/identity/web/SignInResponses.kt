@@ -5,6 +5,7 @@ import io.ktor.server.application.ApplicationCall
 import io.ktor.server.response.respond
 import tallyvane.identity.application.SignInOutcome
 import tallyvane.identity.domain.outcome.AuthenticationOutcome
+import tallyvane.identity.web.auth.AuthenticationFailure
 import tallyvane.platform.http.Refused
 import tallyvane.platform.http.problems.Problems
 import kotlin.time.Duration
@@ -14,14 +15,22 @@ import kotlin.time.Duration
  * (password, both Google methods), since all three hand back the identical outcome shape and none
  * of them should re-derive this mapping on its own.
  */
-internal class SignInResponses(private val cookies: SessionCookies, private val accessTtl: Duration, private val refreshTtl: Duration) {
+internal class SignInResponses(
+    private val cookies: SessionCookies,
+    private val accessTtl: Duration,
+    private val refreshTtl: Duration
+) {
+    fun attachIssued(call: ApplicationCall, outcome: SignInOutcome.Issued) {
+        cookies.attach(
+            call,
+            IssuedTokens(outcome.session.tokens.access, accessTtl, outcome.session.tokens.refresh, refreshTtl),
+        )
+    }
+
     suspend fun respond(call: ApplicationCall, outcome: SignInOutcome, problems: Problems<AuthenticationFailure>) {
         when (outcome) {
             is SignInOutcome.Issued -> {
-                cookies.attach(
-                    call,
-                    IssuedTokens(outcome.session.tokens.access, accessTtl, outcome.session.tokens.refresh, refreshTtl),
-                )
+                attachIssued(call, outcome)
                 call.respond(HttpStatusCode.OK, SignInResponseBody(status = STATUS_ISSUED))
             }
 
@@ -40,9 +49,9 @@ internal class SignInResponses(private val cookies: SessionCookies, private val 
                 ),
             )
 
-            AuthenticationOutcome.InvalidCredential -> call.respond(Refused(AuthenticationFailure.InvalidCredential, problems))
-            AuthenticationOutcome.AccountDisabled -> call.respond(Refused(AuthenticationFailure.AccountDisabled, problems))
-            AuthenticationOutcome.RateLimited -> call.respond(Refused(AuthenticationFailure.RateLimited, problems))
+            is AuthenticationOutcome.InvalidCredential -> call.respond(Refused(AuthenticationFailure.InvalidCredential, problems))
+            is AuthenticationOutcome.AccountDisabled -> call.respond(Refused(AuthenticationFailure.AccountDisabled, problems))
+            is AuthenticationOutcome.RateLimited -> call.respond(Refused(AuthenticationFailure.RateLimited, problems))
             // Unreachable in practice: SessionIssuer.complete never returns NotIssued(Success(...)),
             // per AuthenticationCompleter's own logic. Handled anyway because AuthenticationOutcome
             // is a closed type and this `when` must be exhaustive.

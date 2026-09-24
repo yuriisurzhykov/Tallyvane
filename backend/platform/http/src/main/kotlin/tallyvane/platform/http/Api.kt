@@ -13,6 +13,7 @@ import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.response.ApplicationSendPipeline
 import io.ktor.server.response.respond
+import io.ktor.server.request.path
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
 import io.ktor.util.AttributeKey
@@ -25,6 +26,7 @@ import tallyvane.platform.http.problems.FailureTranslator
 import tallyvane.platform.http.problems.Problem
 import tallyvane.platform.http.problems.Problems
 import tallyvane.platform.http.problems.TransportFailures
+import tallyvane.platform.http.csrf.CsrfGuard
 import tallyvane.platform.http.status.Answers
 import tallyvane.platform.http.status.Rfc9457Answers
 import tallyvane.platform.http.status.Statuses
@@ -69,6 +71,7 @@ public class Api(
     private val routes: List<RouteModule>,
     private val failures: FailureTranslator,
     private val trace: TraceHeader,
+    private val authCsrf: CsrfGuard? = null,
 ) {
     init {
         val repeated = routes.groupBy { module -> module.basePath }.filterValues { it.size > 1 }.keys
@@ -83,6 +86,14 @@ public class Api(
             exception<Throwable> { call, cause -> call.respondProblem(call.translated(cause)) }
         }
         traced(application)
+        authCsrf?.let { guard ->
+            application.intercept(ApplicationCallPipeline.Call) {
+                if (call.request.path().startsWith("/api/v1/auth/") && !guard.allows(call)) {
+                    call.respond(HttpStatusCode.Forbidden, mapOf("detail" to "Request verification failed. Reload and try again."))
+                    finish()
+                }
+            }
+        }
         renderProblems(application)
         mount(application)
     }
