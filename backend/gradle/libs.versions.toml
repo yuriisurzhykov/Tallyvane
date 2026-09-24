@@ -1,4 +1,5 @@
 [versions]
+angusMail = "2.0.4"
 # Build & language
 kotlin = "2.4.10"
 coroutines = "1.11.0"
@@ -48,6 +49,7 @@ slf4j = "2.0.18"
 logback = "1.6.3"
 
 [libraries]
+angus-mail = { group = "org.eclipse.angus", name = "jakarta.mail", version.ref = "angusMail" }
 # Gradle.
 # Plugin JARs on the build-logic classpath so convention plugins can
 # import plugin types. Modules apply them by id(), not these aliases.
