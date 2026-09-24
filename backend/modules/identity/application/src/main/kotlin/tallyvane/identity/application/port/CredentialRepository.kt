@@ -20,4 +20,7 @@ public interface CredentialRepository {
     public suspend fun findUserIdByGoogleSubject(subject: GoogleSubject): UserId?
 
     public suspend fun save(userId: UserId, credential: Credential)
+
+    /** Adds a password to an account that has none or atomically replaces its current password. */
+    public suspend fun saveOrReplacePasswordFor(userId: UserId, credential: Credential.PasswordRecord)
 }

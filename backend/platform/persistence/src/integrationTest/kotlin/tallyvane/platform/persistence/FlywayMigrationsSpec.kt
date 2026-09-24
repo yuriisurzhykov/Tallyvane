@@ -1,4 +1,4 @@
-﻿package tallyvane.platform.persistence
+package tallyvane.platform.persistence
 
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.StringSpec

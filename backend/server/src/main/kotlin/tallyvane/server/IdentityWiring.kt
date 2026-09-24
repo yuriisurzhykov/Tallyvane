@@ -3,7 +3,7 @@ package tallyvane.server
 import tallyvane.identity.contract.PrincipalResolver
 import tallyvane.identity.infrastructure.PrincipalResolverFactory
 import tallyvane.identity.infrastructure.IdentityInfrastructureFactory
-import tallyvane.identity.web.IdentityRoutesFactory
+import tallyvane.identity.web.routing.IdentityRoutesFactory
 import tallyvane.platform.http.RouteModule
 import tallyvane.platform.http.csrf.CsrfGuard
 import tallyvane.platform.http.RequestPrincipalResolver
@@ -32,13 +32,13 @@ public class IdentityWiring(private val platform: PlatformWiring, private val co
                 configuration.google?.let { infrastructure.googleOAuth(it.clientId, it.clientSecret) },
                 infrastructure.smtpEmailDelivery(requireNotNull(configuration.smtpHost), configuration.smtpPort, configuration.smtpFrom),
             )
-            listOf(IdentityRoutesFactory().routes(cases, configuration.cookieSecure,
+            listOf(IdentityRoutesFactory.Routes().routes(cases, configuration.cookieSecure,
                 configuration.accessTokenTtl, configuration.refreshTokenIdleTtl,
                 configuration.google?.clientId, configuration.google?.redirectUri))
         }
     }
     public val csrfGuard: CsrfGuard? by lazy {
-        if (!configuration.authEnabled) null else IdentityRoutesFactory().csrf(configuration.authOrigins)
+        if (!configuration.authEnabled) null else IdentityRoutesFactory.Routes().csrf(configuration.authOrigins)
     }
     /**
      * The generic [RequestPrincipalResolver] `platform:http`'s [tallyvane.platform.http.RequestPrincipal]

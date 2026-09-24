@@ -240,6 +240,121 @@ paths:
       responses:
         "204": { description: The address is verified. }
         "422": { description: The challenge was invalid, expired or exhausted. }
+      default:
+        $ref: "#/components/responses/Problem"
+
+  /auth/login/email/code:
+    post:
+      tags: [auth]
+      operationId: requestEmailSignInCode
+      summary: Send a purpose-bound email sign-in code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+      responses:
+        "202":
+          description: Code request accepted.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [challengeId]
+                properties:
+                  challengeId: { type: string, format: uuid }
+        "429":
+          description: A code was requested recently; retry after the Retry-After delay.
+          headers:
+            Retry-After: { schema: { type: integer } }
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /auth/login/email/verify:
+    post:
+      tags: [auth]
+      operationId: completeEmailSignIn
+      summary: Verify an email sign-in code and continue the server-selected sign-in policy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [challengeId, email, code, device]
+              properties:
+                challengeId: { type: string, format: uuid }
+                email: { type: string, format: email }
+                code: { type: string, pattern: "^[0-9]{6}$" }
+                device: { type: string }
+      responses:
+        "200": { description: Sign-in is complete or requires another factor. }
+        "401": { $ref: "#/components/responses/Problem" }
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /auth/password/forgot:
+    post:
+      tags: [auth]
+      operationId: requestPasswordResetCode
+      summary: Request an account-neutral password reset code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+      responses:
+        "202":
+          description: Request accepted without revealing whether the address has an account.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [challengeId]
+                properties:
+                  challengeId: { type: string, format: uuid }
+        "429":
+          description: A reset code was requested recently.
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /auth/password/reset:
+    post:
+      tags: [auth]
+      operationId: resetPassword
+      summary: Replace or add a password after verifying a reset-purpose code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [challengeId, email, code, newPassword]
+              properties:
+                challengeId: { type: string, format: uuid }
+                email: { type: string, format: email }
+                code: { type: string, pattern: "^[0-9]{6}$" }
+                newPassword: { type: string, minLength: 15, maxLength: 128 }
+      responses:
+        "200":
+          description: Request completed with an account-neutral response. Existing MFA stays enabled.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status: { type: string, const: completed }
+        "401": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
         default:
           $ref: "#/components/responses/Problem"
 

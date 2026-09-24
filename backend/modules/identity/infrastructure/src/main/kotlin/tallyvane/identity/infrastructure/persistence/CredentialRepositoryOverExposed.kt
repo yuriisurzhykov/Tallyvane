@@ -3,6 +3,7 @@ package tallyvane.identity.infrastructure.persistence
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
+import org.jetbrains.exposed.v1.jdbc.upsert
 import tallyvane.identity.application.port.CredentialRepository
 import tallyvane.identity.domain.credential.Credential
 import tallyvane.identity.domain.credential.GoogleSubject
@@ -45,6 +46,13 @@ internal class CredentialRepositoryOverExposed : CredentialRepository {
                 it[GoogleCredentialsTable.userId] = userId.value
                 it[googleSubject] = credential.subject.value
             }
+        }
+    }
+
+    override suspend fun saveOrReplacePasswordFor(userId: UserId, credential: Credential.PasswordRecord) {
+        PasswordCredentialsTable.upsert(PasswordCredentialsTable.userId) {
+            it[PasswordCredentialsTable.userId] = userId.value
+            it[PasswordCredentialsTable.passwordHash] = credential.hash.encoded.revealed()
         }
     }
 }

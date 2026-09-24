@@ -17,6 +17,9 @@ import tallyvane.platform.http.Api
 import tallyvane.platform.http.TraceHeader
 import tallyvane.platform.http.problems.FailureTranslator
 import tallyvane.platform.kernel.IdGenerator
+import tallyvane.identity.web.routing.AuthHandler
+import tallyvane.identity.web.routing.AuthRoutes
+import tallyvane.identity.web.routing.IdentityRoutesFactory
 
 class AuthRoutesSpec : StringSpec({
     "auth mutations require same-origin JSON and the issued CSRF token" {
@@ -28,9 +31,9 @@ class AuthRoutesSpec : StringSpec({
                     }
                 }
                 Api(
-                    listOf(AuthRoutes(listOf(handler), false)),
+                    listOf(AuthRoutes.Installation(listOf(handler), false)),
                     FailureTranslator.Chained(emptyList()), TraceHeader(IdGenerator.Uuid7()),
-                    IdentityRoutesFactory().csrf(setOf("https://app.example.com")),
+                    IdentityRoutesFactory.Routes().csrf(setOf("https://app.example.com")),
                 ).install(this)
             }
             client.post("/api/v1/auth/probe").status shouldBe HttpStatusCode.Forbidden

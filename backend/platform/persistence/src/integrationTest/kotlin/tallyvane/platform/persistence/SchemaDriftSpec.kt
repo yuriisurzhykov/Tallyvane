@@ -1,4 +1,4 @@
-﻿package tallyvane.platform.persistence
+package tallyvane.platform.persistence
 
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.collections.shouldBeEmpty

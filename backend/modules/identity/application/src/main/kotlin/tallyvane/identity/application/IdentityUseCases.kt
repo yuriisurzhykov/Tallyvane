@@ -14,6 +14,10 @@ import tallyvane.identity.application.port.TokenHasher
 import tallyvane.identity.application.port.UserRepository
 import tallyvane.identity.application.email.EmailChallenges
 import tallyvane.identity.application.email.VerifyRegistrationEmailUseCase
+import tallyvane.identity.application.email.RequestEmailSignInCodeUseCase
+import tallyvane.identity.application.email.SignInWithEmailCodeUseCase
+import tallyvane.identity.application.email.RequestPasswordResetUseCase
+import tallyvane.identity.application.email.ResetPasswordUseCase
 import tallyvane.identity.application.port.GoogleOAuthGateway
 import tallyvane.identity.application.google.GoogleSignInCompleter
 import tallyvane.identity.application.googleoauth.SignInWithGoogleOAuthUseCase
@@ -74,6 +78,18 @@ public class IdentityUseCases(
     }
     public val verifyRegistrationEmail: VerifyRegistrationEmailUseCase? = emailChallenges?.let { challenges ->
         VerifyRegistrationEmailUseCase.Verify(users, challenges, transactions)
+    }
+    public val requestEmailSignInCode: RequestEmailSignInCodeUseCase? = emailChallenges?.let { challenges ->
+        RequestEmailSignInCodeUseCase.Issue(challenges)
+    }
+    public val signInWithEmailCode: SignInWithEmailCodeUseCase? = emailChallenges?.let { challenges ->
+        SignInWithEmailCodeUseCase.SignIn(users, challenges, completer, transactions)
+    }
+    public val requestPasswordReset: RequestPasswordResetUseCase? = emailChallenges?.let { challenges ->
+        RequestPasswordResetUseCase.Send(challenges)
+    }
+    public val resetPassword: ResetPasswordUseCase? = emailChallenges?.let { challenges ->
+        ResetPasswordUseCase.Replace(users, credentials, passwords, challenges, transactions)
     }
     public val verify: VerifySecondFactorUseCase = VerifySecondFactorUseCase.RateLimited(
         VerifySecondFactorUseCase.Verify(pending, registry, issuer, clock, transactions),

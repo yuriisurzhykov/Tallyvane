@@ -42,6 +42,7 @@ internal val ARCH_RULES: List<ArchRule> =
         ArchRule("port-has-conformance-suite", scope = { codeScope() }, violations = ::portHasConformanceSuite),
         ArchRule("usecase-has-test", scope = { codeScope() }, violations = ::usecaseHasTest),
         ArchRule("registry-owns-branching", violations = ::registryOwnsBranching),
+        ArchRule("identity-web-behavior-is-interface", violations = ::identityWebBehaviorIsInterface),
         ArchRule("app-has-no-logic", violations = ::appHasNoLogic),
         ArchRule("one-top-level-class", violations = ::oneTopLevelClass),
         ArchRule("package-matches-layer", violations = ::packageMatchesLayer),

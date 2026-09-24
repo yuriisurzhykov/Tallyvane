@@ -17,4 +17,10 @@ internal class CredentialRepositoryFake : CredentialRepository {
     override suspend fun save(userId: UserId, credential: Credential) {
         byUser.getOrPut(userId) { mutableListOf() }.add(credential)
     }
+
+    override suspend fun saveOrReplacePasswordFor(userId: UserId, credential: Credential.PasswordRecord) {
+        val credentials = byUser.getOrPut(userId) { mutableListOf() }
+        credentials.removeAll { it is Credential.PasswordRecord }
+        credentials.add(credential)
+    }
 }

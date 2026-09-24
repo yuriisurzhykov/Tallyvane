@@ -52,6 +52,24 @@ public abstract class CredentialRepositoryConformance : StringSpec() {
             } shouldBe credential
         }
 
+        "resetting a password replaces it atomically for the same user" {
+            val subject = fresh()
+            val userId = UserId(Uuid.random())
+            val first = Credential.PasswordRecord(PasswordHash(Secret("argon2id\$encoded\$old")))
+            val next = Credential.PasswordRecord(PasswordHash(Secret("argon2id\$encoded\$new")))
+
+            subject.transactions.inTransaction {
+                subject.users.insert(testUser(userId))
+                subject.credentials.save(userId, first)
+                subject.credentials.saveOrReplacePasswordFor(userId, next)
+                Verdict.Commit(Unit)
+            }
+
+            subject.transactions.inTransaction {
+                Verdict.Commit(subject.credentials.findPasswordFor(userId))
+            } shouldBe next
+        }
+
         "a user id nobody saved a password for has none" {
             val subject = fresh()
             val userId = UserId(Uuid.random())
