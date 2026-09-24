@@ -14,4 +14,6 @@ public sealed interface RegisterOutcome {
     public data class Registered(public val userId: UserId) : RegisterOutcome
 
     public data object EmailTaken : RegisterOutcome
+
+    public data object InvalidPassword : RegisterOutcome
 }

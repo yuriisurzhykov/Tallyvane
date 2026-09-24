@@ -15,4 +15,5 @@ public data class User(
     public val displayName: String?,
     public val createdAt: Instant,
     public val disabledAt: Instant?,
+    public val emailVerified: Boolean = true,
 )
