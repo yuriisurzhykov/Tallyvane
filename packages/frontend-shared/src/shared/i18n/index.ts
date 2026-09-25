@@ -10,12 +10,10 @@ export type KeyOf<TNamespace extends Record<string, string>> = keyof TNamespace 
  * and nothing here that needs a client boundary.
  */
 export function createUseStrings<TDict extends Record<string, Record<string, string>>>(dictionary: TDict) {
-    return function useStrings<N extends keyof TDict & string>(ns: N) {
-        return function t(key: KeyOf<TDict[N]>, vars?: Record<string, string | number>): string {
-            const namespace = dictionary[ns];
-            if (namespace === undefined) {
-                throw new Error(`Unknown string namespace: ${ns}`);
-            }
+    const translators = new Map<string, (key: string, vars?: Record<string, string | number>) => string>();
+    for (const ns of Object.keys(dictionary)) {
+        const namespace = dictionary[ns] as Record<string, string>;
+        translators.set(ns, (key, vars) => {
             const raw = namespace[key];
             if (raw === undefined) {
                 throw new Error(`Unknown string key: ${ns}.${key}`);
@@ -25,6 +23,12 @@ export function createUseStrings<TDict extends Record<string, Record<string, str
                 (acc, [name, value]) => acc.replaceAll(`{${name}}`, String(value)),
                 raw,
             );
-        };
+        });
+    }
+
+    return function useStrings<N extends keyof TDict & string>(ns: N) {
+        const translator = translators.get(ns);
+        if (translator === undefined) throw new Error(`Unknown string namespace: ${ns}`);
+        return translator as (key: KeyOf<TDict[N]>, vars?: Record<string, string | number>) => string;
     };
 }

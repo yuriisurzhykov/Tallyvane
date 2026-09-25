@@ -16,7 +16,9 @@ import tallyvane.identity.application.port.TokenFactoryFake
 import tallyvane.identity.application.port.TokenHasherFake
 import tallyvane.identity.application.port.UserRepositoryFake
 import tallyvane.identity.application.secondfactor.SecondFactorMethodRegistry
+import tallyvane.identity.domain.credential.Credential
 import tallyvane.identity.domain.credential.GoogleSubject
+import tallyvane.identity.domain.credential.PasswordHash
 import tallyvane.identity.domain.outcome.AuthenticationOutcome
 import tallyvane.identity.domain.session.DeviceLabel
 import tallyvane.identity.domain.user.Email
@@ -24,6 +26,7 @@ import tallyvane.identity.domain.user.User
 import tallyvane.identity.domain.user.UserId
 import tallyvane.platform.kernel.ClockFake
 import tallyvane.platform.kernel.IdGeneratorFake
+import tallyvane.platform.kernel.Secret
 import tallyvane.platform.kernel.TransactionRunnerFake
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.minutes
@@ -88,7 +91,7 @@ class GoogleSignInCompleterSpec :
             second.session.session.userId shouldBe first.session.session.userId
         }
 
-        "an email already used by a different credential is refused, not silently linked" {
+        "an existing account with the same verified Google email is linked and receives a session" {
             val users = UserRepositoryFake()
             val credentials = CredentialRepositoryFake()
             val existingUserId = UserId(Uuid.parse("00000000-0000-7000-8000-000000000099"))
@@ -101,10 +104,36 @@ class GoogleSignInCompleterSpec :
                     disabledAt = null,
                 ),
             )
+            credentials.save(existingUserId, Credential.PasswordRecord(PasswordHash(Secret("stored-password-hash"))))
+
+            val result = googleSignInCompleter(users, credentials).complete(identity, device)
+
+            result.shouldBeInstanceOf<SignInOutcome.Issued>()
+            result.session.session.userId shouldBe existingUserId
+            credentials.findUserIdByGoogleSubject(identity.subject) shouldBe existingUserId
+            credentials.findPasswordFor(existingUserId).shouldNotBeNull()
+        }
+
+        "an existing account already linked to another Google subject is not reassigned" {
+            val users = UserRepositoryFake()
+            val credentials = CredentialRepositoryFake()
+            val existingUserId = UserId(Uuid.parse("00000000-0000-7000-8000-000000000099"))
+            val otherSubject = GoogleSubject("another-google-subject")
+            users.insert(
+                User(
+                    id = existingUserId,
+                    email = identity.email,
+                    displayName = null,
+                    createdAt = now,
+                    disabledAt = null,
+                ),
+            )
+            credentials.save(existingUserId, Credential.GoogleRecord(otherSubject))
 
             val result = googleSignInCompleter(users, credentials).complete(identity, device)
 
             result shouldBe SignInOutcome.NotIssued(AuthenticationOutcome.InvalidCredential)
+            credentials.findUserIdByGoogleSubject(otherSubject) shouldBe existingUserId
             credentials.findUserIdByGoogleSubject(identity.subject).shouldBeNull()
         }
     })

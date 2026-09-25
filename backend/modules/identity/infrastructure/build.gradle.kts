@@ -9,6 +9,9 @@ dependencies {
     api(projects.modules.identity.application)
     api(projects.modules.identity.contract)
     implementation(projects.platform.cache)
+    // Reuse the application's configured JSON format when decoding Google's extensible token
+    // response; Google adds standard OAuth fields beyond the one this adapter consumes.
+    implementation(projects.platform.http)
     implementation(projects.platform.persistence)
     implementation(libs.exposed.core)
     implementation(libs.exposed.jdbc)

@@ -33,13 +33,15 @@ internal interface GoogleSignInCompleter {
      * must have one open already. Verified for real, not merely argued:
      * `backend/playground/transactions/README.md`'s 2026-09-02 entry.
      *
-     * A first sign-in for a Google identity this account has never seen creates the account and
-     * its [Credential.GoogleRecord] in the same transaction; a returning one finds it by
-     * [GoogleIdentity.subject] alone, never by email.
+     * A first sign-in for a Google identity creates its account and [Credential.GoogleRecord] in
+     * the same transaction. When the verified Google email already belongs to a local account,
+     * its Google slot is claimed atomically and that existing account receives the session. A
+     * returning identity is resolved by [GoogleIdentity.subject] first, so an email change does
+     * not move the Google credential to another account.
      *
-     * If the account's email is already taken by a *different* credential (a password account
-     * signing up again through Google, say), this refuses rather than linking the two silently —
-     * why: `application/README.md`.
+     * The infrastructure verifier only constructs [GoogleIdentity] from a Google ID token whose
+     * `email_verified` claim is true. `saveGoogleIfUnclaimed` also refuses to replace an existing
+     * Google credential or claim a subject already assigned to another account.
      */
     class Default(
         private val users: UserRepository,
@@ -65,6 +67,13 @@ internal interface GoogleSignInCompleter {
 
         private suspend fun findOrCreateUser(identity: GoogleIdentity): UserId? {
             credentials.findUserIdByGoogleSubject(identity.subject)?.let { return it }
+            users.findByEmail(identity.email)?.let { user ->
+                return if (credentials.saveGoogleIfUnclaimed(user.id, identity.subject)) {
+                    user.id
+                } else {
+                    credentials.findUserIdByGoogleSubject(identity.subject)
+                }
+            }
             val userId = UserId(ids.next())
             val user = User(
                 id = userId,
@@ -74,7 +83,13 @@ internal interface GoogleSignInCompleter {
                 disabledAt = null,
             )
             return when (users.insert(user)) {
-                UserRepository.InsertOutcome.EMAIL_TAKEN -> null
+                UserRepository.InsertOutcome.EMAIL_TAKEN -> users.findByEmail(identity.email)?.let { existing ->
+                    if (credentials.saveGoogleIfUnclaimed(existing.id, identity.subject)) {
+                        existing.id
+                    } else {
+                        credentials.findUserIdByGoogleSubject(identity.subject)
+                    }
+                }
                 UserRepository.InsertOutcome.INSERTED -> {
                     credentials.save(userId, Credential.GoogleRecord(identity.subject))
                     userId

@@ -20,6 +20,10 @@ describe("createUseStrings", () => {
         expect(t("productName")).toBe("Tallyvane");
     });
 
+    it("returns a stable translator for the same namespace", () => {
+        expect(useStrings("common")).toBe(useStrings("common"));
+    });
+
     it("substitutes {name} placeholders from the vars map", () => {
         const t = useStrings("common");
         expect(t("greet", { name: "Ada" })).toBe("Hello Ada");

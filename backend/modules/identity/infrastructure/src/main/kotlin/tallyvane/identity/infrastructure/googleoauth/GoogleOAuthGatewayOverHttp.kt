@@ -7,10 +7,11 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.Parameters
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
+import kotlinx.serialization.SerializationException
 import tallyvane.identity.application.google.GoogleIdentity
 import tallyvane.identity.application.port.GoogleIdTokenVerifier
 import tallyvane.identity.application.port.GoogleOAuthGateway
+import tallyvane.platform.http.ApiJson
 import tallyvane.platform.kernel.Secret
 
 /**
@@ -22,8 +23,8 @@ import tallyvane.platform.kernel.Secret
  * ```
  *
  * `400 Bad Request` from Google's token endpoint (`invalid_grant`) answers `null`, per this
- * port's own contract; any other failure — a network fault, an unexpected response shape — is not
- * caught here and reaches the caller uncaught.
+ * port's own contract; other failures reach the caller uncaught. Token-response parse failures
+ * are sanitized first so the provider body, which contains bearer tokens, never reaches request logs.
  */
 internal class GoogleOAuthGatewayOverHttp(
     private val httpClient: HttpClient,
@@ -46,7 +47,15 @@ internal class GoogleOAuthGatewayOverHttp(
         if (response.status == HttpStatusCode.BadRequest) {
             return null
         }
-        val token = Json.decodeFromString<TokenResponse>(response.bodyAsText())
+        val token = try {
+            ApiJson.format.decodeFromString<TokenResponse>(response.bodyAsText())
+        } catch (_: SerializationException) {
+            // kotlinx.serialization includes part of the input JSON in its exception message.
+            // Google returns bearer tokens here, so never let that exception reach request logging.
+            throw IllegalStateException(
+                "Google OAuth token response could not be decoded (HTTP ${response.status.value}).",
+            )
+        }
         return idTokenVerifier.verify(token.idToken)
     }
 

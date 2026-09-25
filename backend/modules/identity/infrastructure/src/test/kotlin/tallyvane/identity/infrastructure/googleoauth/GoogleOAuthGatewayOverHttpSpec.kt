@@ -1,8 +1,10 @@
 package tallyvane.identity.infrastructure.googleoauth
 
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.string.shouldNotContain
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
@@ -36,11 +38,41 @@ class GoogleOAuthGatewayOverHttpSpec :
         )
 
         "exchanges a code for the identity the verifier reads off Google's own id_token" {
-            val gateway = gatewayFor(HttpStatusCode.OK, """{"id_token":"genuine-id-token"}""")
+            val gateway = gatewayFor(
+                HttpStatusCode.OK,
+                """{"access_token":"marker-access-token","expires_in":3599,"scope":"openid email profile","token_type":"Bearer","id_token":"genuine-id-token"}""",
+            )
 
             val result = gateway.exchangeCode("auth-code", "verifier", "https://app/callback")
 
             result shouldBe identity
+        }
+
+        "a response with no id_token fails without exposing its body" {
+            val responseBody = """{"access_token":"marker-access-token","token_type":"Bearer"}"""
+            val gateway = gatewayFor(HttpStatusCode.OK, responseBody)
+
+            val failure = shouldThrow<IllegalStateException> {
+                gateway.exchangeCode("auth-code", "verifier", "https://app/callback")
+            }
+
+            failure.message shouldBe "Google OAuth token response could not be decoded (HTTP 200)."
+            failure.cause shouldBe null
+            failure.message shouldNotContain "marker-access-token"
+        }
+
+        "a malformed token response fails without exposing its body" {
+            val responseBody = """{"access_token":"marker-access-token","id_token":"marker-id-token"}"""
+            val gateway = gatewayFor(HttpStatusCode.OK, responseBody.dropLast(1))
+
+            val failure = shouldThrow<IllegalStateException> {
+                gateway.exchangeCode("auth-code", "verifier", "https://app/callback")
+            }
+
+            failure.message shouldBe "Google OAuth token response could not be decoded (HTTP 200)."
+            failure.cause shouldBe null
+            failure.message shouldNotContain "marker-access-token"
+            failure.message shouldNotContain "marker-id-token"
         }
 
         "a rejected code (Google's own 400 invalid_grant) answers null" {
