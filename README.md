@@ -10,9 +10,13 @@ of the product: a complete record, and a read on where it is heading.
 
 ## Status
 
-Scaffolding. The architecture is designed and reviewed; no feature code exists
-yet. Directory structure and configuration are in place so that the rails come
-before the first module, not after it.
+The repository contains feature code: authentication in `frontend-app` and
+`backend/modules/identity`, shared UI components, and content tooling.
+Implementation coverage varies by area; the architecture also describes planned
+capabilities. Source code and its checks establish what is implemented.
+
+For a new feature, start with the [reuse map](docs/engineering/reuse-map.md)
+to find existing building blocks, examples, and their limits.
 
 ## Where the thinking lives
 
@@ -59,8 +63,9 @@ compilers do not.
 
 ## Checking it
 
-`pnpm verify` runs everything CI runs, in the order CI runs it. The parts, if
-one of them is what you need:
+`pnpm verify` runs the workspace type, lint, architecture, unit-test, and build
+checks. Backend and browser checks have separate workflows; this command is
+not the whole CI pipeline. The workspace checks individually:
 
 | Command          | What fails it                                                                                                            |
 |------------------|--------------------------------------------------------------------------------------------------------------------------|
