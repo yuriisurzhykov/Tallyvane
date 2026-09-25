@@ -42,6 +42,12 @@ describe("Text", () => {
         expect(screen.getByRole("heading", { level: 1, name: "The one true page heading" })).toBeInTheDocument();
     });
 
+    it("renders semantic headings without requiring a native JSX element at the call site", () => {
+        render(<Text variant="title2" as="h2">Security settings</Text>);
+
+        expect(screen.getByRole("heading", { level: 2, name: "Security settings" })).toBeInTheDocument();
+    });
+
     it("defaults body copy to a real paragraph element", () => {
         render(<Text variant="body">Paragraph copy</Text>);
         expect(screen.getByText("Paragraph copy").tagName).toBe("P");

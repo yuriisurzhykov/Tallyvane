@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import { useRender } from "@base-ui/react/use-render";
+import { mergeProps } from "@base-ui/react/merge-props";
 
 export type SpacingRole = "inline-tight" | "inline" | "stack-tight" | "stack" | "group-gap" | "section-gap";
 
@@ -17,6 +19,12 @@ export interface RowProps {
     readonly children: ReactNode;
     /** Layout and position only — see `COMPONENTS.md` §11. */
     readonly className?: string;
+    /** The semantic block element. Defaults to `div`. */
+    readonly as?: "article" | "aside" | "div" | "footer" | "header" | "li" | "main" | "nav" | "section";
+    readonly id?: string;
+    readonly role?: string;
+    readonly "aria-label"?: string;
+    readonly "aria-labelledby"?: string;
 }
 
 /**
@@ -24,10 +32,12 @@ export interface RowProps {
  * common case is an icon beside a label, where the two need a shared
  * baseline-ish middle rather than each sitting at its own top edge.
  */
-export function Row({ gap, children, className }: RowProps) {
-    return (
-        <div className={ ["flex flex-row items-center", GAP_CLASS_NAME[gap], className].filter(Boolean).join(" ") }>
-            { children }
-        </div>
-    );
+export function Row({ gap, children, className, as = "div", ...props }: RowProps) {
+    return useRender({
+        defaultTagName: as,
+        props: mergeProps<"div">(
+            { className: ["flex flex-row items-center", GAP_CLASS_NAME[gap]].join(" "), children },
+            { ...(className ? { className } : {}), ...props },
+        ),
+    });
 }

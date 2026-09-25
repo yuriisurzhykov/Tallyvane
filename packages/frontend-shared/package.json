@@ -35,6 +35,7 @@
     "./ui/toggle": "./src/shared/ui/toggle/index.ts",
     "./ui/toggle-group": "./src/shared/ui/toggle-group/index.ts",
     "./ui/input": "./src/shared/ui/input/index.ts",
+    "./ui/image": "./src/shared/ui/image/index.ts",
     "./ui/text-area": "./src/shared/ui/text-area/index.ts",
     "./ui/form": "./src/shared/ui/form/index.ts",
     "./ui/password-field": "./src/shared/ui/password-field/index.ts",

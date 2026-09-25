@@ -3,6 +3,16 @@ import { render, screen } from "@testing-library/react";
 import { Stack, type SpacingRole } from "./Stack";
 
 describe("Stack", () => {
+    it("renders a semantic section while keeping the vertical layout contract", () => {
+        render(
+            <Stack as="section" aria-label="Security settings" gap="stack">
+                <p>Item</p>
+            </Stack>,
+        );
+
+        expect(screen.getByRole("region", { name: "Security settings" })).toHaveClass("flex", "flex-col", "gap-stack");
+    });
+
     it("renders as a vertical flex container", () => {
         render(
             <Stack gap="stack">
