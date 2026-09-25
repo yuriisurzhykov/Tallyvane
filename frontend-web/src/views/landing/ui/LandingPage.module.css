@@ -1,0 +1,480 @@
+.page {
+    min-height: 100svh;
+    background: var(--ds-color-surface-primary);
+    color: var(--ds-color-text-primary);
+}
+
+.frame {
+    width: min(100%, 92rem);
+    margin-inline: auto;
+    padding-inline: clamp(var(--ds-dimension-6), 5vw, var(--ds-dimension-16));
+}
+
+.header {
+    min-height: 5.5rem;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--ds-dimension-6);
+    border-bottom: var(--ds-border-hairline) solid var(--ds-color-border-subtle);
+}
+
+.brand,
+.brand:hover {
+    color: inherit;
+    text-decoration: none;
+}
+
+.navigation,
+.headerActions {
+    flex-direction: row;
+    align-items: center;
+}
+
+.main {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(var(--ds-dimension-16), 12vw, var(--ds-dimension-32));
+    padding-block: clamp(var(--ds-dimension-8), 6vw, var(--ds-dimension-16));
+}
+
+.hero {
+    display: grid;
+    grid-template-columns: minmax(0, .82fr) minmax(0, 1.18fr);
+    align-items: center;
+    gap: clamp(var(--ds-dimension-8), 6vw, var(--ds-dimension-16));
+    min-height: min(40rem, calc(100svh - 12rem));
+    scroll-margin-top: var(--ds-dimension-8);
+}
+
+.heroCopy {
+    max-width: 34rem;
+}
+
+.heroText {
+    gap: var(--ds-dimension-5);
+}
+
+.eyebrow {
+    letter-spacing: var(--ds-typography-tracking-wide);
+    text-transform: uppercase;
+}
+
+.heroTitle {
+    max-width: 16ch;
+    font-size: clamp(var(--ds-typography-size-9), 5vw, 5rem);
+    line-height: 1.02;
+    letter-spacing: var(--ds-typography-tracking-tightest);
+    font-weight: var(--ds-typography-weight-medium);
+}
+
+.heroDescription {
+    max-width: 29rem;
+    line-height: 1.6;
+}
+
+.heroActions {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.secondaryAction {
+    color: var(--ds-color-text-primary);
+    text-decoration-color: var(--ds-color-border-strong);
+    text-underline-offset: var(--ds-dimension-1);
+}
+
+.previewWrap {
+    position: relative;
+    width: min(100%, 46rem);
+    justify-self: end;
+    padding: var(--ds-dimension-4) 0 var(--ds-dimension-8) var(--ds-dimension-8);
+    background: var(--ds-color-surface-inset);
+    border-radius: var(--ds-radius-xl);
+}
+
+.preview,
+.previewCaption {
+    position: relative;
+    z-index: 1;
+}
+
+.preview {
+    overflow: hidden;
+    border-radius: var(--ds-radius-xl);
+    background: var(--ds-color-surface-primary);
+    box-shadow: 0 var(--ds-dimension-4) var(--ds-dimension-12) var(--ds-color-overlay-black-8);
+}
+
+.previewTopbar {
+    min-height: var(--ds-dimension-12);
+    justify-content: space-between;
+    padding-inline: var(--ds-dimension-5);
+    border-bottom: var(--ds-border-hairline) solid var(--ds-color-border-subtle);
+    background: var(--ds-color-surface-elevated);
+}
+
+.windowDots {
+    flex-direction: row;
+}
+
+.windowDots span {
+    width: var(--ds-dimension-2);
+    aspect-ratio: 1;
+    border-radius: var(--ds-radius-full);
+    background: var(--ds-color-border-strong);
+}
+
+.windowDots span:first-child {
+    background: var(--ds-color-status-danger);
+}
+
+.windowDots span:nth-child(2) {
+    background: var(--ds-color-status-attention);
+}
+
+.windowDots span:last-child {
+    background: var(--ds-color-status-success);
+}
+
+.previewBody {
+    padding: clamp(var(--ds-dimension-5), 4vw, var(--ds-dimension-10));
+}
+
+.previewHeading,
+.opportunityHeader,
+.opportunity {
+    flex-direction: row;
+    justify-content: space-between;
+}
+
+.previewCount {
+    padding: var(--ds-dimension-1) var(--ds-dimension-3);
+    border: var(--ds-border-hairline) solid var(--ds-color-border-subtle);
+    border-radius: var(--ds-radius-full);
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.previewHeading > div:first-child {
+    min-width: 0;
+    flex: 1;
+}
+
+.memoryMap {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(9rem, .72fr);
+    align-items: center;
+    gap: var(--ds-dimension-4);
+    padding: var(--ds-dimension-4);
+    border: var(--ds-border-hairline) solid var(--ds-color-border-subtle);
+    border-radius: var(--ds-radius-lg);
+    background: var(--ds-color-surface-primary);
+}
+
+.memoryNodes {
+    display: grid;
+    gap: var(--ds-dimension-2);
+}
+
+.memoryNode {
+    display: flex;
+    flex-direction: column;
+    gap: var(--ds-dimension-1);
+    padding: var(--ds-dimension-3);
+    border: var(--ds-border-hairline) solid var(--ds-color-border-subtle);
+    border-radius: var(--ds-radius-md);
+    background: var(--ds-color-surface-elevated);
+}
+
+.memoryNodePrimary {
+    border-color: var(--ds-color-border-strong);
+}
+
+.memoryEdge {
+    width: var(--ds-border-focus);
+    height: var(--ds-dimension-3);
+    align-self: center;
+    margin-block: calc(-1 * var(--ds-dimension-2));
+    background: var(--ds-color-border-strong);
+}
+
+.mapConnector {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    gap: var(--ds-dimension-2);
+    width: var(--ds-dimension-8);
+    height: 7.5rem;
+}
+
+.mapConnector span {
+    display: block;
+    height: var(--ds-border-hairline);
+    width: 100%;
+    background: var(--ds-color-border-strong);
+}
+
+.roleMatch {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--ds-dimension-2);
+    padding: var(--ds-dimension-4);
+    border-radius: var(--ds-radius-lg);
+}
+
+.roleMatchHeading,
+.nextStepLabel {
+    flex-direction: row;
+    align-items: center;
+}
+
+.nextStep {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--ds-dimension-2);
+    padding: var(--ds-dimension-4);
+    border-radius: var(--ds-radius-lg);
+    background: var(--ds-color-surface-inset);
+}
+
+.previewCaption {
+    align-self: flex-end;
+    padding-inline-end: var(--ds-dimension-2);
+    padding-block-end: var(--ds-dimension-2);
+}
+
+.workflow,
+.notes,
+.faq,
+.closing {
+    scroll-margin-top: var(--ds-dimension-8);
+}
+
+.sectionHeading {
+    max-width: 46rem;
+}
+
+.sectionHeading > * + * {
+    margin-top: var(--ds-dimension-1);
+}
+
+.sectionHeading h2 {
+    max-width: 20ch;
+    letter-spacing: var(--ds-typography-tracking-tighter);
+}
+
+.workflowGrid,
+.notesGrid,
+.capabilitiesGrid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: stretch;
+}
+
+.workflowCard {
+    padding: var(--ds-dimension-5) var(--ds-dimension-6);
+    border-top: var(--ds-border-hairline) solid var(--ds-color-border-strong);
+}
+
+.stepNumber {
+    margin-bottom: auto;
+    font-family: var(--ds-typography-family-mono);
+}
+
+.capabilityLine {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: var(--ds-dimension-2) var(--ds-dimension-3);
+    padding-top: var(--ds-dimension-4);
+    border-top: var(--ds-border-hairline) solid var(--ds-color-border-subtle);
+}
+
+.faq {
+    max-width: 56rem;
+    width: 100%;
+    margin-inline: auto;
+}
+
+.closing {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--ds-dimension-8);
+    padding: clamp(var(--ds-dimension-6), 7vw, var(--ds-dimension-12));
+    border: var(--ds-border-hairline) solid var(--ds-color-border-subtle);
+    border-radius: var(--ds-radius-xl);
+    background: var(--ds-color-surface-elevated);
+}
+
+.closing > div {
+    max-width: 42rem;
+}
+
+.closing h2 {
+    max-width: 18ch;
+}
+
+.footer {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--ds-dimension-5);
+    padding-block: var(--ds-dimension-8);
+    border-top: var(--ds-border-hairline) solid var(--ds-color-border-subtle);
+}
+
+.footer > div:last-child {
+    flex-direction: row;
+}
+
+@media (max-width: 70rem) {
+    .hero {
+        grid-template-columns: minmax(0, 1fr);
+        gap: var(--ds-dimension-10);
+        min-height: 0;
+    }
+
+    .heroCopy {
+        max-width: 48rem;
+    }
+
+    .heroTitle {
+        max-width: 16ch;
+    }
+
+    .previewWrap {
+        justify-self: center;
+        width: min(100%, 52rem);
+    }
+}
+
+@media (max-width: 48rem) {
+    .frame {
+        padding-inline: var(--ds-dimension-4);
+    }
+
+    .header {
+        min-height: var(--ds-dimension-12);
+        gap: var(--ds-dimension-3);
+    }
+
+    .navigation {
+        display: none;
+    }
+
+    .headerActions {
+        flex-direction: row;
+        gap: var(--ds-dimension-3);
+    }
+
+    .main {
+        gap: var(--ds-dimension-16);
+    }
+
+    .heroTitle {
+        font-size: var(--ds-text-hero-size);
+    }
+
+    .heroActions {
+        align-items: flex-start;
+    }
+
+    .previewWrap {
+        padding-inline-start: var(--ds-dimension-3);
+    }
+
+    .previewTopbar {
+        padding-inline: var(--ds-dimension-3);
+    }
+
+    .previewTopbar > *:last-child {
+        display: none;
+    }
+
+    .previewBody {
+        padding: var(--ds-dimension-4);
+    }
+
+    .previewHeading {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .previewCount {
+        white-space: nowrap;
+    }
+
+    .workflowGrid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .memoryMap {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .memoryNodes {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .memoryEdge {
+        width: var(--ds-dimension-3);
+        height: var(--ds-border-focus);
+        justify-self: center;
+        margin: 0 calc(-1 * var(--ds-dimension-2));
+    }
+
+    .memoryNodes {
+        display: flex;
+        flex-direction: row;
+        align-items: stretch;
+    }
+
+    .memoryNode {
+        flex: 1;
+        min-width: 0;
+        justify-content: center;
+        padding: var(--ds-dimension-2);
+    }
+
+    .memoryNode > *:last-child {
+        font-size: var(--ds-typography-size-1);
+    }
+
+    .mapConnector {
+        flex-direction: row;
+        width: auto;
+        height: var(--ds-dimension-3);
+        padding-inline: var(--ds-dimension-8);
+    }
+
+    .mapConnector span {
+        height: 100%;
+        width: var(--ds-border-hairline);
+    }
+
+    .workflowCard {
+        gap: var(--ds-dimension-3);
+    }
+
+    .stepNumber {
+        margin-bottom: 0;
+    }
+
+    .closing {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .footer {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}

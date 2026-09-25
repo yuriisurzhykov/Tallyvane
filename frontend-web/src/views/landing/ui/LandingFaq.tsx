@@ -12,7 +12,7 @@ const FAQ_ITEMS = [
     { value: "who-for", titleKey: "faqWhoForTitle", answerKey: "faqWhoForAnswer" },
 ] as const;
 
-/** Four-question FAQ. Header is an `h2` so the outline reads h1 (hero) then these, not the Accordion default `h3`. */
+/** Four-question FAQ. Each accordion label is an `h3` under the section heading. */
 export function LandingFaq() {
     const t = useStrings("landing");
 
@@ -20,7 +20,7 @@ export function LandingFaq() {
         <Accordion.Root defaultValue={["what"]}>
             {FAQ_ITEMS.map((item) => (
                 <Accordion.Item key={item.value} value={item.value}>
-                    <Accordion.Header render={nativeRender("h2")}>
+                    <Accordion.Header render={nativeRender("h3")}>
                         <Accordion.Trigger>{t(item.titleKey)}</Accordion.Trigger>
                     </Accordion.Header>
                     <Accordion.Panel>

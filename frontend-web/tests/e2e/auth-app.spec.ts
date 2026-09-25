@@ -3,6 +3,9 @@ import { expect, test } from "@playwright/test";
 test.describe("the application authentication pages", () => {
     test.beforeEach(async ({ page }) => {
         await page.route("**/api/v1/auth/providers", route => route.fulfill({ json: { google: false } }));
+        await page.route("**/api/v1/auth/mfa/status", route => route.fulfill({ json: {
+            enrolled: [], recentlyAuthenticated: false,
+        } }));
     });
 
     test("starts with Google and a clear, keyboard-operable email disclosure", async ({ page }) => {
@@ -84,10 +87,18 @@ test.describe("the application authentication pages", () => {
 
     test("completes email-code sign-in and continues to the server-selected MFA step", async ({ page }) => {
         await page.route("**/api/v1/auth/csrf", route => route.fulfill({ json: { token: "test-token" } }));
-        await page.route("**/api/v1/auth/login/email/code", route => route.fulfill({ status: 202, json: { challengeId: "challenge-123" } }));
-        await page.route("**/api/v1/auth/login/email/verify", route => route.fulfill({ json: {
-            status: "requires_second_factor", pendingId: "pending-123", availableMethods: ["TOTP", "BACKUP_CODE"],
-        } }));
+        await page.route("**/api/v1/auth/login/email/code", async route => {
+            expect(route.request().postDataJSON()).toEqual({ email: "taylor@example.test" });
+            await route.fulfill({ status: 202, json: { challenge_id: "challenge-123" } });
+        });
+        await page.route("**/api/v1/auth/login/email/verify", async route => {
+            expect(route.request().postDataJSON()).toEqual({
+                challenge_id: "challenge-123", email: "taylor@example.test", code: "123456", device: "Browser",
+            });
+            await route.fulfill({ json: {
+                status: "requires_second_factor", pending_id: "pending-123", available_methods: ["TOTP", "BACKUP_CODE"],
+            } });
+        });
         await page.goto("/login");
         await page.getByRole("link", { name: "Sign in with an email code" }).click();
         await expect(page.getByRole("heading", { name: "Check your inbox." })).toBeVisible();
@@ -146,8 +157,8 @@ test.describe("the application authentication pages", () => {
         await page.route("**/api/v1/auth/csrf", route => route.fulfill({ json: { token: "test-token" } }));
         await page.route("**/api/v1/auth/account/password", async route => {
             expect(route.request().postDataJSON()).toEqual({
-                currentPassword: "current memorable passphrase",
-                newPassword: "replacement memorable passphrase",
+                current_password: "current memorable passphrase",
+                new_password: "replacement memorable passphrase",
             });
             await route.fulfill({ status: 204 });
         });
@@ -157,14 +168,14 @@ test.describe("the application authentication pages", () => {
         await page.getByLabel("Current password").fill("current memorable passphrase");
         await page.getByLabel("New password").fill("replacement memorable passphrase");
         await page.getByRole("button", { name: "Change password" }).click();
-        await expect(page.getByRole("status")).toHaveText("Your password has been changed.");
+        await expect(page.getByRole("main").getByText("Your password has been changed.", { exact: true })).toBeVisible();
         await expect(page.getByRole("heading", { name: "Your password has been changed." })).toBeVisible();
     });
 
     test("replaces recovery codes only after asking for the current password and displays them once", async ({ page }) => {
         await page.route("**/api/v1/auth/csrf", route => route.fulfill({ json: { token: "test-token" } }));
         await page.route("**/api/v1/auth/mfa/backup-codes", async route => {
-            expect(route.request().postDataJSON()).toEqual({ currentPassword: "current memorable passphrase" });
+            expect(route.request().postDataJSON()).toEqual({ current_password: "current memorable passphrase" });
             await route.fulfill({ json: { codes: ["first-recovery-code", "second-recovery-code"] } });
         });
 
@@ -207,10 +218,13 @@ test.describe("the application authentication pages", () => {
 
     test("requests and verifies an email MFA code bound to its pending sign-in", async ({ page }) => {
         await page.route("**/api/v1/auth/csrf", route => route.fulfill({ json: { token: "test-token" } }));
-        await page.route("**/api/v1/auth/mfa/email/request", route => route.fulfill({ status: 202, json: { challengeId: "mfa-code-123" } }));
+        await page.route("**/api/v1/auth/mfa/email/request", async route => {
+            expect(route.request().postDataJSON()).toEqual({ pending_id: "pending-123" });
+            await route.fulfill({ status: 202, json: { challenge_id: "mfa-code-123" } });
+        });
         await page.route("**/api/v1/auth/mfa/verify", async route => {
             expect(route.request().postDataJSON()).toEqual({
-                pendingId: "pending-123", kind: "EMAIL_OTP", code: "123456", challengeId: "mfa-code-123",
+                pending_id: "pending-123", kind: "EMAIL_OTP", code: "123456", challenge_id: "mfa-code-123",
             });
             await route.fulfill({ json: { status: "issued" } });
         });
@@ -230,13 +244,13 @@ test.describe("the application authentication pages", () => {
             status: "requires_enrollment", pendingId: "pending-enroll-123", availableMethods: ["TOTP"], primaryMethod: "PASSWORD",
         } }));
         await page.route("**/api/v1/auth/mfa/required/enroll", async route => {
-            expect(route.request().postDataJSON()).toEqual({ pendingId: "pending-enroll-123", kind: "TOTP" });
+            expect(route.request().postDataJSON()).toEqual({ pending_id: "pending-enroll-123", kind: "TOTP" });
             await route.fulfill({ json: {
-                otpauthUri: "otpauth://totp/Tallyvane:taylor%40example.test?secret=JBSWY3DPEHPK3PXP&issuer=Tallyvane",
+                otpauth_uri: "otpauth://totp/Tallyvane:taylor%40example.test?secret=JBSWY3DPEHPK3PXP&issuer=Tallyvane",
             } });
         });
         await page.route("**/api/v1/auth/mfa/required/confirm", async route => {
-            expect(route.request().postDataJSON()).toEqual({ pendingId: "pending-enroll-123", kind: "TOTP", code: "123456" });
+            expect(route.request().postDataJSON()).toEqual({ pending_id: "pending-enroll-123", kind: "TOTP", code: "123456" });
             await route.fulfill({ status: 204 });
         });
 
@@ -261,7 +275,7 @@ test.describe("the application authentication pages", () => {
             await route.fulfill({ status: 202, json: { challengeId: "enrollment-123" } });
         });
         await page.route("**/api/v1/auth/mfa/email/confirm", async route => {
-            expect(route.request().postDataJSON()).toEqual({ challengeId: "enrollment-123", code: "123456" });
+            expect(route.request().postDataJSON()).toEqual({ challenge_id: "enrollment-123", code: "123456" });
             await route.fulfill({ status: 204 });
         });
 
@@ -271,6 +285,40 @@ test.describe("the application authentication pages", () => {
         await expect(page.getByLabel("Email MFA code")).toBeVisible();
         await page.getByLabel("Email MFA code").fill("123456");
         await page.getByRole("button", { name: "Confirm email verification" }).click();
-        await expect(page.getByRole("status")).toHaveText("Email verification enabled.");
+        await expect(page.getByText("Email verification enabled.", { exact: true })).toBeVisible();
+    });
+
+    test("reauthenticates before disabling an enrolled factor and confirms the change", async ({ page }) => {
+        await page.route("**/api/v1/auth/csrf", route => route.fulfill({ json: { token: "test-token" } }));
+        await page.route("**/api/v1/auth/sessions", route => route.fulfill({ json: [] }));
+        await page.route("**/api/v1/auth/providers", route => route.fulfill({ json: { google: true } }));
+        await page.route("**/api/v1/auth/google/status", route => route.fulfill({ json: { googleLinked: true } }));
+
+        let enrolled = ["TOTP"];
+        let recentlyAuthenticated = false;
+        await page.route("**/api/v1/auth/mfa/status", route => route.fulfill({ json: { enrolled, recentlyAuthenticated } }));
+        await page.route("**/api/v1/auth/account/reauth/password", async route => {
+            expect(route.request().postDataJSON()).toEqual({ password: "current memorable passphrase" });
+            recentlyAuthenticated = true;
+            await route.fulfill({ status: 204 });
+        });
+        await page.route("**/api/v1/auth/mfa/disable", async route => {
+            expect(route.request().postDataJSON()).toEqual({ kind: "TOTP", confirmed: true });
+            enrolled = [];
+            await route.fulfill({ status: 204 });
+        });
+
+        await page.goto("/account/security");
+        await expect(page.getByRole("heading", { name: "Second-factor methods" })).toBeVisible();
+        await expect(page.getByText("Verify your identity before changing a second factor.")).toBeVisible();
+        await page.getByLabel("Password to verify your identity").fill("current memorable passphrase");
+        await page.getByRole("button", { name: "Verify with password" }).click();
+        await expect(page.getByText("Identity verified")).toBeVisible();
+
+        await page.getByRole("button", { name: "Remove" }).click();
+        await expect(page.getByRole("dialog", { name: "Remove this second factor?" })).toBeVisible();
+        await page.getByRole("button", { name: "Remove second factor" }).click();
+        await expect(page.getByText("Removed Authenticator app")).toBeVisible();
+        await expect(page.getByText("No second factors are enrolled yet.")).toBeVisible();
     });
 });
