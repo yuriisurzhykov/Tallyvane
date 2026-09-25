@@ -224,16 +224,17 @@ paths:
     post:
       tags: [auth]
       operationId: startGoogleAccountLink
-      summary: Reauthenticate and begin explicitly linking a Google account
+      summary: Begin linking Google after action proof
+      security: [{ cookieAuth: [] }]
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [password]
+              required: [action_proof]
               properties:
-                password: { type: string, minLength: 15, maxLength: 128 }
+                action_proof: { type: string, minLength: 1, writeOnly: true }
       responses:
         "200":
           description: Google authorization URL for the account-link flow.
@@ -246,6 +247,34 @@ paths:
                   url: { type: string, format: uri }
         default:
           $ref: "#/components/responses/Problem"
+
+  /auth/google/proof/start:
+    post:
+      tags: [auth]
+      operationId: startGoogleActionProof
+      summary: Start a Google proof for an available highest-rank account-action scheme
+      security: [{ cookieAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action: { type: string, enum: [CHANGE_PRIMARY_CREDENTIAL, MANAGE_SECOND_FACTORS] }
+      responses:
+        "200":
+          description: Open the URL in a popup; the checked callback delivers a code to the same-origin opener.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [url]
+                properties:
+                  url: { type: string, format: uri }
+        "401": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
 
   /auth/google/reauth/start:
     get:
@@ -283,16 +312,9 @@ paths:
     post:
       tags: [auth]
       operationId: unlinkGoogleAccount
-      summary: Reauthenticate and unlink Google when another sign-in method remains
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [password]
-              properties:
-                password: { type: string, minLength: 15, maxLength: 128 }
+      summary: Unlink Google after action proof when another sign-in method remains
+      security: [{ cookieAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/AuthenticationActionProof" }]
       responses:
         "204": { description: The Google sign-in method was removed. }
         "409":
@@ -493,17 +515,17 @@ paths:
     post:
       tags: [auth]
       operationId: changePassword
-      summary: Change the signed-in user's password after re-entering the current password
+      summary: Change the signed-in user's password after proving the configured change-credential scheme
       security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: "#/components/parameters/AuthenticationActionProof" }]
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [current_password, new_password]
+              required: [new_password]
               properties:
-                current_password: { type: string, minLength: 1, writeOnly: true }
                 new_password: { type: string, minLength: 15, maxLength: 128 }
       responses:
         "204": { description: Password changed. Existing second factors remain enabled. }
@@ -593,6 +615,8 @@ paths:
       tags: [auth]
       operationId: beginSecondFactorEnrollment
       summary: Begin authenticator enrollment for the signed-in account
+      security: [{ cookieAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/AuthenticationActionProof" }]
       requestBody:
         required: true
         content:
@@ -611,6 +635,7 @@ paths:
       tags: [auth]
       operationId: confirmSecondFactorEnrollment
       summary: Confirm enrollment by verifying a code from the selected method
+      security: [{ cookieAuth: [] }]
       requestBody:
         required: true
         content:
@@ -629,11 +654,11 @@ paths:
     get:
       tags: [auth]
       operationId: readSecondFactorStatus
-      summary: Read the current account's enrolled factors and recent verification state
+      summary: Read the current account's enrolled factors
       security: [{ cookieAuth: [] }]
       responses:
         "200":
-          description: Enrolled factors and whether this session was reauthenticated during the last five minutes.
+          description: Enrolled second-factor methods for the current account.
           content:
             application/json:
               schema:
@@ -648,8 +673,9 @@ paths:
     post:
       tags: [auth]
       operationId: disableSecondFactor
-      summary: Remove an enrolled factor after recent reauthentication and explicit confirmation
+      summary: Remove an enrolled factor after action proof and explicit confirmation
       security: [{ cookieAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/AuthenticationActionProof" }]
       requestBody:
         required: true
         content:
@@ -662,7 +688,7 @@ paths:
                 confirmed: { type: boolean, const: true }
       responses:
         "204": { description: The selected factor was removed. }
-        "401": { description: The session needs recent reauthentication. }
+        "401": { description: The action proof is missing, expired, consumed, or invalid for this session. }
         "409": { description: Removing the factor would make a required sign-in scheme unusable. }
         default: { $ref: "#/components/responses/Problem" }
 
@@ -670,17 +696,9 @@ paths:
     post:
       tags: [auth]
       operationId: replaceBackupCodes
-      summary: Replace recovery codes after confirming the current password
+      summary: Replace recovery codes after a one-use action proof
       security: [{ cookieAuth: [] }]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [current_password]
-              properties:
-                current_password: { type: string, minLength: 1, writeOnly: true }
+      parameters: [{ $ref: "#/components/parameters/AuthenticationActionProof" }]
       responses:
         "200":
           description: New one-time-display recovery codes. Response is marked no-store.
@@ -718,17 +736,9 @@ paths:
     post:
       tags: [auth]
       operationId: beginEmailMfaEnrollment
-      summary: Reauthenticate and send an email factor enrollment code
+      summary: Send an email factor enrollment code after action proof
       security: [{ cookieAuth: [] }]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [current_password]
-              properties:
-                current_password: { type: string, minLength: 1, writeOnly: true }
+      parameters: [{ $ref: "#/components/parameters/AuthenticationActionProof" }]
       responses:
         "202": { description: Enrollment code accepted for delivery; response includes challenge_id. }
         "401": { $ref: "#/components/responses/Problem" }
@@ -886,6 +896,100 @@ paths:
         "204": { description: All sessions revoked. }
         default: { $ref: "#/components/responses/Problem" }
 
+  /auth/account/action-proof/email-code:
+    post:
+      tags: [auth]
+      operationId: requestAuthenticationActionEmailCode
+      summary: Send an email proof code for the selected account action
+      security: [{ cookieAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AuthenticationActionEmailCodeRequest" }
+      responses:
+        "202":
+          description: Code accepted for delivery; response includes challenge_id.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [challenge_id]
+                properties:
+                  challenge_id: { type: string, format: uuid }
+        "401": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /auth/account/action-proof/options:
+    get:
+      tags: [auth]
+      operationId: readAuthenticationActionProofOptions
+      summary: Read the strongest authentication schemes available for an account action
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - name: action
+          in: query
+          required: true
+          schema: { type: string, enum: [CHANGE_PRIMARY_CREDENTIAL, MANAGE_SECOND_FACTORS] }
+      responses:
+        "200":
+          description: Highest assurance schemes satisfiable by the signed-in user's current credentials and factors.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [schemes]
+                properties:
+                  schemes:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, required_tokens, assurance_rank]
+                      properties:
+                        id: { type: string }
+                        required_tokens:
+                          type: array
+                          items: { type: string, enum: [PASSWORD, GOOGLE, EMAIL_SIGN_IN_CODE, TOTP, EMAIL_FACTOR_CODE, BACKUP_CODE] }
+                        assurance_rank: { type: integer, minimum: 1 }
+        "401": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /auth/account/action-proof:
+    post:
+      tags: [auth]
+      operationId: authorizeAuthenticationAction
+      summary: Verify the strongest configured proof scheme for an account action
+      security: [{ cookieAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AuthenticationActionProofRequest" }
+      responses:
+        "200":
+          description: One-use proof bound to this action, session, and current policy version.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthenticationActionProof" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /auth/session:
+    get:
+      tags: [auth]
+      operationId: readCurrentSession
+      summary: Confirm that the request has a valid current session
+      security: [{ cookieAuth: [] }]
+      responses:
+        "204":
+          description: The current access session is valid.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+        "401": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
   /auth/sessions:
     get:
       tags: [auth]
@@ -908,6 +1012,13 @@ paths:
         default: { $ref: "#/components/responses/Problem" }
 
 components:
+  parameters:
+    AuthenticationActionProof:
+      in: header
+      name: X-Action-Proof
+      required: true
+      description: Short-lived, single-use proof created for this action and active session.
+      schema: { type: string, minLength: 1, writeOnly: true }
   securitySchemes:
     serviceToken:
       type: apiKey
@@ -1100,26 +1211,86 @@ components:
     AuthenticationPolicy:
       type: object
       additionalProperties: false
-      required: [version, rules, advanced_acknowledged]
+      required: [version, schemes, advanced_acknowledged]
       properties:
         version: { type: integer, minimum: 1 }
+        schemes:
+          type: array
+          minItems: 1
+          items: { $ref: "#/components/schemas/AuthenticationScheme" }
+        # Compatibility view for older clients. New clients should use schemes.
         rules:
           type: array
-          minItems: 3
-          maxItems: 3
           items: { $ref: "#/components/schemas/AuthenticationPolicyRule" }
         advanced_acknowledged: { type: boolean }
+
+    AuthenticationScheme:
+      type: object
+      additionalProperties: false
+      required: [id, action, required_tokens, assurance_rank, enabled]
+      properties:
+        id: { type: string, minLength: 1, maxLength: 80 }
+        action: { type: string, enum: [SIGN_IN, CHANGE_PRIMARY_CREDENTIAL, MANAGE_SECOND_FACTORS] }
+        required_tokens:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: { type: string, enum: [PASSWORD, GOOGLE, EMAIL_SIGN_IN_CODE, TOTP, EMAIL_FACTOR_CODE, BACKUP_CODE] }
+        assurance_rank: { type: integer, minimum: 1 }
+        enabled: { type: boolean }
+
+    AuthenticationActionProofRequest:
+      type: object
+      additionalProperties: false
+      required: [action, tokens]
+      properties:
+        action: { type: string, enum: [CHANGE_PRIMARY_CREDENTIAL, MANAGE_SECOND_FACTORS] }
+        tokens:
+          type: array
+          minItems: 1
+          items: { $ref: "#/components/schemas/PresentedAuthenticationToken" }
+
+    AuthenticationActionEmailCodeRequest:
+      type: object
+      additionalProperties: false
+      required: [action, kind]
+      properties:
+        action: { type: string, enum: [CHANGE_PRIMARY_CREDENTIAL, MANAGE_SECOND_FACTORS] }
+        kind: { type: string, enum: [EMAIL_SIGN_IN_CODE, EMAIL_FACTOR_CODE] }
+
+    PresentedAuthenticationToken:
+      type: object
+      additionalProperties: false
+      required: [kind, value]
+      properties:
+        kind: { type: string, enum: [PASSWORD, GOOGLE, EMAIL_SIGN_IN_CODE, TOTP, EMAIL_FACTOR_CODE, BACKUP_CODE] }
+        value: { type: string, minLength: 1, writeOnly: true }
+        challenge_id: { type: string, format: uuid }
+        code_verifier: { type: string, writeOnly: true }
+        redirect_uri: { type: string, format: uri }
+
+    AuthenticationActionProof:
+      type: object
+      additionalProperties: false
+      required: [proof, scheme_id, assurance_rank, expires_at]
+      properties:
+        proof: { type: string, writeOnly: true }
+        scheme_id: { type: string }
+        assurance_rank: { type: integer, minimum: 1 }
+        expires_at: { type: string, format: date-time }
 
     UpdateAuthenticationPolicy:
       type: object
       additionalProperties: false
-      required: [expected_version, rules, advanced_acknowledged]
+      required: [expected_version, schemes, advanced_acknowledged]
       properties:
         expected_version: { type: integer, minimum: 1 }
+        schemes:
+          type: array
+          minItems: 1
+          items: { $ref: "#/components/schemas/AuthenticationScheme" }
         rules:
           type: array
-          minItems: 3
-          maxItems: 3
           items: { $ref: "#/components/schemas/AuthenticationPolicyRule" }
         advanced_acknowledged: { type: boolean }
 
