@@ -1,11 +1,110 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Route } from "@playwright/test";
 
 test.describe("the application authentication pages", () => {
     test.beforeEach(async ({ page }) => {
         await page.route("**/api/v1/auth/providers", route => route.fulfill({ json: { google: false } }));
+        await page.route("**/api/v1/auth/session", route => route.fulfill({ status: 401, json: { detail: "Sign in" } }));
+        await page.route("**/api/v1/auth/csrf", route => route.fulfill({ json: { token: "test-token" } }));
+        await page.route("**/api/v1/auth/refresh", route => route.fulfill({ status: 401, json: { detail: "No refresh session" } }));
         await page.route("**/api/v1/auth/mfa/status", route => route.fulfill({ json: {
             enrolled: [], recentlyAuthenticated: false,
         } }));
+    });
+
+    test("redirects auth entry pages when the current session is active", async ({ page }) => {
+        await page.route("**/api/v1/auth/session", route => route.fulfill({ status: 204 }));
+
+        await page.goto("/login");
+
+        await expect(page).toHaveURL(/\/today$/);
+    });
+
+    test("uses the configured authenticated home for the console root", async ({ page }) => {
+        await page.goto("/");
+
+        await expect(page).toHaveURL(/\/today$/);
+    });
+
+    test("refreshes an expired access session before redirecting", async ({ page }) => {
+        let sessionChecks = 0;
+        let refreshRequests = 0;
+        await page.route("**/api/v1/auth/session", route => {
+            sessionChecks++;
+            return route.fulfill(sessionChecks < 3
+                ? { status: 401, json: { detail: "Access expired" } }
+                : { status: 204 });
+        });
+        await page.route("**/api/v1/auth/refresh", route => {
+            refreshRequests++;
+            return route.fulfill({ json: { status: "issued" } });
+        });
+
+        await page.goto("/forgot-password");
+
+        await expect(page).toHaveURL(/\/today$/);
+        expect(sessionChecks).toBe(3);
+        expect(refreshRequests).toBe(1);
+    });
+
+    test("serializes refresh across tabs so the refresh token is only rotated once", async ({ page }) => {
+        let sessionActive = false;
+        let refreshCount = 0;
+        const respondToSession = (route: Route) => route.fulfill({
+            status: sessionActive ? 204 : 401,
+            ...(sessionActive ? {} : { json: { detail: "Access expired" } }),
+        });
+        const refreshSession = (route: Route) => {
+            refreshCount++;
+            sessionActive = true;
+            return route.fulfill({ json: { status: "issued" } });
+        };
+        await page.route("**/api/v1/auth/session", respondToSession);
+        await page.route("**/api/v1/auth/refresh", refreshSession);
+        const secondTab = await page.context().newPage();
+        await secondTab.route("**/api/v1/auth/providers", route => route.fulfill({ json: { google: false } }));
+        await secondTab.route("**/api/v1/auth/session", respondToSession);
+        await secondTab.route("**/api/v1/auth/csrf", route => route.fulfill({ json: { token: "test-token" } }));
+        await secondTab.route("**/api/v1/auth/refresh", refreshSession);
+
+        await Promise.all([page.goto("/login"), secondTab.goto("/register")]);
+
+        await expect(page).toHaveURL(/\/today$/);
+        await expect(secondTab).toHaveURL(/\/today$/);
+        expect(refreshCount).toBe(1);
+        await secondTab.close();
+    });
+
+    test("shows the authentication form when session status cannot be reached", async ({ page }) => {
+        await page.route("**/api/v1/auth/session", route => route.abort("failed"));
+
+        await page.goto("/login");
+
+        await expect(page.getByRole("heading", { name: "Welcome back." })).toBeVisible();
+        await expect(page.getByLabel("Email address")).toBeVisible();
+    });
+
+    test("routes a successful OAuth callback through the configured app destination", async ({ page }) => {
+        await page.route("**/api/v1/auth/session", route => route.fulfill({ status: 204 }));
+
+        await page.goto("/auth/callback");
+
+        await expect(page).toHaveURL(/\/today$/);
+    });
+
+    test("does not redirect account security or the authentication preview", async ({ page }) => {
+        let sessionChecks = 0;
+        await page.route("**/api/v1/auth/session", route => {
+            sessionChecks++;
+            return route.fulfill({ status: 204 });
+        });
+
+        await page.goto("/account/security");
+        await expect(page.getByRole("heading", { name: "Account security" })).toBeVisible();
+        expect(sessionChecks).toBe(0);
+
+        await page.goto("/auth-preview");
+        await expect(page.getByRole("combobox", { name: "Preview screen" })).toBeVisible();
+        expect(sessionChecks).toBe(0);
     });
 
     test("starts with Google and a clear, keyboard-operable email disclosure", async ({ page }) => {
