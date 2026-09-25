@@ -20,18 +20,25 @@ public interface ConfirmEmailMfaEnrollmentUseCase : UseCase {
         private val challenges: EmailChallenges,
         private val transactions: TransactionRunner,
     ) : ConfirmEmailMfaEnrollmentUseCase {
-        override suspend fun confirm(userId: UserId, challengeId: Uuid, code: Secret): Boolean = transactions.inTransaction {
-            val user = users.findById(userId)
-            val accepted = user != null && user.disabledAt == null && user.emailVerified && challenges.verify(
-                challengeId, user.email, EmailChallengePurpose.MFA, code,
-                BeginEmailMfaEnrollmentUseCase.enrollmentBinding(userId),
-            )
-            if (accepted) {
-                enrollment.enroll(userId)
-                Verdict.Commit(true)
-            } else {
-                Verdict.Rollback(false)
+        override suspend fun confirm(userId: UserId, challengeId: Uuid, code: Secret): Boolean =
+            transactions.inTransaction {
+                val user = users.findById(userId)
+                val accepted = user != null &&
+                    user.disabledAt == null &&
+                    user.emailVerified &&
+                    challenges.verify(
+                        challengeId,
+                        user.email,
+                        EmailChallengePurpose.MFA,
+                        code,
+                        BeginEmailMfaEnrollmentUseCase.enrollmentBinding(userId),
+                    )
+                if (accepted) {
+                    enrollment.enroll(userId)
+                    Verdict.Commit(true)
+                } else {
+                    Verdict.Rollback(false)
+                }
             }
-        }
     }
 }

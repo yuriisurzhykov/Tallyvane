@@ -1,8 +1,10 @@
 package tallyvane.platform.http
 
-import io.ktor.server.application.*
-import io.ktor.util.*
-import tallyvane.platform.http.RequestPrincipal.Companion.of
+import io.ktor.server.application.Application
+import io.ktor.server.application.ApplicationCall
+import io.ktor.server.application.ApplicationCallPipeline
+import io.ktor.server.application.call
+import io.ktor.util.AttributeKey
 
 /**
  * Runs [resolver] before every route and makes its answer readable back off the call — the

@@ -1,6 +1,7 @@
 package tallyvane.identity.domain.outcome
 
 import tallyvane.identity.domain.secondfactor.PendingAuthenticationId
+import tallyvane.identity.domain.secondfactor.PrimaryMethod
 import tallyvane.identity.domain.secondfactor.SecondFactorKind
 import tallyvane.identity.domain.user.UserId
 
@@ -20,6 +21,15 @@ public sealed interface AuthenticationOutcome {
     public data class RequiresSecondFactor(
         public val pendingId: PendingAuthenticationId,
         public val availableMethods: Set<SecondFactorKind>,
+    ) : AuthenticationOutcome
+
+    /**
+     * The primary credential checked out, but this policy requires enrollment before any session.
+     */
+    public data class RequiresEnrollment(
+        public val pendingId: PendingAuthenticationId,
+        public val primaryMethod: PrimaryMethod,
+        public val requiredMethods: Set<SecondFactorKind>,
     ) : AuthenticationOutcome
 
     /**

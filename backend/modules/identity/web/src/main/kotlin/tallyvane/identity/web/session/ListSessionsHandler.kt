@@ -1,7 +1,8 @@
 package tallyvane.identity.web.session
 
-import io.ktor.server.response.*
-import io.ktor.server.routing.*
+import io.ktor.server.response.respond
+import io.ktor.server.routing.Route
+import io.ktor.server.routing.get
 import tallyvane.identity.application.session.ListSessionsUseCase
 import tallyvane.identity.web.routing.AuthHandler
 import tallyvane.identity.web.shared.CurrentPrincipal

@@ -31,6 +31,9 @@ public data class PendingAuthentication(
     public val availableMethods: Set<SecondFactorKind>,
     public val createdAt: Instant,
     public val expiresAt: Instant,
+    public val requiresEnrollment: Boolean = false,
+    public val primaryMethod: PrimaryMethod? = null,
+    public val policyVersion: Long = 1,
 ) {
     init {
         require(availableMethods.isNotEmpty()) { "PendingAuthentication needs at least one available method" }

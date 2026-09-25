@@ -1,14 +1,16 @@
 package tallyvane.identity.web.routing
 
-import io.ktor.http.*
-import io.ktor.server.response.*
-import io.ktor.server.routing.*
+import io.ktor.http.Cookie
+import io.ktor.server.response.respond
+import io.ktor.server.routing.Route
+import io.ktor.server.routing.get
+import io.ktor.server.routing.post
 import tallyvane.identity.web.oauth.GoogleOAuthHandler
 import tallyvane.identity.web.registration.VerifyRegistrationEmailHandler
 import tallyvane.platform.http.BasePath
 import tallyvane.platform.http.RouteModule
 import java.security.SecureRandom
-import java.util.*
+import java.util.Base64
 
 /**
  * Every address under `/api/v1/auth` `identity` answers, mounted at the one base path
@@ -47,6 +49,9 @@ internal interface AuthRoutes : RouteModule {
             route.get("/providers") { call.respond(mapOf("google" to googleEnabled)) }
             googleOAuth?.let { oauth ->
                 route.get("/google/oauth/start") { oauth.start(call) }
+                route.post("/google/link/start") { oauth.startLink(call) }
+                route.post("/google/unlink") { oauth.unlink(call) }
+                route.get("/google/status") { oauth.status(call) }
                 route.get("/google/callback") { oauth.callback(call) }
             }
             registrationEmailVerification?.let { verification ->

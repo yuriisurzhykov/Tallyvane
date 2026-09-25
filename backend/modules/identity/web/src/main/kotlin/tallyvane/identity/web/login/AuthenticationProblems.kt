@@ -13,7 +13,7 @@ internal class AuthenticationProblems : Problems<AuthenticationFailure> {
      */
     override fun Answers.of(failure: AuthenticationFailure): Problem = when (failure) {
         is AuthenticationFailure.InvalidCredential -> unauthorized("The presented credential was not accepted")
-        is AuthenticationFailure.AccountDisabled   -> forbidden("This account has been disabled")
-        is AuthenticationFailure.RateLimited       -> tooManyRequests("Too many attempts; try again later")
+        is AuthenticationFailure.AccountDisabled -> forbidden("This account has been disabled")
+        is AuthenticationFailure.RateLimited -> tooManyRequests("Too many attempts; try again later")
     }
 }

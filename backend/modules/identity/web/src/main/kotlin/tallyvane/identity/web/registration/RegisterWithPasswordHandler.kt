@@ -1,9 +1,10 @@
 package tallyvane.identity.web.registration
 
-import io.ktor.http.*
-import io.ktor.server.request.*
-import io.ktor.server.response.*
-import io.ktor.server.routing.*
+import io.ktor.http.HttpStatusCode
+import io.ktor.server.request.receive
+import io.ktor.server.response.respond
+import io.ktor.server.routing.Route
+import io.ktor.server.routing.post
 import tallyvane.identity.application.email.EmailChallenges
 import tallyvane.identity.application.password.RegisterWithPasswordRequest
 import tallyvane.identity.application.password.RegisterWithPasswordUseCase
@@ -40,7 +41,7 @@ internal class RegisterWithPasswordHandler(
             }
 
             when (val outcome = useCase.register(RegisterWithPasswordRequest(email!!, password!!, body.displayName))) {
-                is RegisterOutcome.Registered      -> {
+                is RegisterOutcome.Registered -> {
                     val challenge = try {
                         emailChallenges.issue(
                             email,
@@ -57,7 +58,7 @@ internal class RegisterWithPasswordHandler(
                     )
                 }
 
-                is RegisterOutcome.EmailTaken      -> {
+                is RegisterOutcome.EmailTaken -> {
                     call.respond(
                         message = Refused(failure = RegisterFailure.EmailTaken, problems = registerProblems),
                     )

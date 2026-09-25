@@ -9,7 +9,9 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption.WRITE
 
-/** Explicit, one-shot operator utility. It refuses overwrite and never prints key material. */
+/**
+ * Explicit, one-shot operator utility. It refuses overwrite and never prints key material.
+ */
 public object TotpKeysetGenerator {
     @JvmStatic
     public fun main(args: Array<String>) {

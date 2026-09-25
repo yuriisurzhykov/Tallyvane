@@ -19,4 +19,6 @@ public interface TotpEnrollmentStore {
     public suspend fun save(enrollment: TotpEnrollment)
 
     public suspend fun find(userId: UserId): TotpEnrollment?
+
+    public suspend fun delete(userId: UserId)
 }

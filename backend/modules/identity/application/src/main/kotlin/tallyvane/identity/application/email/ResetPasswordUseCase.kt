@@ -11,7 +11,9 @@ import tallyvane.platform.kernel.UseCase
 import tallyvane.platform.kernel.Verdict
 
 public interface ResetPasswordUseCase : UseCase {
-    /** Returns false for an invalid code. A valid code always has an account-neutral outcome. */
+    /**
+     * Returns false for an invalid code. A valid code always has an account-neutral outcome.
+     */
     public suspend fun reset(request: ResetPasswordRequest): Boolean
 
     public class Replace(
@@ -23,19 +25,35 @@ public interface ResetPasswordUseCase : UseCase {
         private val passwordPolicy: PasswordPolicy = PasswordPolicy.Default,
     ) : ResetPasswordUseCase {
         override suspend fun reset(request: ResetPasswordRequest): Boolean {
-            val rawPassword = request.newPassword.revealed()
-            if (!passwordPolicy.accepts(rawPassword)) return false
-            val challenge = challenges.challenge(request.challengeId) ?: return false
-            if (challenge.purpose != EmailChallengePurpose.PASSWORD_RESET ||
-                !challenge.email.value.equals(request.email.value, ignoreCase = true)
-            ) return false
-            if (!challenges.verify(request.challengeId, request.email, EmailChallengePurpose.PASSWORD_RESET, request.code)) return false
+            val challenge = challenges.challenge(request.challengeId)
+            return when {
+                !passwordPolicy.accepts(request.newPassword.revealed()) -> false
+                !belongsToPasswordReset(challenge, request.email) -> false
+                !challenges.verify(
+                    request.challengeId,
+                    request.email,
+                    EmailChallengePurpose.PASSWORD_RESET,
+                    request.code,
+                ) -> false
+                else -> resetVerifiedPassword(request)
+            }
+        }
 
-            val user = transactions.inTransaction { Verdict.Commit(users.findByEmail(request.email)) } ?: return true
-            if (!user.emailVerified || user.disabledAt != null) return true
-            val credential = Credential.PasswordRecord(passwordHasher.hash(request.newPassword))
-            transactions.inTransaction {
-                Verdict.Commit(credentials.saveOrReplacePasswordFor(user.id, credential))
+        private fun belongsToPasswordReset(
+            challenge: tallyvane.identity.domain.email.EmailChallenge?,
+            email: tallyvane.identity.domain.user.Email,
+        ): Boolean = challenge?.let {
+            it.purpose == EmailChallengePurpose.PASSWORD_RESET &&
+                it.email.value.equals(email.value, ignoreCase = true)
+        } == true
+
+        private suspend fun resetVerifiedPassword(request: ResetPasswordRequest): Boolean {
+            val user = transactions.inTransaction { Verdict.Commit(users.findByEmail(request.email)) }
+            if (user?.emailVerified == true && user.disabledAt == null) {
+                val credential = Credential.PasswordRecord(passwordHasher.hash(request.newPassword))
+                transactions.inTransaction {
+                    Verdict.Commit(credentials.saveOrReplacePasswordFor(user.id, credential))
+                }
             }
             return true
         }

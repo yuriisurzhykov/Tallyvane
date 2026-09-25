@@ -2,10 +2,13 @@ package tallyvane.identity.application.google
 
 import tallyvane.identity.application.AuthenticationCompleter
 import tallyvane.identity.application.SignInOutcome
+import tallyvane.identity.application.port.AuthenticationPolicyStore
 import tallyvane.identity.application.port.CredentialRepository
 import tallyvane.identity.application.port.UserRepository
 import tallyvane.identity.domain.credential.Credential
 import tallyvane.identity.domain.outcome.AuthenticationOutcome
+import tallyvane.identity.domain.secondfactor.AuthenticationPolicy
+import tallyvane.identity.domain.secondfactor.PrimaryMethod
 import tallyvane.identity.domain.session.DeviceLabel
 import tallyvane.identity.domain.user.User
 import tallyvane.identity.domain.user.UserId
@@ -45,14 +48,17 @@ internal interface GoogleSignInCompleter {
         private val transactions: TransactionRunner,
         private val ids: IdGenerator,
         private val clock: Clock,
+        private val policies: AuthenticationPolicyStore? = null,
     ) : GoogleSignInCompleter {
         override suspend fun complete(identity: GoogleIdentity, device: DeviceLabel): SignInOutcome =
             transactions.inTransaction {
-                val userId = findOrCreateUser(identity)
+                val googleEnabled = policies?.current()?.rule(PrimaryMethod.GOOGLE)?.enabled
+                    ?: AuthenticationPolicy.defaults().rule(PrimaryMethod.GOOGLE).enabled
+                val userId = if (googleEnabled) findOrCreateUser(identity) else null
                 val outcome = if (userId == null) {
                     SignInOutcome.NotIssued(AuthenticationOutcome.InvalidCredential)
                 } else {
-                    completer.complete(userId, device)
+                    completer.complete(userId, device, PrimaryMethod.GOOGLE)
                 }
                 Verdict.Commit(outcome)
             }

@@ -12,31 +12,35 @@ import tallyvane.identity.domain.credential.Credential
 import tallyvane.identity.domain.user.Email
 import tallyvane.identity.domain.user.User
 import tallyvane.identity.domain.user.UserId
-import tallyvane.platform.kernel.ClockFake
 import tallyvane.platform.kernel.Secret
 import tallyvane.platform.kernel.TransactionRunnerFake
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
-class IssueBackupCodesSpec : StringSpec({
-    "reissuing codes requires a verified current password and invalid input leaves the set unchanged" {
-        val userId = UserId(Uuid.parse("00000000-0000-7000-8000-000000000001"))
-        val users = UserRepositoryFake()
-        users.insert(User(userId, Email("owner@example.test"), null, Instant.parse("2026-01-01T00:00:00Z"), null))
-        val hasher = PasswordHasherFake()
-        val credentials = CredentialRepositoryFake()
-        credentials.save(userId, Credential.PasswordRecord(hasher.hash(Secret("current-password"))))
-        val store = CodesStore()
-        val issue = IssueBackupCodesUseCase.Issue(
-            users, credentials, hasher, BackupCodes(store, TestCodes(), TransactionRunnerFake()), TransactionRunnerFake(),
-        )
+class IssueBackupCodesSpec :
+    StringSpec({
+        "reissuing codes requires a verified current password and invalid input leaves the set unchanged" {
+            val userId = UserId(Uuid.parse("00000000-0000-7000-8000-000000000001"))
+            val users = UserRepositoryFake()
+            users.insert(User(userId, Email("owner@example.test"), null, Instant.parse("2026-01-01T00:00:00Z"), null))
+            val hasher = PasswordHasherFake()
+            val credentials = CredentialRepositoryFake()
+            credentials.save(userId, Credential.PasswordRecord(hasher.hash(Secret("current-password"))))
+            val store = CodesStore()
+            val issue = IssueBackupCodesUseCase.Issue(
+                users,
+                credentials,
+                hasher,
+                BackupCodes(store, TestCodes(), TransactionRunnerFake()),
+                TransactionRunnerFake(),
+            )
 
-        issue.issue(userId, Secret("wrong-password")) shouldBe null
-        store.replaceCount shouldBe 0
-        issue.issue(userId, Secret("current-password"))?.size shouldBe 10
-        store.replaceCount shouldBe 1
-    }
-})
+            issue.issue(userId, Secret("wrong-password")) shouldBe null
+            store.replaceCount shouldBe 0
+            issue.issue(userId, Secret("current-password"))?.size shouldBe 10
+            store.replaceCount shouldBe 1
+        }
+    })
 
 private class CodesStore : BackupCodeStore {
     var replaceCount = 0

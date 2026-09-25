@@ -2,7 +2,7 @@ package tallyvane.identity.web.oauth
 
 import java.security.MessageDigest
 import java.security.SecureRandom
-import java.util.*
+import java.util.Base64
 
 /**
  * One RFC 7636 verifier/challenge pair plus an independent CSRF `state` value, generated fresh for

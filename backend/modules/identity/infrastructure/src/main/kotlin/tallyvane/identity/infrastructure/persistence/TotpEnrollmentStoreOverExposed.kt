@@ -1,6 +1,7 @@
 package tallyvane.identity.infrastructure.persistence
 
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.upsert
 import tallyvane.identity.application.port.TotpEnrollmentStore
@@ -41,4 +42,8 @@ internal class TotpEnrollmentStoreOverExposed : TotpEnrollmentStore {
                 createdAt = instant.toDomain(row[TotpEnrollmentsTable.createdAt]),
             )
         }
+
+    override suspend fun delete(userId: UserId) {
+        TotpEnrollmentsTable.deleteWhere { TotpEnrollmentsTable.userId eq userId.value }
+    }
 }

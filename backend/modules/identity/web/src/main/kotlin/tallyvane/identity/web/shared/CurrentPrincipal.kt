@@ -1,7 +1,7 @@
 package tallyvane.identity.web.shared
 
-import io.ktor.server.application.*
-import io.ktor.server.response.*
+import io.ktor.server.application.ApplicationCall
+import io.ktor.server.response.respond
 import tallyvane.identity.contract.Principal
 import tallyvane.identity.contract.ResolvedPrincipal
 import tallyvane.identity.domain.session.SessionId

@@ -1,7 +1,7 @@
 package tallyvane.identity.web.shared
 
-import io.ktor.http.*
-import io.ktor.server.application.*
+import io.ktor.http.Cookie
+import io.ktor.server.application.ApplicationCall
 import tallyvane.identity.domain.token.TokenValue
 import tallyvane.platform.http.RequestPrincipal
 import kotlin.time.Duration

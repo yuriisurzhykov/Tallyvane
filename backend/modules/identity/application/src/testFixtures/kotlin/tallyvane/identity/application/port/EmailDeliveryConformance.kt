@@ -5,7 +5,9 @@ import tallyvane.identity.domain.email.EmailChallengePurpose
 import tallyvane.identity.domain.user.Email
 import tallyvane.platform.kernel.Secret
 
-/** Shared contract for delivery adapters: a valid code for a purpose is accepted for its recipient. */
+/**
+ * Shared contract for delivery adapters: a valid code for a purpose is accepted for its recipient.
+ */
 public abstract class EmailDeliveryConformance : StringSpec() {
     protected abstract fun fresh(): EmailDelivery
 

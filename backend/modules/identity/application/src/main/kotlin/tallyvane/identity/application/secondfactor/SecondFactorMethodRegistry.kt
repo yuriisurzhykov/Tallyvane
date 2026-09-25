@@ -20,8 +20,14 @@ internal interface SecondFactorMethodRegistry {
 
     suspend fun enrolledFor(userId: UserId): Set<SecondFactorKind>
 
+    fun enrollmentKinds(): Set<SecondFactorKind>
+
     class Default(private val methods: List<SecondFactorMethod>) : SecondFactorMethodRegistry {
         override fun find(kind: SecondFactorKind): SecondFactorMethod? = methods.find { it.kind == kind }
+
+        override fun enrollmentKinds(): Set<SecondFactorKind> = methods
+            .filter { it.supportsEnrollment }
+            .mapTo(mutableSetOf()) { it.kind }
 
         override suspend fun enrolledFor(userId: UserId): Set<SecondFactorKind> {
             val enrolled = mutableSetOf<SecondFactorKind>()

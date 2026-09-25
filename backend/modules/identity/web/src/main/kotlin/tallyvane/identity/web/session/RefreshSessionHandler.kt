@@ -1,7 +1,8 @@
 package tallyvane.identity.web.session
 
-import io.ktor.server.response.*
-import io.ktor.server.routing.*
+import io.ktor.server.response.respond
+import io.ktor.server.routing.Route
+import io.ktor.server.routing.post
 import tallyvane.identity.application.session.RefreshSessionOutcome
 import tallyvane.identity.application.session.RefreshSessionUseCase
 import tallyvane.identity.domain.token.TokenValue
@@ -33,7 +34,7 @@ internal class RefreshSessionHandler(
             }
 
             when (val outcome = useCase.refresh(presented)) {
-                is RefreshSessionOutcome.Issued     -> {
+                is RefreshSessionOutcome.Issued -> {
                     cookies.attach(
                         call,
                         IssuedTokens(outcome.tokens.access, accessTtl, outcome.tokens.refresh, refreshTtl),
@@ -41,7 +42,7 @@ internal class RefreshSessionHandler(
                     call.respond(SignInResponseBody(status = "issued"))
                 }
 
-                RefreshSessionOutcome.Invalid       -> call.respond(Refused(SessionFailure.RefreshInvalid, problems))
+                RefreshSessionOutcome.Invalid -> call.respond(Refused(SessionFailure.RefreshInvalid, problems))
                 RefreshSessionOutcome.ReuseDetected -> call.respond(Refused(SessionFailure.RefreshReused, problems))
             }
         }

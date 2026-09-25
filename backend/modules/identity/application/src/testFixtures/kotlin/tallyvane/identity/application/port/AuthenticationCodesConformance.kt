@@ -5,7 +5,9 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldMatch
 import tallyvane.platform.kernel.Secret
 
-/** Shared properties required of every authentication-code generator and hasher. */
+/**
+ * Shared properties required of every authentication-code generator and hasher.
+ */
 public abstract class AuthenticationCodesConformance : StringSpec() {
     protected abstract fun fresh(): AuthenticationCodes
 

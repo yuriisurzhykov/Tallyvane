@@ -6,12 +6,14 @@ import tallyvane.identity.application.port.PasswordHasher
 import tallyvane.identity.application.port.UserRepository
 import tallyvane.identity.domain.user.UserId
 import tallyvane.platform.kernel.Secret
-import tallyvane.platform.kernel.UseCase
 import tallyvane.platform.kernel.TransactionRunner
+import tallyvane.platform.kernel.UseCase
 import tallyvane.platform.kernel.Verdict
 
 public interface IssueBackupCodesUseCase : UseCase {
-    /** Replaces the previous set after the caller re-proves their current password. */
+    /**
+     * Replaces the previous set after the caller re-proves their current password.
+     */
     public suspend fun issue(userId: UserId, currentPassword: Secret): List<Secret>?
 
     public class Issue(
@@ -25,7 +27,10 @@ public interface IssueBackupCodesUseCase : UseCase {
             val accepted = transactions.inTransaction {
                 val user = users.findById(userId)
                 val credential = credentials.findPasswordFor(userId)
-                val verified = user != null && user.disabledAt == null && user.emailVerified && credential != null &&
+                val verified = user != null &&
+                    user.disabledAt == null &&
+                    user.emailVerified &&
+                    credential != null &&
                     passwords.verify(currentPassword, credential.hash)
                 if (verified) Verdict.Commit(true) else Verdict.Rollback(false)
             }

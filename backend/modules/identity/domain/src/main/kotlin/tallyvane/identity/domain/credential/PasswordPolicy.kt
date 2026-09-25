@@ -1,6 +1,8 @@
 package tallyvane.identity.domain.credential
 
-/** Length limits apply to Unicode code points; spaces and all character classes are accepted. */
+/**
+ * Length limits apply to Unicode code points; spaces and all character classes are accepted.
+ */
 public class PasswordPolicy(
     private val minimumLength: Int = DEFAULT_MINIMUM,
     private val maximumLength: Int = DEFAULT_MAXIMUM,

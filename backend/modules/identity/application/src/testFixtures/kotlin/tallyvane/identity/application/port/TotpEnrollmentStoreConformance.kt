@@ -79,6 +79,21 @@ public abstract class TotpEnrollmentStoreConformance : StringSpec() {
                 Verdict.Commit(subject.enrollments.find(userId))
             } shouldBe confirmed
         }
+
+        "delete removes an enrollment for its account" {
+            val subject = fresh()
+            val userId = UserId(Uuid.random())
+            subject.transactions.inTransaction {
+                subject.users.insert(testUser(userId))
+                subject.enrollments.save(testEnrollment(userId, active = true))
+                Verdict.Commit(Unit)
+            }
+            subject.transactions.inTransaction {
+                subject.enrollments.delete(userId)
+                Verdict.Commit(Unit)
+            }
+            subject.transactions.inTransaction { Verdict.Commit(subject.enrollments.find(userId)) }.shouldBeNull()
+        }
     }
 
     private fun testUser(id: UserId): User = User(

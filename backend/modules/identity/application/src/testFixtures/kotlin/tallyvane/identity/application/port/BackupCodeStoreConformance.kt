@@ -8,7 +8,9 @@ import tallyvane.platform.kernel.TransactionRunner
 import tallyvane.platform.kernel.Verdict
 import kotlin.uuid.Uuid
 
-/** Shared replacement, availability, and single-use behavior required of recovery-code stores. */
+/**
+ * Shared replacement, availability, and single-use behavior required of recovery-code stores.
+ */
 public abstract class BackupCodeStoreConformance : StringSpec() {
     protected abstract fun fresh(): Subject
 
@@ -37,7 +39,8 @@ public abstract class BackupCodeStoreConformance : StringSpec() {
                 Verdict.Commit(Unit)
             }
             subject.transactions.inTransaction { Verdict.Commit(subject.store.consume(userId, second)) } shouldBe false
-            subject.transactions.inTransaction { Verdict.Commit(subject.store.consume(userId, replacement)) } shouldBe true
+            subject.transactions.inTransaction { Verdict.Commit(subject.store.consume(userId, replacement)) } shouldBe
+                true
             subject.transactions.inTransaction { Verdict.Commit(subject.store.hasAny(userId)) } shouldBe false
         }
     }

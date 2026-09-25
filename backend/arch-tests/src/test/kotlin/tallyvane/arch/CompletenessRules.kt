@@ -155,13 +155,14 @@ internal fun identityWebBehaviorIsInterface(scope: KoScope): List<String> {
         val interfaces = klass.parentInterfaces().map { it.name.substringBefore('<') }.toSet()
         when {
             interfaces.isEmpty() -> listOf(klass.where())
-            else -> interfaces
-                .filter { interfaceName -> classesByInterface[interfaceName].orEmpty().size == 1 }
-                .filterNot { interfaceName ->
-                    klass.name.matches(Regex("[A-Z][A-Za-z0-9]*")) &&
-                        klass.isNestedInOwnUseCaseInterface(setOf(interfaceName))
-                }
-                .map { klass.where() }
+            else ->
+                interfaces
+                    .filter { interfaceName -> classesByInterface[interfaceName].orEmpty().size == 1 }
+                    .filterNot { interfaceName ->
+                        klass.name.matches(Regex("[A-Z][A-Za-z0-9]*")) &&
+                            klass.isNestedInOwnUseCaseInterface(setOf(interfaceName))
+                    }
+                    .map { klass.where() }
         }
     }
 }

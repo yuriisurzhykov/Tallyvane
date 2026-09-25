@@ -5,7 +5,9 @@ import tallyvane.identity.domain.email.EmailChallengePurpose
 import tallyvane.identity.domain.user.Email
 import tallyvane.platform.kernel.UseCase
 
-/** Issues an email sign-in code with the EMAIL_LOGIN purpose and the shared resend policy. */
+/**
+ * Issues an email sign-in code with the EMAIL_LOGIN purpose and the shared resend policy.
+ */
 public interface RequestEmailSignInCodeUseCase : UseCase {
     public suspend fun request(email: Email): EmailChallenge?
 

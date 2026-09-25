@@ -3,10 +3,11 @@
 Capabilities. Each one owns its data, its rules and its slice of the API, and
 publishes exactly one thing outward: its `contract`.
 
-Empty for now — the first capabilities arrive in milestone 1 (`jobs`,
-`applications`, `contacts`). `modules.yaml` in the parent directory records the
-designed shape of all thirteen so the map can be reviewed before any of it is
-built.
+`identity` contains implemented authentication code across the five layers
+described below. `modules.yaml` in the parent directory records the designed
+module map, including planned capabilities; it is not an inventory of completed
+features. See the [reuse map](../../docs/engineering/reuse-map.md) for starting
+points in the existing code.
 
 `_template` is the shape to copy. It is deliberately **not** included in
 `settings.gradle.kts`, so Gradle ignores it entirely and it never appears in

@@ -26,7 +26,7 @@ public interface RequestEmailMfaCodeUseCase : UseCase {
             val email = transactions.inTransaction {
                 val auth = pending.find(pendingId)
                 val user = auth?.takeIf {
-                    it.expiresAt >= clock.now() && SecondFactorKind.EMAIL_OTP in it.availableMethods
+                    it.expiresAt > clock.now() && SecondFactorKind.EMAIL_OTP in it.availableMethods
                 }?.let { users.findById(it.userId) }
                 if (user == null || user.disabledAt != null || !user.emailVerified) {
                     Verdict.Rollback(null)

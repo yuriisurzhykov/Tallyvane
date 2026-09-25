@@ -54,4 +54,3 @@ tasks.register<JavaExec>("generateTotpKeyset") {
     mainClass.set("tallyvane.identity.infrastructure.TotpKeysetGenerator")
     providers.gradleProperty("keysetOutput").orNull?.let { output -> args(output) }
 }
-

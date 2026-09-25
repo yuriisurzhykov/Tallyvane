@@ -22,4 +22,8 @@ public interface PendingAuthenticationStore {
      * out of a pending check, not only the successful one.
      */
     public suspend fun delete(id: PendingAuthenticationId)
+
+    /**
+     * Removes every in-progress sign-in/enrollment capability belonging to [userId].*/
+    public suspend fun deleteFor(userId: tallyvane.identity.domain.user.UserId)
 }

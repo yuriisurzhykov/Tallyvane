@@ -27,6 +27,9 @@ internal class PendingAuthenticationStoreOverExposed : PendingAuthenticationStor
             it[availableMethods] = pending.availableMethods.map { method -> method.name }
             it[createdAt] = instant.toColumn(pending.createdAt)
             it[expiresAt] = instant.toColumn(pending.expiresAt)
+            it[requiresEnrollment] = pending.requiresEnrollment
+            it[primaryMethod] = pending.primaryMethod?.name
+            it[policyVersion] = pending.policyVersion
         }
     }
 
@@ -40,6 +43,10 @@ internal class PendingAuthenticationStoreOverExposed : PendingAuthenticationStor
         PendingAuthenticationsTable.deleteWhere { PendingAuthenticationsTable.id eq id.value }
     }
 
+    override suspend fun deleteFor(userId: UserId) {
+        PendingAuthenticationsTable.deleteWhere { PendingAuthenticationsTable.userId eq userId.value }
+    }
+
     private fun ResultRow.toPendingAuthentication(): PendingAuthentication = PendingAuthentication(
         id = PendingAuthenticationId(this[PendingAuthenticationsTable.id]),
         userId = UserId(this[PendingAuthenticationsTable.userId]),
@@ -49,5 +56,10 @@ internal class PendingAuthenticationStoreOverExposed : PendingAuthenticationStor
         }.toSet(),
         createdAt = instant.toDomain(this[PendingAuthenticationsTable.createdAt]),
         expiresAt = instant.toDomain(this[PendingAuthenticationsTable.expiresAt]),
+        requiresEnrollment = this[PendingAuthenticationsTable.requiresEnrollment],
+        primaryMethod = this[PendingAuthenticationsTable.primaryMethod]?.let {
+            tallyvane.identity.domain.secondfactor.PrimaryMethod.valueOf(it)
+        },
+        policyVersion = this[PendingAuthenticationsTable.policyVersion],
     )
 }

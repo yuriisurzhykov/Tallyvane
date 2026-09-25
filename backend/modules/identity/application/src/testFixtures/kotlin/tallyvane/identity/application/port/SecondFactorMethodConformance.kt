@@ -2,6 +2,7 @@ package tallyvane.identity.application.port
 
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.shouldBe
+import tallyvane.identity.application.secondfactor.SecondFactorProof
 import tallyvane.identity.domain.user.UserId
 
 /**

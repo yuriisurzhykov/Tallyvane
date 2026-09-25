@@ -11,7 +11,9 @@ import tallyvane.platform.kernel.Secret
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
-/** Shared one-time-use behaviour required of email challenge stores. */
+/**
+ * Shared one-time-use behaviour required of email challenge stores.
+ */
 public abstract class EmailChallengeStoreConformance : StringSpec() {
     protected abstract fun fresh(): EmailChallengeStore
 
@@ -22,8 +24,11 @@ public abstract class EmailChallengeStoreConformance : StringSpec() {
             val hash = Secret("hashed-value")
             val now = Instant.parse("2026-09-24T00:00:00Z")
             val challenge = EmailChallenge(
-                id, Email("recipient@example.test"), EmailChallengePurpose.REGISTRATION,
-                "account-1", now + kotlin.time.Duration.parse("10m"),
+                id,
+                Email("recipient@example.test"),
+                EmailChallengePurpose.REGISTRATION,
+                "account-1",
+                now + kotlin.time.Duration.parse("10m"),
             )
             store.issue(challenge, hash, now, now, 5).shouldBeTrue()
             store.find(id) shouldBe challenge

@@ -87,6 +87,17 @@ class VerifySpec :
             store.find(pendingId).shouldBeNull()
         }
 
+        "a pending authentication is expired at the exact expiry instant" {
+            val store = PendingAuthenticationStoreFake().also { it.save(pending) }
+            val totp = SecondFactorMethodFake(SecondFactorKind.TOTP).also { it.enroll(userId) }
+
+            val result = verify(store, totp, pending.expiresAt)
+                .verify(VerifySecondFactorRequest(pendingId, SecondFactorKind.TOTP, "123456"))
+
+            result shouldBe VerifySecondFactorOutcome.NotCompleted(SecondFactorOutcome.Expired)
+            store.find(pendingId).shouldBeNull()
+        }
+
         "a correct code issues a session and removes the pending authentication" {
             val store = PendingAuthenticationStoreFake().also { it.save(pending) }
             val totp = SecondFactorMethodFake(SecondFactorKind.TOTP).also { it.enroll(userId) }

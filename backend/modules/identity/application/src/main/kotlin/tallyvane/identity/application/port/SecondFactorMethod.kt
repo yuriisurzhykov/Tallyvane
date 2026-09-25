@@ -1,7 +1,10 @@
 package tallyvane.identity.application.port
 
+import tallyvane.identity.application.email.EmailChallenges
+import tallyvane.identity.application.secondfactor.SecondFactorProof
 import tallyvane.identity.application.secondfactor.totp.Base32
 import tallyvane.identity.application.secondfactor.totp.Rfc6238Totp
+import tallyvane.identity.domain.email.EmailChallengePurpose
 import tallyvane.identity.domain.secondfactor.EncryptedSecret
 import tallyvane.identity.domain.secondfactor.SecondFactorKind
 import tallyvane.identity.domain.secondfactor.totp.TotpEnrollment
@@ -10,8 +13,6 @@ import tallyvane.platform.kernel.Clock
 import tallyvane.platform.kernel.Secret
 import java.security.SecureRandom
 import kotlin.time.Duration.Companion.seconds
-import tallyvane.identity.application.email.EmailChallenges
-import tallyvane.identity.domain.email.EmailChallengePurpose
 
 /**
  * One interchangeable second-factor mechanism — TOTP today, WebAuthn and Email OTP named in the
@@ -33,7 +34,9 @@ import tallyvane.identity.domain.email.EmailChallengePurpose
 public interface SecondFactorMethod {
     public val kind: SecondFactorKind
 
-    /** False for factors managed by a dedicated enrollment operation, such as recovery codes. */
+    /**
+     * False for factors managed by a dedicated enrollment operation, such as recovery codes.
+     */
     public val supportsEnrollment: Boolean get() = true
 
     public suspend fun isEnrolledFor(userId: UserId): Boolean
@@ -65,7 +68,9 @@ public interface SecondFactorMethod {
      */
     public suspend fun confirmEnrollment(userId: UserId, code: String): Boolean
 
-    /** Recovery codes are issued through their one-time-display endpoint, then consumed here. */
+    /**
+     * Recovery codes are issued through their one-time-display endpoint, then consumed here.
+     */
     public class Backup(private val codes: tallyvane.identity.application.email.BackupCodes) : SecondFactorMethod {
         override val kind: SecondFactorKind = SecondFactorKind.BACKUP_CODE
         override val supportsEnrollment: Boolean = false
@@ -81,7 +86,9 @@ public interface SecondFactorMethod {
         override suspend fun confirmEnrollment(userId: UserId, code: String): Boolean = false
     }
 
-    /** Email OTP is available only after explicit enrollment and is bound to one pending login. */
+    /**
+     * Email OTP is available only after explicit enrollment and is bound to one pending login.
+     */
     public class EmailOtp(
         private val users: UserRepository,
         private val enrollment: EmailMfaEnrollmentStore,
@@ -92,14 +99,20 @@ public interface SecondFactorMethod {
 
         override suspend fun isEnrolledFor(userId: UserId): Boolean = enrollment.isEnrolled(userId)
 
-        override suspend fun verify(userId: UserId, proof: SecondFactorProof): Boolean {
-            val challengeId = proof.challengeId ?: return false
-            val binding = proof.binding ?: return false
-            val user = users.findById(userId)?.takeIf { it.disabledAt == null && it.emailVerified } ?: return false
-            return challenges.verify(
-                challengeId, user.email, EmailChallengePurpose.MFA, Secret(proof.code), binding,
-            )
-        }
+        override suspend fun verify(userId: UserId, proof: SecondFactorProof): Boolean =
+            proof.challengeId?.let { challengeId ->
+                proof.binding?.let { binding ->
+                    users.findById(userId)?.takeIf { it.disabledAt == null && it.emailVerified }?.let { user ->
+                        challenges.verify(
+                            challengeId,
+                            user.email,
+                            EmailChallengePurpose.MFA,
+                            Secret(proof.code),
+                            binding,
+                        )
+                    }
+                }
+            } == true
 
         override suspend fun startEnrollment(userId: UserId): String =
             error("Email OTP enrollment uses its purpose-bound challenge workflow")

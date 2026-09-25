@@ -15,4 +15,8 @@ internal class TotpEnrollmentStoreFake : TotpEnrollmentStore {
     }
 
     override suspend fun find(userId: UserId): TotpEnrollment? = saved[userId]
+
+    override suspend fun delete(userId: UserId) {
+        saved.remove(userId)
+    }
 }

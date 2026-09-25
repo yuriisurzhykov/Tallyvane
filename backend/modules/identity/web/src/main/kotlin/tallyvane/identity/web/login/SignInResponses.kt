@@ -1,8 +1,8 @@
 package tallyvane.identity.web.login
 
-import io.ktor.http.*
-import io.ktor.server.application.*
-import io.ktor.server.response.*
+import io.ktor.http.HttpStatusCode
+import io.ktor.server.application.ApplicationCall
+import io.ktor.server.response.respond
 import tallyvane.identity.application.SignInOutcome
 import tallyvane.identity.domain.outcome.AuthenticationOutcome
 import tallyvane.identity.web.shared.IssuedTokens
@@ -62,21 +62,31 @@ internal interface SignInResponses {
                     ),
                 )
 
-                is AuthenticationOutcome.InvalidCredential    -> call.respond(
+                is AuthenticationOutcome.RequiresEnrollment -> call.respond(
+                    HttpStatusCode.OK,
+                    SignInResponseBody(
+                        status = "requires_enrollment",
+                        pendingId = reason.pendingId.value.toString(),
+                        availableMethods = reason.requiredMethods.map { it.name },
+                        primaryMethod = reason.primaryMethod.name,
+                    ),
+                )
+
+                is AuthenticationOutcome.InvalidCredential -> call.respond(
                     Refused(
                         AuthenticationFailure.InvalidCredential,
                         problems,
                     ),
                 )
 
-                is AuthenticationOutcome.AccountDisabled      -> call.respond(
+                is AuthenticationOutcome.AccountDisabled -> call.respond(
                     Refused(
                         AuthenticationFailure.AccountDisabled,
                         problems,
                     ),
                 )
 
-                is AuthenticationOutcome.RateLimited          -> call.respond(
+                is AuthenticationOutcome.RateLimited -> call.respond(
                     Refused(
                         AuthenticationFailure.RateLimited,
                         problems,
@@ -85,7 +95,9 @@ internal interface SignInResponses {
                 // Unreachable in practice: SessionIssuer.complete never returns NotIssued(Success(...)),
                 // per AuthenticationCompleter's own logic. Handled anyway because AuthenticationOutcome
                 // is a closed type and this `when` must be exhaustive.
-                is AuthenticationOutcome.Success              -> error("SignInOutcome.NotIssued must never carry AuthenticationOutcome.Success")
+                is AuthenticationOutcome.Success -> error(
+                    "SignInOutcome.NotIssued must never carry AuthenticationOutcome.Success",
+                )
             }
         }
 

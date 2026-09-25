@@ -46,6 +46,21 @@ real hashing and verification inside that image before this adapter was trusted,
 this development machine nor CI's own runner carries the native library `Argon2PasswordHasher` calls
 through JNA.
 
+The Windows Gradle process does not provide that Linux shared library. The integration suite can
+run in a dedicated Gradle container that installs `libargon2-1` and connects to its own disposable
+PostgreSQL service. From the repository root:
+
+```bash
+docker compose -f ops/docker-compose.backend-tests.yml run --build --rm integration-tests
+docker compose -f ops/docker-compose.backend-tests.yml down
+```
+
+`PostgresFixture` uses Testcontainers by default. When `TALLYVANE_TEST_POSTGRES_URL` is set, it
+creates isolated per-spec databases on the provided test PostgreSQL instead; this keeps the suite
+inside the runner container without requiring Docker socket passthrough or nested containers.
+The test compose project has no published ports or persistent database volume. Its separate Gradle
+cache volume only holds downloaded build dependencies.
+
 ## Why `Argon2PasswordHasher` is a top-level class, not nested on `PasswordHasher`
 
 Unlike `TokenFactory.Csprng`/`TokenHasher.Hmac`, this reaches a third-party native library, not

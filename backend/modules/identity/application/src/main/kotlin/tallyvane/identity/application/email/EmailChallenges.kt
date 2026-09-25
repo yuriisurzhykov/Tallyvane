@@ -27,18 +27,36 @@ public class EmailChallenges(
      * Null means cooldown.
      * A challenge is returned only after SMTP acceptance.
      * */
+    @Suppress("TooGenericExceptionCaught")
     public suspend fun issue(email: Email, purpose: EmailChallengePurpose, binding: String = ""): EmailChallenge? {
         val now = clock.now()
-        val challenge = EmailChallenge(ids.next(), Email(email.value.lowercase()), purpose, binding, now + policy.lifetime)
+        val challenge = EmailChallenge(
+            ids.next(),
+            Email(email.value.lowercase()),
+            purpose,
+            binding,
+            now + policy.lifetime,
+        )
         val code = codes.emailCode()
         val accepted = transactions.inTransaction {
-            Verdict.Commit(store.issue(challenge, codes.hash(context(challenge), code), now, now + policy.resendDelay, policy.maxAttempts))
+            Verdict.Commit(
+                store.issue(
+                    challenge,
+                    codes.hash(context(challenge), code),
+                    now,
+                    now + policy.resendDelay,
+                    policy.maxAttempts,
+                ),
+            )
         }
         if (!accepted) return null
         try {
             delivery.sendCode(email, purpose, code)
         } catch (failure: Exception) {
-            transactions.inTransaction { store.revoke(challenge.id); Verdict.Commit(Unit) }
+            transactions.inTransaction {
+                store.revoke(challenge.id)
+                Verdict.Commit(Unit)
+            }
             throw failure
         }
         return challenge
@@ -51,17 +69,28 @@ public class EmailChallenges(
     /**
      * Opens its own transaction so failed guesses commit even when the caller rejects authentication.
      * */
-    public suspend fun verify(id: Uuid, email: Email, purpose: EmailChallengePurpose, code: Secret, binding: String = ""): Boolean =
-        transactions.inTransaction {
-            val challenge = store.find(id)
-            if (challenge == null || !challenge.email.value.equals(email.value, ignoreCase = true) ||
-                challenge.purpose != purpose || challenge.binding != binding
-            ) {
-                Verdict.Commit(false)
-            } else {
-                Verdict.Commit(store.consume(id, codes.hash(context(challenge), code), clock.now()))
-            }
+    public suspend fun verify(
+        id: Uuid,
+        email: Email,
+        purpose: EmailChallengePurpose,
+        code: Secret,
+        binding: String = "",
+    ): Boolean = transactions.inTransaction {
+        val challenge = store.find(id)
+        if (!matchesPurposeAndEmail(challenge, email, purpose) || challenge?.binding != binding) {
+            Verdict.Commit(false)
+        } else {
+            Verdict.Commit(store.consume(id, codes.hash(context(challenge), code), clock.now()))
         }
+    }
 
     private fun context(challenge: EmailChallenge): String = "email:${challenge.purpose}:${challenge.id}"
+
+    private fun matchesPurposeAndEmail(
+        challenge: EmailChallenge?,
+        email: Email,
+        purpose: EmailChallengePurpose,
+    ): Boolean = challenge != null &&
+        challenge.email.value.equals(email.value, ignoreCase = true) &&
+        challenge.purpose == purpose
 }

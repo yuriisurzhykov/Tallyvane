@@ -16,6 +16,8 @@ internal class EmailMfaEnrollmentStoreOverExposed : EmailMfaEnrollmentStore {
         EmailMfaEnrollmentsTable.deleteWhere { EmailMfaEnrollmentsTable.userId eq userId.value }
     }
 
-    override suspend fun isEnrolled(userId: UserId): Boolean =
-        EmailMfaEnrollmentsTable.selectAll().where { EmailMfaEnrollmentsTable.userId eq userId.value }.limit(1).singleOrNull() != null
+    override suspend fun isEnrolled(userId: UserId): Boolean = EmailMfaEnrollmentsTable.selectAll().where {
+        EmailMfaEnrollmentsTable.userId eq userId.value
+    }.limit(1).singleOrNull() !=
+        null
 }

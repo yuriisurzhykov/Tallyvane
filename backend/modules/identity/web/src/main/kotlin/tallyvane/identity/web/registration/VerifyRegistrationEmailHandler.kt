@@ -1,8 +1,8 @@
 package tallyvane.identity.web.registration
 
-import io.ktor.server.application.*
-import io.ktor.server.request.*
-import io.ktor.server.response.*
+import io.ktor.server.application.ApplicationCall
+import io.ktor.server.request.receive
+import io.ktor.server.response.respond
 import tallyvane.identity.application.email.VerifyRegistrationEmailUseCase
 import tallyvane.identity.domain.user.Email
 import tallyvane.identity.domain.user.UserId

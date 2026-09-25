@@ -27,7 +27,10 @@ internal class ConfirmEmailMfaEnrollmentHandler(
             val body = call.receive<EmailMfaConfirmBody>()
             val validation = FieldValidation.Accumulator()
             val challengeId = validation.field("challengeId") { Uuid.parse(body.challengeId) }
-            val code = validation.field("code") { require(body.code.length == 6); Secret(body.code) }
+            val code = validation.field("code") {
+                require(body.code.length == 6)
+                Secret(body.code)
+            }
             val errors = validation.errorsOrNull()
             if (errors != null) {
                 call.respond(Refused(RequestValidationFailure.FieldsInvalid(errors), validationProblems))

@@ -35,4 +35,5 @@ public class Configuration(
     public val smtpHost: String? = null,
     public val smtpPort: Int = 1025,
     public val smtpFrom: String = "noreply@surzhykov.icu",
+    public val adminEmails: Set<String> = emptySet(),
 )

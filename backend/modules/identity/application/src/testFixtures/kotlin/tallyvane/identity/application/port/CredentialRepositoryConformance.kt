@@ -100,6 +100,58 @@ public abstract class CredentialRepositoryConformance : StringSpec() {
             } shouldBe userId
         }
 
+        "a user's Google credential can be read and removed without touching its password" {
+            val subject = fresh()
+            val userId = UserId(Uuid.random())
+            val subjectId = GoogleSubject(Uuid.random().toString())
+            val password = Credential.PasswordRecord(PasswordHash(Secret("argon2id\$encoded\$fixture")))
+
+            subject.transactions.inTransaction {
+                subject.users.insert(testUser(userId))
+                subject.credentials.save(userId, password)
+                subject.credentials.save(userId, Credential.GoogleRecord(subjectId))
+                Verdict.Commit(Unit)
+            }
+
+            subject.transactions.inTransaction {
+                Verdict.Commit(subject.credentials.findGoogleFor(userId))
+            } shouldBe Credential.GoogleRecord(subjectId)
+
+            subject.transactions.inTransaction {
+                Verdict.Commit(subject.credentials.deleteGoogleFor(userId))
+            } shouldBe true
+
+            subject.transactions.inTransaction {
+                Verdict.Commit(
+                    subject.credentials.findGoogleFor(userId) to subject.credentials.findPasswordFor(userId),
+                )
+            } shouldBe (null to password)
+        }
+
+        "Google linking claims both the account slot and provider subject exclusively" {
+            val subject = fresh()
+            val firstUser = UserId(Uuid.random())
+            val secondUser = UserId(Uuid.random())
+            val firstSubject = GoogleSubject(Uuid.random().toString())
+            val anotherSubject = GoogleSubject(Uuid.random().toString())
+
+            subject.transactions.inTransaction {
+                subject.users.insert(testUser(firstUser))
+                subject.users.insert(testUser(secondUser))
+                Verdict.Commit(Unit)
+            }
+
+            subject.transactions.inTransaction {
+                Verdict.Commit(subject.credentials.saveGoogleIfUnclaimed(firstUser, firstSubject))
+            } shouldBe true
+            subject.transactions.inTransaction {
+                Verdict.Commit(subject.credentials.saveGoogleIfUnclaimed(secondUser, firstSubject))
+            } shouldBe false
+            subject.transactions.inTransaction {
+                Verdict.Commit(subject.credentials.saveGoogleIfUnclaimed(firstUser, anotherSubject))
+            } shouldBe false
+        }
+
         "a Google subject nobody ever signed in with is not found" {
             val subject = fresh()
 

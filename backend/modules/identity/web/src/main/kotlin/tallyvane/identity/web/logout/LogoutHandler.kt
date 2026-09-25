@@ -1,8 +1,9 @@
 package tallyvane.identity.web.logout
 
-import io.ktor.http.*
-import io.ktor.server.response.*
-import io.ktor.server.routing.*
+import io.ktor.http.HttpStatusCode
+import io.ktor.server.response.respond
+import io.ktor.server.routing.Route
+import io.ktor.server.routing.post
 import tallyvane.identity.application.session.RevokeSessionUseCase
 import tallyvane.identity.web.routing.AuthHandler
 import tallyvane.identity.web.shared.CurrentPrincipal

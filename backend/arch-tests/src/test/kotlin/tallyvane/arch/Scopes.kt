@@ -45,6 +45,7 @@ private fun kotlinDirs(root: File, sourceSets: List<String>): List<File> {
         .flatMap { top ->
             top
                 .walkTopDown()
+                .onEnter { directory -> directory.name !in GENERATED_DIRECTORIES }
                 .filter { it.isDirectory }
                 .filter { dir ->
                     val path = dir.invariantSeparatorsPath
@@ -53,3 +54,5 @@ private fun kotlinDirs(root: File, sourceSets: List<String>): List<File> {
                 .toList()
         }
 }
+
+private val GENERATED_DIRECTORIES = setOf("build", ".gradle", ".kotlin")

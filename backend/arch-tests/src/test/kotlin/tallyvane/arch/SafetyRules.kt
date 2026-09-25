@@ -66,7 +66,7 @@ internal fun ownSchemaOnly(scope: KoScope): List<String> = scope.files
     .withoutException("own-schema-only")
     .mapNotNull { file ->
         val module = moduleNameFromPath(unixPath(file)) ?: return@mapNotNull null
-        val code = file.codeText()
+        val code = withoutUrls(file.codeText())
         val schemas =
             Regex("""schema\s*=\s*"([^"]+)"""")
                 .findAll(code)
@@ -102,8 +102,10 @@ internal fun noCrossSchemaJoin(scope: KoScope): List<String> = scope.files
     .withoutException("no-cross-schema-join")
     .mapNotNull { file ->
         val module = moduleNameFromPath(unixPath(file)) ?: return@mapNotNull null
-        val code = file.codeText()
-        val hasJoin = Regex("join", RegexOption.IGNORE_CASE).containsMatchIn(code)
+        val code = withoutUrls(file.codeText())
+        val sqlJoin = Regex("""(?i)\b(?:(?:INNER|LEFT|RIGHT|FULL|CROSS)\s+)?JOIN\s+[A-Za-z_][\w.]*""")
+        val kotlinJoin = Regex("""(?i)\b(?:INNER|LEFT|RIGHT|FULL|CROSS)?JOIN\s*\(""")
+        val hasJoin = sqlJoin.containsMatchIn(code) || kotlinJoin.containsMatchIn(code)
         val foreign =
             Regex(""""([a-z][a-z0-9_]*)\.[^"]+"""")
                 .findAll(code)
@@ -111,6 +113,8 @@ internal fun noCrossSchemaJoin(scope: KoScope): List<String> = scope.files
                 .any { it != module }
         if (hasJoin && foreign) file.where() else null
     }
+
+private fun withoutUrls(source: String): String = Regex("""https?://[^\s"']+""").replace(source, "")
 
 internal fun noLlmWithPersonalData(scope: KoScope): List<String> = scope.files
     .withoutException("no-llm-with-personal-data")

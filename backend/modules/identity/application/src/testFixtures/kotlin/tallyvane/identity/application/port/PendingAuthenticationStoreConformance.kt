@@ -75,6 +75,34 @@ public abstract class PendingAuthenticationStoreConformance : StringSpec() {
                 Verdict.Commit(subject.pendingAuthentications.find(pending.id))
             }.shouldBeNull()
         }
+
+        "deleteFor removes every pending authentication for the selected account" {
+            val subject = fresh()
+            val userId = UserId(Uuid.random())
+            val otherUserId = UserId(Uuid.random())
+            val pending = testPending(userId)
+            val otherPending = testPending(otherUserId)
+
+            subject.transactions.inTransaction {
+                subject.users.insert(testUser(userId))
+                subject.users.insert(testUser(otherUserId))
+                subject.pendingAuthentications.save(pending)
+                subject.pendingAuthentications.save(otherPending)
+                Verdict.Commit(Unit)
+            }
+            subject.transactions.inTransaction {
+                subject.pendingAuthentications.deleteFor(userId)
+                Verdict.Commit(Unit)
+            }
+
+            subject.transactions.inTransaction {
+                Verdict.Commit(subject.pendingAuthentications.find(pending.id))
+            }.shouldBeNull()
+            subject.transactions.inTransaction {
+                Verdict.Commit(subject.pendingAuthentications.find(otherPending.id))
+            } shouldBe
+                otherPending
+        }
     }
 
     private fun testUser(id: UserId): User = User(

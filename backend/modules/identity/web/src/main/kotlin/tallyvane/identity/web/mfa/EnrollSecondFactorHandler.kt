@@ -1,8 +1,9 @@
 package tallyvane.identity.web.mfa
 
-import io.ktor.server.request.*
-import io.ktor.server.response.*
-import io.ktor.server.routing.*
+import io.ktor.server.request.receive
+import io.ktor.server.response.respond
+import io.ktor.server.routing.Route
+import io.ktor.server.routing.post
 import tallyvane.identity.application.secondfactor.EnrollSecondFactorRequest
 import tallyvane.identity.application.secondfactor.EnrollSecondFactorUseCase
 import tallyvane.identity.domain.secondfactor.SecondFactorKind

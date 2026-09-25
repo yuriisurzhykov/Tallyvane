@@ -5,7 +5,9 @@ import io.kotest.matchers.shouldBe
 import tallyvane.identity.domain.user.UserId
 import kotlin.uuid.Uuid
 
-/** The shared contract for explicit email-factor enrollment stores. */
+/**
+ * The shared contract for explicit email-factor enrollment stores.
+ */
 public abstract class EmailMfaEnrollmentStoreConformance : StringSpec() {
     protected abstract fun fresh(): EmailMfaEnrollmentStore
 

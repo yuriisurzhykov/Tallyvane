@@ -10,7 +10,9 @@ import tallyvane.identity.domain.user.Email
 import tallyvane.platform.kernel.Secret
 import java.util.Properties
 
-/** SMTP acceptance is synchronous. Protocol debugging is disabled to keep codes out of logs. */
+/**
+ * SMTP acceptance is synchronous. Protocol debugging is disabled to keep codes out of logs.
+ */
 internal class SmtpEmailDelivery(private val settings: SmtpSettings) : EmailDelivery {
     override suspend fun sendCode(email: Email, purpose: EmailChallengePurpose, code: Secret) {
         val properties = Properties().apply {
@@ -30,7 +32,13 @@ internal class SmtpEmailDelivery(private val settings: SmtpSettings) : EmailDeli
             setFrom(InternetAddress(settings.from, true))
             setRecipient(Message.RecipientType.TO, InternetAddress(email.value, true))
             subject = "Verification code"
-            setText("Your code for ${purpose.name.lowercase().replace('_', ' ')} is ${code.revealed()}.\n\nIf you did not request this code, ignore this email.", "UTF-8")
+            setText(
+                "Your code for ${purpose.name.lowercase().replace(
+                    '_',
+                    ' ',
+                )} is ${code.revealed()}.\n\nIf you did not request this code, ignore this email.",
+                "UTF-8",
+            )
         }
         session.getTransport("smtp").use { transport ->
             transport.connect(settings.host, settings.port, settings.username, settings.password?.revealed())

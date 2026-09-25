@@ -1,8 +1,9 @@
 package tallyvane.identity.web.revoke
 
-import io.ktor.http.*
-import io.ktor.server.response.*
-import io.ktor.server.routing.*
+import io.ktor.http.HttpStatusCode
+import io.ktor.server.response.respond
+import io.ktor.server.routing.Route
+import io.ktor.server.routing.delete
 import tallyvane.identity.application.session.RevokeSessionOutcome
 import tallyvane.identity.application.session.RevokeSessionUseCase
 import tallyvane.identity.domain.session.SessionId
@@ -32,7 +33,7 @@ internal class RevokeSessionHandler(
             }
 
             when (useCase.revoke(identity.userId, SessionId(sessionId))) {
-                is RevokeSessionOutcome.Revoked  -> call.respond(HttpStatusCode.NoContent)
+                is RevokeSessionOutcome.Revoked -> call.respond(HttpStatusCode.NoContent)
                 is RevokeSessionOutcome.NotFound -> call.respond(Refused(SessionFailure.SessionNotFound, problems))
             }
         }

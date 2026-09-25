@@ -1,7 +1,9 @@
 package tallyvane.identity.infrastructure.persistence
 
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insert
+import org.jetbrains.exposed.v1.jdbc.insertIgnore
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.upsert
 import tallyvane.identity.application.port.CredentialRepository
@@ -29,11 +31,26 @@ internal class CredentialRepositoryOverExposed : CredentialRepository {
         .singleOrNull()
         ?.let { row -> Credential.PasswordRecord(PasswordHash(Secret(row[PasswordCredentialsTable.passwordHash]))) }
 
+    override suspend fun findGoogleFor(userId: UserId): Credential.GoogleRecord? = GoogleCredentialsTable
+        .selectAll()
+        .where { GoogleCredentialsTable.userId eq userId.value }
+        .singleOrNull()
+        ?.let { row -> Credential.GoogleRecord(GoogleSubject(row[GoogleCredentialsTable.googleSubject])) }
+
     override suspend fun findUserIdByGoogleSubject(subject: GoogleSubject): UserId? = GoogleCredentialsTable
         .selectAll()
         .where { GoogleCredentialsTable.googleSubject eq subject.value }
         .singleOrNull()
         ?.let { row -> UserId(row[GoogleCredentialsTable.userId]) }
+
+    override suspend fun deleteGoogleFor(userId: UserId): Boolean =
+        GoogleCredentialsTable.deleteWhere { GoogleCredentialsTable.userId eq userId.value } > 0
+
+    override suspend fun saveGoogleIfUnclaimed(userId: UserId, subject: GoogleSubject): Boolean =
+        GoogleCredentialsTable.insertIgnore {
+            it[GoogleCredentialsTable.userId] = userId.value
+            it[googleSubject] = subject.value
+        }.insertedCount == 1
 
     override suspend fun save(userId: UserId, credential: Credential) {
         when (credential) {

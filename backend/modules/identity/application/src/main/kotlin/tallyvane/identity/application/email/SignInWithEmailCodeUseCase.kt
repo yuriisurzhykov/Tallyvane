@@ -5,11 +5,14 @@ import tallyvane.identity.application.SignInOutcome
 import tallyvane.identity.application.port.UserRepository
 import tallyvane.identity.domain.email.EmailChallengePurpose
 import tallyvane.identity.domain.outcome.AuthenticationOutcome
+import tallyvane.identity.domain.secondfactor.PrimaryMethod
 import tallyvane.platform.kernel.TransactionRunner
 import tallyvane.platform.kernel.UseCase
 import tallyvane.platform.kernel.Verdict
 
-/** Completes a primary sign-in using an email challenge issued only for the EMAIL_LOGIN purpose. */
+/**
+ * Completes a primary sign-in using an email challenge issued only for the EMAIL_LOGIN purpose.
+ */
 public interface SignInWithEmailCodeUseCase : UseCase {
     public suspend fun signIn(request: SignInWithEmailCodeRequest): SignInOutcome
 
@@ -21,24 +24,42 @@ public interface SignInWithEmailCodeUseCase : UseCase {
     ) : SignInWithEmailCodeUseCase {
         override suspend fun signIn(request: SignInWithEmailCodeRequest): SignInOutcome {
             val challenge = challenges.challenge(request.challengeId)
-                ?: return SignInOutcome.NotIssued(AuthenticationOutcome.InvalidCredential)
-            if (challenge.purpose != EmailChallengePurpose.EMAIL_LOGIN ||
-                !challenge.email.value.equals(request.email.value, ignoreCase = true) || challenge.binding.isNotEmpty()
-            ) return SignInOutcome.NotIssued(AuthenticationOutcome.InvalidCredential)
-
-            if (!challenges.verify(request.challengeId, request.email, EmailChallengePurpose.EMAIL_LOGIN, request.code)) {
-                return SignInOutcome.NotIssued(AuthenticationOutcome.InvalidCredential)
+            return if (belongsToLogin(challenge, request.email) && verifies(request)) {
+                completeSignIn(request)
+            } else {
+                invalidCredential()
             }
+        }
 
-            return transactions.inTransaction {
+        private fun belongsToLogin(
+            challenge: tallyvane.identity.domain.email.EmailChallenge?,
+            email: tallyvane.identity.domain.user.Email,
+        ): Boolean = challenge?.let {
+            it.purpose == EmailChallengePurpose.EMAIL_LOGIN &&
+                it.email.value.equals(email.value, ignoreCase = true) &&
+                it.binding.isEmpty()
+        } == true
+
+        private suspend fun verifies(request: SignInWithEmailCodeRequest): Boolean = challenges.verify(
+            request.challengeId,
+            request.email,
+            EmailChallengePurpose.EMAIL_LOGIN,
+            request.code,
+        )
+
+        private suspend fun completeSignIn(request: SignInWithEmailCodeRequest): SignInOutcome =
+            transactions.inTransaction {
                 val user = users.findByEmail(request.email)
                 val result = when {
-                    user == null || !user.emailVerified -> SignInOutcome.NotIssued(AuthenticationOutcome.InvalidCredential)
+                    user == null || !user.emailVerified -> SignInOutcome.NotIssued(
+                        AuthenticationOutcome.InvalidCredential,
+                    )
                     user.disabledAt != null -> SignInOutcome.NotIssued(AuthenticationOutcome.AccountDisabled)
-                    else -> completer.complete(user.id, request.device)
+                    else -> completer.complete(user.id, request.device, PrimaryMethod.EMAIL_CODE)
                 }
                 Verdict.Commit(result)
             }
-        }
+
+        private fun invalidCredential() = SignInOutcome.NotIssued(AuthenticationOutcome.InvalidCredential)
     }
 }

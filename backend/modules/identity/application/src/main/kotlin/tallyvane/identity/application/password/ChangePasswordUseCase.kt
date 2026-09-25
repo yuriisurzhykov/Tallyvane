@@ -11,7 +11,9 @@ import tallyvane.platform.kernel.TransactionRunner
 import tallyvane.platform.kernel.UseCase
 import tallyvane.platform.kernel.Verdict
 
-/** Changes a signed-in user's password only after proving the current credential again. */
+/**
+ * Changes a signed-in user's password only after proving the current credential again.
+ */
 public interface ChangePasswordUseCase : UseCase {
     public suspend fun change(userId: UserId, currentPassword: Secret, newPassword: Secret): Boolean
 
@@ -27,9 +29,12 @@ public interface ChangePasswordUseCase : UseCase {
             return transactions.inTransaction {
                 val user = users.findById(userId)
                 val record = credentials.findPasswordFor(userId)
-                if (user == null || user.disabledAt != null || !user.emailVerified || record == null) {
+                val accountCanChangePassword = user != null && user.disabledAt == null && user.emailVerified
+                if (!accountCanChangePassword || record == null) {
                     Verdict.Rollback(false)
-                } else if (!passwords.verify(currentPassword, record.hash) || passwords.verify(newPassword, record.hash)) {
+                } else if (!passwords.verify(currentPassword, record.hash) ||
+                    passwords.verify(newPassword, record.hash)
+                ) {
                     Verdict.Rollback(false)
                 } else {
                     credentials.saveOrReplacePasswordFor(userId, Credential.PasswordRecord(passwords.hash(newPassword)))

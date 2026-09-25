@@ -14,8 +14,6 @@ import tallyvane.identity.web.shared.FieldValidation
 import tallyvane.identity.web.shared.RequestValidationFailure
 import tallyvane.identity.web.shared.RequestValidationProblems
 import tallyvane.platform.http.Refused
-import tallyvane.platform.kernel.Secret
-import kotlin.uuid.Uuid
 
 internal class RequestPasswordResetHandler(
     private val requestReset: RequestPasswordResetUseCase,

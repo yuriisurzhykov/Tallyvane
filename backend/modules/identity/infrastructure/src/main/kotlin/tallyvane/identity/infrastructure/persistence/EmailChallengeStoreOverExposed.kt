@@ -14,11 +14,19 @@ import tallyvane.platform.kernel.Secret
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
-/** Per-slot row locks serialize resends and guesses across processes, including first issuance. */
+/**
+ * Per-slot row locks serialize resends and guesses across processes, including first issuance.
+ */
 internal class EmailChallengeStoreOverExposed : EmailChallengeStore {
     private val instant = InstantColumn()
 
-    override suspend fun issue(challenge: EmailChallenge, hash: Secret, now: Instant, resendAt: Instant, maxAttempts: Int): Boolean {
+    override suspend fun issue(
+        challenge: EmailChallenge,
+        hash: Secret,
+        now: Instant,
+        resendAt: Instant,
+        maxAttempts: Int,
+    ): Boolean {
         val inserted = EmailChallengesTable.insertIgnore {
             it[id] = challenge.id
             it[email] = challenge.email.value
@@ -30,7 +38,16 @@ internal class EmailChallengeStoreOverExposed : EmailChallengeStore {
             it[remainingAttempts] = maxAttempts
             it[consumed] = false
         }
-        if (inserted.insertedCount == 1) return true
+        return inserted.insertedCount == 1 || replaceExisting(challenge, hash, now, resendAt, maxAttempts)
+    }
+
+    private fun replaceExisting(
+        challenge: EmailChallenge,
+        hash: Secret,
+        now: Instant,
+        resendAt: Instant,
+        maxAttempts: Int,
+    ): Boolean {
         val slot = (EmailChallengesTable.email eq challenge.email.value) and
             (EmailChallengesTable.purpose eq challenge.purpose.name) and
             (EmailChallengesTable.binding eq challenge.binding)
@@ -51,18 +68,21 @@ internal class EmailChallengeStoreOverExposed : EmailChallengeStore {
         .where { EmailChallengesTable.id eq id }.singleOrNull()?.toChallenge()
 
     override suspend fun consume(id: Uuid, hash: Secret, now: Instant): Boolean {
-        val row = EmailChallengesTable.selectAll().where { EmailChallengesTable.id eq id }.forUpdate().singleOrNull()
-            ?: return false
-        if (row[EmailChallengesTable.consumed] || row[EmailChallengesTable.remainingAttempts] <= 0 ||
-            instant.toDomain(row[EmailChallengesTable.expiresAt]) <= now
-        ) return false
-        val matches = Secret(row[EmailChallengesTable.hash]) == hash
-        EmailChallengesTable.update({ EmailChallengesTable.id eq id }) {
-            it[remainingAttempts] = row[EmailChallengesTable.remainingAttempts] - 1
-            it[consumed] = matches
-        }
-        return matches
+        val row = EmailChallengesTable.selectAll().where { EmailChallengesTable.id eq id }
+            .forUpdate().singleOrNull()
+        return row?.takeIf { it.isUsableAt(now) }?.let { current ->
+            val matches = Secret(current[EmailChallengesTable.hash]) == hash
+            EmailChallengesTable.update({ EmailChallengesTable.id eq id }) {
+                it[remainingAttempts] = current[EmailChallengesTable.remainingAttempts] - 1
+                it[consumed] = matches
+            }
+            matches
+        } ?: false
     }
+
+    private fun ResultRow.isUsableAt(now: Instant): Boolean = !this[EmailChallengesTable.consumed] &&
+        this[EmailChallengesTable.remainingAttempts] > 0 &&
+        instant.toDomain(this[EmailChallengesTable.expiresAt]) > now
 
     override suspend fun revoke(id: Uuid) {
         EmailChallengesTable.update({ EmailChallengesTable.id eq id }) { it[consumed] = true }

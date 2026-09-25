@@ -17,6 +17,9 @@ internal object PendingAuthenticationsTable : Table("identity.pending_authentica
     val availableMethods = array("available_methods", TextColumnType())
     val createdAt = timestampWithTimeZone("created_at")
     val expiresAt = timestampWithTimeZone("expires_at")
+    val requiresEnrollment = bool("requires_enrollment").default(false)
+    val primaryMethod = text("primary_method").nullable()
+    val policyVersion = long("policy_version").default(1)
 
     override val primaryKey = PrimaryKey(id)
 }

@@ -12,7 +12,12 @@ internal data class SmtpSettings(
 ) {
     init {
         require(host.isNotBlank())
-        require(port in 1..65535)
+        require(port in MIN_PORT..MAX_PORT)
         require((username == null) == (password == null))
+    }
+
+    private companion object {
+        const val MIN_PORT = 1
+        const val MAX_PORT = 65_535
     }
 }

@@ -16,5 +16,4 @@ dependencies {
     testImplementation(libs.ktor.server.cio)
     testImplementation(libs.ktor.server.content.negotiation)
     testImplementation(libs.ktor.serialization.kotlinx.json)
-    testImplementation(projects.platform.observability)
 }

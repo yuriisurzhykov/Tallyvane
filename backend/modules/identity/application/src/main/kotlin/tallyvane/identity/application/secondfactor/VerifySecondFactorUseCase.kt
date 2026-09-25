@@ -5,9 +5,7 @@ import org.slf4j.LoggerFactory
 import tallyvane.identity.application.SessionIssuer
 import tallyvane.identity.application.port.LoginAttempts
 import tallyvane.identity.application.port.PendingAuthenticationStore
-import tallyvane.identity.application.port.SecondFactorProof
 import tallyvane.identity.contract.Principal
-import tallyvane.identity.contract.UserId as ContractUserId
 import tallyvane.identity.domain.outcome.SecondFactorOutcome
 import tallyvane.identity.domain.secondfactor.PendingAuthentication
 import tallyvane.identity.domain.secondfactor.PendingAuthenticationId
@@ -17,6 +15,7 @@ import tallyvane.platform.kernel.TransactionRunner
 import tallyvane.platform.kernel.UseCase
 import tallyvane.platform.kernel.Verdict
 import kotlin.time.Duration
+import tallyvane.identity.contract.UserId as ContractUserId
 
 /**
  * Completes a [PendingAuthentication] with a second-factor code — one action, per ADR-053, for any
@@ -49,7 +48,7 @@ public interface VerifySecondFactorUseCase : UseCase {
                 val pending = pendingAuthentications.find(request.pendingId)
                 val outcome = if (pending == null) {
                     VerifySecondFactorOutcome.NotCompleted(SecondFactorOutcome.UnknownPending)
-                } else if (clock.now() > pending.expiresAt) {
+                } else if (clock.now() >= pending.expiresAt) {
                     pendingAuthentications.delete(pending.id)
                     VerifySecondFactorOutcome.NotCompleted(SecondFactorOutcome.Expired)
                 } else {
@@ -63,7 +62,8 @@ public interface VerifySecondFactorUseCase : UseCase {
             request: VerifySecondFactorRequest,
         ): VerifySecondFactorOutcome {
             val method = registry.find(request.kind)
-            val verified = request.kind in pending.availableMethods &&
+            val verified = !pending.requiresEnrollment &&
+                request.kind in pending.availableMethods &&
                 method != null &&
                 method.verify(
                     pending.userId,

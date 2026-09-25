@@ -12,4 +12,5 @@ internal data class SignInResponseBody(
     val status: String,
     val pendingId: String? = null,
     val availableMethods: List<String>? = null,
+    val primaryMethod: String? = null,
 )

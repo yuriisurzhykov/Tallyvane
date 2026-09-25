@@ -81,6 +81,16 @@ class EnvironmentConfigurationSpec :
                 configuration.level shouldBe Level.WARN
             }
 
+            "normalizes the server-side admin allowlist" {
+                val configuration = read(
+                    complete().apply {
+                        put(EnvironmentConfiguration.ADMIN_EMAILS, " Owner@example.test, admin@example.test ")
+                    },
+                )
+
+                configuration.adminEmails shouldBe setOf("owner@example.test", "admin@example.test")
+            }
+
             // A2
             "names the one variable that is missing" {
                 val said = refusal(complete().apply { remove(EnvironmentConfiguration.USER) })
@@ -207,7 +217,8 @@ class EnvironmentConfigurationSpec :
 
             "cookie Secure defaults to false, and reads 'true' when set" {
                 read(complete()).cookieSecure shouldBe false
-                read(complete().apply { put(EnvironmentConfiguration.COOKIE_SECURE, "true") }).cookieSecure shouldBe true
+                read(complete().apply { put(EnvironmentConfiguration.COOKIE_SECURE, "true") }).cookieSecure shouldBe
+                    true
             }
 
             "refuses a cookie Secure value that is neither 'true' nor 'false'" {

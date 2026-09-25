@@ -9,7 +9,9 @@ import tallyvane.identity.application.port.BackupCodeStore
 import tallyvane.identity.domain.user.UserId
 import tallyvane.platform.kernel.Secret
 
-/** Lock the owner row even for an empty code set, so concurrent reissues never merge generations. */
+/**
+ * Lock the owner row even for an empty code set, so concurrent reissues never merge generations.
+ */
 internal class BackupCodeStoreOverExposed : BackupCodeStore {
     override suspend fun replace(userId: UserId, hashes: List<Secret>) {
         lockOwner(userId)

@@ -1,9 +1,10 @@
 package tallyvane.identity.web.mfa
 
-import io.ktor.server.application.*
-import io.ktor.server.request.*
-import io.ktor.server.response.*
-import io.ktor.server.routing.*
+import io.ktor.server.application.ApplicationCall
+import io.ktor.server.request.receive
+import io.ktor.server.response.respond
+import io.ktor.server.routing.Route
+import io.ktor.server.routing.post
 import tallyvane.identity.application.secondfactor.VerifySecondFactorOutcome
 import tallyvane.identity.application.secondfactor.VerifySecondFactorRequest
 import tallyvane.identity.application.secondfactor.VerifySecondFactorUseCase
@@ -51,7 +52,7 @@ internal class VerifySecondFactorHandler(
 
             val request = VerifySecondFactorRequest(pendingId!!, kind!!, body.code, challengeId)
             when (val outcome = useCase.verify(request)) {
-                is VerifySecondFactorOutcome.Issued       -> {
+                is VerifySecondFactorOutcome.Issued -> {
                     val tokens = outcome.session.tokens
                     cookies.attach(call, IssuedTokens(tokens.access, accessTtl, tokens.refresh, refreshTtl))
                     call.respond(SignInResponseBody(status = "issued"))
@@ -64,12 +65,14 @@ internal class VerifySecondFactorHandler(
 
     private suspend fun ApplicationCall.respondReason(reason: SecondFactorOutcome) {
         val failure = when (reason) {
-            is SecondFactorOutcome.WrongCode      -> SecondFactorFailure.WrongCode
-            is SecondFactorOutcome.Expired        -> SecondFactorFailure.Expired
+            is SecondFactorOutcome.WrongCode -> SecondFactorFailure.WrongCode
+            is SecondFactorOutcome.Expired -> SecondFactorFailure.Expired
             is SecondFactorOutcome.UnknownPending -> SecondFactorFailure.UnknownPending
-            is SecondFactorOutcome.RateLimited    -> SecondFactorFailure.RateLimited
+            is SecondFactorOutcome.RateLimited -> SecondFactorFailure.RateLimited
             // Unreachable: VerifySecondFactorUseCase never returns NotCompleted(Completed(...)).
-            is SecondFactorOutcome.Completed      -> error("VerifySecondFactorOutcome.NotCompleted must never carry Completed")
+            is SecondFactorOutcome.Completed -> error(
+                "VerifySecondFactorOutcome.NotCompleted must never carry Completed",
+            )
         }
         respond(Refused(failure, secondFactorProblems))
     }

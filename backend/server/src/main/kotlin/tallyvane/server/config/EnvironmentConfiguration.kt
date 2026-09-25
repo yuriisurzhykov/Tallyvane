@@ -25,65 +25,88 @@ public class EnvironmentConfiguration(private val environment: Environment) {
      */
     public fun read(): Configuration {
         val faults = mutableListOf<String>()
-        val settings =
-            Configuration(
-                database =
-                DatabaseAccess(
-                    url = text(URL, faults),
-                    user = text(USER, faults),
-                    password = Secret(text(PASSWORD, faults)),
-                ),
-                pool = number(POOL, DEFAULT_SIZE, MIN_POOL..MAX_POOL, faults),
-                port = number(PORT, DEFAULT_PORT, MIN_PORT..MAX_PORT, faults),
-                level = level(faults),
-                healthToken = token(HEALTH_TOKEN, faults),
-                tokenPepper = token(TOKEN_PEPPER, faults),
-                tokenPepperVersion = number(
-                    TOKEN_PEPPER_VERSION,
-                    DEFAULT_PEPPER_VERSION,
-                    MIN_PEPPER_VERSION..MAX_PEPPER_VERSION,
-                    faults,
-                ),
-                cookieSecure = boolean(COOKIE_SECURE, default = false, faults),
-                accessTokenTtl = minutes(ACCESS_TOKEN_TTL_MINUTES, DEFAULT_ACCESS_TOKEN_TTL_MINUTES, faults),
-                refreshTokenIdleTtl = minutes(REFRESH_TOKEN_IDLE_TTL_MINUTES, DEFAULT_REFRESH_TOKEN_IDLE_TTL_MINUTES, faults),
-                refreshTokenAbsoluteCap = minutes(
-                    REFRESH_TOKEN_ABSOLUTE_CAP_MINUTES,
-                    DEFAULT_REFRESH_TOKEN_ABSOLUTE_CAP_MINUTES,
-                    faults,
-                ),
-                pendingAuthenticationTtl = minutes(
-                    PENDING_AUTHENTICATION_TTL_MINUTES,
-                    DEFAULT_PENDING_AUTHENTICATION_TTL_MINUTES,
-                    faults,
-                ),
-                signInRateLimitThreshold = number(
-                    SIGN_IN_RATE_LIMIT_THRESHOLD,
-                    DEFAULT_SIGN_IN_RATE_LIMIT_THRESHOLD,
-                    MIN_RATE_LIMIT_THRESHOLD..MAX_RATE_LIMIT_THRESHOLD,
-                    faults,
-                ),
-                signInRateLimitWindow = minutes(
-                    SIGN_IN_RATE_LIMIT_WINDOW_MINUTES,
-                    DEFAULT_SIGN_IN_RATE_LIMIT_WINDOW_MINUTES,
-                    faults,
-                ),
-                totpIssuer = environment.read(TOTP_ISSUER)?.takeIf { it.isNotBlank() } ?: DEFAULT_TOTP_ISSUER,
-                google = google(faults),
-                authEnabled = boolean("TALLYVANE_AUTH_ENABLED", default = false, faults),
-                totpKeyset = environment.read("TALLYVANE_TOTP_KEYSET")?.takeIf { it.isNotBlank() }?.let(::Secret),
-                authOrigins = environment.read("TALLYVANE_AUTH_ORIGINS")?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }?.toSet() ?: emptySet(),
-                smtpHost = environment.read("TALLYVANE_SMTP_HOST")?.takeIf { it.isNotBlank() },
-                smtpPort = number("TALLYVANE_SMTP_PORT", 1025, 1..65_535, faults),
-                smtpFrom = environment.read("TALLYVANE_SMTP_FROM")?.takeIf { it.isNotBlank() } ?: "noreply@surzhykov.icu",
-            )
-        if (settings.authEnabled && settings.totpKeyset == null) faults += "TALLYVANE_TOTP_KEYSET is required when authentication is enabled"
-        if (settings.authEnabled && settings.authOrigins.isEmpty()) faults += "TALLYVANE_AUTH_ORIGINS is required when authentication is enabled"
-        if (settings.authEnabled && settings.smtpHost == null) faults += "TALLYVANE_SMTP_HOST is required when authentication is enabled"
+        val settings = configuration(faults)
+        validateAuthentication(settings, faults)
         check(faults.isEmpty()) {
             faults.joinToString(separator = "\n", prefix = "Refusing to start.\n") { "  - $it" }
         }
         return settings
+    }
+
+    private fun configuration(faults: MutableList<String>): Configuration = Configuration(
+        database = DatabaseAccess(text(URL, faults), text(USER, faults), Secret(text(PASSWORD, faults))),
+        pool = number(POOL, DEFAULT_SIZE, MIN_POOL..MAX_POOL, faults),
+        port = number(PORT, DEFAULT_PORT, MIN_PORT..MAX_PORT, faults),
+        level = level(faults),
+        healthToken = token(HEALTH_TOKEN, faults),
+        tokenPepper = token(TOKEN_PEPPER, faults),
+        tokenPepperVersion = number(
+            TOKEN_PEPPER_VERSION,
+            DEFAULT_PEPPER_VERSION,
+            MIN_PEPPER_VERSION..MAX_PEPPER_VERSION,
+            faults,
+        ),
+        cookieSecure = boolean(COOKIE_SECURE, default = false, faults),
+        accessTokenTtl = minutes(ACCESS_TOKEN_TTL_MINUTES, DEFAULT_ACCESS_TOKEN_TTL_MINUTES, faults),
+        refreshTokenIdleTtl = minutes(REFRESH_TOKEN_IDLE_TTL_MINUTES, DEFAULT_REFRESH_TOKEN_IDLE_TTL_MINUTES, faults),
+        refreshTokenAbsoluteCap = minutes(
+            REFRESH_TOKEN_ABSOLUTE_CAP_MINUTES,
+            DEFAULT_REFRESH_TOKEN_ABSOLUTE_CAP_MINUTES,
+            faults,
+        ),
+        pendingAuthenticationTtl = minutes(
+            PENDING_AUTHENTICATION_TTL_MINUTES,
+            DEFAULT_PENDING_AUTHENTICATION_TTL_MINUTES,
+            faults,
+        ),
+        signInRateLimitThreshold = number(
+            SIGN_IN_RATE_LIMIT_THRESHOLD,
+            DEFAULT_SIGN_IN_RATE_LIMIT_THRESHOLD,
+            MIN_RATE_LIMIT_THRESHOLD..MAX_RATE_LIMIT_THRESHOLD,
+            faults,
+        ),
+        signInRateLimitWindow = minutes(
+            SIGN_IN_RATE_LIMIT_WINDOW_MINUTES,
+            DEFAULT_SIGN_IN_RATE_LIMIT_WINDOW_MINUTES,
+            faults,
+        ),
+        totpIssuer = environment.read(TOTP_ISSUER)?.takeIf(String::isNotBlank) ?: DEFAULT_TOTP_ISSUER,
+        google = google(faults),
+        authEnabled = boolean("TALLYVANE_AUTH_ENABLED", default = false, faults),
+        totpKeyset = environment.read("TALLYVANE_TOTP_KEYSET")?.takeIf(String::isNotBlank)?.let(::Secret),
+        authOrigins = environment.read("TALLYVANE_AUTH_ORIGINS")
+            ?.split(',')?.map(String::trim)?.filter(String::isNotEmpty)?.toSet() ?: emptySet(),
+        smtpHost = environment.read("TALLYVANE_SMTP_HOST")?.takeIf(String::isNotBlank),
+        smtpPort = number("TALLYVANE_SMTP_PORT", DEFAULT_SMTP_PORT, MIN_PORT..MAX_PORT, faults),
+        smtpFrom = environment.read("TALLYVANE_SMTP_FROM")?.takeIf(String::isNotBlank) ?: DEFAULT_SMTP_FROM,
+        adminEmails = adminEmails(),
+    )
+
+    private fun adminEmails(): Set<String> = environment.read(ADMIN_EMAILS)
+        ?.split(',')?.map(String::trim)?.filter(String::isNotEmpty)?.map(String::lowercase)?.toSet() ?: emptySet()
+
+    private fun validateAuthentication(settings: Configuration, faults: MutableList<String>) {
+        if (settings.authEnabled &&
+            settings.totpKeyset == null
+        ) {
+            faults += "TALLYVANE_TOTP_KEYSET is required when authentication is enabled"
+        }
+        if (settings.authEnabled &&
+            settings.authOrigins.isEmpty()
+        ) {
+            faults +=
+                "TALLYVANE_AUTH_ORIGINS is required when authentication is enabled"
+        }
+        if (settings.authEnabled &&
+            settings.smtpHost == null
+        ) {
+            faults += "TALLYVANE_SMTP_HOST is required when authentication is enabled"
+        }
+        if (settings.authEnabled &&
+            settings.adminEmails.isEmpty()
+        ) {
+            faults += "$ADMIN_EMAILS is required when authentication is enabled"
+        }
     }
 
     /**
@@ -164,7 +187,8 @@ public class EnvironmentConfiguration(private val environment: Environment) {
             0 -> null
             THREE -> GoogleOAuthConfiguration(clientId!!, Secret(clientSecret!!), redirectUri!!)
             else -> null.also {
-                faults += "$GOOGLE_CLIENT_ID, $GOOGLE_CLIENT_SECRET and $GOOGLE_REDIRECT_URI must be set together or not at all"
+                faults +=
+                    "$GOOGLE_CLIENT_ID, $GOOGLE_CLIENT_SECRET and $GOOGLE_REDIRECT_URI must be set together or not at all"
             }
         }
     }
@@ -178,6 +202,8 @@ public class EnvironmentConfiguration(private val environment: Environment) {
         public const val URL: String = "TALLYVANE_DB_URL"
 
         public const val USER: String = "TALLYVANE_DB_USER"
+
+        public const val ADMIN_EMAILS: String = "TALLYVANE_ADMIN_EMAILS"
 
         public const val PASSWORD: String = "TALLYVANE_DB_PASSWORD"
 
@@ -272,6 +298,10 @@ public class EnvironmentConfiguration(private val environment: Environment) {
         public const val DEFAULT_SIGN_IN_RATE_LIMIT_WINDOW_MINUTES: Int = 15
 
         public const val DEFAULT_TOTP_ISSUER: String = "Tallyvane"
+
+        public const val DEFAULT_SMTP_FROM: String = "noreply@surzhykov.icu"
+
+        public const val DEFAULT_SMTP_PORT: Int = 1_025
 
         public const val MIN_PORT: Int = 1
 

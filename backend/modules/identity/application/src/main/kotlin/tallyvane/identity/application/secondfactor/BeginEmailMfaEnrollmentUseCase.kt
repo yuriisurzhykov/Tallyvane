@@ -26,12 +26,13 @@ public interface BeginEmailMfaEnrollmentUseCase : UseCase {
             val email = transactions.inTransaction {
                 val user = users.findById(userId)
                 val credential = credentials.findPasswordFor(userId)
-                if (user == null || user.disabledAt != null || !user.emailVerified || credential == null ||
-                    !passwords.verify(currentPassword, credential.hash)
-                ) {
-                    Verdict.Rollback(null)
-                } else {
-                    Verdict.Commit(user.email)
+                when {
+                    user == null -> Verdict.Rollback(null)
+                    user.disabledAt != null -> Verdict.Rollback(null)
+                    !user.emailVerified -> Verdict.Rollback(null)
+                    credential == null -> Verdict.Rollback(null)
+                    !passwords.verify(currentPassword, credential.hash) -> Verdict.Rollback(null)
+                    else -> Verdict.Commit(user.email)
                 }
             } ?: return null
             val challenge = challenges.issue(email, EmailChallengePurpose.MFA, enrollmentBinding(userId))

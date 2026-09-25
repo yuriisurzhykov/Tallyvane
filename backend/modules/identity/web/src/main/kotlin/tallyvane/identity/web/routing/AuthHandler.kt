@@ -1,6 +1,6 @@
 package tallyvane.identity.web.routing
 
-import io.ktor.server.routing.*
+import io.ktor.server.routing.Route
 
 /**
  * One address under `/auth` and its own logic — never more than one use case behind it, the same

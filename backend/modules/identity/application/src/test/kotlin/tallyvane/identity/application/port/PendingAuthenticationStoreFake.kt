@@ -19,4 +19,8 @@ internal class PendingAuthenticationStoreFake : PendingAuthenticationStore {
     override suspend fun delete(id: PendingAuthenticationId) {
         saved.remove(id)
     }
+
+    override suspend fun deleteFor(userId: tallyvane.identity.domain.user.UserId) {
+        saved.entries.removeIf { it.value.userId == userId }
+    }
 }

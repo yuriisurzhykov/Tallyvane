@@ -22,30 +22,51 @@ import tallyvane.platform.kernel.TransactionRunnerFake
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
-class BeginSpec : StringSpec({
-    "email MFA enrollment sends a purpose-bound challenge only after password reauthentication" {
-        val id = UserId(Uuid.parse("00000000-0000-7000-8000-000000000001"))
-        val users = UserRepositoryFake()
-        users.insert(User(id, Email("person@example.test"), null, NOW, null, emailVerified = true))
-        val hasher = PasswordHasherFake()
-        val credentials = CredentialRepositoryFake()
-        credentials.save(id, Credential.PasswordRecord(hasher.hash(Secret("current password"))))
-        val challengeStore = EnrollmentChallengeStore()
-        val challenges = EmailChallenges(challengeStore, NoEmailDelivery(), FixedAuthCodes(), TransactionRunnerFake(), IdGeneratorFake(), ClockFake(NOW))
-        val begin = BeginEmailMfaEnrollmentUseCase.Begin(users, credentials, hasher, challenges, TransactionRunnerFake())
+class BeginSpec :
+    StringSpec({
+        "email MFA enrollment sends a purpose-bound challenge only after password reauthentication" {
+            val id = UserId(Uuid.parse("00000000-0000-7000-8000-000000000001"))
+            val users = UserRepositoryFake()
+            users.insert(User(id, Email("person@example.test"), null, NOW, null, emailVerified = true))
+            val hasher = PasswordHasherFake()
+            val credentials = CredentialRepositoryFake()
+            credentials.save(id, Credential.PasswordRecord(hasher.hash(Secret("current password"))))
+            val challengeStore = EnrollmentChallengeStore()
+            val challenges =
+                EmailChallenges(
+                    challengeStore,
+                    NoEmailDelivery(),
+                    FixedAuthCodes(),
+                    TransactionRunnerFake(),
+                    IdGeneratorFake(),
+                    ClockFake(NOW),
+                )
+            val begin = BeginEmailMfaEnrollmentUseCase.Begin(
+                users,
+                credentials,
+                hasher,
+                challenges,
+                TransactionRunnerFake(),
+            )
 
-        begin.begin(id, Secret("wrong password")) shouldBe null
-        challengeStore.last shouldBe null
-        val challengeId = begin.begin(id, Secret("current password"))
-        challengeId shouldBe challengeStore.last?.id
-        challengeStore.last?.purpose shouldBe EmailChallengePurpose.MFA
-        challengeStore.last?.binding shouldBe BeginEmailMfaEnrollmentUseCase.enrollmentBinding(id)
-    }
-})
+            begin.begin(id, Secret("wrong password")) shouldBe null
+            challengeStore.last shouldBe null
+            val challengeId = begin.begin(id, Secret("current password"))
+            challengeId shouldBe challengeStore.last?.id
+            challengeStore.last?.purpose shouldBe EmailChallengePurpose.MFA
+            challengeStore.last?.binding shouldBe BeginEmailMfaEnrollmentUseCase.enrollmentBinding(id)
+        }
+    })
 
 private class EnrollmentChallengeStore : EmailChallengeStore {
     var last: EmailChallenge? = null
-    override suspend fun issue(challenge: EmailChallenge, hash: Secret, now: Instant, resendAt: Instant, maxAttempts: Int): Boolean {
+    override suspend fun issue(
+        challenge: EmailChallenge,
+        hash: Secret,
+        now: Instant,
+        resendAt: Instant,
+        maxAttempts: Int,
+    ): Boolean {
         last = challenge
         return true
     }
