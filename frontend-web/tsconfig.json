@@ -49,6 +49,7 @@
     "instrumentation.ts",
     "tests/**/*.ts",
     "playwright.config.ts",
+    "playwright.auth-app.config.ts",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts"
   ],

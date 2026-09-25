@@ -11,7 +11,7 @@ test.describe("the application authentication pages", () => {
         await expect(page.getByRole("button", { name: /Continue with Google/ })).toBeVisible();
         await expect(page.getByRole("region", { name: "Notifications" })).toHaveCount(1);
 
-        const disclosure = page.locator("summary");
+        const disclosure = page.getByRole("button", { name: /Continue with email/ });
         await expect(disclosure).toBeVisible();
         await expect(page.getByLabel("Email address")).toBeHidden();
         await page.getByRole("button", { name: "Change color theme" }).focus();
@@ -31,7 +31,8 @@ test.describe("the application authentication pages", () => {
         expect(await email.evaluate(element => getComputedStyle(element).borderTopWidth)).not.toBe("0px");
 
         await page.goto("/auth-preview");
-        await page.getByLabel("Preview screen").selectOption("mfa");
+        await page.getByRole("combobox", { name: "Preview screen" }).click();
+        await page.getByRole("option", { name: "One more check." }).click();
         await expect(page.getByLabel("Authenticator code")).toHaveAttribute("autocomplete", "one-time-code");
     });
 
@@ -55,8 +56,9 @@ test.describe("the application authentication pages", () => {
         await expect(email).toBeFocused();
         const descriptionIds = await email.getAttribute("aria-describedby");
         expect(descriptionIds).not.toBeNull();
-        const errorId = descriptionIds!.split(/\s+/)[0]!;
-        await expect(page.locator(`[id="${errorId}"]`)).toHaveText("Enter a valid address.");
+        const errorId = descriptionIds?.split(/\s+/)[0];
+        if (!errorId) throw new Error("The invalid email field should identify its error message.");
+        await expect(page.locator(`[id="${errorId}"]`)).toHaveText("Enter a valid email address.");
         await expect(page.getByText("Authentication failed")).toHaveCount(0);
 
         await page.unroute("**/api/v1/auth/register/password");
@@ -65,14 +67,19 @@ test.describe("the application authentication pages", () => {
             contentType: "application/problem+json",
             json: { detail: "The email service is temporarily unavailable." },
         }));
+        await page.getByLabel("Email address").fill("taylor+retry@example.test");
         await page.getByRole("button", { name: "Create account" }).click();
         const toast = page.getByText("Authentication failed");
         await expect(toast).toBeVisible();
-        const bounds = await toast.evaluate(element => element.getBoundingClientRect().toJSON());
+        const bounds = await toast.evaluate(element => {
+            const { x, y } = element.getBoundingClientRect();
+            return { x, y };
+        });
         const viewport = page.viewportSize();
         expect(viewport).not.toBeNull();
-        expect(bounds.x).toBeGreaterThan(viewport!.width / 2);
-        expect(bounds.y).toBeGreaterThan(viewport!.height / 2);
+        if (!viewport) throw new Error("The browser viewport should be available in this test.");
+        expect(bounds.x).toBeGreaterThan(viewport.width / 2);
+        expect(bounds.y).toBeGreaterThan(viewport.height / 2);
     });
 
     test("completes email-code sign-in and continues to the server-selected MFA step", async ({ page }) => {
@@ -91,7 +98,7 @@ test.describe("the application authentication pages", () => {
         await page.getByLabel("Verification code").fill("123456");
         await page.getByRole("button", { name: "Verify and continue" }).click();
         await expect(page).toHaveURL(/\/mfa$/);
-        await expect(page.getByLabel("Verification method")).toHaveValue("TOTP");
+        await expect(page.getByRole("combobox", { name: "Verification method" })).toHaveText("Authenticator app");
     });
 
     test("keeps registration recoverable when SMTP fails and resends a code after cooldown", async ({ page }) => {
@@ -209,11 +216,61 @@ test.describe("the application authentication pages", () => {
         });
 
         await page.goto("/mfa?pending_id=pending-123&methods=EMAIL_OTP");
-        await expect(page.getByLabel("Verification method")).toHaveValue("EMAIL_OTP");
+        await expect(page.getByRole("combobox", { name: "Verification method" })).toHaveText("Email code");
         await page.getByRole("button", { name: "Send email code" }).click();
         await expect(page.getByText("Check your inbox for an MFA code.")).toBeVisible();
         await page.getByLabel("Verification code").fill("123456");
         await page.getByRole("button", { name: "Verify and continue" }).click();
         await expect(page).toHaveURL(/\/today$/);
+    });
+
+    test("enrolls a required authenticator from the restricted sign-in challenge without issuing a session", async ({ page }) => {
+        await page.route("**/api/v1/auth/csrf", route => route.fulfill({ json: { token: "test-token" } }));
+        await page.route("**/api/v1/auth/login/password", route => route.fulfill({ json: {
+            status: "requires_enrollment", pendingId: "pending-enroll-123", availableMethods: ["TOTP"], primaryMethod: "PASSWORD",
+        } }));
+        await page.route("**/api/v1/auth/mfa/required/enroll", async route => {
+            expect(route.request().postDataJSON()).toEqual({ pendingId: "pending-enroll-123", kind: "TOTP" });
+            await route.fulfill({ json: {
+                otpauthUri: "otpauth://totp/Tallyvane:taylor%40example.test?secret=JBSWY3DPEHPK3PXP&issuer=Tallyvane",
+            } });
+        });
+        await page.route("**/api/v1/auth/mfa/required/confirm", async route => {
+            expect(route.request().postDataJSON()).toEqual({ pendingId: "pending-enroll-123", kind: "TOTP", code: "123456" });
+            await route.fulfill({ status: 204 });
+        });
+
+        await page.goto("/login");
+        await page.getByLabel("Email address").fill("taylor@example.test");
+        await page.getByLabel("Password").fill("a long memorable passphrase");
+        await page.getByRole("button", { name: "Sign in" }).click();
+        await expect(page).toHaveURL(/\/mfa\/enroll\?pending_id=pending-enroll-123$/);
+        await page.getByRole("button", { name: "Set up authenticator" }).click();
+        await expect(page.getByRole("img", { name: "Authenticator setup QR code" })).toBeVisible();
+        await page.getByLabel("Code from your authenticator").fill("123456");
+        await page.getByRole("button", { name: "Confirm authenticator" }).click();
+        await expect(page.getByRole("status").filter({ hasText: "Authenticator enrolled. Sign in again to continue." })).toBeVisible();
+        await expect(page.getByRole("link", { name: "Sign in" })).toBeVisible();
+        await expect(page).not.toHaveURL(/\/today$/);
+    });
+
+    test("enrolls email MFA only after reauthentication and a purpose-bound code", async ({ page }) => {
+        await page.route("**/api/v1/auth/csrf", route => route.fulfill({ json: { token: "test-token" } }));
+        await page.route("**/api/v1/auth/mfa/email/enroll", async route => {
+            expect(route.request().postDataJSON()).toEqual({ currentPassword: "current memorable passphrase" });
+            await route.fulfill({ status: 202, json: { challengeId: "enrollment-123" } });
+        });
+        await page.route("**/api/v1/auth/mfa/email/confirm", async route => {
+            expect(route.request().postDataJSON()).toEqual({ challengeId: "enrollment-123", code: "123456" });
+            await route.fulfill({ status: 204 });
+        });
+
+        await page.goto("/account/security");
+        await page.getByLabel("Email MFA password").fill("current memorable passphrase");
+        await page.getByRole("button", { name: "Enable email verification" }).click();
+        await expect(page.getByLabel("Email MFA code")).toBeVisible();
+        await page.getByLabel("Email MFA code").fill("123456");
+        await page.getByRole("button", { name: "Confirm email verification" }).click();
+        await expect(page.getByRole("status")).toHaveText("Email verification enabled.");
     });
 });
