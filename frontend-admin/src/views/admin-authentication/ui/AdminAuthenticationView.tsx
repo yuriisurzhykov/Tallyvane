@@ -7,6 +7,7 @@ import { Button } from "frontend-shared/ui/button";
 import { Checkbox } from "frontend-shared/ui/checkbox";
 import { Field } from "frontend-shared/ui/field";
 import { Fieldset } from "frontend-shared/ui/fieldset";
+import { Input } from "frontend-shared/ui/input";
 import { Panel } from "frontend-shared/ui/panel";
 import { Select } from "frontend-shared/ui/select";
 import { Stack } from "frontend-shared/ui/stack";
@@ -17,25 +18,40 @@ import { useAdminNavItems } from "@/app/navigation";
 import { useAdminAuthenticationStrings } from "@/app/i18n";
 import { ConfirmationDrawer, ResetFactorPanel } from "./AdminAuthenticationDialogs";
 
-type Primary = "PASSWORD" | "GOOGLE" | "EMAIL_CODE";
-type Requirement = "DISABLED" | "IF_ENROLLED" | "REQUIRED";
-type Factor = "TOTP" | "EMAIL_OTP" | "BACKUP_CODE";
+type TokenKind = "PASSWORD" | "GOOGLE" | "EMAIL_SIGN_IN_CODE" | "TOTP" | "EMAIL_FACTOR_CODE" | "BACKUP_CODE";
+type Action = "SIGN_IN" | "CHANGE_PRIMARY_CREDENTIAL" | "MANAGE_SECOND_FACTORS";
 
-interface Rule {
-    primary: Primary;
+interface Scheme {
+    id: string;
+    action: Action;
+    requiredTokens: TokenKind[];
+    assuranceRank: number;
     enabled: boolean;
-    requirement: Requirement;
-    allowedMethods: Factor[]
 }
 
 interface Policy {
     version: number;
-    rules: Rule[];
-    advancedAcknowledged: boolean
+    schemes: Scheme[];
+    advancedAcknowledged: boolean;
 }
 
-const factors: Factor[] = ["TOTP", "EMAIL_OTP", "BACKUP_CODE"];
-const requirements: Requirement[] = ["DISABLED", "IF_ENROLLED", "REQUIRED"];
+interface SchemeBody {
+    id: string;
+    action: Action;
+    required_tokens: TokenKind[];
+    assurance_rank: number;
+    enabled: boolean;
+}
+
+interface PolicyBody {
+    version: number;
+    schemes: SchemeBody[];
+    advanced_acknowledged: boolean;
+}
+
+const tokenKinds: TokenKind[] = ["PASSWORD", "GOOGLE", "EMAIL_SIGN_IN_CODE", "TOTP", "EMAIL_FACTOR_CODE", "BACKUP_CODE"];
+const actions: Action[] = ["SIGN_IN", "CHANGE_PRIMARY_CREDENTIAL", "MANAGE_SECOND_FACTORS"];
+const primaryTokens = new Set<TokenKind>(["PASSWORD", "GOOGLE", "EMAIL_SIGN_IN_CODE"]);
 
 class RequestError extends Error {
     public constructor(public readonly status: number) {
@@ -68,16 +84,34 @@ async function request<T>(path: string, method = "GET", body?: unknown): Promise
     return response.status === 204 ? undefined as T : await response.json() as T;
 }
 
+async function requestPolicy(): Promise<Policy> {
+    const body = await request<PolicyBody>("policy");
+    return {
+        version: body.version,
+        schemes: body.schemes.map(scheme => ({
+            id: scheme.id,
+            action: scheme.action,
+            requiredTokens: scheme.required_tokens,
+            assuranceRank: scheme.assurance_rank,
+            enabled: scheme.enabled,
+        })),
+        advancedAcknowledged: body.advanced_acknowledged,
+    };
+}
+
 export function AdminAuthenticationView() {
     return <Editor/>;
 }
 
 function Editor() {
     const t = useAdminAuthenticationStrings("adminAuthentication");
-    const labels: Record<Primary | Factor | Requirement, string> = {
-        PASSWORD: t("password"), GOOGLE: t("google"), EMAIL_CODE: t("emailCode"),
-        TOTP: t("authenticator"), EMAIL_OTP: t("emailOtp"), BACKUP_CODE: t("backupCode"),
-        DISABLED: t("disabled"), IF_ENROLLED: t("ifEnrolled"), REQUIRED: t("required"),
+    const tokenLabels: Record<TokenKind, string> = {
+        PASSWORD: t("password"), GOOGLE: t("google"), EMAIL_SIGN_IN_CODE: t("emailCode"),
+        TOTP: t("authenticator"), EMAIL_FACTOR_CODE: t("emailOtp"), BACKUP_CODE: t("backupCode"),
+    };
+    const actionLabels: Record<Action, string> = {
+        SIGN_IN: t("signIn"), CHANGE_PRIMARY_CREDENTIAL: t("changePrimaryCredential"),
+        MANAGE_SECOND_FACTORS: t("manageSecondFactors"),
     };
     const [policy, setPolicy] = useState<Policy | null>(null);
     const [loading, setLoading] = useState(true);
@@ -98,7 +132,7 @@ function Editor() {
         setError(null);
         setUnauthorized(false);
         try {
-            setPolicy(await request<Policy>("policy"));
+            setPolicy(await requestPolicy());
         } catch (reason) {
             fail(reason);
         } finally {
@@ -107,7 +141,7 @@ function Editor() {
     }, [fail]);
     useEffect(() => {
         let active = true;
-        void request<Policy>("policy").then(value => {
+        void requestPolicy().then(value => {
             if (active) setPolicy(value);
         }).catch((reason: unknown) => {
             if (active) fail(reason);
@@ -116,14 +150,19 @@ function Editor() {
         });
         return () => { active = false; };
     }, [fail]);
-    const update = (primary: Primary, patch: Partial<Rule>) => { setPolicy(current => current && ({
+    const update = (id: string, patch: Partial<Scheme>) => { setPolicy(current => current && ({
         ...current, advancedAcknowledged: false,
-        rules: current.rules.map(rule => rule.primary === primary ? { ...rule, ...patch } : rule),
+        schemes: current.schemes.map(scheme => scheme.id === id ? { ...scheme, ...patch } : scheme),
     })); };
-    const invalid = policy !== null && (!policy.rules.some(rule => rule.enabled) ||
-        policy.rules.some(rule => rule.enabled && rule.requirement !== "DISABLED" && rule.allowedMethods.length === 0));
-    const risky = policy?.rules.some(rule => rule.enabled && rule.primary !== "PASSWORD" &&
-        rule.requirement !== "DISABLED" && rule.allowedMethods.includes("EMAIL_OTP"));
+    const invalid = policy !== null && (!policy.schemes.some(scheme => scheme.enabled && scheme.action === "SIGN_IN") ||
+        policy.schemes.some(scheme => scheme.enabled && (scheme.requiredTokens.length === 0 || scheme.assuranceRank < 1 ||
+            (scheme.action === "SIGN_IN" && scheme.requiredTokens.filter(token => primaryTokens.has(token)).length !== 1))) ||
+        [...new Set(policy.schemes.filter(scheme => scheme.enabled && scheme.action === "SIGN_IN")
+            .flatMap(scheme => scheme.requiredTokens.filter(token => primaryTokens.has(token))))]
+            .some(primary => !policy.schemes.some(scheme => scheme.enabled && scheme.action === "SIGN_IN" &&
+                scheme.requiredTokens.length === 1 && scheme.requiredTokens[0] === primary)));
+    const risky = policy?.schemes.some(scheme => scheme.enabled && scheme.requiredTokens.includes("EMAIL_SIGN_IN_CODE") &&
+        scheme.requiredTokens.includes("EMAIL_FACTOR_CODE"));
 
     const save = (acknowledged: boolean) => savePolicy({
         policy, invalid, setConfirmation, setBusy, setError, setPolicy,
@@ -133,7 +172,8 @@ function Editor() {
         notify: options => { actions.add(options); }, t, fail });
     return <EditorContent
         t={ t }
-        labels={ labels }
+        tokenLabels={ tokenLabels }
+        actionLabels={ actionLabels }
         policy={ policy }
         loading={ loading }
         busy={ busy }
@@ -145,6 +185,18 @@ function Editor() {
         risky={ risky }
         onReload={ load }
         onUpdate={ update }
+        onAdd={ () => setPolicy(current => current && ({
+            ...current,
+            advancedAcknowledged: false,
+            schemes: [...current.schemes, {
+                id: globalThis.crypto.randomUUID(), action: "SIGN_IN", requiredTokens: ["PASSWORD"],
+                assuranceRank: 1, enabled: true,
+            }],
+        })) }
+        onRemove={ id => setPolicy(current => current && ({
+            ...current, advancedAcknowledged: false,
+            schemes: current.schemes.filter(scheme => scheme.id !== id),
+        })) }
         onEmailChange={ setEmail }
         onConfirmationChange={ setConfirmation }
         onSave={ save }
@@ -153,12 +205,14 @@ function Editor() {
 }
 
 type Translate = ReturnType<typeof useAdminAuthenticationStrings>;
-type Labels = Record<Primary | Factor | Requirement, string>;
-type PolicyUpdate = (primary: Primary, patch: Partial<Rule>) => void;
+type TokenLabels = Record<TokenKind, string>;
+type ActionLabels = Record<Action, string>;
+type PolicyUpdate = (id: string, patch: Partial<Scheme>) => void;
 
 interface EditorContentProps {
     readonly t: Translate;
-    readonly labels: Labels;
+    readonly tokenLabels: TokenLabels;
+    readonly actionLabels: ActionLabels;
     readonly policy: Policy | null;
     readonly loading: boolean;
     readonly busy: boolean;
@@ -170,6 +224,8 @@ interface EditorContentProps {
     readonly risky: boolean | undefined;
     readonly onReload: () => Promise<void>;
     readonly onUpdate: PolicyUpdate;
+    readonly onAdd: () => void;
+    readonly onRemove: (id: string) => void;
     readonly onEmailChange: (email: string) => void;
     readonly onConfirmationChange: (value: "advanced" | "reset" | null) => void;
     readonly onSave: (acknowledged: boolean) => Promise<void>;
@@ -177,7 +233,7 @@ interface EditorContentProps {
 }
 
 function EditorContent(props: EditorContentProps) {
-    const { t, labels, policy, loading, busy, error, unauthorized, email, confirmation, invalid, risky } = props;
+    const { t, tokenLabels, actionLabels, policy, loading, busy, error, unauthorized, email, confirmation, invalid, risky } = props;
     return <AppShell navItems={ useAdminNavItems("/authentication") } title={ t("title") } skipLinkLabel={ t("skipLink") }>
         <Stack gap="stack">
             <Text variant="body">{ t("description") }</Text>
@@ -189,7 +245,9 @@ function EditorContent(props: EditorContentProps) {
                 </Button>
             </Stack> }
             { loading && <Text variant="body" role="status">{ t("loading") }</Text> }
-            { !loading && policy && <PolicyRules policy={ policy } labels={ labels } busy={ busy } t={ t } onUpdate={ props.onUpdate } /> }
+            { !loading && policy && <PolicySchemes policy={ policy } tokenLabels={ tokenLabels } actionLabels={ actionLabels }
+                busy={ busy } t={ t } onUpdate={ props.onUpdate } onRemove={ props.onRemove } /> }
+            { !loading && policy && <Button tone="neutral" disabled={ busy } onClick={ props.onAdd }>{ t("addScheme") }</Button> }
             { invalid && <Text variant="body" role="alert" tone="danger">{ t("enablePolicyError") }</Text> }
             { policy && <Button tone="primary" loading={ busy } disabled={ invalid }
                                 onClick={ () => { if (risky) props.onConfirmationChange("advanced"); else void props.onSave(false); } }>
@@ -208,42 +266,53 @@ function EditorContent(props: EditorContentProps) {
     </AppShell>;
 }
 
-interface PolicyRulesProps {
+interface PolicySchemesProps {
     readonly policy: Policy;
-    readonly labels: Labels;
+    readonly tokenLabels: TokenLabels;
+    readonly actionLabels: ActionLabels;
     readonly busy: boolean;
     readonly t: Translate;
     readonly onUpdate: PolicyUpdate;
+    readonly onRemove: (id: string) => void;
 }
 
-function PolicyRules({ policy, labels, busy, t, onUpdate }: PolicyRulesProps) {
+function PolicySchemes({ policy, tokenLabels, actionLabels, busy, t, onUpdate, onRemove }: PolicySchemesProps) {
     return <Fieldset legend={ t("signInPolicy") } disabled={ busy }>
-        { policy.rules.map(rule => <Panel key={ rule.primary } header={ <Text variant="bodyStrong">{ labels[rule.primary] }</Text> }>
+        { policy.schemes.map(scheme => <Panel key={ scheme.id } header={ <Text variant="bodyStrong">{ actionLabels[scheme.action] } · { scheme.assuranceRank }</Text> }>
             <Stack gap="stack">
-                <Field label={ t("allowSignIn", { method: labels[rule.primary] }) }>
-                    <Checkbox checked={ rule.enabled } disabled={ busy }
-                              onCheckedChange={ enabled => { onUpdate(rule.primary, { enabled }); } } />
+                <Field label={ t("schemeEnabled") }>
+                    <Checkbox checked={ scheme.enabled } disabled={ busy }
+                              onCheckedChange={ enabled => { onUpdate(scheme.id, { enabled }); } } />
                 </Field>
-                <Select.Root value={ rule.requirement } disabled={ busy || !rule.enabled }
-                             onValueChange={ value => { if (value) onUpdate(rule.primary, { requirement: value }); } }>
-                    <Select.Label>{ t("secondFactorRequirement") }</Select.Label>
-                    <Select.Trigger><Select.Value>{ labels[rule.requirement] }</Select.Value><Select.Icon /></Select.Trigger>
-                    <Select.Popup>{ requirements.map(value => <Select.Item key={ value } value={ value }>{ labels[value] }</Select.Item>) }</Select.Popup>
+                <Select.Root value={ scheme.action } disabled={ busy || !scheme.enabled }
+                             onValueChange={ value => {
+                                 if (value && actions.includes(value as Action)) onUpdate(scheme.id, { action: value as Action });
+                             } }>
+                    <Select.Label>{ t("action") }</Select.Label>
+                    <Select.Trigger><Select.Value>{ actionLabels[scheme.action] }</Select.Value><Select.Icon /></Select.Trigger>
+                    <Select.Popup>{ actions.map(value => <Select.Item key={ value } value={ value }>{ actionLabels[value] }</Select.Item>) }</Select.Popup>
                 </Select.Root>
-                <Fieldset legend={ t("allowedSecondFactors") }
-                          disabled={ !rule.enabled || rule.requirement === "DISABLED" }
+                <Fieldset legend={ t("requiredTokens") } disabled={ !scheme.enabled }
                           className="flex flex-row flex-wrap gap-stack">
-                    { factors.map(factor => <Field key={ factor } label={ labels[factor] }>
-                        <Checkbox checked={ rule.allowedMethods.includes(factor) }
-                                  disabled={ busy || !rule.enabled || rule.requirement === "DISABLED" }
+                    { tokenKinds.map(token => <Field key={ token } label={ tokenLabels[token] }>
+                        <Checkbox checked={ scheme.requiredTokens.includes(token) }
+                                  disabled={ busy || !scheme.enabled }
                                   onCheckedChange={ checked => {
-                                      const allowedMethods = checked
-                                          ? [...rule.allowedMethods, factor]
-                                          : rule.allowedMethods.filter(item => item !== factor);
-                                      onUpdate(rule.primary, { allowedMethods });
+                                      const requiredTokens = checked
+                                          ? [...scheme.requiredTokens, token]
+                                          : scheme.requiredTokens.filter(item => item !== token);
+                                      onUpdate(scheme.id, { requiredTokens });
                                   }} />
                     </Field>) }
                 </Fieldset>
+                <Field label={ t("assuranceRank") }>
+                    <Input type="number" min={ 1 } step={ 1 } required value={ scheme.assuranceRank }
+                           disabled={ busy || !scheme.enabled }
+                           onChange={ event => { onUpdate(scheme.id, { assuranceRank: Number(event.target.value) }); } } />
+                </Field>
+                <Button tone="danger" type="button" disabled={ busy } onClick={ () => { onRemove(scheme.id); } }>
+                    { t("removeScheme") }
+                </Button>
             </Stack>
         </Panel>) }
     </Fieldset>;
@@ -271,11 +340,17 @@ async function savePolicy(context: PolicyMutationContext, acknowledged: boolean)
     setError(null);
     try {
         await request<unknown>("policy", "PUT", {
-            expectedVersion: policy.version,
-            rules: policy.rules,
-            advancedAcknowledged: acknowledged,
+            schemes: policy.schemes.map(scheme => ({
+                id: scheme.id,
+                action: scheme.action,
+                required_tokens: scheme.requiredTokens,
+                assurance_rank: scheme.assuranceRank,
+                enabled: scheme.enabled,
+            })),
+            advanced_acknowledged: acknowledged,
+            expected_version: policy.version,
         });
-        setPolicy(await request<Policy>("policy"));
+        setPolicy(await requestPolicy());
         notify({ title: t("policySaved"), tone: "success" });
     } catch (reason: unknown) {
         fail(reason);
