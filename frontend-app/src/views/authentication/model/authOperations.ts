@@ -4,6 +4,7 @@ import { authClient, AuthError } from "../../../features/authentication/api/clie
 import type { AuthResult } from "../../../features/authentication/api/client";
 import type { AuthStringKey } from "../../../features/authentication/model/strings";
 import type { AuthSession } from "../../../widgets/authentication-step/model/AuthStepProps";
+import { appRoutes } from "../../../shared/config";
 
 type Translate = (key: AuthStringKey, vars?: Record<string, string | number>) => string;
 type Tone = "attention" | "danger" | "success";
@@ -37,11 +38,8 @@ export interface AuthOperationsState {
     readonly setRegistrationResendSeconds: Dispatch<SetStateAction<number>>;
     readonly passwordResetChallengeId: string;
     readonly setPasswordResetChallengeId: Dispatch<SetStateAction<string>>;
-    readonly emailMfaEnrollmentChallengeId: string;
-    readonly setEmailMfaEnrollmentChallengeId: Dispatch<SetStateAction<string>>;
     readonly setNotice: Dispatch<SetStateAction<string>>;
     readonly setPayload: Dispatch<SetStateAction<string>>;
-    readonly setRecoveryCodes: Dispatch<SetStateAction<string[]>>;
     readonly setSessions: Dispatch<SetStateAction<AuthSession[]>>;
     readonly setBusy: Dispatch<SetStateAction<boolean>>;
     readonly busy: boolean;
@@ -63,7 +61,7 @@ function continueSignIn(
     state: AuthOperationsState,
 ) {
     if (result.status === "issued") {
-        state.navigate("/today");
+        state.navigate(appRoutes.authenticatedHome, true);
         return;
     }
     if (!result.pendingId) {
@@ -134,7 +132,7 @@ async function verifyMfa(state: AuthOperationsState) {
     });
     if (result.status === "issued") {
         sessionStorage.removeItem("tallyvane.pendingId");
-        state.navigate("/today");
+        state.navigate(appRoutes.authenticatedHome, true);
     }
 }
 
@@ -162,7 +160,7 @@ async function enrollAuthenticator(state: AuthOperationsState) {
             state.t("requiredAuthenticatorEnabledDescription"),
             "success",
         );
-        state.navigate("/today", true);
+        state.navigate(appRoutes.authenticatedHome, true);
         return;
     } else {
         await authClient.post("/mfa/confirm", { kind: "TOTP", code: state.code });
@@ -240,15 +238,6 @@ async function recoverPassword(form: FormData, state: AuthOperationsState) {
     state.notify(state.t("passwordUpdated"), state.t("passwordUpdatedDescription"), "success");
 }
 
-async function changePassword(form: FormData, state: AuthOperationsState) {
-    await authClient.post("/account/password", {
-        currentPassword: formText(form, "currentPassword"),
-        newPassword: formText(form, "newPassword"),
-    });
-    state.setNotice(state.t("passwordChanged"));
-    state.notify(state.t("passwordChanged"), undefined, "success");
-}
-
 async function submitForKind(form: FormData, state: AuthOperationsState) {
     switch (state.kind) {
         case "login": await login(form, state); return;
@@ -257,7 +246,7 @@ async function submitForKind(form: FormData, state: AuthOperationsState) {
         case "enrollment": await enrollAuthenticator(state); return;
         case "otp": await verifyOtp(state); return;
         case "forgot": await recoverPassword(form, state); return;
-        case "security": await changePassword(form, state); return;
+        case "security": return;
         case "google":
         case "callback":
         case "preview": state.setNotice(state.t("previewActionNotice"));

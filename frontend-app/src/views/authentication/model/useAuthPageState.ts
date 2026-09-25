@@ -38,10 +38,6 @@ export interface AuthPageState {
     readonly setPasswordResetChallengeId: AuthOperationsState["setPasswordResetChallengeId"];
     readonly emailMfaChallengeId: string;
     readonly setEmailMfaChallengeId: AuthOperationsState["setEmailMfaChallengeId"];
-    readonly emailMfaEnrollmentChallengeId: string;
-    readonly setEmailMfaEnrollmentChallengeId: AuthOperationsState["setEmailMfaEnrollmentChallengeId"];
-    readonly recoveryCodes: string[];
-    readonly setRecoveryCodes: AuthOperationsState["setRecoveryCodes"];
     readonly qrCode: string;
     readonly setQrCode: (code: string) => void;
     readonly sessions: AuthSession[];
@@ -66,8 +62,6 @@ export function useAuthPageState(): AuthPageState {
     const [otpPurpose, setOtpPurpose] = useState("");
     const [passwordResetChallengeId, setPasswordResetChallengeId] = useState("");
     const [emailMfaChallengeId, setEmailMfaChallengeId] = useState("");
-    const [emailMfaEnrollmentChallengeId, setEmailMfaEnrollmentChallengeId] = useState("");
-    const [recoveryCodes, setRecoveryCodes] = useState<string[]>([]);
     const [qrCode, setQrCode] = useState("");
     const [sessions, setSessions] = useState<AuthSession[]>([]);
 
@@ -77,8 +71,7 @@ export function useAuthPageState(): AuthPageState {
         availableMethods, setAvailableMethods, registration, setRegistration, registrationResendSeconds,
         setRegistrationResendSeconds, email, setEmail, emailSignInChallengeId, setEmailSignInChallengeId,
         otpPurpose, setOtpPurpose, passwordResetChallengeId, setPasswordResetChallengeId,
-        emailMfaChallengeId, setEmailMfaChallengeId, emailMfaEnrollmentChallengeId,
-        setEmailMfaEnrollmentChallengeId, recoveryCodes, setRecoveryCodes, qrCode, setQrCode,
+        emailMfaChallengeId, setEmailMfaChallengeId, qrCode, setQrCode,
         sessions, setSessions,
     };
 }

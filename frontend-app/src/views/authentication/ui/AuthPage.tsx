@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useCallback } from "react";
 import { AuthError } from "../../../features/authentication/api/client";
 import { useToast } from "frontend-shared/ui/toast";
 import { AuthLayout } from "./AuthLayout";
@@ -17,6 +18,8 @@ import { useAuthPageState } from "../model/useAuthPageState";
 import type { AuthPageState } from "../model/useAuthPageState";
 import { useAuthPageEffects } from "../model/useAuthPageEffects";
 import { useAuthOperations } from "../model/useAuthOperations";
+import { useAuthSessionRedirect } from "../model/useAuthSessionRedirect";
+import { appRoutes } from "../../../shared/config";
 const headings = {
     login: ["loginTitle", "loginDescription"], register: ["registerTitle", "registerDescription"],
     mfa: ["mfaTitle", "mfaTitleHelp"], enrollment: ["enrollTitle", "enrollmentDescription"],
@@ -40,6 +43,11 @@ export function AuthPage({ kind }: { kind: AuthPageKind }) {
     const t = useAuthStrings("auth");
     const { actions: toast } = useToast();
     const pageState: AuthPageState = useAuthPageState();
+    const navigate = useCallback((path: string, replace?: boolean) => {
+        if (replace) router.replace(path);
+        else router.push(path);
+    }, [router]);
+    const authPageReady = useAuthSessionRedirect(kind, appRoutes.authenticatedHome, navigate);
     useAuthPageEffects({ kind, state: pageState, t, toast, getErrorMessage: message });
     const operations = useAuthOperations({
         kind,
@@ -47,10 +55,13 @@ export function AuthPage({ kind }: { kind: AuthPageKind }) {
         notify: (title, description, tone) => {
             toast.add({ title, ...(description ? { description } : {}), tone });
         },
-        navigate: (path, replace) => { replace ? router.replace(path) : router.push(path); },
+        navigate,
         state: pageState,
     });
-    return <AuthLayout>
+    if (!authPageReady) {
+        return <AuthLayout><Text variant="body" role="status">{ t("checkingSession") }</Text></AuthLayout>;
+    }
+    return <AuthLayout security={kind === "security"}>
         <AuthPageHeading kind={ kind } preview={ pageState.preview } t={ t } />
         <AuthPageContent kind={ kind } state={ pageState } operations={ operations } t={ t } />
         <AuthPageFooter kind={ kind } t={ t } />
@@ -104,9 +115,7 @@ function createStepProps(
         emailCodeRequested: Boolean(state.emailSignInChallengeId), otpPurpose: state.otpPurpose,
         passwordResetRequested: Boolean(state.passwordResetChallengeId), fieldErrors: state.fieldErrors,
         clearFieldErrors: () => { state.setFieldErrors({}); },
-        recoveryCodes: state.recoveryCodes, emailMfaEnrollmentChallengeId: state.emailMfaEnrollmentChallengeId,
-        enrollEmailMfa: operations.enrollEmailMfa, issueRecoveryCodes: operations.submitRecoveryCodes,
-        clearRecoveryCodes: operations.clearRecoveryCodes, sessions: state.sessions,
+        sessions: state.sessions,
         revokeSession: operations.revokeSession, t,
     };
 }
@@ -138,6 +147,5 @@ function AuthPageFooter({ kind, t }: { kind: AuthPageKind; t: Translate }) {
             { prompt && <>{ t(prompt as AuthStringKey) } </> }
             <Link className={ styles.link ?? "" } href={ href ?? "/login" }>{ t(label as AuthStringKey) }</Link>
         </Text>) }
-        { kind !== "preview" && <Text variant="body"><Link className={ styles.link ?? "" } href="/auth-preview">{ t("openPreview") }</Link></Text> }
     </Stack>;
 }

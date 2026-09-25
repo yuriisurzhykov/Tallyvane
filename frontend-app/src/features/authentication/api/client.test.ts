@@ -17,6 +17,26 @@ void test("auth mutations send same-origin cookies and a freshly obtained CSRF t
     assert.equal(new Headers(submitted.init.headers).get("X-CSRF-Token"), "csrf-test");
 });
 
+void test("session refresh sends a CSRF-protected POST without a request body", async () => {
+    const requests: { url: string; init?: RequestInit }[] = [];
+    const client = createAuthClient((url, init) => {
+        const requestUrl = url instanceof Request ? url.url : url.toString();
+        requests.push({ url: requestUrl, ...(init ? { init } : {}) });
+        return Promise.resolve(requests.length === 1
+            ? Response.json({ token: "csrf-refresh" })
+            : Response.json({ status: "issued" }));
+    });
+
+    await client.refreshSession();
+
+    const refresh = requests.at(-1);
+    assert.equal(refresh?.url, "/api/v1/auth/refresh");
+    assert.equal(refresh?.init?.method, "POST");
+    assert.equal(refresh?.init?.credentials, "same-origin");
+    assert.equal(new Headers(refresh?.init?.headers).get("X-CSRF-Token"), "csrf-refresh");
+    assert.equal(refresh?.init?.body, undefined);
+});
+
 void test("translates auth API JSON between camelCase UI models and snake_case wire fields", async () => {
     const requests: { url: string; init?: RequestInit }[] = [];
     const client = createAuthClient((url, init) => {

@@ -65,7 +65,7 @@ function fromWireJson(value: unknown): unknown {
 }
 
 export function createAuthClient(fetcher: typeof fetch = fetch) {
-    async function request<T>(path: string, method: string, body?: unknown): Promise<T> {
+    async function request<T>(path: string, method: string, body?: unknown, extraHeaders?: Readonly<Record<string, string>>): Promise<T> {
         const headers = new Headers({ Accept: "application/json" });
         if (method !== "GET") {
             const csrf = await request<{ token: string }>("/csrf", "GET");
@@ -73,6 +73,7 @@ export function createAuthClient(fetcher: typeof fetch = fetch) {
             headers.set("X-CSRF-Token", csrf.token);
             headers.set("Content-Type", "application/json");
         }
+        for (const [name, value] of Object.entries(extraHeaders ?? {})) headers.set(name, value);
         let response: Response;
         try {
             response = await fetcher(`/api/v1/auth${path}`, {
@@ -98,6 +99,9 @@ export function createAuthClient(fetcher: typeof fetch = fetch) {
     return {
         get: <T>(path: string) => request<T>(path, "GET"),
         post: <T>(...args: PostArguments) => request<T>(args[0], "POST", args[1]),
+        postWithHeaders: <T>(path: string, body: unknown, headers: Readonly<Record<string, string>>) =>
+            request<T>(path, "POST", body, headers),
+        refreshSession: () => request<{ status: string }>("/refresh", "POST"),
         remove: <T>(path: string) => request<T>(path, "DELETE"),
     };
 }

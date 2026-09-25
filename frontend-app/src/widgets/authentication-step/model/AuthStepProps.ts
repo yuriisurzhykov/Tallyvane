@@ -36,11 +36,6 @@ export interface AuthStepProps {
     passwordResetRequested: boolean;
     fieldErrors: Record<string, string>;
     clearFieldErrors: () => void;
-    recoveryCodes: string[];
-    emailMfaEnrollmentChallengeId: string;
-    enrollEmailMfa: (event: AuthSubmitEvent) => void;
-    issueRecoveryCodes: (event: AuthSubmitEvent) => void;
-    clearRecoveryCodes: () => void;
     sessions: AuthSession[];
     revokeSession: (id: string) => void;
     t: (key: AuthStringKey, vars?: Record<string, string | number>) => string;

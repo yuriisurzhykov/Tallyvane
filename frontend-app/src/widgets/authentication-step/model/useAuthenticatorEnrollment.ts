@@ -9,7 +9,13 @@ import { useToast } from "frontend-shared/ui/toast";
 
 type Translate = (key: AuthStringKey, vars?: Record<string, string | number>) => string;
 
-export function useAuthenticatorEnrollment(t: Translate, refreshStatus: () => Promise<void>) {
+export function useAuthenticatorEnrollment(
+    t: Translate,
+    refreshStatus: () => Promise<void>,
+    getActionProof: () => string,
+    clearActionProof: () => void,
+    onFactorChanged: () => void,
+) {
     const [totpUri, setTotpUri] = useState("");
     const [qrCode, setQrCode] = useState("");
     const [code, setCode] = useState("");
@@ -21,16 +27,25 @@ export function useAuthenticatorEnrollment(t: Translate, refreshStatus: () => Pr
         setBusy(true);
         try {
             if (!totpUri) {
-                const result = await authClient.post<{ otpauthUri: string }>("/mfa/enroll", { kind: "TOTP" });
+                const proof = getActionProof();
+                if (!proof) throw new Error("Action proof required");
+                clearActionProof();
+                const result = await authClient.postWithHeaders<{ otpauthUri: string }>("/mfa/enroll", { kind: "TOTP" }, {
+                    "X-Action-Proof": proof,
+                });
                 setTotpUri(result.otpauthUri);
                 setQrCode(await QRCode.toDataURL(result.otpauthUri, { margin: 1, width: 208 }));
                 return;
             }
-            await authClient.post("/mfa/confirm", { kind: "TOTP", code });
+            const proof = getActionProof();
+            if (!proof) throw new Error("Action proof required");
+            clearActionProof();
+            await authClient.postWithHeaders("/mfa/confirm", { kind: "TOTP", code }, { "X-Action-Proof": proof });
             setTotpUri("");
             setQrCode("");
             setCode("");
             await refreshStatus();
+            onFactorChanged();
             actions.add({ title: t("authenticatorEnabled"), tone: "success" });
         } catch {
             actions.add({ title: t("factorEnrollmentFailed"), tone: "danger" });

@@ -4,7 +4,7 @@ import type { AuthPageKind } from "../../../features/authentication/model/AuthPa
 import type { useAuthStrings } from "../../../features/authentication/model/strings";
 import type { AuthOperationsState } from "./authOperations";
 import { submitAuthForm } from "./authOperations";
-import { enrollEmailFactor, issueRecoveryCodes, resendRegistration, revokeAuthSession } from "./authAccountOperations";
+import { resendRegistration, revokeAuthSession } from "./authAccountOperations";
 import type { AuthPageState } from "./useAuthPageState";
 
 type Translate = ReturnType<typeof useAuthStrings>;
@@ -43,10 +43,8 @@ export function useAuthOperations(
         setRegistrationResendSeconds: state.setRegistrationResendSeconds,
         passwordResetChallengeId: state.passwordResetChallengeId,
         setPasswordResetChallengeId: state.setPasswordResetChallengeId,
-        emailMfaEnrollmentChallengeId: state.emailMfaEnrollmentChallengeId,
-        setEmailMfaEnrollmentChallengeId: state.setEmailMfaEnrollmentChallengeId,
         setNotice: state.setNotice,
-        setPayload: state.setPayload, setRecoveryCodes: state.setRecoveryCodes, setSessions: state.setSessions,
+        setPayload: state.setPayload, setSessions: state.setSessions,
         setBusy: state.setBusy, busy: state.busy,
         clearErrors: () => { state.setFieldErrors({}); },
         applyFieldErrors: errors => {
@@ -64,9 +62,6 @@ export function useAuthOperations(
     return {
         submit: (event: SyntheticEvent<HTMLFormElement>) => { void submitAuthForm(event, operations); },
         resendRegistrationCode: () => { void resendRegistration(operations); },
-        submitRecoveryCodes: (event: SyntheticEvent<HTMLFormElement>) => { void issueRecoveryCodes(event, operations); },
-        enrollEmailMfa: (event: SyntheticEvent<HTMLFormElement>) => { void enrollEmailFactor(event, operations); },
         revokeSession: (sessionId: string) => { void revokeAuthSession(sessionId, operations); },
-        clearRecoveryCodes: () => { state.setRecoveryCodes([]); },
     };
 }
