@@ -220,6 +220,75 @@ paths:
         default:
           $ref: "#/components/responses/Problem"
 
+  /auth/google/link/start:
+    post:
+      tags: [auth]
+      operationId: startGoogleAccountLink
+      summary: Reauthenticate and begin explicitly linking a Google account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password]
+              properties:
+                password: { type: string, minLength: 15, maxLength: 128 }
+      responses:
+        "200":
+          description: Google authorization URL for the account-link flow.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [url]
+                properties:
+                  url: { type: string, format: uri }
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /auth/google/unlink:
+    post:
+      tags: [auth]
+      operationId: unlinkGoogleAccount
+      summary: Reauthenticate and unlink Google when another sign-in method remains
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password]
+              properties:
+                password: { type: string, minLength: 15, maxLength: 128 }
+      responses:
+        "204": { description: The Google sign-in method was removed. }
+        "409":
+          description: The account would have no usable sign-in method.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /auth/google/status:
+    get:
+      tags: [auth]
+      operationId: googleAccountLinkStatus
+      summary: Read whether the current account has Google linked
+      responses:
+        "200":
+          description: Current account's Google link state.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [googleLinked]
+                properties:
+                  googleLinked: { type: boolean }
+        default:
+          $ref: "#/components/responses/Problem"
+
   /auth/register/email/verify:
     post:
       tags: [auth]
@@ -320,7 +389,11 @@ paths:
                 code: { type: string, pattern: "^[0-9]{6}$" }
                 device: { type: string }
       responses:
-        "200": { description: Sign-in is complete or requires another factor. }
+        "200":
+          description: Session cookies were issued or the next server-selected authentication step is returned.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SignInResult" }
         "401": { $ref: "#/components/responses/Problem" }
         default:
           $ref: "#/components/responses/Problem"
@@ -426,7 +499,11 @@ paths:
                 password: { type: string }
                 device: { type: string }
       responses:
-        "200": { description: Session issued or another factor required. }
+        "200":
+          description: Session cookies were issued or the next server-selected authentication step is returned.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SignInResult" }
         default: { $ref: "#/components/responses/Problem" }
 
   /auth/register/password:
@@ -597,6 +674,107 @@ paths:
         "204": { description: Email factor enrollment confirmed. }
         default: { $ref: "#/components/responses/Problem" }
 
+  /auth/mfa/required/enroll:
+    post:
+      tags: [auth]
+      operationId: beginRequiredMfaEnrollment
+      summary: Begin a factor enrollment using the scoped sign-in challenge
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [pendingId, kind]
+              properties:
+                pendingId: { type: string, format: uuid }
+                kind: { type: string, enum: [TOTP] }
+      responses:
+        "200": { description: Enrollment payload for the selected factor. }
+        "422": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /auth/mfa/required/confirm:
+    post:
+      tags: [auth]
+      operationId: confirmRequiredMfaEnrollment
+      summary: Confirm factor enrollment without issuing a session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [pendingId, kind, code]
+              properties:
+                pendingId: { type: string, format: uuid }
+                kind: { type: string, enum: [TOTP] }
+                code: { type: string, minLength: 6, maxLength: 6 }
+      responses:
+        "204": { description: Enrollment accepted; the user must begin a new sign-in. }
+        "422": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /auth/admin/policy:
+    get:
+      tags: [auth]
+      operationId: readAuthenticationPolicy
+      summary: Read the current ready-made authentication policy
+      security: [{ cookieAuth: [] }]
+      responses:
+        "200":
+          description: Versioned policy rules captured by new sign-in attempts.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthenticationPolicy" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+    put:
+      tags: [auth]
+      operationId: updateAuthenticationPolicy
+      summary: Save a policy using optimistic version checking
+      security: [{ cookieAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateAuthenticationPolicy" }
+      responses:
+        "200":
+          description: The saved policy with its incremented version.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthenticationPolicy" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /auth/admin/mfa/reset:
+    post:
+      tags: [auth]
+      operationId: resetAccountMfa
+      summary: Revoke an account's MFA methods, sessions, and in-progress sign-ins
+      security: [{ cookieAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, confirmation]
+              properties:
+                email: { type: string, format: email }
+                confirmation: { type: boolean, const: true }
+      responses:
+        "200": { description: Reset completed and recorded in the administrative audit journal. }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
   /auth/refresh:
     post:
       tags: [auth]
@@ -695,6 +873,20 @@ components:
             $ref: "#/components/schemas/Problem"
 
   schemas:
+    SignInResult:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status: { type: string, enum: [issued, requires_second_factor, requires_enrollment] }
+        pendingId: { type: string, format: uuid }
+        availableMethods:
+          type: array
+          uniqueItems: true
+          items: { type: string, enum: [TOTP, EMAIL_OTP, BACKUP_CODE] }
+          description: Enrolled factors for MFA, or factors that can satisfy a required enrollment.
+        primaryMethod: { type: string, enum: [PASSWORD, GOOGLE, EMAIL_CODE] }
+
     HealthStatus:
       type: string
       enum: [up, degraded, down]
@@ -807,6 +999,45 @@ components:
             The exception's type and nothing else. A message carries hosts, ports and occasionally
             credentials (§17), so there is no field for one.
           examples: [SQLException]
+
+    AuthenticationPolicyRule:
+      type: object
+      additionalProperties: false
+      required: [primary, enabled, requirement, allowedMethods]
+      properties:
+        primary: { type: string, enum: [PASSWORD, GOOGLE, EMAIL_CODE] }
+        enabled: { type: boolean }
+        requirement: { type: string, enum: [DISABLED, IF_ENROLLED, REQUIRED] }
+        allowedMethods:
+          type: array
+          uniqueItems: true
+          items: { type: string, enum: [TOTP, EMAIL_OTP, BACKUP_CODE] }
+
+    AuthenticationPolicy:
+      type: object
+      additionalProperties: false
+      required: [version, rules, advancedAcknowledged]
+      properties:
+        version: { type: integer, minimum: 1 }
+        rules:
+          type: array
+          minItems: 3
+          maxItems: 3
+          items: { $ref: "#/components/schemas/AuthenticationPolicyRule" }
+        advancedAcknowledged: { type: boolean }
+
+    UpdateAuthenticationPolicy:
+      type: object
+      additionalProperties: false
+      required: [expectedVersion, rules, advancedAcknowledged]
+      properties:
+        expectedVersion: { type: integer, minimum: 1 }
+        rules:
+          type: array
+          minItems: 3
+          maxItems: 3
+          items: { $ref: "#/components/schemas/AuthenticationPolicyRule" }
+        advancedAcknowledged: { type: boolean }
 
     Problem:
       type: object
