@@ -16,6 +16,7 @@ internal object SessionsTable : Table("identity.sessions") {
     val createdAt = timestampWithTimeZone("created_at")
     val lastUsedAt = timestampWithTimeZone("last_used_at")
     val revokedAt = timestampWithTimeZone("revoked_at").nullable()
+    val reauthenticatedAt = timestampWithTimeZone("reauthenticated_at").nullable()
     val currentAccessTokenHash = text("current_access_token_hash").nullable()
     val currentAccessTokenPepperVersion = integer("current_access_token_pepper_version").nullable()
     val currentAccessTokenExpiresAt = timestampWithTimeZone("current_access_token_expires_at").nullable()

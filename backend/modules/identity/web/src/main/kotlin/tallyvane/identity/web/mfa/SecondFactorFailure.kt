@@ -21,4 +21,12 @@ internal sealed interface SecondFactorFailure : Failure {
     data object RateLimited : SecondFactorFailure
 
     data object UnsupportedMethod : SecondFactorFailure
+
+    data object ReauthenticationRequired : SecondFactorFailure
+
+    data object RequiredByPolicy : SecondFactorFailure
+
+    data object ConfirmationRequired : SecondFactorFailure
+
+    data object NotEnrolled : SecondFactorFailure
 }

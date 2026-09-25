@@ -47,9 +47,9 @@ class VerifyRegistrationEmailSpec :
             )!!
             val useCase = VerifyRegistrationEmailUseCase.Verify(users, service, TransactionRunnerFake())
 
-            useCase.verify(userId, challenge.id, email, Secret("123456")) shouldBe true
+            useCase.verify(challenge.id, email, Secret("123456")) shouldBe true
             users.findById(userId)?.emailVerified shouldBe true
-            useCase.verify(userId, challenge.id, email, Secret("123456")) shouldBe false
+            useCase.verify(challenge.id, email, Secret("123456")) shouldBe false
         }
     })
 

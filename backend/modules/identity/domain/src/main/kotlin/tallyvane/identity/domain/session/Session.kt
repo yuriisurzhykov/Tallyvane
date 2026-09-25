@@ -24,4 +24,5 @@ public data class Session(
     public val createdAt: Instant,
     public val lastUsedAt: Instant,
     public val revokedAt: Instant?,
+    public val reauthenticatedAt: Instant? = null,
 )

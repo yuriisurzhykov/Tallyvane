@@ -80,6 +80,41 @@ public abstract class SessionStoreConformance : StringSpec() {
             } shouldBe session.copy(revokedAt = revokedAt)
         }
 
+        "recent reauthentication is recorded only on the active session owned by that user" {
+            val subject = fresh()
+            val userId = UserId(Uuid.random())
+            val otherUserId = UserId(Uuid.random())
+            val session = testSession(userId)
+            val otherSession = testSession(otherUserId)
+            val verifiedAt = Instant.parse("2026-03-01T00:02:00Z")
+
+            subject.transactions.inTransaction {
+                subject.users.insert(testUser(userId))
+                subject.users.insert(testUser(otherUserId))
+                subject.sessions.save(session)
+                subject.sessions.save(otherSession)
+                Verdict.Commit(Unit)
+            }
+
+            subject.transactions.inTransaction {
+                val accepted = subject.sessions.recordReauthentication(session.id, userId, verifiedAt)
+                val wrongOwner = subject.sessions.recordReauthentication(otherSession.id, userId, verifiedAt)
+                Verdict.Commit(accepted to wrongOwner)
+            } shouldBe (true to false)
+
+            subject.transactions.inTransaction {
+                Verdict.Commit(subject.sessions.find(session.id))
+            } shouldBe session.copy(reauthenticatedAt = verifiedAt)
+
+            subject.transactions.inTransaction {
+                subject.sessions.revoke(session.id, verifiedAt)
+                Verdict.Commit(Unit)
+            }
+            subject.transactions.inTransaction {
+                Verdict.Commit(subject.sessions.recordReauthentication(session.id, userId, verifiedAt + 1.minutes))
+            } shouldBe false
+        }
+
         "revokeAllFor revokes every session for that user, and no other user's" {
             val subject = fresh()
             val userId = UserId(Uuid.random())

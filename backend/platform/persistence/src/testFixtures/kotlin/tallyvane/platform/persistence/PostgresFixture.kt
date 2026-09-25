@@ -4,6 +4,7 @@ import org.testcontainers.DockerClientFactory
 import org.testcontainers.containers.PostgreSQLContainer
 import tallyvane.platform.kernel.Secret
 import java.sql.DriverManager
+import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
@@ -63,9 +64,9 @@ public object PostgresFixture {
 
     private const val PORT = 5432
 
-    private const val TEMPLATE = "tallyvane_template"
-
     private val sequence = AtomicInteger()
+
+    private val runId: String = UUID.randomUUID().toString().replace("-", "")
 
     private val container: PostgreSQLContainer<*> by lazy {
         PostgreSQLContainer<Nothing>(IMAGE)
@@ -109,14 +110,14 @@ public object PostgresFixture {
      * when `migrate` returns.
      */
     private val template: String by lazy {
-        val name = TEMPLATE
+        val name = "tallyvane_template_$runId"
         create(name, from = null)
         FlywayMigrations(accessTo(name)).apply()
         name
     }
 
     private fun created(from: String?): String {
-        val name = "spec_${sequence.incrementAndGet()}"
+        val name = "spec_${runId}_${sequence.incrementAndGet()}"
         create(name, from)
         return name
     }

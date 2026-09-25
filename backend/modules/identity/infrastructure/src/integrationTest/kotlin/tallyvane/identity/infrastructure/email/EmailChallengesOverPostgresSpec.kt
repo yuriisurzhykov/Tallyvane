@@ -180,20 +180,30 @@ class EmailChallengesOverPostgresSpec :
                     UserRepositoryOverExposed().insert(User(userId, email, null, now, null))
                     Verdict.Commit(Unit)
                 }
-                val subject = BackupCodes(BackupCodeStoreOverExposed(), codes, persistence.transactions)
-                val original = subject.issue(userId)
+                val subject = BackupCodes(BackupCodeStoreOverExposed(), codes)
+                val original = persistence.transactions.inTransaction { Verdict.Commit(subject.issue(userId)) }
                 original.size shouldBe BACKUP_CODE_COUNT
-                subject.hasAny(userId) shouldBe true
+                persistence.transactions.inTransaction { Verdict.Commit(subject.hasAny(userId)) } shouldBe true
                 val results =
                     coroutineScope {
-                        List(PARALLEL_REQUESTS) { async { subject.consume(userId, original.first()) } }.awaitAll()
+                        List(PARALLEL_REQUESTS) {
+                            async {
+                                persistence.transactions.inTransaction {
+                                    Verdict.Commit(subject.consume(userId, original.first()))
+                                }
+                            }
+                        }.awaitAll()
                     }
                 results.count { it } shouldBe 1
-                val replacement = subject.issue(userId)
-                original.forEach { subject.consume(userId, it) shouldBe false }
-                subject.hasAny(userId) shouldBe true
-                replacement.forEach { subject.consume(userId, it) shouldBe true }
-                subject.hasAny(userId) shouldBe false
+                val replacement = persistence.transactions.inTransaction { Verdict.Commit(subject.issue(userId)) }
+                original.forEach { code ->
+                    persistence.transactions.inTransaction { Verdict.Commit(subject.consume(userId, code)) } shouldBe false
+                }
+                persistence.transactions.inTransaction { Verdict.Commit(subject.hasAny(userId)) } shouldBe true
+                replacement.forEach { code ->
+                    persistence.transactions.inTransaction { Verdict.Commit(subject.consume(userId, code)) } shouldBe true
+                }
+                persistence.transactions.inTransaction { Verdict.Commit(subject.hasAny(userId)) } shouldBe false
             }
         }
 

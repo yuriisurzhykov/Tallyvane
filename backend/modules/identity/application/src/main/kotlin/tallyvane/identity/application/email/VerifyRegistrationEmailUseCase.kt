@@ -12,31 +12,25 @@ import kotlin.uuid.Uuid
 
 public interface VerifyRegistrationEmailUseCase : UseCase {
 
-    public suspend fun verify(userId: UserId, challengeId: Uuid, email: Email, code: Secret): Boolean
+    public suspend fun verify(challengeId: Uuid, email: Email, code: Secret): Boolean
 
     public class Verify(
         private val users: UserRepository,
         private val challenges: EmailChallenges,
         private val transactions: TransactionRunner,
     ) : VerifyRegistrationEmailUseCase {
-        override suspend fun verify(userId: UserId, challengeId: Uuid, email: Email, code: Secret): Boolean {
+        override suspend fun verify(challengeId: Uuid, email: Email, code: Secret): Boolean {
+            val challenge = challenges.challenge(challengeId) ?: return false
+            if (challenge.purpose != EmailChallengePurpose.REGISTRATION || !userMatches(challenge.email, email)) return false
+            val userId = runCatching { UserId(Uuid.parse(challenge.binding)) }.getOrNull() ?: return false
             val user = transactions.inTransaction { Verdict.Commit(users.findById(userId)) } ?: return false
-            return userMatches(user.email, email) &&
-                verifies(userId, challengeId, email, code) &&
+            return user.disabledAt == null && !user.emailVerified && userMatches(user.email, email) &&
+                challenges.verify(challengeId, email, EmailChallengePurpose.REGISTRATION, code, challenge.binding) &&
                 markVerified(userId)
         }
 
         private fun userMatches(accountEmail: Email, requestedEmail: Email): Boolean =
             accountEmail.value.equals(requestedEmail.value, ignoreCase = true)
-
-        private suspend fun verifies(userId: UserId, challengeId: Uuid, email: Email, code: Secret): Boolean =
-            challenges.verify(
-                challengeId,
-                email,
-                EmailChallengePurpose.REGISTRATION,
-                code,
-                userId.value.toString(),
-            )
 
         private suspend fun markVerified(userId: UserId): Boolean =
             transactions.inTransaction { Verdict.Commit(users.markEmailVerified(userId)) }

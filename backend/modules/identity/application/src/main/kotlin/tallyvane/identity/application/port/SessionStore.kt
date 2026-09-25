@@ -34,6 +34,10 @@ public interface SessionStore {
     public suspend fun listFor(userId: UserId): List<Session>
 
     /**
+     * Records a fresh proof only on the active session owned by [userId].*/
+    public suspend fun recordReauthentication(id: SessionId, userId: UserId, at: Instant): Boolean
+
+    /**
      * Records [hash] as [id]'s current access token, replacing whatever the previous one was, and
      * stamps [lastUsedAt] on the same row — called once when
      * [tallyvane.identity.application.SessionIssuer] first issues a session, and again on every

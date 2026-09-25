@@ -32,6 +32,12 @@ internal class SessionStoreFake : SessionStore {
 
     override suspend fun listFor(userId: UserId): List<Session> = saved.values.filter { it.userId == userId }
 
+    override suspend fun recordReauthentication(id: SessionId, userId: UserId, at: Instant): Boolean {
+        val session = saved[id]?.takeIf { it.userId == userId && it.revokedAt == null } ?: return false
+        saved[id] = session.copy(reauthenticatedAt = at)
+        return true
+    }
+
     override suspend fun attachAccessToken(id: SessionId, hash: HashedToken, expiresAt: Instant, lastUsedAt: Instant) {
         accessTokens[id] = hash to expiresAt
         saved[id]?.let { session -> saved[id] = session.copy(lastUsedAt = lastUsedAt) }

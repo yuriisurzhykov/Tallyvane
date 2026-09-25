@@ -33,6 +33,7 @@ coverage/
 # Never commit real values. `.env.example` documents the shape and IS tracked.
 .env
 .env.*
+*.env
 !.env.example
 *.pem
 *.key

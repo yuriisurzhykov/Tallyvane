@@ -14,6 +14,7 @@ import tallyvane.identity.application.googleoauth.ReadGoogleAccountLinkUseCase
 import tallyvane.identity.application.googleoauth.SignInWithGoogleOAuthUseCase
 import tallyvane.identity.application.googleoauth.UnlinkGoogleAccountUseCase
 import tallyvane.identity.application.password.ChangePasswordUseCase
+import tallyvane.identity.application.password.ReauthenticateUseCase
 import tallyvane.identity.application.password.RegisterWithPasswordUseCase
 import tallyvane.identity.application.password.SignInWithPasswordUseCase
 import tallyvane.identity.application.password.VerifyPasswordUseCase
@@ -39,9 +40,11 @@ import tallyvane.identity.application.secondfactor.BeginRequiredFactorEnrollment
 import tallyvane.identity.application.secondfactor.ConfirmEmailMfaEnrollmentUseCase
 import tallyvane.identity.application.secondfactor.ConfirmRequiredFactorEnrollmentUseCase
 import tallyvane.identity.application.secondfactor.ConfirmSecondFactorEnrollmentUseCase
+import tallyvane.identity.application.secondfactor.DisableSecondFactorUseCase
 import tallyvane.identity.application.secondfactor.EnrollSecondFactorUseCase
 import tallyvane.identity.application.secondfactor.IssueBackupCodesUseCase
 import tallyvane.identity.application.secondfactor.ReadAuthenticationPolicyUseCase
+import tallyvane.identity.application.secondfactor.ReadSecondFactorStatusUseCase
 import tallyvane.identity.application.secondfactor.RequestEmailMfaCodeUseCase
 import tallyvane.identity.application.secondfactor.ResetAccountMfaUseCase
 import tallyvane.identity.application.secondfactor.SecondFactorMethodRegistry
@@ -126,6 +129,15 @@ public class IdentityUseCases(
     )
     public val verifyCurrentPassword: VerifyPasswordUseCase =
         VerifyPasswordUseCase.Verify(users, credentials, passwords)
+    public val reauthenticate: ReauthenticateUseCase = ReauthenticateUseCase.Reauthenticate(
+        users,
+        credentials,
+        passwords,
+        googleOAuthGateway,
+        sessions,
+        clock,
+        transactions,
+    )
     public val signInWithGoogleOAuth: SignInWithGoogleOAuthUseCase? = googleOAuthGateway?.let { gateway ->
         SignInWithGoogleOAuthUseCase.SignIn(
             gateway,
@@ -181,6 +193,22 @@ public class IdentityUseCases(
         ConfirmRequiredFactorEnrollmentUseCase.Confirm(pending, registry, clock, transactions)
     public val confirm: ConfirmSecondFactorEnrollmentUseCase =
         ConfirmSecondFactorEnrollmentUseCase.Confirm(registry, transactions)
+    public val readSecondFactorStatus: ReadSecondFactorStatusUseCase = ReadSecondFactorStatusUseCase.Read(
+        sessions,
+        totpEnrollmentStore,
+        emailMfaEnrollmentStore,
+        backupCodeStore,
+        clock,
+    )
+    public val disableSecondFactor: DisableSecondFactorUseCase = DisableSecondFactorUseCase.Disable(
+        sessions,
+        totpEnrollmentStore,
+        emailMfaEnrollmentStore,
+        backupCodeStore,
+        authenticationPolicyStore,
+        clock,
+        transactions,
+    )
     public val issueBackupCodes: IssueBackupCodesUseCase? = backupCodes?.let {
         IssueBackupCodesUseCase.Issue(users, credentials, passwords, it, transactions)
     }

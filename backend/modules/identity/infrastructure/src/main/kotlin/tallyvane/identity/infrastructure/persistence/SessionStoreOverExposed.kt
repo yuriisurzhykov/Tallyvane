@@ -1,7 +1,9 @@
 package tallyvane.identity.infrastructure.persistence
 
 import org.jetbrains.exposed.v1.core.ResultRow
+import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
@@ -30,6 +32,7 @@ internal class SessionStoreOverExposed : SessionStore {
             it[createdAt] = instant.toColumn(session.createdAt)
             it[lastUsedAt] = instant.toColumn(session.lastUsedAt)
             it[revokedAt] = session.revokedAt?.let(instant::toColumn)
+            it[reauthenticatedAt] = session.reauthenticatedAt?.let(instant::toColumn)
         }
     }
 
@@ -50,6 +53,14 @@ internal class SessionStoreOverExposed : SessionStore {
 
     override suspend fun listFor(userId: UserId): List<Session> =
         SessionsTable.selectAll().where { SessionsTable.userId eq userId.value }.map { it.toSession() }
+
+    override suspend fun recordReauthentication(id: SessionId, userId: UserId, at: Instant): Boolean =
+        SessionsTable.update({
+            (SessionsTable.id eq id.value) and (SessionsTable.userId eq userId.value) and
+                SessionsTable.revokedAt.isNull()
+        }) {
+            it[reauthenticatedAt] = instant.toColumn(at)
+        } == 1
 
     override suspend fun attachAccessToken(id: SessionId, hash: HashedToken, expiresAt: Instant, lastUsedAt: Instant) {
         SessionsTable.update({ SessionsTable.id eq id.value }) {
@@ -77,5 +88,6 @@ internal class SessionStoreOverExposed : SessionStore {
         createdAt = instant.toDomain(this[SessionsTable.createdAt]),
         lastUsedAt = instant.toDomain(this[SessionsTable.lastUsedAt]),
         revokedAt = this[SessionsTable.revokedAt]?.let(instant::toDomain),
+        reauthenticatedAt = this[SessionsTable.reauthenticatedAt]?.let(instant::toDomain),
     )
 }

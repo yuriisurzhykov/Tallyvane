@@ -38,15 +38,14 @@ class ResendRegistrationEmailSpec :
             )
             val resend = ResendRegistrationEmailUseCase.Send(users, challenges, TransactionRunnerFake())
 
-            val issued = resend.resend(id, email)
+            val issued = resend.resend(email)
             issued shouldBe store.lastIssued?.id
             store.lastIssued?.purpose shouldBe EmailChallengePurpose.REGISTRATION
             store.lastIssued?.binding shouldBe id.value.toString()
 
-            resend.resend(id, Email("other@example.test")) shouldBe null
-            resend.resend(UserId(Uuid.parse("00000000-0000-7000-8000-000000000002")), email) shouldBe null
+            resend.resend(Email("other@example.test")) shouldBe null
             users.markEmailVerified(id)
-            resend.resend(id, email) shouldBe null
+            resend.resend(email) shouldBe null
             store.issueCount shouldBe 1
         }
     })

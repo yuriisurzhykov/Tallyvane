@@ -12,7 +12,8 @@ import tallyvane.identity.application.googleoauth.ReadGoogleAccountLinkUseCase
 import tallyvane.identity.application.googleoauth.SignInWithGoogleOAuthRequest
 import tallyvane.identity.application.googleoauth.SignInWithGoogleOAuthUseCase
 import tallyvane.identity.application.googleoauth.UnlinkGoogleAccountUseCase
-import tallyvane.identity.application.password.VerifyPasswordUseCase
+import tallyvane.identity.application.password.ReauthenticateUseCase
+import tallyvane.identity.application.secondfactor.ReadSecondFactorStatusUseCase
 import tallyvane.identity.domain.session.DeviceLabel
 import tallyvane.identity.web.login.AuthenticationProblems
 import tallyvane.identity.web.login.SignInResponses
@@ -26,6 +27,7 @@ import tallyvane.platform.kernel.Secret
 internal interface GoogleOAuthHandler {
     suspend fun start(call: io.ktor.server.application.ApplicationCall)
     suspend fun startLink(call: io.ktor.server.application.ApplicationCall)
+    suspend fun startReauthentication(call: io.ktor.server.application.ApplicationCall)
     suspend fun unlink(call: io.ktor.server.application.ApplicationCall)
     suspend fun status(call: io.ktor.server.application.ApplicationCall)
     suspend fun callback(call: io.ktor.server.application.ApplicationCall)
@@ -37,7 +39,6 @@ internal interface GoogleOAuthHandler {
         private val responses: SignInResponses,
         private val secure: Boolean,
         private val linker: LinkGoogleAccountUseCase,
-        private val verifyPassword: VerifyPasswordUseCase,
         private val stateCookie: GoogleOAuthStateCookie,
         private val callbackResponses: GoogleOAuthCallbackResponses,
         private val current: CurrentPrincipal,
@@ -45,6 +46,8 @@ internal interface GoogleOAuthHandler {
         private val unlinker: UnlinkGoogleAccountUseCase,
         private val accountProblems: GoogleAccountProblems,
         private val linkStatus: ReadGoogleAccountLinkUseCase,
+        private val reauthenticate: ReauthenticateUseCase,
+        private val factorStatus: ReadSecondFactorStatusUseCase,
     ) : GoogleOAuthHandler {
         override suspend fun start(call: io.ktor.server.application.ApplicationCall) {
             val challenge = PkceChallenge.Generator().generate()
@@ -55,7 +58,9 @@ internal interface GoogleOAuthHandler {
         override suspend fun startLink(call: io.ktor.server.application.ApplicationCall) {
             val identity = current.resolve(call) ?: return
             val body = call.receive<LinkStartBody>()
-            if (!verifyPassword.verify(identity.userId, Secret(body.password))) {
+            if (reauthenticate.password(identity.userId, identity.sessionId, Secret(body.password)) !=
+                ReauthenticateUseCase.Outcome.REAUTHENTICATED
+            ) {
                 call.respond(
                     Refused(
                         tallyvane.identity.web.login.AuthenticationFailure.InvalidCredential,
@@ -67,6 +72,13 @@ internal interface GoogleOAuthHandler {
             val challenge = PkceChallenge.Generator().generate()
             setCookie(call, stateCookie.link(challenge, identity.userId, identity.sessionId))
             call.respond(mapOf("url" to authorizationLocation(challenge)))
+        }
+
+        override suspend fun startReauthentication(call: io.ktor.server.application.ApplicationCall) {
+            val identity = current.resolve(call) ?: return
+            val challenge = PkceChallenge.Generator().generate()
+            setCookie(call, stateCookie.reauthenticate(challenge, identity.userId, identity.sessionId))
+            call.respondRedirect(authorizationLocation(challenge), permanent = false)
         }
 
         override suspend fun unlink(call: io.ktor.server.application.ApplicationCall) {
@@ -120,6 +132,7 @@ internal interface GoogleOAuthHandler {
             val cookie = call.request.cookies[COOKIE]
             val oauth = stateCookie.read(cookie, query["state"])
             val linkAttempt = cookie?.startsWith("link.") == true
+            val reauthenticationAttempt = cookie?.startsWith("reauth.") == true
             call.response.cookies.append(
                 Cookie(
                     COOKIE,
@@ -135,6 +148,11 @@ internal interface GoogleOAuthHandler {
                 if (oauth is GoogleOAuthStateCookie.State.Link || linkAttempt) {
                     val result = if (providerError == "access_denied") "cancelled" else "failed"
                     callbackResponses.linkFailure(call, result)
+                } else if (oauth is GoogleOAuthStateCookie.State.Reauthenticate || reauthenticationAttempt) {
+                    callbackResponses.reauthentication(
+                        call,
+                        if (providerError == "access_denied") "cancelled" else "failed",
+                    )
                 } else {
                     callbackResponses.providerError(call, providerError)
                 }
@@ -144,6 +162,8 @@ internal interface GoogleOAuthHandler {
             if (code == null || oauth == null) {
                 if (linkAttempt) {
                     callbackResponses.linkFailure(call, "failed")
+                } else if (reauthenticationAttempt) {
+                    callbackResponses.reauthentication(call, "failed")
                 } else {
                     callbackResponses.oauthFailure(call)
                 }
@@ -151,6 +171,7 @@ internal interface GoogleOAuthHandler {
             }
             when (oauth) {
                 is GoogleOAuthStateCookie.State.Link -> completeLink(call, oauth, code)
+                is GoogleOAuthStateCookie.State.Reauthenticate -> completeReauthentication(call, oauth, code)
                 is GoogleOAuthStateCookie.State.SignIn -> {
                     val outcome = signIn.signIn(
                         SignInWithGoogleOAuthRequest(code, oauth.codeVerifier, redirectUri, DeviceLabel("Browser")),
@@ -160,6 +181,29 @@ internal interface GoogleOAuthHandler {
             }
         }
 
+        private suspend fun completeReauthentication(
+            call: io.ktor.server.application.ApplicationCall,
+            oauth: GoogleOAuthStateCookie.State.Reauthenticate,
+            code: String,
+        ) {
+            val identity = current.resolve(call) ?: return
+            if (identity.userId != oauth.userId || identity.sessionId != oauth.sessionId) {
+                callbackResponses.reauthentication(call, "failed")
+                return
+            }
+            val result = reauthenticate.google(
+                oauth.userId,
+                oauth.sessionId,
+                code,
+                oauth.codeVerifier,
+                redirectUri,
+            )
+            callbackResponses.reauthentication(
+                call,
+                if (result == ReauthenticateUseCase.Outcome.REAUTHENTICATED) "success" else "failed",
+            )
+        }
+
         private suspend fun completeLink(
             call: io.ktor.server.application.ApplicationCall,
             oauth: GoogleOAuthStateCookie.State.Link,
@@ -167,6 +211,10 @@ internal interface GoogleOAuthHandler {
         ) {
             val identity = current.resolve(call) ?: return
             if (identity.userId != oauth.userId || identity.sessionId != oauth.sessionId) {
+                callbackResponses.linkFailure(call, "failed")
+                return
+            }
+            if (!factorStatus.read(identity.userId, identity.sessionId).recentlyAuthenticated) {
                 callbackResponses.linkFailure(call, "failed")
                 return
             }

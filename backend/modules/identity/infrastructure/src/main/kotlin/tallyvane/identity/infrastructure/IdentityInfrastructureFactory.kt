@@ -74,7 +74,7 @@ public class IdentityInfrastructureFactory {
         val factor = SecondFactorMethod.Rfc6238(users, TinkSecretCipher(totpKeyset), totpEnrollments, clock, totpIssuer)
         val authenticationCodes = AuthenticationCodes.Hmac(pepper)
         val backupCodeStore: BackupCodeStore = BackupCodeStoreOverExposed()
-        val backupCodes = BackupCodes(backupCodeStore, authenticationCodes, transactions)
+        val backupCodes = BackupCodes(backupCodeStore, authenticationCodes)
         val backupFactor = SecondFactorMethod.Backup(backupCodes)
         val emailMfaEnrollmentStore = EmailMfaEnrollmentStoreOverExposed()
         val emailChallenges = emailDelivery?.let { delivery ->

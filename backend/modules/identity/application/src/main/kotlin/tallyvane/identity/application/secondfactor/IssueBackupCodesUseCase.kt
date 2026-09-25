@@ -23,8 +23,8 @@ public interface IssueBackupCodesUseCase : UseCase {
         private val codes: BackupCodes,
         private val transactions: TransactionRunner,
     ) : IssueBackupCodesUseCase {
-        override suspend fun issue(userId: UserId, currentPassword: Secret): List<Secret>? {
-            val accepted = transactions.inTransaction {
+        override suspend fun issue(userId: UserId, currentPassword: Secret): List<Secret>? =
+            transactions.inTransaction {
                 val user = users.findById(userId)
                 val credential = credentials.findPasswordFor(userId)
                 val verified = user != null &&
@@ -32,9 +32,11 @@ public interface IssueBackupCodesUseCase : UseCase {
                     user.emailVerified &&
                     credential != null &&
                     passwords.verify(currentPassword, credential.hash)
-                if (verified) Verdict.Commit(true) else Verdict.Rollback(false)
+                if (verified) {
+                    Verdict.Commit(codes.issue(userId))
+                } else {
+                    Verdict.Rollback<List<Secret>?>(null)
+                }
             }
-            return if (accepted) codes.issue(userId) else null
-        }
     }
 }

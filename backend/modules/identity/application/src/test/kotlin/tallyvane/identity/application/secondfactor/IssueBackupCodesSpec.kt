@@ -31,7 +31,7 @@ class IssueBackupCodesSpec :
                 users,
                 credentials,
                 hasher,
-                BackupCodes(store, TestCodes(), TransactionRunnerFake()),
+                BackupCodes(store, TestCodes()),
                 TransactionRunnerFake(),
             )
 

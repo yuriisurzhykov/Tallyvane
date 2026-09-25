@@ -16,7 +16,7 @@ class BackupSecondFactorSpec :
         "backup code is enrolled only while codes remain and each code can be used once" {
             val store = RecoveryStore()
             val codes = FixedCodes()
-            val service = BackupCodes(store, codes, TransactionRunnerFake())
+            val service = BackupCodes(store, codes)
             val method = SecondFactorMethod.Backup(service)
             val user = UserId(Uuid.parse("00000000-0000-7000-8000-000000000001"))
 
