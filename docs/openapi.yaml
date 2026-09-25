@@ -247,6 +247,38 @@ paths:
         default:
           $ref: "#/components/responses/Problem"
 
+  /auth/google/reauth/start:
+    get:
+      tags: [auth]
+      operationId: startGoogleReauthentication
+      summary: Reauthenticate the current account with its already-linked Google identity
+      security: [{ cookieAuth: [] }]
+      responses:
+        "302":
+          description: Redirects to Google and returns to account security after verifying the linked OIDC subject.
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /auth/account/reauth/password:
+    post:
+      tags: [auth]
+      operationId: reauthenticateWithPassword
+      summary: Record a password proof for the current session for five minutes
+      security: [{ cookieAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password]
+              properties:
+                password: { type: string, minLength: 1, writeOnly: true }
+      responses:
+        "204": { description: The active session now has a recent reauthentication proof. }
+        "401": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
   /auth/google/unlink:
     post:
       tags: [auth]
@@ -283,9 +315,9 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [googleLinked]
+                required: [google_linked]
                 properties:
-                  googleLinked: { type: boolean }
+                  google_linked: { type: boolean }
         default:
           $ref: "#/components/responses/Problem"
 
@@ -300,10 +332,9 @@ paths:
           application/json:
             schema:
               type: object
-              required: [userId, challengeId, email, code]
+              required: [challenge_id, email, code]
               properties:
-                userId: { type: string, format: uuid }
-                challengeId: { type: string, format: uuid }
+                challenge_id: { type: string, format: uuid }
                 email: { type: string, format: email }
                 code: { type: string, pattern: "^[0-9]{6}$" }
       responses:
@@ -323,20 +354,19 @@ paths:
           application/json:
             schema:
               type: object
-              required: [userId, email]
+              required: [email]
               properties:
-                userId: { type: string, format: uuid }
                 email: { type: string, format: email }
       responses:
         "202":
-          description: A neutral response; challengeId is null when no new code was issued.
+          description: A neutral response; challenge_id is null when no new code was issued.
           content:
             application/json:
               schema:
                 type: object
-                required: [challengeId]
+                required: [challenge_id]
                 properties:
-                  challengeId: { type: [string, "null"], format: uuid }
+                  challenge_id: { type: [string, "null"], format: uuid }
         default:
           $ref: "#/components/responses/Problem"
 
@@ -361,9 +391,9 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [challengeId]
+                required: [challenge_id]
                 properties:
-                  challengeId: { type: string, format: uuid }
+                  challenge_id: { type: string, format: uuid }
         "429":
           description: A code was requested recently; retry after the Retry-After delay.
           headers:
@@ -382,9 +412,9 @@ paths:
           application/json:
             schema:
               type: object
-              required: [challengeId, email, code, device]
+              required: [challenge_id, email, code, device]
               properties:
-                challengeId: { type: string, format: uuid }
+                challenge_id: { type: string, format: uuid }
                 email: { type: string, format: email }
                 code: { type: string, pattern: "^[0-9]{6}$" }
                 device: { type: string }
@@ -419,9 +449,9 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [challengeId]
+                required: [challenge_id]
                 properties:
-                  challengeId: { type: string, format: uuid }
+                  challenge_id: { type: string, format: uuid }
         "429":
           description: A reset code was requested recently.
         default:
@@ -438,12 +468,12 @@ paths:
           application/json:
             schema:
               type: object
-              required: [challengeId, email, code, newPassword]
+              required: [challenge_id, email, code, new_password]
               properties:
-                challengeId: { type: string, format: uuid }
+                challenge_id: { type: string, format: uuid }
                 email: { type: string, format: email }
                 code: { type: string, pattern: "^[0-9]{6}$" }
-                newPassword: { type: string, minLength: 15, maxLength: 128 }
+                new_password: { type: string, minLength: 15, maxLength: 128 }
       responses:
         "200":
           description: Request completed with an account-neutral response. Existing MFA stays enabled.
@@ -471,10 +501,10 @@ paths:
           application/json:
             schema:
               type: object
-              required: [currentPassword, newPassword]
+              required: [current_password, new_password]
               properties:
-                currentPassword: { type: string }
-                newPassword: { type: string, minLength: 15, maxLength: 128 }
+                current_password: { type: string, minLength: 1, writeOnly: true }
+                new_password: { type: string, minLength: 15, maxLength: 128 }
       responses:
         "204": { description: Password changed. Existing second factors remain enabled. }
         "401": { $ref: "#/components/responses/Problem" }
@@ -521,9 +551,18 @@ paths:
               properties:
                 email: { type: string, format: email }
                 password: { type: string, minLength: 15, maxLength: 128 }
-                displayName: { type: [string, "null"] }
+                display_name: { type: [string, "null"] }
       responses:
-        "201": { description: Account created; challengeId may be null if email delivery is unavailable. }
+        "201":
+          description: Account created; challenge_id may be null if email delivery is unavailable.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [user_id, challenge_id]
+                properties:
+                  user_id: { type: string, format: uuid }
+                  challenge_id: { type: [string, "null"], format: uuid }
         "409": { description: Account email already exists. }
         "422": { $ref: "#/components/responses/Problem" }
         default: { $ref: "#/components/responses/Problem" }
@@ -539,12 +578,12 @@ paths:
           application/json:
             schema:
               type: object
-              required: [pendingId, kind, code]
+              required: [pending_id, kind, code]
               properties:
-                pendingId: { type: string, format: uuid }
+                pending_id: { type: string, format: uuid }
                 kind: { type: string }
                 code: { type: string }
-                challengeId: { type: string, format: uuid, description: Required when kind is EMAIL_OTP. }
+                challenge_id: { type: string, format: uuid, description: Required when kind is EMAIL_OTP. }
       responses:
         "200": { description: Session issued after factor verification. }
         default: { $ref: "#/components/responses/Problem" }
@@ -586,6 +625,47 @@ paths:
         "204": { description: Factor enrollment confirmed. }
         default: { $ref: "#/components/responses/Problem" }
 
+  /auth/mfa/status:
+    get:
+      tags: [auth]
+      operationId: readSecondFactorStatus
+      summary: Read the current account's enrolled factors and recent verification state
+      security: [{ cookieAuth: [] }]
+      responses:
+        "200":
+          description: Enrolled factors and whether this session was reauthenticated during the last five minutes.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [enrolled, recently_authenticated]
+                properties:
+                  enrolled: { type: array, items: { type: string, enum: [TOTP, EMAIL_OTP, BACKUP_CODE] } }
+                  recently_authenticated: { type: boolean }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /auth/mfa/disable:
+    post:
+      tags: [auth]
+      operationId: disableSecondFactor
+      summary: Remove an enrolled factor after recent reauthentication and explicit confirmation
+      security: [{ cookieAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [kind, confirmed]
+              properties:
+                kind: { type: string, enum: [TOTP, EMAIL_OTP, BACKUP_CODE] }
+                confirmed: { type: boolean, const: true }
+      responses:
+        "204": { description: The selected factor was removed. }
+        "401": { description: The session needs recent reauthentication. }
+        "409": { description: Removing the factor would make a required sign-in scheme unusable. }
+        default: { $ref: "#/components/responses/Problem" }
+
   /auth/mfa/backup-codes:
     post:
       tags: [auth]
@@ -598,9 +678,9 @@ paths:
           application/json:
             schema:
               type: object
-              required: [currentPassword]
+              required: [current_password]
               properties:
-                currentPassword: { type: string, minLength: 1, writeOnly: true }
+                current_password: { type: string, minLength: 1, writeOnly: true }
       responses:
         "200":
           description: New one-time-display recovery codes. Response is marked no-store.
@@ -626,11 +706,11 @@ paths:
           application/json:
             schema:
               type: object
-              required: [pendingId]
+              required: [pending_id]
               properties:
-                pendingId: { type: string, format: uuid }
+                pending_id: { type: string, format: uuid }
       responses:
-        "202": { description: Code accepted for delivery; response includes challengeId. }
+        "202": { description: Code accepted for delivery; response includes challenge_id. }
         "429": { $ref: "#/components/responses/Problem" }
         default: { $ref: "#/components/responses/Problem" }
 
@@ -646,11 +726,11 @@ paths:
           application/json:
             schema:
               type: object
-              required: [currentPassword]
+              required: [current_password]
               properties:
-                currentPassword: { type: string, minLength: 1, writeOnly: true }
+                current_password: { type: string, minLength: 1, writeOnly: true }
       responses:
-        "202": { description: Enrollment code accepted for delivery; response includes challengeId. }
+        "202": { description: Enrollment code accepted for delivery; response includes challenge_id. }
         "401": { $ref: "#/components/responses/Problem" }
         default: { $ref: "#/components/responses/Problem" }
 
@@ -666,9 +746,9 @@ paths:
           application/json:
             schema:
               type: object
-              required: [challengeId, code]
+              required: [challenge_id, code]
               properties:
-                challengeId: { type: string, format: uuid }
+                challenge_id: { type: string, format: uuid }
                 code: { type: string, minLength: 6, maxLength: 6 }
       responses:
         "204": { description: Email factor enrollment confirmed. }
@@ -685,9 +765,9 @@ paths:
           application/json:
             schema:
               type: object
-              required: [pendingId, kind]
+              required: [pending_id, kind]
               properties:
-                pendingId: { type: string, format: uuid }
+                pending_id: { type: string, format: uuid }
                 kind: { type: string, enum: [TOTP] }
       responses:
         "200": { description: Enrollment payload for the selected factor. }
@@ -698,20 +778,24 @@ paths:
     post:
       tags: [auth]
       operationId: confirmRequiredMfaEnrollment
-      summary: Confirm factor enrollment without issuing a session
+      summary: Confirm required factor enrollment and complete sign-in
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [pendingId, kind, code]
+              required: [pending_id, kind, code]
               properties:
-                pendingId: { type: string, format: uuid }
+                pending_id: { type: string, format: uuid }
                 kind: { type: string, enum: [TOTP] }
                 code: { type: string, minLength: 6, maxLength: 6 }
       responses:
-        "204": { description: Enrollment accepted; the user must begin a new sign-in. }
+        "200":
+          description: Enrollment accepted and session cookies issued.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SignInResult" }
         "422": { $ref: "#/components/responses/Problem" }
         default: { $ref: "#/components/responses/Problem" }
 
@@ -879,13 +963,13 @@ components:
       required: [status]
       properties:
         status: { type: string, enum: [issued, requires_second_factor, requires_enrollment] }
-        pendingId: { type: string, format: uuid }
-        availableMethods:
+        pending_id: { type: string, format: uuid }
+        available_methods:
           type: array
           uniqueItems: true
           items: { type: string, enum: [TOTP, EMAIL_OTP, BACKUP_CODE] }
           description: Enrolled factors for MFA, or factors that can satisfy a required enrollment.
-        primaryMethod: { type: string, enum: [PASSWORD, GOOGLE, EMAIL_CODE] }
+        primary_method: { type: string, enum: [PASSWORD, GOOGLE, EMAIL_CODE] }
 
     HealthStatus:
       type: string
@@ -1003,12 +1087,12 @@ components:
     AuthenticationPolicyRule:
       type: object
       additionalProperties: false
-      required: [primary, enabled, requirement, allowedMethods]
+      required: [primary, enabled, requirement, allowed_methods]
       properties:
         primary: { type: string, enum: [PASSWORD, GOOGLE, EMAIL_CODE] }
         enabled: { type: boolean }
         requirement: { type: string, enum: [DISABLED, IF_ENROLLED, REQUIRED] }
-        allowedMethods:
+        allowed_methods:
           type: array
           uniqueItems: true
           items: { type: string, enum: [TOTP, EMAIL_OTP, BACKUP_CODE] }
@@ -1016,7 +1100,7 @@ components:
     AuthenticationPolicy:
       type: object
       additionalProperties: false
-      required: [version, rules, advancedAcknowledged]
+      required: [version, rules, advanced_acknowledged]
       properties:
         version: { type: integer, minimum: 1 }
         rules:
@@ -1024,20 +1108,20 @@ components:
           minItems: 3
           maxItems: 3
           items: { $ref: "#/components/schemas/AuthenticationPolicyRule" }
-        advancedAcknowledged: { type: boolean }
+        advanced_acknowledged: { type: boolean }
 
     UpdateAuthenticationPolicy:
       type: object
       additionalProperties: false
-      required: [expectedVersion, rules, advancedAcknowledged]
+      required: [expected_version, rules, advanced_acknowledged]
       properties:
-        expectedVersion: { type: integer, minimum: 1 }
+        expected_version: { type: integer, minimum: 1 }
         rules:
           type: array
           minItems: 3
           maxItems: 3
           items: { $ref: "#/components/schemas/AuthenticationPolicyRule" }
-        advancedAcknowledged: { type: boolean }
+        advanced_acknowledged: { type: boolean }
 
     Problem:
       type: object

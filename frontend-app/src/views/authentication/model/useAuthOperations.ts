@@ -24,7 +24,7 @@ export function useAuthOperations(
         readonly kind: AuthPageKind;
         readonly t: Translate;
         readonly notify: Notify;
-        readonly navigate: (path: string) => void;
+        readonly navigate: (path: string, replace?: boolean) => void;
         readonly state: AuthPageState;
     },
 ) {
@@ -45,7 +45,7 @@ export function useAuthOperations(
         setPasswordResetChallengeId: state.setPasswordResetChallengeId,
         emailMfaEnrollmentChallengeId: state.emailMfaEnrollmentChallengeId,
         setEmailMfaEnrollmentChallengeId: state.setEmailMfaEnrollmentChallengeId,
-        setNotice: state.setNotice, setRequiredEnrollmentComplete: state.setRequiredEnrollmentComplete,
+        setNotice: state.setNotice,
         setPayload: state.setPayload, setRecoveryCodes: state.setRecoveryCodes, setSessions: state.setSessions,
         setBusy: state.setBusy, busy: state.busy,
         clearErrors: () => { state.setFieldErrors({}); },

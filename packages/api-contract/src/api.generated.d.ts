@@ -585,7 +585,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Confirm factor enrollment without issuing a session */
+        /** Confirm required factor enrollment and complete sign-in */
         post: operations["confirmRequiredMfaEnrollment"];
         delete?: never;
         options?: never;
@@ -1850,12 +1850,14 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Enrollment accepted; the user must begin a new sign-in. */
-            204: {
+            /** @description Enrollment accepted and session cookies issued. */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["SignInResult"];
+                };
             };
             422: components["responses"]["Problem"];
             default: components["responses"]["Problem"];

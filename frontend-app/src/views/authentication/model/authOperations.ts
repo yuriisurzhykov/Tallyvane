@@ -1,6 +1,7 @@
 import type { Dispatch, SetStateAction, SyntheticEvent } from "react";
 import type { AuthPageKind } from "../../../features/authentication/model/AuthPageKind";
 import { authClient, AuthError } from "../../../features/authentication/api/client";
+import type { AuthResult } from "../../../features/authentication/api/client";
 import type { AuthStringKey } from "../../../features/authentication/model/strings";
 import type { AuthSession } from "../../../widgets/authentication-step/model/AuthStepProps";
 
@@ -17,7 +18,7 @@ export interface AuthOperationsState {
     readonly kind: AuthPageKind;
     readonly t: Translate;
     readonly notify: Notify;
-    readonly navigate: (path: string) => void;
+    readonly navigate: (path: string, replace?: boolean) => void;
     readonly code: string;
     readonly setCode: Dispatch<SetStateAction<string>>;
     readonly factor: string;
@@ -39,7 +40,6 @@ export interface AuthOperationsState {
     readonly emailMfaEnrollmentChallengeId: string;
     readonly setEmailMfaEnrollmentChallengeId: Dispatch<SetStateAction<string>>;
     readonly setNotice: Dispatch<SetStateAction<string>>;
-    readonly setRequiredEnrollmentComplete: Dispatch<SetStateAction<boolean>>;
     readonly setPayload: Dispatch<SetStateAction<string>>;
     readonly setRecoveryCodes: Dispatch<SetStateAction<string[]>>;
     readonly setSessions: Dispatch<SetStateAction<AuthSession[]>>;
@@ -149,25 +149,30 @@ async function enrollAuthenticator(state: AuthOperationsState) {
         return;
     }
     if (pendingId) {
-        await authClient.post("/mfa/required/confirm", { pendingId, kind: "TOTP", code: state.code });
+        const result = await authClient.post<AuthResult>("/mfa/required/confirm", {
+            pendingId,
+            kind: "TOTP",
+            code: state.code,
+        });
+        if (result.status !== "issued") throw new Error(state.t("signInContinuedError"));
+        sessionStorage.removeItem("tallyvane.pendingEnrollmentId");
+        sessionStorage.removeItem("tallyvane.requiredMethods");
+        state.notify(
+            state.t("authenticatorEnabled"),
+            state.t("requiredAuthenticatorEnabledDescription"),
+            "success",
+        );
+        state.navigate("/today", true);
+        return;
     } else {
         await authClient.post("/mfa/confirm", { kind: "TOTP", code: state.code });
     }
-    const required = Boolean(pendingId);
     state.notify(
         state.t("authenticatorEnabled"),
-        state.t(required ? "requiredAuthenticatorEnabledDescription" : "authenticatorEnabledDescription"),
+        state.t("authenticatorEnabledDescription"),
         "success",
     );
-    if (pendingId) {
-        sessionStorage.removeItem("tallyvane.pendingEnrollmentId");
-        sessionStorage.removeItem("tallyvane.requiredMethods");
-        state.setNotice(state.t("requiredAuthenticatorConfirmed"));
-        state.setRequiredEnrollmentComplete(true);
-        window.history.replaceState(null, "", window.location.pathname);
-    } else {
-        state.setNotice(state.t("authenticatorConfirmed"));
-    }
+    state.setNotice(state.t("authenticatorConfirmed"));
     state.setPayload("");
     state.setCode("");
 }

@@ -10,8 +10,6 @@ export interface AuthPageState {
     readonly setFieldErrors: (errors: Record<string, string>) => void;
     readonly notice: string;
     readonly setNotice: AuthOperationsState["setNotice"];
-    readonly requiredEnrollmentComplete: boolean;
-    readonly setRequiredEnrollmentComplete: AuthOperationsState["setRequiredEnrollmentComplete"];
     readonly payload: string;
     readonly setPayload: AuthOperationsState["setPayload"];
     readonly code: string;
@@ -54,7 +52,6 @@ export function useAuthPageState(): AuthPageState {
     const [busy, setBusy] = useState(false);
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
     const [notice, setNotice] = useState("");
-    const [requiredEnrollmentComplete, setRequiredEnrollmentComplete] = useState(false);
     const [payload, setPayload] = useState("");
     const [code, setCode] = useState("");
     const [factor, setFactor] = useState("TOTP");
@@ -75,8 +72,7 @@ export function useAuthPageState(): AuthPageState {
     const [sessions, setSessions] = useState<AuthSession[]>([]);
 
     return {
-        busy, setBusy, fieldErrors, setFieldErrors, notice, setNotice, requiredEnrollmentComplete,
-        setRequiredEnrollmentComplete, payload, setPayload, code, setCode, factor, setFactor,
+        busy, setBusy, fieldErrors, setFieldErrors, notice, setNotice, payload, setPayload, code, setCode, factor, setFactor,
         showPassword, setShowPassword, preview, setPreview, googleEnabled, setGoogleEnabled,
         availableMethods, setAvailableMethods, registration, setRegistration, registrationResendSeconds,
         setRegistrationResendSeconds, email, setEmail, emailSignInChallengeId, setEmailSignInChallengeId,

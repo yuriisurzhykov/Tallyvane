@@ -47,7 +47,7 @@ export function AuthPage({ kind }: { kind: AuthPageKind }) {
         notify: (title, description, tone) => {
             toast.add({ title, ...(description ? { description } : {}), tone });
         },
-        navigate: path => { router.push(path); },
+        navigate: (path, replace) => { replace ? router.replace(path) : router.push(path); },
         state: pageState,
     });
     return <AuthLayout>
@@ -77,11 +77,8 @@ function AuthPageContent({
     const stepProps = createStepProps(state, operations, t);
     return <>
         { previewOnly && <AuthPreviewSelector state={ state } t={ t } /> }
-        { state.notice && !(kind === "enrollment" && state.requiredEnrollmentComplete) &&
-            <Text as="p" variant="body" role="status" className={ styles.notice ?? "" }>{ state.notice }</Text> }
-        { kind === "enrollment" && state.requiredEnrollmentComplete
-            ? <EnrollmentComplete notice={ state.notice } t={ t } />
-            : renderAuthenticationStep(displayedKind, stepProps) }
+        { state.notice && <Text as="p" variant="body" role="status" className={ styles.notice ?? "" }>{ state.notice }</Text> }
+        { renderAuthenticationStep(displayedKind, stepProps) }
     </>;
 }
 
@@ -127,13 +124,6 @@ function AuthPreviewSelector({ state, t }: { state: AuthPageState; t: Translate 
             <Select.Popup>{ (["login", "register", "mfa", "enrollment", "forgot", "otp", "google", "callback", "security"] as AuthPageKind[]).map(page =>
                 <Select.Item key={ page } value={ page }>{ t(headings[page][0]) }</Select.Item>) }</Select.Popup>
         </Select.Root>
-    </Stack>;
-}
-
-function EnrollmentComplete({ notice, t }: { notice: string; t: Translate }) {
-    return <Stack role="status" gap="inline" className={ styles.notice ?? "" }>
-        <Text variant="body">{ notice }</Text>
-        <Link className={ styles.link ?? "" } href="/login">{ t("signInLink") }</Link>
     </Stack>;
 }
 
