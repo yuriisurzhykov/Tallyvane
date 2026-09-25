@@ -7,6 +7,9 @@ import io.ktor.server.routing.put
 import tallyvane.identity.application.secondfactor.AuthenticationPolicyResult
 import tallyvane.identity.application.secondfactor.UpdateAuthenticationPolicyUseCase
 import tallyvane.identity.domain.secondfactor.AuthenticationPolicy
+import tallyvane.identity.domain.secondfactor.AuthenticationAction
+import tallyvane.identity.domain.secondfactor.AuthenticationScheme
+import tallyvane.identity.domain.secondfactor.AuthenticationTokenKind
 import tallyvane.identity.domain.secondfactor.AuthenticationRule
 import tallyvane.identity.domain.secondfactor.MfaRequirement
 import tallyvane.identity.domain.secondfactor.PrimaryMethod
@@ -24,12 +27,20 @@ internal class UpdateAuthenticationPolicyHandler(
         route.put("/admin/policy") {
             val identity = currentPrincipal.resolve(call) ?: return@put
             val body = call.receive<UpdateAuthenticationPolicyBody>()
+            val schemes = body.schemes.toSchemesOrNull()
             val rules = body.rules.toDomainOrNull()
-            if (rules == null || body.expectedVersion < 1) {
+            if ((body.schemes.isEmpty() && (rules == null || body.rules.isEmpty())) ||
+                (body.schemes.isNotEmpty() && schemes == null) || body.expectedVersion < 1
+            ) {
                 call.respond(Refused(AuthenticationPolicyFailure.Invalid, problems))
                 return@put
             }
-            when (val result = update.update(identity.userId, body.expectedVersion, rules, body.advancedAcknowledged)) {
+            val result = if (schemes != null && body.schemes.isNotEmpty()) {
+                update.updateSchemes(identity.userId, body.expectedVersion, schemes, body.advancedAcknowledged)
+            } else {
+                update.update(identity.userId, body.expectedVersion, requireNotNull(rules), body.advancedAcknowledged)
+            }
+            when (result) {
                 is AuthenticationPolicyResult.Policy -> call.respond(result.value.toBody())
                 AuthenticationPolicyResult.Forbidden -> call.respond(
                     Refused(AuthenticationPolicyFailure.Forbidden, problems),
@@ -55,9 +66,31 @@ internal class UpdateAuthenticationPolicyHandler(
         }
     }.getOrNull()
 
+    private fun List<AuthenticationSchemeBody>.toSchemesOrNull(): List<AuthenticationScheme>? = runCatching {
+        map { scheme ->
+            AuthenticationScheme(
+                id = scheme.id,
+                action = AuthenticationAction.valueOf(scheme.action),
+                requiredTokens = scheme.requiredTokens.map(AuthenticationTokenKind::valueOf).toSet(),
+                assuranceRank = scheme.assuranceRank,
+                enabled = scheme.enabled,
+            )
+        }
+    }.getOrNull()
+
     private fun AuthenticationPolicy.toBody(): AuthenticationPolicyBody = AuthenticationPolicyBody(
-        version,
-        PrimaryMethod.entries.mapNotNull { rules[it] }.map { rule ->
+        version = version,
+        schemes = schemes.map { scheme ->
+            AuthenticationSchemeBody(
+                scheme.id,
+                scheme.action.name,
+                scheme.requiredTokens.map(AuthenticationTokenKind::name),
+                scheme.assuranceRank,
+                scheme.enabled,
+            )
+        },
+        advancedAcknowledged = advancedAcknowledged,
+        rules = PrimaryMethod.entries.mapNotNull { rules[it] }.map { rule ->
             AuthenticationPolicyRuleBody(
                 rule.primary.name,
                 rule.enabled,
@@ -65,6 +98,5 @@ internal class UpdateAuthenticationPolicyHandler(
                 rule.allowedMethods.map(SecondFactorKind::name),
             )
         },
-        advancedAcknowledged,
     )
 }

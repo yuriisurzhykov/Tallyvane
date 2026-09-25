@@ -29,6 +29,9 @@ public interface ConfirmSecondFactorEnrollmentUseCase : UseCase {
     ) : ConfirmSecondFactorEnrollmentUseCase {
         override suspend fun confirm(request: ConfirmSecondFactorEnrollmentRequest): Boolean =
             transactions.inTransaction {
+                // Starting enrollment requires the account's strongest available action proof.
+                // Here the signed-in session and proof of possession of the new factor complete
+                // that same enrollment flow; requiring another one-use proof would prompt twice.
                 Verdict.Commit(registry.find(request.kind)?.confirmEnrollment(request.userId, request.code) ?: false)
             }
     }

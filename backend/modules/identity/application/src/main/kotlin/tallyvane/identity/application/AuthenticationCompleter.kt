@@ -5,7 +5,9 @@ import tallyvane.identity.application.port.PendingAuthenticationStore
 import tallyvane.identity.application.secondfactor.SecondFactorMethodRegistry
 import tallyvane.identity.contract.Principal
 import tallyvane.identity.domain.outcome.AuthenticationOutcome
+import tallyvane.identity.domain.secondfactor.AuthenticationAction
 import tallyvane.identity.domain.secondfactor.AuthenticationPolicy
+import tallyvane.identity.domain.secondfactor.AuthenticationTokenKind
 import tallyvane.identity.domain.secondfactor.PendingAuthentication
 import tallyvane.identity.domain.secondfactor.PendingAuthenticationId
 import tallyvane.identity.domain.secondfactor.PrimaryMethod
@@ -48,56 +50,33 @@ internal interface AuthenticationCompleter {
             primaryMethod: PrimaryMethod,
         ): SignInOutcome {
             val policy = policies?.current() ?: AuthenticationPolicy.defaults()
-            val rule = policy.rule(primaryMethod)
             val enrolled = registry.enrolledFor(userId)
-            return when {
-                !rule.enabled -> invalidCredential()
-                rule.requirement == tallyvane.identity.domain.secondfactor.MfaRequirement.DISABLED ->
-                    issueSession(userId, device)
-                else -> evaluateFactors(userId, device, primaryMethod, policy, rule, enrolled)
+            val primaryToken = primaryMethod.toAuthenticationToken()
+            val availableTokens = enrolled.mapTo(mutableSetOf()) { it.toAuthenticationToken() }.apply {
+                add(primaryToken)
             }
-        }
-
-        private suspend fun evaluateFactors(
-            userId: UserId,
-            device: DeviceLabel,
-            primaryMethod: PrimaryMethod,
-            policy: AuthenticationPolicy,
-            rule: tallyvane.identity.domain.secondfactor.AuthenticationRule,
-            enrolled: Set<SecondFactorKind>,
-        ): SignInOutcome {
-            val permitted = rule.available(enrolled, policy.advancedAcknowledged)
-            return if (permitted.isEmpty()) {
-                enrollmentOrSession(userId, device, primaryMethod, rule, enrolled, policy)
+            val signInSchemes = policy.schemesFor(AuthenticationAction.SIGN_IN).filter { primaryToken in it.requiredTokens }
+            val candidates = if (enrolled.isEmpty()) {
+                policy.strongest(AuthenticationAction.SIGN_IN, availableTokens, primaryToken)
             } else {
-                SignInOutcome.NotIssued(requireSecondFactor(userId, device, permitted))
+                val factorSchemes = signInSchemes.filter { scheme ->
+                    scheme.requiredTokens.any(AuthenticationTokenKind::isSecondFactor) &&
+                        scheme.isSatisfiedBy(availableTokens)
+                }
+                val maximumRank = factorSchemes.maxOfOrNull { it.assuranceRank }
+                if (maximumRank == null) emptyList() else factorSchemes.filter { it.assuranceRank == maximumRank }
+            }
+            if (candidates.isEmpty()) return invalidCredential()
+
+            val requiredFactors = candidates.flatMapTo(mutableSetOf()) { scheme ->
+                scheme.requiredTokens.filter(AuthenticationTokenKind::isSecondFactor).map { it.toSecondFactorKind() }
+            }
+            return if (requiredFactors.isEmpty()) {
+                issueSession(userId, device)
+            } else {
+                SignInOutcome.NotIssued(requireSecondFactor(userId, device, requiredFactors, policy.version))
             }
         }
-
-        private suspend fun enrollmentOrSession(
-            userId: UserId,
-            device: DeviceLabel,
-            primaryMethod: PrimaryMethod,
-            rule: tallyvane.identity.domain.secondfactor.AuthenticationRule,
-            enrolled: Set<SecondFactorKind>,
-            policy: AuthenticationPolicy,
-        ): SignInOutcome {
-            val required = rule.allowedMethods.intersect(registry.enrollmentKinds())
-            return when {
-                requiresEnrollment(rule.requirement, enrolled) && required.isEmpty() -> invalidCredential()
-                requiresEnrollment(rule.requirement, enrolled) -> SignInOutcome.NotIssued(
-                    requireEnrollment(userId, device, primaryMethod, required, policy.version),
-                )
-                else -> issueSession(userId, device)
-            }
-        }
-
-        private fun requiresEnrollment(
-            requirement: tallyvane.identity.domain.secondfactor.MfaRequirement,
-            enrolled: Set<SecondFactorKind>,
-        ): Boolean = requirement == tallyvane.identity.domain.secondfactor.MfaRequirement.REQUIRED ||
-            requirement == tallyvane.identity.domain.secondfactor.MfaRequirement.IF_ENROLLED &&
-            enrolled.isNotEmpty()
 
         private fun invalidCredential() = SignInOutcome.NotIssued(AuthenticationOutcome.InvalidCredential)
 
@@ -106,27 +85,11 @@ internal interface AuthenticationCompleter {
             return SignInOutcome.Issued(sessions.issue(principal, device))
         }
 
-        private suspend fun requireEnrollment(
-            userId: UserId,
-            device: DeviceLabel,
-            primaryMethod: PrimaryMethod,
-            required: Set<SecondFactorKind>,
-            policyVersion: Long,
-        ): AuthenticationOutcome.RequiresEnrollment {
-            val now = clock.now()
-            val pending = PendingAuthentication(
-                PendingAuthenticationId(ids.next()), userId, device, required, now,
-                now + pendingAuthenticationTtl, requiresEnrollment = true,
-                primaryMethod = primaryMethod, policyVersion = policyVersion,
-            )
-            pendingAuthentications.save(pending)
-            return AuthenticationOutcome.RequiresEnrollment(pending.id, primaryMethod, required)
-        }
-
         private suspend fun requireSecondFactor(
             userId: UserId,
             device: DeviceLabel,
             enrolled: Set<SecondFactorKind>,
+            policyVersion: Long,
         ): AuthenticationOutcome.RequiresSecondFactor {
             val now = clock.now()
             val pending = PendingAuthentication(
@@ -136,9 +99,29 @@ internal interface AuthenticationCompleter {
                 availableMethods = enrolled,
                 createdAt = now,
                 expiresAt = now + pendingAuthenticationTtl,
+                policyVersion = policyVersion,
             )
             pendingAuthentications.save(pending)
             return AuthenticationOutcome.RequiresSecondFactor(pending.id, pending.availableMethods)
+        }
+
+        private fun PrimaryMethod.toAuthenticationToken(): AuthenticationTokenKind = when (this) {
+            PrimaryMethod.PASSWORD -> AuthenticationTokenKind.PASSWORD
+            PrimaryMethod.GOOGLE -> AuthenticationTokenKind.GOOGLE
+            PrimaryMethod.EMAIL_CODE -> AuthenticationTokenKind.EMAIL_SIGN_IN_CODE
+        }
+
+        private fun SecondFactorKind.toAuthenticationToken(): AuthenticationTokenKind = when (this) {
+            SecondFactorKind.TOTP -> AuthenticationTokenKind.TOTP
+            SecondFactorKind.EMAIL_OTP -> AuthenticationTokenKind.EMAIL_FACTOR_CODE
+            SecondFactorKind.BACKUP_CODE -> AuthenticationTokenKind.BACKUP_CODE
+        }
+
+        private fun AuthenticationTokenKind.toSecondFactorKind(): SecondFactorKind = when (this) {
+            AuthenticationTokenKind.TOTP -> SecondFactorKind.TOTP
+            AuthenticationTokenKind.EMAIL_FACTOR_CODE -> SecondFactorKind.EMAIL_OTP
+            AuthenticationTokenKind.BACKUP_CODE -> SecondFactorKind.BACKUP_CODE
+            else -> error("$this is not a second-factor token")
         }
     }
 }

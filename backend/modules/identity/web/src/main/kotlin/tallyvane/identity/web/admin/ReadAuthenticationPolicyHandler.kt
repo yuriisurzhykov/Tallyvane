@@ -6,6 +6,7 @@ import io.ktor.server.routing.get
 import tallyvane.identity.application.secondfactor.AuthenticationPolicyResult
 import tallyvane.identity.application.secondfactor.ReadAuthenticationPolicyUseCase
 import tallyvane.identity.domain.secondfactor.AuthenticationPolicy
+import tallyvane.identity.domain.secondfactor.AuthenticationTokenKind
 import tallyvane.identity.domain.secondfactor.PrimaryMethod
 import tallyvane.identity.domain.secondfactor.SecondFactorKind
 import tallyvane.identity.web.routing.AuthHandler
@@ -31,8 +32,18 @@ internal class ReadAuthenticationPolicyHandler(
     }
 
     private fun AuthenticationPolicy.toBody(): AuthenticationPolicyBody = AuthenticationPolicyBody(
-        version,
-        PrimaryMethod.entries.mapNotNull { rules[it] }.map { rule ->
+        version = version,
+        schemes = schemes.map { scheme ->
+            AuthenticationSchemeBody(
+                scheme.id,
+                scheme.action.name,
+                scheme.requiredTokens.map(AuthenticationTokenKind::name),
+                scheme.assuranceRank,
+                scheme.enabled,
+            )
+        },
+        advancedAcknowledged = advancedAcknowledged,
+        rules = PrimaryMethod.entries.mapNotNull { rules[it] }.map { rule ->
             AuthenticationPolicyRuleBody(
                 rule.primary.name,
                 rule.enabled,
@@ -40,6 +51,5 @@ internal class ReadAuthenticationPolicyHandler(
                 rule.allowedMethods.map(SecondFactorKind::name),
             )
         },
-        advancedAcknowledged,
     )
 }

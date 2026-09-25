@@ -7,7 +7,6 @@ import io.ktor.server.routing.Route
 import io.ktor.server.routing.post
 import tallyvane.identity.application.secondfactor.ConfirmSecondFactorEnrollmentRequest
 import tallyvane.identity.application.secondfactor.ConfirmSecondFactorEnrollmentUseCase
-import tallyvane.identity.application.secondfactor.ReadSecondFactorStatusUseCase
 import tallyvane.identity.domain.secondfactor.SecondFactorKind
 import tallyvane.identity.web.routing.AuthHandler
 import tallyvane.identity.web.shared.CurrentPrincipal
@@ -25,15 +24,10 @@ internal class ConfirmSecondFactorEnrollmentHandler(
     private val currentPrincipal: CurrentPrincipal,
     private val secondFactorProblems: SecondFactorProblems,
     private val validationProblems: RequestValidationProblems,
-    private val status: ReadSecondFactorStatusUseCase,
 ) : AuthHandler {
     override fun install(route: Route) {
         route.post("/mfa/confirm") {
             val identity = currentPrincipal.resolve(call) ?: return@post
-            if (!status.read(identity.userId, identity.sessionId).recentlyAuthenticated) {
-                call.respond(Refused(SecondFactorFailure.ReauthenticationRequired, secondFactorProblems))
-                return@post
-            }
             val body = call.receive<ConfirmMfaRequestBody>()
             val validation = FieldValidation.Accumulator()
             val kind = validation.field("kind") { SecondFactorKind.valueOf(body.kind.uppercase()) }
@@ -43,7 +37,9 @@ internal class ConfirmSecondFactorEnrollmentHandler(
                 return@post
             }
 
-            val confirmed = useCase.confirm(ConfirmSecondFactorEnrollmentRequest(identity.userId, kind!!, body.code))
+            val confirmed = useCase.confirm(
+                ConfirmSecondFactorEnrollmentRequest(identity.userId, kind!!, body.code),
+            )
             if (confirmed) {
                 call.respond(HttpStatusCode.NoContent)
             } else {

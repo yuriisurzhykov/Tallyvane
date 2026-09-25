@@ -20,6 +20,7 @@ import tallyvane.identity.application.password.SignInWithPasswordUseCase
 import tallyvane.identity.application.password.VerifyPasswordUseCase
 import tallyvane.identity.application.port.AuthenticationPolicyAuditStore
 import tallyvane.identity.application.port.AuthenticationPolicyStore
+import tallyvane.identity.application.port.AuthenticationActionProofStore
 import tallyvane.identity.application.port.BackupCodeStore
 import tallyvane.identity.application.port.CredentialRepository
 import tallyvane.identity.application.port.EmailMfaEnrollmentStore
@@ -35,6 +36,7 @@ import tallyvane.identity.application.port.TokenHasher
 import tallyvane.identity.application.port.TotpEnrollmentStore
 import tallyvane.identity.application.port.UserRepository
 import tallyvane.identity.application.secondfactor.AuthenticationPolicyAdministration
+import tallyvane.identity.application.secondfactor.AuthorizeAuthenticationActionUseCase
 import tallyvane.identity.application.secondfactor.BeginEmailMfaEnrollmentUseCase
 import tallyvane.identity.application.secondfactor.BeginRequiredFactorEnrollmentUseCase
 import tallyvane.identity.application.secondfactor.ConfirmEmailMfaEnrollmentUseCase
@@ -91,6 +93,7 @@ public class IdentityUseCases(
     adminEmails: Set<String> = emptySet(),
     private val totpEnrollmentStore: TotpEnrollmentStore,
     private val backupCodeStore: BackupCodeStore,
+    private val authenticationActionProofStore: AuthenticationActionProofStore? = null,
 ) {
     private val registry = SecondFactorMethodRegistry.Default(factors)
     private val issuer = SessionIssuer.Default(
@@ -112,6 +115,11 @@ public class IdentityUseCases(
         pendingTtl,
         authenticationPolicyStore,
     )
+    private val actionProofRequirement = authenticationActionProofStore?.let {
+        tallyvane.identity.application.secondfactor.AuthenticationActionProofRequirement(
+            it, authenticationPolicyStore, sessions, hashes, clock,
+        )
+    }
 
     public val register: RegisterWithPasswordUseCase =
         RegisterWithPasswordUseCase.Register(users, credentials, passwords, transactions, ids, clock)
@@ -126,6 +134,7 @@ public class IdentityUseCases(
         credentials,
         passwords,
         transactions,
+        actionProofRequirement,
     )
     public val verifyCurrentPassword: VerifyPasswordUseCase =
         VerifyPasswordUseCase.Verify(users, credentials, passwords)
@@ -138,6 +147,13 @@ public class IdentityUseCases(
         clock,
         transactions,
     )
+    public val authorizeAuthenticationAction: AuthorizeAuthenticationActionUseCase? =
+        authenticationActionProofStore?.let { proofStore ->
+            AuthorizeAuthenticationActionUseCase.Authorize(
+                users, credentials, passwords, googleOAuthGateway, emailChallenges, registry,
+                authenticationPolicyStore, proofStore, sessions, tokens, hashes, clock, transactions,
+            )
+        }
     public val signInWithGoogleOAuth: SignInWithGoogleOAuthUseCase? = googleOAuthGateway?.let { gateway ->
         SignInWithGoogleOAuthUseCase.SignIn(
             gateway,
@@ -153,15 +169,16 @@ public class IdentityUseCases(
         )
     }
     public val linkGoogleAccount: LinkGoogleAccountUseCase? = googleOAuthGateway?.let { gateway ->
-        LinkGoogleAccountUseCase.Link(gateway, users, credentials, transactions)
+        LinkGoogleAccountUseCase.Link(gateway, users, credentials, transactions, actionProofRequirement)
     }
     public val unlinkGoogleAccount: UnlinkGoogleAccountUseCase = UnlinkGoogleAccountUseCase.Unlink(
         users,
         credentials,
-        passwords,
         transactions,
+        actionProofRequirement,
+        authenticationPolicyStore,
     )
-    public val readGoogleAccountLink: ReadGoogleAccountLinkUseCase = ReadGoogleAccountLinkUseCase.Read(credentials)
+    public val readGoogleAccountLink: ReadGoogleAccountLinkUseCase = ReadGoogleAccountLinkUseCase.Read(credentials, transactions)
     public val verifyRegistrationEmail: VerifyRegistrationEmailUseCase? = emailChallenges?.let { challenges ->
         VerifyRegistrationEmailUseCase.Verify(users, challenges, transactions)
     }
@@ -186,7 +203,8 @@ public class IdentityUseCases(
         attemptLimit,
         attemptWindow,
     )
-    public val enroll: EnrollSecondFactorUseCase = EnrollSecondFactorUseCase.Enroll(registry, transactions)
+    public val enroll: EnrollSecondFactorUseCase =
+        EnrollSecondFactorUseCase.Enroll(registry, transactions, actionProofRequirement)
     public val beginRequiredFactorEnrollment: BeginRequiredFactorEnrollmentUseCase =
         BeginRequiredFactorEnrollmentUseCase.Begin(pending, registry, clock, transactions)
     public val confirmRequiredFactorEnrollment: ConfirmRequiredFactorEnrollmentUseCase =
@@ -199,6 +217,7 @@ public class IdentityUseCases(
         emailMfaEnrollmentStore,
         backupCodeStore,
         clock,
+        transactions,
     )
     public val disableSecondFactor: DisableSecondFactorUseCase = DisableSecondFactorUseCase.Disable(
         sessions,
@@ -208,15 +227,18 @@ public class IdentityUseCases(
         authenticationPolicyStore,
         clock,
         transactions,
+        actionProofRequirement,
     )
     public val issueBackupCodes: IssueBackupCodesUseCase? = backupCodes?.let {
-        IssueBackupCodesUseCase.Issue(users, credentials, passwords, it, transactions)
+        IssueBackupCodesUseCase.Issue(it, transactions, actionProofRequirement)
     }
     public val beginEmailMfaEnrollment: BeginEmailMfaEnrollmentUseCase? = emailChallenges?.let {
-        BeginEmailMfaEnrollmentUseCase.Begin(users, credentials, passwords, it, transactions)
+        BeginEmailMfaEnrollmentUseCase.Begin(users, it, transactions, actionProofRequirement)
     }
     public val confirmEmailMfaEnrollment: ConfirmEmailMfaEnrollmentUseCase? = emailChallenges?.let {
-        ConfirmEmailMfaEnrollmentUseCase.Confirm(users, emailMfaEnrollmentStore, it, transactions)
+        ConfirmEmailMfaEnrollmentUseCase.Confirm(
+            users, emailMfaEnrollmentStore, it, transactions,
+        )
     }
     public val requestEmailMfaCode: RequestEmailMfaCodeUseCase? = emailChallenges?.let {
         RequestEmailMfaCodeUseCase.Request(pending, users, it, clock, transactions)

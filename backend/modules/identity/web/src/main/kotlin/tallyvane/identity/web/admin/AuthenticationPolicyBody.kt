@@ -5,6 +5,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 internal data class AuthenticationPolicyBody(
     val version: Long,
-    val rules: List<AuthenticationPolicyRuleBody>,
+    val schemes: List<AuthenticationSchemeBody>,
     val advancedAcknowledged: Boolean,
+    val rules: List<AuthenticationPolicyRuleBody> = emptyList(),
 )

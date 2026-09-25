@@ -5,6 +5,7 @@ import tallyvane.identity.application.port.AuthenticationPolicyStore
 import tallyvane.identity.application.port.UserRepository
 import tallyvane.identity.domain.secondfactor.AuthenticationPolicy
 import tallyvane.identity.domain.secondfactor.AuthenticationRule
+import tallyvane.identity.domain.secondfactor.AuthenticationScheme
 import tallyvane.identity.domain.user.UserId
 import tallyvane.platform.kernel.Clock
 import tallyvane.platform.kernel.TransactionRunner
@@ -34,6 +35,23 @@ internal class AuthenticationPolicyAdministration(
         expectedVersion: Long,
         rules: List<AuthenticationRule>,
         advancedAcknowledged: Boolean,
+    ): AuthenticationPolicyResult = updatePolicy(actor, expectedVersion) {
+        AuthenticationPolicy(expectedVersion + 1, rules, advancedAcknowledged)
+    }
+
+    suspend fun updateSchemes(
+        actor: UserId,
+        expectedVersion: Long,
+        schemes: List<AuthenticationScheme>,
+        advancedAcknowledged: Boolean,
+    ): AuthenticationPolicyResult = updatePolicy(actor, expectedVersion) {
+        AuthenticationPolicy.fromSchemes(expectedVersion + 1, schemes, advancedAcknowledged)
+    }
+
+    private suspend fun updatePolicy(
+        actor: UserId,
+        expectedVersion: Long,
+        createReplacement: () -> AuthenticationPolicy,
     ): AuthenticationPolicyResult = transactions.inTransaction {
         val current = policies.current() ?: AuthenticationPolicy.defaults()
         if (!authorized(actor)) {
@@ -44,7 +62,7 @@ internal class AuthenticationPolicyAdministration(
             Verdict.Commit(AuthenticationPolicyResult.Conflict)
         } else {
             val replacement = try {
-                AuthenticationPolicy(expectedVersion + 1, rules, advancedAcknowledged)
+                createReplacement()
             } catch (_: IllegalArgumentException) {
                 audit.record(actor, "POLICY_UPDATE_INVALID", current.version, clock.now())
                 return@inTransaction Verdict.Commit(AuthenticationPolicyResult.Invalid)

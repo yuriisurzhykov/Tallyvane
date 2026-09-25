@@ -8,6 +8,8 @@ import tallyvane.identity.application.port.UserRepository
 import tallyvane.identity.domain.credential.Credential
 import tallyvane.identity.domain.outcome.AuthenticationOutcome
 import tallyvane.identity.domain.secondfactor.AuthenticationPolicy
+import tallyvane.identity.domain.secondfactor.AuthenticationAction
+import tallyvane.identity.domain.secondfactor.AuthenticationTokenKind
 import tallyvane.identity.domain.secondfactor.PrimaryMethod
 import tallyvane.identity.domain.session.DeviceLabel
 import tallyvane.identity.domain.user.User
@@ -54,8 +56,10 @@ internal interface GoogleSignInCompleter {
     ) : GoogleSignInCompleter {
         override suspend fun complete(identity: GoogleIdentity, device: DeviceLabel): SignInOutcome =
             transactions.inTransaction {
-                val googleEnabled = policies?.current()?.rule(PrimaryMethod.GOOGLE)?.enabled
-                    ?: AuthenticationPolicy.defaults().rule(PrimaryMethod.GOOGLE).enabled
+                val policy = policies?.current() ?: AuthenticationPolicy.defaults()
+                val googleEnabled = policy.schemesFor(AuthenticationAction.SIGN_IN).any {
+                    AuthenticationTokenKind.GOOGLE in it.requiredTokens
+                }
                 val userId = if (googleEnabled) findOrCreateUser(identity) else null
                 val outcome = if (userId == null) {
                     SignInOutcome.NotIssued(AuthenticationOutcome.InvalidCredential)

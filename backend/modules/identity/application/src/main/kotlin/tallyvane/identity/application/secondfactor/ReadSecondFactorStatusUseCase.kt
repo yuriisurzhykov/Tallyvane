@@ -8,7 +8,9 @@ import tallyvane.identity.domain.secondfactor.SecondFactorKind
 import tallyvane.identity.domain.session.SessionId
 import tallyvane.identity.domain.user.UserId
 import tallyvane.platform.kernel.Clock
+import tallyvane.platform.kernel.TransactionRunner
 import tallyvane.platform.kernel.UseCase
+import tallyvane.platform.kernel.Verdict
 import kotlin.time.Duration.Companion.minutes
 
 public interface ReadSecondFactorStatusUseCase : UseCase {
@@ -22,8 +24,9 @@ public interface ReadSecondFactorStatusUseCase : UseCase {
         private val emailMfa: EmailMfaEnrollmentStore,
         private val backupCodes: BackupCodeStore,
         private val clock: Clock,
+        private val transactions: TransactionRunner,
     ) : ReadSecondFactorStatusUseCase {
-        override suspend fun read(userId: UserId, sessionId: SessionId): Status {
+        override suspend fun read(userId: UserId, sessionId: SessionId): Status = transactions.inTransaction {
             val now = clock.now()
             val session = sessions.find(sessionId)?.takeIf { it.userId == userId && it.revokedAt == null }
             val enrolled = buildSet {
@@ -32,9 +35,11 @@ public interface ReadSecondFactorStatusUseCase : UseCase {
                 if (backupCodes.hasAny(userId)) add(SecondFactorKind.BACKUP_CODE)
             }
             val authenticatedAt = session?.reauthenticatedAt
-            return Status(
-                enrolled,
-                authenticatedAt != null && authenticatedAt <= now && now - authenticatedAt <= REAUTHENTICATION_WINDOW,
+            Verdict.Commit(
+                Status(
+                    enrolled,
+                    authenticatedAt != null && authenticatedAt <= now && now - authenticatedAt <= REAUTHENTICATION_WINDOW,
+                ),
             )
         }
 

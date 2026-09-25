@@ -50,6 +50,7 @@ internal interface AuthRoutes : RouteModule {
             googleOAuth?.let { oauth ->
                 route.get("/google/oauth/start") { oauth.start(call) }
                 route.post("/google/link/start") { oauth.startLink(call) }
+                route.post("/google/proof/start") { oauth.startActionProof(call) }
                 route.get("/google/reauth/start") { oauth.startReauthentication(call) }
                 route.post("/google/unlink") { oauth.unlink(call) }
                 route.get("/google/status") { oauth.status(call) }

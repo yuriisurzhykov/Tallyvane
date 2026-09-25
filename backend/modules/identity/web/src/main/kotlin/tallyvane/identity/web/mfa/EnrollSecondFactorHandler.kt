@@ -6,7 +6,6 @@ import io.ktor.server.routing.Route
 import io.ktor.server.routing.post
 import tallyvane.identity.application.secondfactor.EnrollSecondFactorRequest
 import tallyvane.identity.application.secondfactor.EnrollSecondFactorUseCase
-import tallyvane.identity.application.secondfactor.ReadSecondFactorStatusUseCase
 import tallyvane.identity.domain.secondfactor.SecondFactorKind
 import tallyvane.identity.web.routing.AuthHandler
 import tallyvane.identity.web.shared.CurrentPrincipal
@@ -24,12 +23,12 @@ internal class EnrollSecondFactorHandler(
     private val currentPrincipal: CurrentPrincipal,
     private val secondFactorProblems: SecondFactorProblems,
     private val validationProblems: RequestValidationProblems,
-    private val status: ReadSecondFactorStatusUseCase,
 ) : AuthHandler {
     override fun install(route: Route) {
         route.post("/mfa/enroll") {
             val identity = currentPrincipal.resolve(call) ?: return@post
-            if (!status.read(identity.userId, identity.sessionId).recentlyAuthenticated) {
+            val actionProof = call.request.headers["X-Action-Proof"]
+            if (actionProof.isNullOrBlank()) {
                 call.respond(Refused(SecondFactorFailure.ReauthenticationRequired, secondFactorProblems))
                 return@post
             }
@@ -42,7 +41,9 @@ internal class EnrollSecondFactorHandler(
                 return@post
             }
 
-            val payload = useCase.enroll(EnrollSecondFactorRequest(identity.userId, kind!!))
+            val payload = useCase.enroll(
+                EnrollSecondFactorRequest(identity.userId, kind!!, identity.sessionId, actionProof),
+            )
             if (payload == null) {
                 call.respond(Refused(SecondFactorFailure.UnsupportedMethod, secondFactorProblems))
             } else {

@@ -36,7 +36,10 @@ internal class ConfirmEmailMfaEnrollmentHandler(
                 call.respond(Refused(RequestValidationFailure.FieldsInvalid(errors), validationProblems))
                 return@post
             }
-            if (!confirm.confirm(identity.userId, challengeId!!, code!!)) {
+            if (!confirm.confirm(
+                    identity.userId, challengeId!!, code!!,
+                )
+            ) {
                 call.respond(Refused(SecondFactorFailure.WrongCode, factors))
             } else {
                 call.respond(HttpStatusCode.NoContent)

@@ -27,7 +27,10 @@ internal class DisableSecondFactorHandler(
             }
             when (
                 disable.disable(
-                    DisableSecondFactorUseCase.Request(identity.userId, identity.sessionId, kind, body.confirmed),
+                    DisableSecondFactorUseCase.Request(
+                        identity.userId, identity.sessionId, kind, body.confirmed,
+                        call.request.headers["X-Action-Proof"],
+                    ),
                 )
             ) {
                 DisableSecondFactorUseCase.Outcome.DISABLED -> call.respond(HttpStatusCode.NoContent)

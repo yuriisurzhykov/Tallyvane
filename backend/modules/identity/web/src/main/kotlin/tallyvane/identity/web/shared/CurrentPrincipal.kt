@@ -19,6 +19,7 @@ import tallyvane.platform.http.RequestPrincipal
  */
 internal interface CurrentPrincipal {
     suspend fun resolve(call: ApplicationCall): ResolvedIdentity?
+    fun peek(call: ApplicationCall): ResolvedIdentity? = null
 
     class Resolver(private val problems: SessionProblems) : CurrentPrincipal {
         /**
@@ -26,11 +27,16 @@ internal interface CurrentPrincipal {
          * `null` and returns rather than falling through to code that assumes a signed-in caller.
          */
         override suspend fun resolve(call: ApplicationCall): ResolvedIdentity? {
-            val resolved = RequestPrincipal.of(call) as? ResolvedPrincipal
-            if (resolved == null) {
+            val identity = peek(call)
+            if (identity == null) {
                 call.respond(Refused(SessionFailure.NotAuthenticated, problems))
                 return null
             }
+            return identity
+        }
+
+        override fun peek(call: ApplicationCall): ResolvedIdentity? {
+            val resolved = RequestPrincipal.of(call) as? ResolvedPrincipal ?: return null
             val user = resolved.principal as Principal.User
             return ResolvedIdentity(UserId(user.id.value), SessionId(resolved.sessionId.value))
         }

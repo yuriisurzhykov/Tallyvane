@@ -12,7 +12,11 @@ import tallyvane.platform.kernel.Verdict
 import kotlin.uuid.Uuid
 
 public interface ConfirmEmailMfaEnrollmentUseCase : UseCase {
-    public suspend fun confirm(userId: UserId, challengeId: Uuid, code: Secret): Boolean
+    public suspend fun confirm(
+        userId: UserId,
+        challengeId: Uuid,
+        code: Secret,
+    ): Boolean
 
     public class Confirm(
         private val users: UserRepository,
@@ -20,13 +24,17 @@ public interface ConfirmEmailMfaEnrollmentUseCase : UseCase {
         private val challenges: EmailChallenges,
         private val transactions: TransactionRunner,
     ) : ConfirmEmailMfaEnrollmentUseCase {
-        override suspend fun confirm(userId: UserId, challengeId: Uuid, code: Secret): Boolean =
+        override suspend fun confirm(
+            userId: UserId,
+            challengeId: Uuid,
+            code: Secret,
+        ): Boolean =
             transactions.inTransaction {
                 val user = users.findById(userId)
                 val accepted = user != null &&
                     user.disabledAt == null &&
                     user.emailVerified &&
-                    challenges.verify(
+                    challenges.verifyInCurrentTransaction(
                         challengeId,
                         user.email,
                         EmailChallengePurpose.MFA,
@@ -37,7 +45,7 @@ public interface ConfirmEmailMfaEnrollmentUseCase : UseCase {
                     enrollment.enroll(userId)
                     Verdict.Commit(true)
                 } else {
-                    Verdict.Rollback(false)
+                    Verdict.Commit(false)
                 }
             }
     }

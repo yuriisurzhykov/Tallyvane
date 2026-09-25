@@ -103,7 +103,7 @@ public interface SecondFactorMethod {
             proof.challengeId?.let { challengeId ->
                 proof.binding?.let { binding ->
                     users.findById(userId)?.takeIf { it.disabledAt == null && it.emailVerified }?.let { user ->
-                        challenges.verify(
+                        challenges.verifyInCurrentTransaction(
                             challengeId,
                             user.email,
                             EmailChallengePurpose.MFA,

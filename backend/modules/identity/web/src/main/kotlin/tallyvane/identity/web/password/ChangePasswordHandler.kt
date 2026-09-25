@@ -14,7 +14,6 @@ import tallyvane.identity.web.shared.FieldValidation
 import tallyvane.identity.web.shared.RequestValidationFailure
 import tallyvane.identity.web.shared.RequestValidationProblems
 import tallyvane.platform.http.Refused
-import tallyvane.platform.kernel.Secret
 
 internal class ChangePasswordHandler(
     private val change: ChangePasswordUseCase,
@@ -27,18 +26,23 @@ internal class ChangePasswordHandler(
             val identity = currentPrincipal.resolve(call) ?: return@post
             val body = call.receive<ChangePasswordBody>()
             val validation = FieldValidation.Accumulator()
-            val current = validation.field("currentPassword") { Secret(body.currentPassword) }
             val next = validation.field("newPassword") {
                 val length = body.newPassword.codePointCount(0, body.newPassword.length)
                 require(length in 15..128) { "Use 15 to 128 characters." }
-                Secret(body.newPassword)
+                body.newPassword
             }
             val errors = validation.errorsOrNull()
             if (errors != null) {
                 call.respond(Refused(RequestValidationFailure.FieldsInvalid(errors), validationProblems))
                 return@post
             }
-            if (!change.change(identity.userId, current!!, next!!)) {
+            if (!change.change(
+                    identity.userId,
+                    identity.sessionId,
+                    call.request.headers["X-Action-Proof"],
+                    next!!,
+                )
+            ) {
                 call.respond(Refused(AuthenticationFailure.InvalidCredential, authenticationProblems))
             } else {
                 call.respond(HttpStatusCode.NoContent)

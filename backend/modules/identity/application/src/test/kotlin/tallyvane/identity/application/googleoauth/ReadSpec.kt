@@ -6,6 +6,7 @@ import tallyvane.identity.application.port.CredentialRepositoryFake
 import tallyvane.identity.domain.credential.Credential
 import tallyvane.identity.domain.credential.GoogleSubject
 import tallyvane.identity.domain.user.UserId
+import tallyvane.platform.kernel.TransactionRunnerFake
 import kotlin.uuid.Uuid
 
 class ReadSpec :
@@ -17,7 +18,8 @@ class ReadSpec :
                 it.save(linked, Credential.GoogleRecord(GoogleSubject("google-subject")))
             }
 
-            ReadGoogleAccountLinkUseCase.Read(credentials).isLinked(linked) shouldBe true
-            ReadGoogleAccountLinkUseCase.Read(credentials).isLinked(unlinked) shouldBe false
+            val reader = ReadGoogleAccountLinkUseCase.Read(credentials, TransactionRunnerFake())
+            reader.isLinked(linked) shouldBe true
+            reader.isLinked(unlinked) shouldBe false
         }
     })

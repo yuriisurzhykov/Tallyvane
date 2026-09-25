@@ -11,4 +11,5 @@ package tallyvane.identity.domain.token
 public enum class TokenKind(public val prefix: String) {
     ACCESS("access"),
     REFRESH("refresh"),
+    ACTION_PROOF("actionproof"),
 }

@@ -3,6 +3,7 @@ package tallyvane.identity.web.routing
 import tallyvane.identity.application.IdentityUseCases
 import tallyvane.identity.application.email.EmailChallenges
 import tallyvane.identity.web.admin.AuthenticationPolicyProblems
+import tallyvane.identity.web.admin.AuthenticationActionProofHandler
 import tallyvane.identity.web.admin.ReadAuthenticationPolicyHandler
 import tallyvane.identity.web.admin.ResetAccountMfaHandler
 import tallyvane.identity.web.admin.UpdateAuthenticationPolicyHandler
@@ -37,6 +38,7 @@ import tallyvane.identity.web.registration.ResendRegistrationEmailHandler
 import tallyvane.identity.web.registration.VerifyRegistrationEmailHandler
 import tallyvane.identity.web.revoke.RevokeSessionHandler
 import tallyvane.identity.web.session.ListSessionsHandler
+import tallyvane.identity.web.session.ReadCurrentSessionHandler
 import tallyvane.identity.web.session.RefreshSessionHandler
 import tallyvane.identity.web.session.SessionProblems
 import tallyvane.identity.web.shared.CurrentPrincipal
@@ -79,7 +81,7 @@ interface IdentityRoutesFactory {
                 cases.unlinkGoogleAccount,
                 cases.readGoogleAccountLink,
                 cases.reauthenticate,
-                cases.readSecondFactorStatus,
+                cases.authorizeAuthenticationAction,
                 services,
                 secure,
             )
@@ -132,7 +134,7 @@ interface IdentityRoutesFactory {
             unlinker: tallyvane.identity.application.googleoauth.UnlinkGoogleAccountUseCase,
             linkStatus: tallyvane.identity.application.googleoauth.ReadGoogleAccountLinkUseCase,
             reauthenticate: tallyvane.identity.application.password.ReauthenticateUseCase,
-            factorStatus: tallyvane.identity.application.secondfactor.ReadSecondFactorStatusUseCase,
+            authorizeAction: tallyvane.identity.application.secondfactor.AuthorizeAuthenticationActionUseCase?,
             services: Services,
             secure: Boolean,
         ): GoogleOAuthHandler.Redirector? = if (clientId == null || redirectUri == null) {
@@ -155,7 +157,7 @@ interface IdentityRoutesFactory {
                 tallyvane.identity.web.oauth.GoogleAccountProblems.Table(),
                 linkStatus,
                 reauthenticate,
-                factorStatus,
+                authorizeAction,
             )
         }
 
@@ -200,14 +202,12 @@ interface IdentityRoutesFactory {
                 services.current,
                 services.factors,
                 services.validation,
-                cases.readSecondFactorStatus,
             ),
             ConfirmSecondFactorEnrollmentHandler(
                 cases.confirm,
                 services.current,
                 services.factors,
                 services.validation,
-                cases.readSecondFactorStatus,
             ),
             RequiredFactorEnrollmentHandler(cases.beginRequiredFactorEnrollment, services.factors, services.validation),
             RequiredFactorConfirmationHandler(
@@ -225,31 +225,29 @@ interface IdentityRoutesFactory {
                 services.accessTtl,
                 services.refreshTtl,
             ),
+            ReadCurrentSessionHandler(services.current),
             ListSessionsHandler(cases.listSessions, services.current),
             RevokeSessionHandler(cases.revoke, services.current, services.sessions),
             LogoutHandler(cases.revoke, services.current, services.cookies),
             LogoutAllHandler(cases.revokeAll, services.current, services.cookies),
             ReauthenticatePasswordHandler(cases.reauthenticate, services.current, services.authentication),
+        ) + listOfNotNull(
+            cases.authorizeAuthenticationAction?.let {
+                AuthenticationActionProofHandler(it, services.current, services.validation)
+            },
         )
 
         private fun MutableList<AuthHandler>.addOptionalFactorHandlers(cases: IdentityUseCases, services: Services) {
             add(ReadSecondFactorStatusHandler(cases.readSecondFactorStatus, services.current))
             add(DisableSecondFactorHandler(cases.disableSecondFactor, services.current, services.factors))
             cases.issueBackupCodes?.let { issue ->
-                add(IssueBackupCodesHandler(issue, services.current, services.validation, services.authentication))
+                add(IssueBackupCodesHandler(issue, services.current, services.authentication))
             }
             cases.requestEmailMfaCode?.let { request ->
                 add(RequestEmailMfaCodeHandler(request, services.factors, services.validation))
             }
             cases.beginEmailMfaEnrollment?.let { begin ->
-                add(
-                    BeginEmailMfaEnrollmentHandler(
-                        begin,
-                        services.current,
-                        services.authentication,
-                        services.validation,
-                    ),
-                )
+                add(BeginEmailMfaEnrollmentHandler(begin, services.current))
             }
             cases.confirmEmailMfaEnrollment?.let { confirm ->
                 add(ConfirmEmailMfaEnrollmentHandler(confirm, services.current, services.factors, services.validation))

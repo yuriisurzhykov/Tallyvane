@@ -10,10 +10,9 @@ import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
 import tallyvane.identity.application.port.AuthenticationPolicyStore
 import tallyvane.identity.domain.secondfactor.AuthenticationPolicy
-import tallyvane.identity.domain.secondfactor.AuthenticationRule
-import tallyvane.identity.domain.secondfactor.MfaRequirement
-import tallyvane.identity.domain.secondfactor.PrimaryMethod
-import tallyvane.identity.domain.secondfactor.SecondFactorKind
+import tallyvane.identity.domain.secondfactor.AuthenticationAction
+import tallyvane.identity.domain.secondfactor.AuthenticationScheme
+import tallyvane.identity.domain.secondfactor.AuthenticationTokenKind
 
 /**
  * [AuthenticationPolicyStore] backed by the singleton policy row and its normalized rules.
@@ -23,10 +22,10 @@ internal class AuthenticationPolicyStoreOverExposed : AuthenticationPolicyStore 
         val metadata = AuthenticationPolicyTable.selectAll()
             .where { AuthenticationPolicyTable.id eq POLICY_ID }
             .singleOrNull() ?: return null
-        val rules = AuthenticationPolicyRulesTable.selectAll().map { it.toRule() }
-        return AuthenticationPolicy(
+        val schemes = AuthenticationPolicySchemesTable.selectAll().map { it.toScheme() }
+        return AuthenticationPolicy.fromSchemes(
             metadata[AuthenticationPolicyTable.version],
-            rules,
+            schemes,
             metadata[AuthenticationPolicyTable.advancedAcknowledged],
         )
     }
@@ -40,23 +39,27 @@ internal class AuthenticationPolicyStoreOverExposed : AuthenticationPolicyStore 
             it[advancedAcknowledged] = policy.advancedAcknowledged
         }
         if (changed != 1) return false
-        AuthenticationPolicyRulesTable.deleteWhere { AuthenticationPolicyRulesTable.primaryMethod neq "" }
-        policy.rules.values.forEach { rule ->
-            AuthenticationPolicyRulesTable.insert {
-                it[primaryMethod] = rule.primary.name
-                it[enabled] = rule.enabled
-                it[requirement] = rule.requirement.name
-                it[allowedMethods] = rule.allowedMethods.map(SecondFactorKind::name)
+        AuthenticationPolicySchemesTable.deleteWhere { AuthenticationPolicySchemesTable.id neq "" }
+        policy.schemes.forEach { scheme ->
+            AuthenticationPolicySchemesTable.insert {
+                it[id] = scheme.id
+                it[action] = scheme.action.name
+                it[requiredTokens] = scheme.requiredTokens.map(AuthenticationTokenKind::name)
+                it[assuranceRank] = scheme.assuranceRank
+                it[enabled] = scheme.enabled
             }
         }
         return true
     }
 
-    private fun ResultRow.toRule(): AuthenticationRule = AuthenticationRule(
-        primary = PrimaryMethod.valueOf(this[AuthenticationPolicyRulesTable.primaryMethod]),
-        enabled = this[AuthenticationPolicyRulesTable.enabled],
-        requirement = MfaRequirement.valueOf(this[AuthenticationPolicyRulesTable.requirement]),
-        allowedMethods = this[AuthenticationPolicyRulesTable.allowedMethods].map(SecondFactorKind::valueOf).toSet(),
+    private fun ResultRow.toScheme(): AuthenticationScheme = AuthenticationScheme(
+        id = this[AuthenticationPolicySchemesTable.id],
+        action = AuthenticationAction.valueOf(this[AuthenticationPolicySchemesTable.action]),
+        requiredTokens = this[AuthenticationPolicySchemesTable.requiredTokens].map {
+            AuthenticationTokenKind.valueOf(it)
+        }.toSet(),
+        assuranceRank = this[AuthenticationPolicySchemesTable.assuranceRank],
+        enabled = this[AuthenticationPolicySchemesTable.enabled],
     )
 
     private companion object {

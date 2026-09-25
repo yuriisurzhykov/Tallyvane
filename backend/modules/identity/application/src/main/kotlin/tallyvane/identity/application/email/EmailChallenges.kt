@@ -76,12 +76,20 @@ public class EmailChallenges(
         code: Secret,
         binding: String = "",
     ): Boolean = transactions.inTransaction {
+        Verdict.Commit(verifyInCurrentTransaction(id, email, purpose, code, binding))
+    }
+
+    /** Use only inside an existing [TransactionRunner] transaction. */
+    public suspend fun verifyInCurrentTransaction(
+        id: Uuid,
+        email: Email,
+        purpose: EmailChallengePurpose,
+        code: Secret,
+        binding: String = "",
+    ): Boolean {
         val challenge = store.find(id)
-        if (!matchesPurposeAndEmail(challenge, email, purpose) || challenge?.binding != binding) {
-            Verdict.Commit(false)
-        } else {
-            Verdict.Commit(store.consume(id, codes.hash(context(challenge), code), clock.now()))
-        }
+        return matchesPurposeAndEmail(challenge, email, purpose) && challenge?.binding == binding &&
+            store.consume(id, codes.hash(context(challenge), code), clock.now())
     }
 
     private fun context(challenge: EmailChallenge): String = "email:${challenge.purpose}:${challenge.id}"

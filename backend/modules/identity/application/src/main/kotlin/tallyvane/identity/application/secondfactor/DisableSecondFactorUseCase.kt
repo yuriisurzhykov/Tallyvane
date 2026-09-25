@@ -6,7 +6,8 @@ import tallyvane.identity.application.port.EmailMfaEnrollmentStore
 import tallyvane.identity.application.port.SessionStore
 import tallyvane.identity.application.port.TotpEnrollmentStore
 import tallyvane.identity.domain.secondfactor.AuthenticationPolicy
-import tallyvane.identity.domain.secondfactor.MfaRequirement
+import tallyvane.identity.domain.secondfactor.AuthenticationAction
+import tallyvane.identity.domain.secondfactor.AuthenticationTokenKind
 import tallyvane.identity.domain.secondfactor.SecondFactorKind
 import tallyvane.identity.domain.session.SessionId
 import tallyvane.identity.domain.user.UserId
@@ -14,7 +15,6 @@ import tallyvane.platform.kernel.Clock
 import tallyvane.platform.kernel.TransactionRunner
 import tallyvane.platform.kernel.UseCase
 import tallyvane.platform.kernel.Verdict
-import kotlin.time.Duration.Companion.minutes
 
 public interface DisableSecondFactorUseCase : UseCase {
     public suspend fun disable(request: Request): Outcome
@@ -24,6 +24,7 @@ public interface DisableSecondFactorUseCase : UseCase {
         public val sessionId: SessionId,
         public val kind: SecondFactorKind,
         public val confirmed: Boolean,
+        public val actionProof: String? = null,
     )
 
     public enum class Outcome {
@@ -42,14 +43,16 @@ public interface DisableSecondFactorUseCase : UseCase {
         private val policies: AuthenticationPolicyStore,
         private val clock: Clock,
         private val transactions: TransactionRunner,
+        private val actionProofs: AuthenticationActionProofRequirement? = null,
     ) : DisableSecondFactorUseCase {
         override suspend fun disable(request: Request): Outcome = transactions.inTransaction {
-            val now = clock.now()
-            val session = sessions.find(request.sessionId)
-            if (session?.userId != request.userId ||
-                session.revokedAt != null ||
-                !isRecentlyAuthenticated(session.reauthenticatedAt, now)
-            ) {
+            val activeSession = sessions.find(request.sessionId)?.let {
+                it.userId == request.userId && it.revokedAt == null
+            } == true
+            val authorized = activeSession && actionProofs?.consume(
+                request.actionProof, request.userId, request.sessionId, AuthenticationAction.MANAGE_SECOND_FACTORS,
+            ) == true
+            if (!authorized) {
                 return@inTransaction Verdict.Rollback(Outcome.REAUTHENTICATION_REQUIRED)
             }
             if (!request.confirmed) return@inTransaction Verdict.Rollback(Outcome.CONFIRMATION_REQUIRED)
@@ -58,12 +61,14 @@ public interface DisableSecondFactorUseCase : UseCase {
             if (request.kind !in enrolled) return@inTransaction Verdict.Rollback(Outcome.NOT_ENROLLED)
             val policy = policies.current() ?: AuthenticationPolicy.defaults()
             val remaining = enrolled - request.kind
-            val leavesRequiredSchemeUnusable = policy.rules.values.any { rule ->
-                rule.enabled &&
-                    rule.requirement == MfaRequirement.REQUIRED &&
-                    rule.available(remaining, policy.advancedAcknowledged).isEmpty()
+            if (remaining.isNotEmpty()) {
+                val remainingTokens = remaining.mapTo(mutableSetOf(), ::toToken)
+                val canCompleteSignIn = policy.schemesFor(AuthenticationAction.SIGN_IN).any { scheme ->
+                    scheme.requiredTokens.any(AuthenticationTokenKind::isSecondFactor) &&
+                        scheme.requiredTokens.any(remainingTokens::contains)
+                }
+                if (!canCompleteSignIn) return@inTransaction Verdict.Rollback(Outcome.REQUIRED_BY_POLICY)
             }
-            if (leavesRequiredSchemeUnusable) return@inTransaction Verdict.Rollback(Outcome.REQUIRED_BY_POLICY)
 
             when (request.kind) {
                 SecondFactorKind.TOTP -> totp.delete(request.userId)
@@ -79,11 +84,10 @@ public interface DisableSecondFactorUseCase : UseCase {
             if (backupCodes.hasAny(userId)) add(SecondFactorKind.BACKUP_CODE)
         }
 
-        private fun isRecentlyAuthenticated(authenticatedAt: kotlin.time.Instant?, now: kotlin.time.Instant): Boolean =
-            authenticatedAt != null && authenticatedAt <= now && now - authenticatedAt <= REAUTHENTICATION_WINDOW
-
-        private companion object {
-            val REAUTHENTICATION_WINDOW = 5.minutes
+        private fun toToken(kind: SecondFactorKind): AuthenticationTokenKind = when (kind) {
+            SecondFactorKind.TOTP -> AuthenticationTokenKind.TOTP
+            SecondFactorKind.EMAIL_OTP -> AuthenticationTokenKind.EMAIL_FACTOR_CODE
+            SecondFactorKind.BACKUP_CODE -> AuthenticationTokenKind.BACKUP_CODE
         }
     }
 }

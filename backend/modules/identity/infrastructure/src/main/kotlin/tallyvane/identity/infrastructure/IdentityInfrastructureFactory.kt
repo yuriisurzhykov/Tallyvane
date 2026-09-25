@@ -20,6 +20,7 @@ import tallyvane.identity.infrastructure.googleoauth.GoogleOAuthGatewayOverHttp
 import tallyvane.identity.infrastructure.password.Argon2PasswordHasher
 import tallyvane.identity.infrastructure.persistence.AuthenticationPolicyAuditStoreOverExposed
 import tallyvane.identity.infrastructure.persistence.AuthenticationPolicyStoreOverExposed
+import tallyvane.identity.infrastructure.persistence.AuthenticationActionProofStoreOverExposed
 import tallyvane.identity.infrastructure.persistence.BackupCodeStoreOverExposed
 import tallyvane.identity.infrastructure.persistence.CredentialRepositoryOverExposed
 import tallyvane.identity.infrastructure.persistence.EmailChallengeStoreOverExposed
@@ -102,6 +103,7 @@ public class IdentityInfrastructureFactory {
             accessTtl, refreshIdleTtl, pendingTtl, attemptLimit, attemptWindow, googleOAuthGateway, emailChallenges,
             backupCodes, emailMfaEnrollmentStore, AuthenticationPolicyStoreOverExposed(),
             AuthenticationPolicyAuditStoreOverExposed(), adminEmails, totpEnrollments, backupCodeStore,
+            AuthenticationActionProofStoreOverExposed(),
         )
     }
 
