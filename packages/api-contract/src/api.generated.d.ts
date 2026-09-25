@@ -172,8 +172,25 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Reauthenticate and begin explicitly linking a Google account */
+        /** Begin linking Google after action proof */
         post: operations["startGoogleAccountLink"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/google/proof/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start a Google proof for an available highest-rank account-action scheme */
+        post: operations["startGoogleActionProof"];
         delete?: never;
         options?: never;
         head?: never;
@@ -223,7 +240,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Reauthenticate and unlink Google when another sign-in method remains */
+        /** Unlink Google after action proof when another sign-in method remains */
         post: operations["unlinkGoogleAccount"];
         delete?: never;
         options?: never;
@@ -364,7 +381,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Change the signed-in user's password after re-entering the current password */
+        /** Change the signed-in user's password after proving the configured change-credential scheme */
         post: operations["changePassword"];
         delete?: never;
         options?: never;
@@ -464,7 +481,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Read the current account's enrolled factors and recent verification state */
+        /** Read the current account's enrolled factors */
         get: operations["readSecondFactorStatus"];
         put?: never;
         post?: never;
@@ -483,7 +500,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Remove an enrolled factor after recent reauthentication and explicit confirmation */
+        /** Remove an enrolled factor after action proof and explicit confirmation */
         post: operations["disableSecondFactor"];
         delete?: never;
         options?: never;
@@ -500,7 +517,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Replace recovery codes after confirming the current password */
+        /** Replace recovery codes after a one-use action proof */
         post: operations["replaceBackupCodes"];
         delete?: never;
         options?: never;
@@ -534,7 +551,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Reauthenticate and send an email factor enrollment code */
+        /** Send an email factor enrollment code after action proof */
         post: operations["beginEmailMfaEnrollment"];
         delete?: never;
         options?: never;
@@ -679,6 +696,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/account/action-proof/email-code": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send an email proof code for the selected account action */
+        post: operations["requestAuthenticationActionEmailCode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/account/action-proof/options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read the strongest authentication schemes available for an account action */
+        get: operations["readAuthenticationActionProofOptions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/account/action-proof": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Verify the strongest configured proof scheme for an account action */
+        post: operations["authorizeAuthenticationAction"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Confirm that the request has a valid current session */
+        get: operations["readCurrentSession"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/sessions": {
         parameters: {
             query?: never;
@@ -812,12 +897,50 @@ export interface components {
         };
         AuthenticationPolicy: {
             version: number;
-            rules: components["schemas"]["AuthenticationPolicyRule"][];
+            schemes: components["schemas"]["AuthenticationScheme"][];
+            rules?: components["schemas"]["AuthenticationPolicyRule"][];
             advanced_acknowledged: boolean;
+        };
+        AuthenticationScheme: {
+            id: string;
+            /** @enum {string} */
+            action: "SIGN_IN" | "CHANGE_PRIMARY_CREDENTIAL" | "MANAGE_SECOND_FACTORS";
+            required_tokens: ("PASSWORD" | "GOOGLE" | "EMAIL_SIGN_IN_CODE" | "TOTP" | "EMAIL_FACTOR_CODE" | "BACKUP_CODE")[];
+            assurance_rank: number;
+            enabled: boolean;
+        };
+        AuthenticationActionProofRequest: {
+            /** @enum {string} */
+            action: "CHANGE_PRIMARY_CREDENTIAL" | "MANAGE_SECOND_FACTORS";
+            tokens: components["schemas"]["PresentedAuthenticationToken"][];
+        };
+        AuthenticationActionEmailCodeRequest: {
+            /** @enum {string} */
+            action: "CHANGE_PRIMARY_CREDENTIAL" | "MANAGE_SECOND_FACTORS";
+            /** @enum {string} */
+            kind: "EMAIL_SIGN_IN_CODE" | "EMAIL_FACTOR_CODE";
+        };
+        PresentedAuthenticationToken: {
+            /** @enum {string} */
+            kind: "PASSWORD" | "GOOGLE" | "EMAIL_SIGN_IN_CODE" | "TOTP" | "EMAIL_FACTOR_CODE" | "BACKUP_CODE";
+            value: string;
+            /** Format: uuid */
+            challenge_id?: string;
+            code_verifier?: string;
+            /** Format: uri */
+            redirect_uri?: string;
+        };
+        AuthenticationActionProof: {
+            proof: string;
+            scheme_id: string;
+            assurance_rank: number;
+            /** Format: date-time */
+            expires_at: string;
         };
         UpdateAuthenticationPolicy: {
             expected_version: number;
-            rules: components["schemas"]["AuthenticationPolicyRule"][];
+            schemes: components["schemas"]["AuthenticationScheme"][];
+            rules?: components["schemas"]["AuthenticationPolicyRule"][];
             advanced_acknowledged: boolean;
         };
         Problem: {
@@ -883,7 +1006,10 @@ export interface components {
             };
         };
     };
-    parameters: never;
+    parameters: {
+        /** @description Short-lived, single-use proof created for this action and active session. */
+        AuthenticationActionProof: string;
+    };
     requestBodies: never;
     headers: {
         /**
@@ -1105,7 +1231,7 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
-                    password: string;
+                    action_proof: string;
                 };
             };
         };
@@ -1122,6 +1248,38 @@ export interface operations {
                     };
                 };
             };
+            default: components["responses"]["Problem"];
+        };
+    };
+    startGoogleActionProof: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    action: "CHANGE_PRIMARY_CREDENTIAL" | "MANAGE_SECOND_FACTORS";
+                };
+            };
+        };
+        responses: {
+            /** @description Open the URL in a popup; the checked callback delivers a code to the same-origin opener. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uri */
+                        url: string;
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
             default: components["responses"]["Problem"];
         };
     };
@@ -1173,17 +1331,14 @@ export interface operations {
     unlinkGoogleAccount: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description Short-lived, single-use proof created for this action and active session. */
+                "X-Action-Proof": components["parameters"]["AuthenticationActionProof"];
+            };
             path?: never;
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": {
-                    password: string;
-                };
-            };
-        };
+        requestBody?: never;
         responses: {
             /** @description The Google sign-in method was removed. */
             204: {
@@ -1443,14 +1598,16 @@ export interface operations {
     changePassword: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description Short-lived, single-use proof created for this action and active session. */
+                "X-Action-Proof": components["parameters"]["AuthenticationActionProof"];
+            };
             path?: never;
             cookie?: never;
         };
         requestBody: {
             content: {
                 "application/json": {
-                    current_password: string;
                     new_password: string;
                 };
             };
@@ -1577,7 +1734,10 @@ export interface operations {
     beginSecondFactorEnrollment: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description Short-lived, single-use proof created for this action and active session. */
+                "X-Action-Proof": components["parameters"]["AuthenticationActionProof"];
+            };
             path?: never;
             cookie?: never;
         };
@@ -1634,7 +1794,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Enrolled factors and whether this session was reauthenticated during the last five minutes. */
+            /** @description Enrolled second-factor methods for the current account. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1652,7 +1812,10 @@ export interface operations {
     disableSecondFactor: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description Short-lived, single-use proof created for this action and active session. */
+                "X-Action-Proof": components["parameters"]["AuthenticationActionProof"];
+            };
             path?: never;
             cookie?: never;
         };
@@ -1674,7 +1837,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description The session needs recent reauthentication. */
+            /** @description The action proof is missing */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -1694,17 +1857,14 @@ export interface operations {
     replaceBackupCodes: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description Short-lived, single-use proof created for this action and active session. */
+                "X-Action-Proof": components["parameters"]["AuthenticationActionProof"];
+            };
             path?: never;
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": {
-                    current_password: string;
-                };
-            };
-        };
+        requestBody?: never;
         responses: {
             /** @description New one-time-display recovery codes. Response is marked no-store. */
             200: {
@@ -1752,17 +1912,14 @@ export interface operations {
     beginEmailMfaEnrollment: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description Short-lived, single-use proof created for this action and active session. */
+                "X-Action-Proof": components["parameters"]["AuthenticationActionProof"];
+            };
             path?: never;
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": {
-                    current_password: string;
-                };
-            };
-        };
+        requestBody?: never;
         responses: {
             /** @description Enrollment code accepted for delivery; response includes challenge_id. */
             202: {
@@ -2000,6 +2157,113 @@ export interface operations {
                 };
                 content?: never;
             };
+            default: components["responses"]["Problem"];
+        };
+    };
+    requestAuthenticationActionEmailCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AuthenticationActionEmailCodeRequest"];
+            };
+        };
+        responses: {
+            /** @description Code accepted for delivery; response includes challenge_id. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        challenge_id: string;
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    readAuthenticationActionProofOptions: {
+        parameters: {
+            query: {
+                action: "CHANGE_PRIMARY_CREDENTIAL" | "MANAGE_SECOND_FACTORS";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Highest assurance schemes satisfiable by the signed-in user's current credentials and factors. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        schemes: {
+                            id: string;
+                            required_tokens: ("PASSWORD" | "GOOGLE" | "EMAIL_SIGN_IN_CODE" | "TOTP" | "EMAIL_FACTOR_CODE" | "BACKUP_CODE")[];
+                            assurance_rank: number;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    authorizeAuthenticationAction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AuthenticationActionProofRequest"];
+            };
+        };
+        responses: {
+            /** @description One-use proof bound to this action, session, and current policy version. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationActionProof"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    readCurrentSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The current access session is valid. */
+            204: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem"];
             default: components["responses"]["Problem"];
         };
     };
