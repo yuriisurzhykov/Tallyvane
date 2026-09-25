@@ -212,8 +212,11 @@ interface IdentityRoutesFactory {
             RequiredFactorEnrollmentHandler(cases.beginRequiredFactorEnrollment, services.factors, services.validation),
             RequiredFactorConfirmationHandler(
                 cases.confirmRequiredFactorEnrollment,
+                services.cookies,
                 services.factors,
                 services.validation,
+                services.accessTtl,
+                services.refreshTtl,
             ),
             RefreshSessionHandler(
                 cases.refresh,

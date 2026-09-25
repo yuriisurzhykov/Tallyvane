@@ -190,7 +190,7 @@ public class IdentityUseCases(
     public val beginRequiredFactorEnrollment: BeginRequiredFactorEnrollmentUseCase =
         BeginRequiredFactorEnrollmentUseCase.Begin(pending, registry, clock, transactions)
     public val confirmRequiredFactorEnrollment: ConfirmRequiredFactorEnrollmentUseCase =
-        ConfirmRequiredFactorEnrollmentUseCase.Confirm(pending, registry, clock, transactions)
+        ConfirmRequiredFactorEnrollmentUseCase.Confirm(pending, registry, issuer, clock, transactions)
     public val confirm: ConfirmSecondFactorEnrollmentUseCase =
         ConfirmSecondFactorEnrollmentUseCase.Confirm(registry, transactions)
     public val readSecondFactorStatus: ReadSecondFactorStatusUseCase = ReadSecondFactorStatusUseCase.Read(
