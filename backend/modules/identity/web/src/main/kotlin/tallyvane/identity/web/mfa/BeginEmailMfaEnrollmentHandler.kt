@@ -10,6 +10,7 @@ import tallyvane.identity.web.login.AuthenticationFailure
 import tallyvane.identity.web.login.AuthenticationProblems
 import tallyvane.identity.web.routing.AuthHandler
 import tallyvane.identity.web.shared.CurrentPrincipal
+import tallyvane.identity.web.shared.EmailChallengeResponseBody
 import tallyvane.identity.web.shared.FieldValidation
 import tallyvane.identity.web.shared.RequestValidationFailure
 import tallyvane.identity.web.shared.RequestValidationProblems
@@ -37,7 +38,7 @@ internal class BeginEmailMfaEnrollmentHandler(
             if (challengeId == null) {
                 call.respond(Refused(AuthenticationFailure.InvalidCredential, authenticationProblems))
             } else {
-                call.respond(HttpStatusCode.Accepted, EmailMfaChallengeResponseBody(challengeId.toString()))
+                call.respond(HttpStatusCode.Accepted, EmailChallengeResponseBody(challengeId.toString()))
             }
         }
     }

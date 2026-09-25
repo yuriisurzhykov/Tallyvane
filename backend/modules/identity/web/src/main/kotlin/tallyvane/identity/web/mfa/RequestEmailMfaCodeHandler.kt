@@ -8,6 +8,7 @@ import io.ktor.server.routing.post
 import tallyvane.identity.application.secondfactor.RequestEmailMfaCodeUseCase
 import tallyvane.identity.domain.secondfactor.PendingAuthenticationId
 import tallyvane.identity.web.routing.AuthHandler
+import tallyvane.identity.web.shared.EmailChallengeResponseBody
 import tallyvane.identity.web.shared.FieldValidation
 import tallyvane.identity.web.shared.RequestValidationFailure
 import tallyvane.identity.web.shared.RequestValidationProblems
@@ -33,7 +34,7 @@ internal class RequestEmailMfaCodeHandler(
             if (challengeId == null) {
                 call.respond(Refused(SecondFactorFailure.RateLimited, problems))
             } else {
-                call.respond(HttpStatusCode.Accepted, EmailMfaChallengeResponseBody(challengeId.toString()))
+                call.respond(HttpStatusCode.Accepted, EmailChallengeResponseBody(challengeId.toString()))
             }
         }
     }

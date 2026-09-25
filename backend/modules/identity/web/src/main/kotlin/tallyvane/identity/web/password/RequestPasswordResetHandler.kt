@@ -10,6 +10,7 @@ import tallyvane.identity.domain.user.Email
 import tallyvane.identity.web.login.AuthenticationFailure
 import tallyvane.identity.web.login.AuthenticationProblems
 import tallyvane.identity.web.routing.AuthHandler
+import tallyvane.identity.web.shared.EmailChallengeResponseBody
 import tallyvane.identity.web.shared.FieldValidation
 import tallyvane.identity.web.shared.RequestValidationFailure
 import tallyvane.identity.web.shared.RequestValidationProblems
@@ -35,7 +36,7 @@ internal class RequestPasswordResetHandler(
                 call.response.headers.append("Retry-After", "60")
                 call.respond(Refused(AuthenticationFailure.RateLimited, authenticationProblems))
             } else {
-                call.respond(HttpStatusCode.Accepted, mapOf("challengeId" to challengeId.toString()))
+                call.respond(HttpStatusCode.Accepted, EmailChallengeResponseBody(challengeId.toString()))
             }
         }
     }
