@@ -7,6 +7,7 @@ import { Select } from "frontend-shared/ui/select";
 import { Stack } from "frontend-shared/ui/stack";
 import { Surface } from "frontend-shared/ui/surface";
 import { Text } from "frontend-shared/ui/text";
+import { useToast } from "frontend-shared/ui/toast";
 import type { AuthStepProps } from "../model/AuthStepProps";
 import { AuthField } from "./AuthField";
 import styles from "./auth-step.module.css";
@@ -58,11 +59,22 @@ export function AuthenticatorEnrollmentStep({ props }: { props: AuthStepProps })
 }
 
 function AuthenticatorSetup({ qrCode, secret, t }: { qrCode: string; secret: string; t: AuthStepProps["t"] }) {
+    const { actions } = useToast();
+    const copySecret = async () => {
+        try {
+            await navigator.clipboard.writeText(secret);
+            actions.add({ title: t("copied"), tone: "success" });
+        } catch {
+            actions.add({ title: t("copyFailed"), tone: "danger" });
+        }
+    };
+
     return (
         <Stack gap="inline-tight">
             {qrCode ? <Image className={styles.qr ?? ""} src={qrCode} alt={t("authenticatorQr")} /> : <Text variant="body" role="status">{t("qrUnavailable")}</Text>}
             <Text variant="small" color="muted">{t("manualSetupKey")}</Text>
             <Text variant="small" as="code" className={styles.secret ?? ""}>{secret}</Text>
+            <Button type="button" tone="neutral" onClick={() => { void copySecret(); }}>{t("copy")}</Button>
         </Stack>
     );
 }

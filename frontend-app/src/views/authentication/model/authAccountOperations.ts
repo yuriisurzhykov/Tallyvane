@@ -13,7 +13,6 @@ export async function resendRegistration(
     state.setBusy(true);
     try {
         const result = await authClient.post<{ challengeId: string | null }>("/register/email/resend", {
-            userId: pending.userId,
             email: pending.email,
         });
         if (result.challengeId) {

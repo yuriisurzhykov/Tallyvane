@@ -9,8 +9,7 @@ type Tone = "attention" | "danger" | "success";
 type Notify = (title: string, description: string | undefined, tone: Tone) => void;
 type SubmitEvent = SyntheticEvent<HTMLFormElement>;
 export interface Registration {
-    userId: string;
-    challengeId: string | null;
+    challengeId?: string | null;
     email: string;
 }
 
@@ -106,7 +105,7 @@ async function register(form: FormData, state: AuthOperationsState) {
         password: formText(form, "password"),
         displayName: formText(form, "name") || null,
     });
-    const registration = { userId: result.userId, challengeId: result.challengeId, email };
+    const registration = { challengeId: result.challengeId, email };
     sessionStorage.setItem("tallyvane.registration", JSON.stringify(registration));
     state.setRegistration(registration);
     state.setEmail(email);
@@ -142,20 +141,18 @@ async function verifyMfa(state: AuthOperationsState) {
 async function enrollAuthenticator(state: AuthOperationsState) {
     const pendingId = new URLSearchParams(window.location.search).get("pending_id") ??
         sessionStorage.getItem("tallyvane.pendingEnrollmentId");
-    const path = pendingId ? "/mfa/required" : "/mfa";
     if (!state.payload) {
-        const result = await authClient.post<{ otpauthUri: string }>(`${path}/enroll`, {
-            ...(pendingId ? { pendingId } : {}),
-            kind: "TOTP",
-        });
+        const result = pendingId
+            ? await authClient.post<{ otpauthUri: string }>("/mfa/required/enroll", { pendingId, kind: "TOTP" })
+            : await authClient.post<{ otpauthUri: string }>("/mfa/enroll", { kind: "TOTP" });
         state.setPayload(result.otpauthUri);
         return;
     }
-    await authClient.post(pendingId ? `${path}/confirm` : "/mfa/confirm", {
-        ...(pendingId ? { pendingId } : {}),
-        kind: "TOTP",
-        code: state.code,
-    });
+    if (pendingId) {
+        await authClient.post("/mfa/required/confirm", { pendingId, kind: "TOTP", code: state.code });
+    } else {
+        await authClient.post("/mfa/confirm", { kind: "TOTP", code: state.code });
+    }
     const required = Boolean(pendingId);
     state.notify(
         state.t("authenticatorEnabled"),
@@ -208,7 +205,11 @@ async function verifyRegistration(state: AuthOperationsState) {
     const pending = state.registration ?? JSON.parse(sessionStorage.getItem("tallyvane.registration") ?? "null") as Registration | null;
     if (!pending) throw new Error(state.t("missing"));
     if (!pending.challengeId) throw new Error(state.t("requestNewCodeFirst"));
-    await authClient.post("/register/email/verify", { ...pending, code: state.code });
+    await authClient.post("/register/email/verify", {
+        challengeId: pending.challengeId,
+        email: pending.email,
+        code: state.code,
+    });
     state.notify(state.t("emailVerified"), state.t("emailVerifiedDescription"), "success");
     sessionStorage.removeItem("tallyvane.registration");
     state.setRegistration(null);

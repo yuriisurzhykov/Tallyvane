@@ -133,8 +133,7 @@ function initializeRegistrationState(state: Pick<AuthPageState, "setOtpPurpose" 
         const saved = sessionStorage.getItem("tallyvane.registration");
         if (!saved) return;
         const registration = JSON.parse(saved) as {
-            userId: string;
-            challengeId: string | null;
+            challengeId?: string | null;
             email: string;
         };
         state.setRegistration(registration);

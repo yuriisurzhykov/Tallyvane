@@ -5,6 +5,7 @@ import { Row } from "frontend-shared/ui/row";
 import { Stack } from "frontend-shared/ui/stack";
 import { Text } from "frontend-shared/ui/text";
 import type { AuthSession, AuthStepProps } from "../model/AuthStepProps";
+import { FactorManagementSection } from "./FactorManagementSection";
 import { AuthField } from "./AuthField";
 import { GoogleAccountSection } from "./GoogleAccountSection";
 import styles from "./auth-step.module.css";
@@ -14,6 +15,7 @@ export function SecuritySettingsStep({ props }: { props: AuthStepProps }) {
         <Stack gap="section-gap">
             <PasswordChangeSection props={props} />
             <GoogleAccountSection t={props.t} />
+            <FactorManagementSection t={props.t} emailMfaEnrollmentChallengeId={props.emailMfaEnrollmentChallengeId} />
             <EmailMfaSection props={props} />
             <RecoveryCodesSection props={props} />
             <ActiveSessionsSection props={props} />
