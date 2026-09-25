@@ -1,6 +1,10 @@
 export class AuthError extends Error {
-    constructor(message: string, readonly status: number, readonly retryAfter = 0, readonly fieldErrors: Readonly<Record<string, string>> = {}) {
-        super(message);
+    public constructor(
+        public readonly status: number,
+        public readonly retryAfter = 0,
+        public readonly fieldErrors: Readonly<Record<string, string>> = {},
+    ) {
+        super();
         this.name = "AuthError";
     }
 }
@@ -23,7 +27,7 @@ export function createAuthClient(fetcher: typeof fetch = fetch) {
         const headers = new Headers({ Accept: "application/json" });
         if (method !== "GET") {
             const csrf = await request<{ token: string }>("/csrf", "GET");
-            if (!csrf.token) throw new AuthError("Your security session could not be started. Refresh and try again.", 403);
+            if (!csrf.token) throw new AuthError(403);
             headers.set("X-CSRF-Token", csrf.token);
             headers.set("Content-Type", "application/json");
         }
@@ -34,18 +38,17 @@ export function createAuthClient(fetcher: typeof fetch = fetch) {
                 ...(body === undefined ? {} : { body: JSON.stringify(body) }),
             });
         } catch {
-            throw new AuthError("We couldn’t reach the server. Check your connection and try again.", 0);
+            throw new AuthError(0);
         }
         const data: unknown = response.status === 204 ? undefined : await response.json().catch(() => undefined);
         if (!response.ok) {
             const problem = data && typeof data === "object" ? data as Record<string, unknown> : {};
-            const detail = typeof problem.detail === "string" ? problem.detail : undefined;
             const rawErrors = problem.errors ?? problem.fieldErrors;
             const fieldErrors = rawErrors && typeof rawErrors === "object"
                 ? Object.fromEntries(Object.entries(rawErrors).filter((entry): entry is [string, string] => typeof entry[1] === "string"))
                 : {};
             const retryAfter = Number(response.headers.get("Retry-After")) || 0;
-            throw new AuthError(detail ?? (response.status === 401 ? "Your session has expired. Sign in again." : "This request could not be completed. Please try again."), response.status, retryAfter, fieldErrors);
+            throw new AuthError(response.status, retryAfter, fieldErrors);
         }
         return data as T;
     }
