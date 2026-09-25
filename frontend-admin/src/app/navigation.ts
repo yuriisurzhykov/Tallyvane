@@ -1,8 +1,6 @@
 import type { SidebarNavItem } from "frontend-shared/ui/sidebar-nav";
 import { useAdminAuthenticationStrings } from "@/app/i18n";
 
-const tAuthentication = useAdminAuthenticationStrings("adminAuthentication");
-
 /**
  * The admin's whole nav (ARCHITECTURE.md §12.2: `pages`, `media`, `strings`
  * — the entire admin surface, no home dashboard). One place rather than
@@ -13,11 +11,12 @@ const tAuthentication = useAdminAuthenticationStrings("adminAuthentication");
  * routes exist and in what order — not a piece of UI, the same distinction
  * `providers/block-registry.tsx` (§12.6) already draws for this layer.
  */
-export function adminNavItems(activeHref: "/pages" | "/media" | "/strings" | "/authentication"): SidebarNavItem[] {
+export function useAdminNavItems(activeHref: "/pages" | "/media" | "/strings" | "/authentication"): SidebarNavItem[] {
+    const t = useAdminAuthenticationStrings("adminAuthentication");
     return [
-        { label: tAuthentication("title"), href: "/authentication", isActive: activeHref === "/authentication" },
-        { label: "Pages", href: "/pages", isActive: activeHref === "/pages" },
-        { label: "Media", href: "/media", isActive: activeHref === "/media" },
-        { label: "Strings", href: "/strings", isActive: activeHref === "/strings" },
+        { label: t("title"), href: "/authentication", isActive: activeHref === "/authentication" },
+        { label: t("navPages"), href: "/pages", isActive: activeHref === "/pages" },
+        { label: t("navMedia"), href: "/media", isActive: activeHref === "/media" },
+        { label: t("navStrings"), href: "/strings", isActive: activeHref === "/strings" },
     ];
 }

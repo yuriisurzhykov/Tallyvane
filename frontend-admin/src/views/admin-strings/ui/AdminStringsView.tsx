@@ -2,7 +2,7 @@ import { AppShell } from "frontend-shared/ui/app-shell";
 import { KeyValueList } from "frontend-shared/ui/key-value-list";
 import { Panel } from "frontend-shared/ui/panel";
 import { Text } from "frontend-shared/ui/text";
-import { adminNavItems } from "@/app/navigation";
+import { useAdminNavItems } from "@/app/navigation";
 
 /**
  * Static for now — no strings API exists yet to read a real namespace from.
@@ -22,7 +22,7 @@ const MOCK_STRINGS = [
  */
 export function AdminStringsView() {
     return (
-        <AppShell navItems={adminNavItems("/strings")} title="Strings" skipLinkLabel="Skip to content">
+        <AppShell navItems={useAdminNavItems("/strings")} title="Strings" skipLinkLabel="Skip to content">
             <Panel header={<Text variant="bodyStrong">common</Text>}>
                 <KeyValueList
                     items={MOCK_STRINGS.map((entry) => ({

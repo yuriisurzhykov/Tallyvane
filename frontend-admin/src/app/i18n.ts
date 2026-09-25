@@ -3,6 +3,9 @@ import { createUseStrings } from "frontend-shared/i18n";
 const dictionary = {
     adminAuthentication: {
         title: "Authentication",
+        navPages: "Pages",
+        navMedia: "Media",
+        navStrings: "Strings",
         skipLink: "Skip to content",
         description: "Choose how people sign in and which second factors they need. Changes apply to future sign-ins.",
         signInPolicy: "Sign-in policy",

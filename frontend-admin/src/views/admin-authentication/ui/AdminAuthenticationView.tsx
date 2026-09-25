@@ -1,17 +1,21 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { AppShell } from "frontend-shared/ui/app-shell";
 import { Button } from "frontend-shared/ui/button";
 import { Checkbox } from "frontend-shared/ui/checkbox";
-import { Input } from "frontend-shared/ui/input";
+import { Field } from "frontend-shared/ui/field";
+import { Fieldset } from "frontend-shared/ui/fieldset";
 import { Panel } from "frontend-shared/ui/panel";
 import { Select } from "frontend-shared/ui/select";
+import { Stack } from "frontend-shared/ui/stack";
 import { Text } from "frontend-shared/ui/text";
+import type { AddToastOptions } from "frontend-shared/ui/toast";
 import { useToast } from "frontend-shared/ui/toast";
-import { adminNavItems } from "@/app/navigation";
+import { useAdminNavItems } from "@/app/navigation";
 import { useAdminAuthenticationStrings } from "@/app/i18n";
+import { ConfirmationDrawer, ResetFactorPanel } from "./AdminAuthenticationDialogs";
 
 type Primary = "PASSWORD" | "GOOGLE" | "EMAIL_CODE";
 type Requirement = "DISABLED" | "IF_ENROLLED" | "REQUIRED";
@@ -30,22 +34,16 @@ interface Policy {
     advancedAcknowledged: boolean
 }
 
-const t = useAdminAuthenticationStrings("adminAuthentication");
-const labels: Record<Primary | Factor | Requirement, string> = {
-    PASSWORD: t("password"), GOOGLE: t("google"), EMAIL_CODE: t("emailCode"),
-    TOTP: t("authenticator"), EMAIL_OTP: t("emailOtp"), BACKUP_CODE: t("backupCode"),
-    DISABLED: t("disabled"), IF_ENROLLED: t("ifEnrolled"), REQUIRED: t("required"),
-};
 const factors: Factor[] = ["TOTP", "EMAIL_OTP", "BACKUP_CODE"];
 const requirements: Requirement[] = ["DISABLED", "IF_ENROLLED", "REQUIRED"];
 
 class RequestError extends Error {
-    constructor(readonly status: number) {
+    public constructor(public readonly status: number) {
         super();
     }
 }
 
-function failureText(reason: unknown): string {
+function failureText(reason: unknown, t: ReturnType<typeof useAdminAuthenticationStrings>): string {
     if (!(reason instanceof RequestError)) return t("connectionFailed");
     if (reason.status === 401) return t("signInAdministrator");
     if (reason.status === 403) return t("administratorDenied");
@@ -75,6 +73,12 @@ export function AdminAuthenticationView() {
 }
 
 function Editor() {
+    const t = useAdminAuthenticationStrings("adminAuthentication");
+    const labels: Record<Primary | Factor | Requirement, string> = {
+        PASSWORD: t("password"), GOOGLE: t("google"), EMAIL_CODE: t("emailCode"),
+        TOTP: t("authenticator"), EMAIL_OTP: t("emailOtp"), BACKUP_CODE: t("backupCode"),
+        DISABLED: t("disabled"), IF_ENROLLED: t("ifEnrolled"), REQUIRED: t("required"),
+    };
     const [policy, setPolicy] = useState<Policy | null>(null);
     const [loading, setLoading] = useState(true);
     const [busy, setBusy] = useState(false);
@@ -82,14 +86,13 @@ function Editor() {
     const [unauthorized, setUnauthorized] = useState(false);
     const [email, setEmail] = useState("");
     const [confirmation, setConfirmation] = useState<"advanced" | "reset" | null>(null);
-    const dialog = useRef<HTMLDialogElement>(null);
     const { actions } = useToast();
     const fail = useCallback((reason: unknown) => {
-        const message = failureText(reason);
+        const message = failureText(reason, t);
         setError(message);
         actions.add({ title: t("settingsLoadFailed"), description: message, tone: "danger" });
         setUnauthorized(reason instanceof RequestError && reason.status === 401);
-    }, [actions]);
+    }, [actions, t]);
     const load = useCallback(async () => {
         setLoading(true);
         setError(null);
@@ -103,139 +106,201 @@ function Editor() {
         }
     }, [fail]);
     useEffect(() => {
-        void load();
-    }, [load]);
-    useEffect(() => {
-        if (confirmation) dialog.current?.showModal();
-        else dialog.current?.close();
-    }, [confirmation]);
-    const update = (primary: Primary, patch: Partial<Rule>) => setPolicy(current => current && ({
+        let active = true;
+        void request<Policy>("policy").then(value => {
+            if (active) setPolicy(value);
+        }).catch((reason: unknown) => {
+            if (active) fail(reason);
+        }).finally(() => {
+            if (active) setLoading(false);
+        });
+        return () => { active = false; };
+    }, [fail]);
+    const update = (primary: Primary, patch: Partial<Rule>) => { setPolicy(current => current && ({
         ...current, advancedAcknowledged: false,
         rules: current.rules.map(rule => rule.primary === primary ? { ...rule, ...patch } : rule),
-    }));
+    })); };
     const invalid = policy !== null && (!policy.rules.some(rule => rule.enabled) ||
         policy.rules.some(rule => rule.enabled && rule.requirement !== "DISABLED" && rule.allowedMethods.length === 0));
     const risky = policy?.rules.some(rule => rule.enabled && rule.primary !== "PASSWORD" &&
         rule.requirement !== "DISABLED" && rule.allowedMethods.includes("EMAIL_OTP"));
 
-    async function save(acknowledged: boolean) {
-        if (!policy || invalid) return;
-        setConfirmation(null);
-        setBusy(true);
-        setError(null);
-        try {
-            await request<unknown>("policy", "PUT", {
-                expectedVersion: policy.version, rules: policy.rules, advancedAcknowledged: acknowledged,
-            });
-            const saved = await request<Policy>("policy");
-            setPolicy(saved);
-            actions.add({ title: t("policySaved"), tone: "success" });
-        } catch (reason) {
-            fail(reason);
-        } finally {
-            setBusy(false);
-        }
-    }
+    const save = (acknowledged: boolean) => savePolicy({
+        policy, invalid, setConfirmation, setBusy, setError, setPolicy,
+        notify: options => { actions.add(options); }, t, fail,
+    }, acknowledged);
+    const reset = () => resetFactors({ email, setEmail, setConfirmation, setBusy, setError,
+        notify: options => { actions.add(options); }, t, fail });
+    return <EditorContent
+        t={ t }
+        labels={ labels }
+        policy={ policy }
+        loading={ loading }
+        busy={ busy }
+        error={ error }
+        unauthorized={ unauthorized }
+        email={ email }
+        confirmation={ confirmation }
+        invalid={ invalid }
+        risky={ risky }
+        onReload={ load }
+        onUpdate={ update }
+        onEmailChange={ setEmail }
+        onConfirmationChange={ setConfirmation }
+        onSave={ save }
+        onReset={ reset }
+    />;
+}
 
-    async function reset() {
-        setConfirmation(null);
-        setBusy(true);
-        setError(null);
-        try {
-            await request<unknown>("mfa/reset", "POST", { email: email.trim(), confirmation: true });
-            actions.add({
-                title: t("factorsReset"),
-                description: t("factorsResetDescription"),
-                tone: "success"
-            });
-            setEmail("");
-        } catch (reason) {
-            fail(reason);
-        } finally {
-            setBusy(false);
-        }
-    }
+type Translate = ReturnType<typeof useAdminAuthenticationStrings>;
+type Labels = Record<Primary | Factor | Requirement, string>;
+type PolicyUpdate = (primary: Primary, patch: Partial<Rule>) => void;
 
-    return <AppShell navItems={ adminNavItems("/authentication") } title={ t("title") }
-                     skipLinkLabel={ t("skipLink") }>
-        <div className="flex flex-col gap-stack">
+interface EditorContentProps {
+    readonly t: Translate;
+    readonly labels: Labels;
+    readonly policy: Policy | null;
+    readonly loading: boolean;
+    readonly busy: boolean;
+    readonly error: string | null;
+    readonly unauthorized: boolean;
+    readonly email: string;
+    readonly confirmation: "advanced" | "reset" | null;
+    readonly invalid: boolean;
+    readonly risky: boolean | undefined;
+    readonly onReload: () => Promise<void>;
+    readonly onUpdate: PolicyUpdate;
+    readonly onEmailChange: (email: string) => void;
+    readonly onConfirmationChange: (value: "advanced" | "reset" | null) => void;
+    readonly onSave: (acknowledged: boolean) => Promise<void>;
+    readonly onReset: () => Promise<void>;
+}
+
+function EditorContent(props: EditorContentProps) {
+    const { t, labels, policy, loading, busy, error, unauthorized, email, confirmation, invalid, risky } = props;
+    return <AppShell navItems={ useAdminNavItems("/authentication") } title={ t("title") } skipLinkLabel={ t("skipLink") }>
+        <Stack gap="stack">
             <Text variant="body">{ t("description") }</Text>
-            { error && <div role="alert" className="flex flex-col gap-inline">
+            { error && <Stack role="alert" gap="inline">
                 <Text variant="body" tone="danger">{ error }</Text>
                 { unauthorized && <Link href="/login?returnTo=/authentication">{ t("signInAdminLink") }</Link> }
-                <Button tone="neutral" disabled={ busy || loading }
-                        onClick={ () => void load() }>{ t("reloadPolicy") }</Button>
-            </div> }
+                <Button tone="neutral" disabled={ busy || loading } onClick={ () => { void props.onReload(); } }>
+                    { t("reloadPolicy") }
+                </Button>
+            </Stack> }
             { loading && <Text variant="body" role="status">{ t("loading") }</Text> }
-            { !loading && policy && <>
-                <fieldset disabled={ busy } className="flex flex-col gap-stack">
-                    <legend className="sr-only">{ t("signInPolicy") }</legend>
-                    { policy.rules.map(rule => <Panel key={ rule.primary } header={ <Text
-                        variant="bodyStrong">{ labels[rule.primary] }</Text> }>
-                        <div className="flex flex-col gap-stack">
-                            <label className="flex items-center gap-inline"><Checkbox checked={ rule.enabled }
-                                                                                      onCheckedChange={ enabled => update(rule.primary, { enabled }) }/>{ t("allowSignIn", { method: labels[rule.primary] }) }
-                            </label>
-                            <div className="flex flex-col gap-inline">
-                                <Text variant="small"
-                                      id={ `${ rule.primary }-requirement` }>{ t("secondFactorRequirement") }</Text>
-                                <Select.Root value={ rule.requirement } disabled={ !rule.enabled }
-                                             onValueChange={ value => {
-                                                 if (value) update(rule.primary, { requirement: value as Requirement });
-                                             } }>
-                                    <Select.Trigger
-                                        aria-labelledby={ `${ rule.primary }-requirement` }><Select.Value>{ labels[rule.requirement] }</Select.Value><Select.Icon/></Select.Trigger>
-                                    <Select.Popup>{ requirements.map(value => <Select.Item key={ value }
-                                                                                           value={ value }>{ labels[value] }</Select.Item>) }</Select.Popup>
-                                </Select.Root>
-                            </div>
-                            <fieldset disabled={ !rule.enabled || rule.requirement === "DISABLED" }
-                                      className="flex flex-wrap gap-stack">
-                                <legend>{ t("allowedSecondFactors") }</legend>
-                                { factors.map(factor => <label key={ factor } className="flex items-center gap-inline">
-                                    <Checkbox checked={ rule.allowedMethods.includes(factor) }
-                                              onCheckedChange={ checked => update(rule.primary, {
-                                                  allowedMethods: checked ? [...rule.allowedMethods, factor] : rule.allowedMethods.filter(item => item !== factor),
-                                              }) }/>{ labels[factor] }
-                                </label>) }
-                            </fieldset>
-                        </div>
-                    </Panel>) }
-                </fieldset>
-                { invalid &&
-                    <Text variant="body" role="alert" tone="danger">{ t("enablePolicyError") }</Text> }
-                <div><Button tone="primary" loading={ busy } disabled={ invalid }
-                             onClick={ () => risky ? setConfirmation("advanced") : void save(false) }>{ t("savePolicy") }</Button>
-                </div>
-                <Panel header={ <Text variant="bodyStrong">{ t("resetTitle") }</Text> }>
-                    <form className="flex flex-col gap-stack" onSubmit={ event => {
-                        event.preventDefault();
-                        setConfirmation("reset");
-                    } }>
-                        <Text variant="body">{ t("resetHelp") }</Text>
-                        <label htmlFor="reset-email">{ t("accountEmail") }</label>
-                        <Input id="reset-email" type="email" required value={ email } disabled={ busy }
-                               onChange={ event => setEmail(event.target.value) }/>
-                        <div><Button tone="danger" type="submit"
-                                     disabled={ busy || !email.trim() }>{ t("resetSecondFactors") }</Button></div>
-                    </form>
-                </Panel>
-            </> }
-        </div>
-        <dialog ref={ dialog } onCancel={ () => setConfirmation(null) } onClose={ () => setConfirmation(null) }
-                aria-labelledby="confirmation-title"
-                className="m-auto max-w-prose rounded-control border border-border-default bg-surface-primary p-stack text-text-primary">
-            <div className="flex flex-col gap-stack">
-                <h2 id="confirmation-title">{ confirmation === "advanced" ? t("advancedWarningTitle") : t("resetConfirmationTitle") }</h2>
-                <Text variant="body">{ confirmation === "advanced"
-                    ? t("advancedWarningBody")
-                    : t("resetConfirmationBody", { email: email.trim() }) }</Text>
-                <div className="flex flex-wrap gap-inline">
-                    <Button tone="neutral" autoFocus onClick={ () => setConfirmation(null) }>{ t("cancel") }</Button>
-                    <Button tone="danger"
-                            onClick={ () => confirmation === "advanced" ? void save(true) : void reset() }>{ confirmation === "advanced" ? t("acceptRiskSave") : t("resetAndRevoke") }</Button>
-                </div>
-            </div>
-        </dialog>
+            { !loading && policy && <PolicyRules policy={ policy } labels={ labels } busy={ busy } t={ t } onUpdate={ props.onUpdate } /> }
+            { invalid && <Text variant="body" role="alert" tone="danger">{ t("enablePolicyError") }</Text> }
+            { policy && <Button tone="primary" loading={ busy } disabled={ invalid }
+                                onClick={ () => { if (risky) props.onConfirmationChange("advanced"); else void props.onSave(false); } }>
+                { t("savePolicy") }
+            </Button> }
+            { !loading && policy && <ResetFactorPanel t={ t } email={ email } busy={ busy }
+                                                      onEmailChange={ props.onEmailChange }
+                                                      onRequest={() => { props.onConfirmationChange("reset"); }} /> }
+        </Stack>
+        <ConfirmationDrawer t={ t } email={ email } confirmation={ confirmation }
+                            onClose={() => { props.onConfirmationChange(null); }}
+                            onConfirm={() => {
+                                if (confirmation === "advanced") void props.onSave(true);
+                                else void props.onReset();
+                            }} />
     </AppShell>;
+}
+
+interface PolicyRulesProps {
+    readonly policy: Policy;
+    readonly labels: Labels;
+    readonly busy: boolean;
+    readonly t: Translate;
+    readonly onUpdate: PolicyUpdate;
+}
+
+function PolicyRules({ policy, labels, busy, t, onUpdate }: PolicyRulesProps) {
+    return <Fieldset legend={ t("signInPolicy") } disabled={ busy }>
+        { policy.rules.map(rule => <Panel key={ rule.primary } header={ <Text variant="bodyStrong">{ labels[rule.primary] }</Text> }>
+            <Stack gap="stack">
+                <Field label={ t("allowSignIn", { method: labels[rule.primary] }) }>
+                    <Checkbox checked={ rule.enabled } disabled={ busy }
+                              onCheckedChange={ enabled => { onUpdate(rule.primary, { enabled }); } } />
+                </Field>
+                <Select.Root value={ rule.requirement } disabled={ busy || !rule.enabled }
+                             onValueChange={ value => { if (value) onUpdate(rule.primary, { requirement: value }); } }>
+                    <Select.Label>{ t("secondFactorRequirement") }</Select.Label>
+                    <Select.Trigger><Select.Value>{ labels[rule.requirement] }</Select.Value><Select.Icon /></Select.Trigger>
+                    <Select.Popup>{ requirements.map(value => <Select.Item key={ value } value={ value }>{ labels[value] }</Select.Item>) }</Select.Popup>
+                </Select.Root>
+                <Fieldset legend={ t("allowedSecondFactors") }
+                          disabled={ !rule.enabled || rule.requirement === "DISABLED" }
+                          className="flex flex-row flex-wrap gap-stack">
+                    { factors.map(factor => <Field key={ factor } label={ labels[factor] }>
+                        <Checkbox checked={ rule.allowedMethods.includes(factor) }
+                                  disabled={ busy || !rule.enabled || rule.requirement === "DISABLED" }
+                                  onCheckedChange={ checked => {
+                                      const allowedMethods = checked
+                                          ? [...rule.allowedMethods, factor]
+                                          : rule.allowedMethods.filter(item => item !== factor);
+                                      onUpdate(rule.primary, { allowedMethods });
+                                  }} />
+                    </Field>) }
+                </Fieldset>
+            </Stack>
+        </Panel>) }
+    </Fieldset>;
+}
+
+interface PolicyMutationContext {
+    readonly policy?: Policy | null;
+    readonly invalid?: boolean;
+    readonly email?: string;
+    readonly setConfirmation: (value: "advanced" | "reset" | null) => void;
+    readonly setBusy: (busy: boolean) => void;
+    readonly setError: (error: string | null) => void;
+    readonly setPolicy?: (policy: Policy) => void;
+    readonly setEmail?: (email: string) => void;
+    readonly notify: (options: AddToastOptions) => void;
+    readonly t: ReturnType<typeof useAdminAuthenticationStrings>;
+    readonly fail: (reason: unknown) => void;
+}
+
+async function savePolicy(context: PolicyMutationContext, acknowledged: boolean) {
+    const { policy, invalid, setConfirmation, setBusy, setError, setPolicy, notify, t, fail } = context;
+    if (!policy || invalid || !setPolicy) return;
+    setConfirmation(null);
+    setBusy(true);
+    setError(null);
+    try {
+        await request<unknown>("policy", "PUT", {
+            expectedVersion: policy.version,
+            rules: policy.rules,
+            advancedAcknowledged: acknowledged,
+        });
+        setPolicy(await request<Policy>("policy"));
+        notify({ title: t("policySaved"), tone: "success" });
+    } catch (reason: unknown) {
+        fail(reason);
+    } finally {
+        setBusy(false);
+    }
+}
+
+async function resetFactors(context: PolicyMutationContext) {
+    const { email, setEmail, setConfirmation, setBusy, setError, notify, t, fail } = context;
+    if (email === undefined || !setEmail) return;
+    setConfirmation(null);
+    setBusy(true);
+    setError(null);
+    try {
+        await request<unknown>("mfa/reset", "POST", { email: email.trim(), confirmation: true });
+        notify({
+            title: t("factorsReset"),
+            description: t("factorsResetDescription"),
+            tone: "success",
+        });
+        setEmail("");
+    } catch (reason: unknown) {
+        fail(reason);
+    } finally {
+        setBusy(false);
+    }
 }

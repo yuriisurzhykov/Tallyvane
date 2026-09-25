@@ -3,7 +3,7 @@
 import { AppShell } from "frontend-shared/ui/app-shell";
 import { DataTable, type DataTableColumnDef } from "frontend-shared/ui/data-table";
 import { Badge, type BadgeTone } from "frontend-shared/ui/badge";
-import { adminNavItems } from "@/app/navigation";
+import { useAdminNavItems } from "@/app/navigation";
 
 type PageStatus = "draft" | "published";
 
@@ -45,7 +45,7 @@ const COLUMNS: DataTableColumnDef<AdminPage>[] = [
  */
 export function AdminPageListView() {
     return (
-        <AppShell navItems={adminNavItems("/pages")} title="Pages" skipLinkLabel="Skip to content">
+        <AppShell navItems={useAdminNavItems("/pages")} title="Pages" skipLinkLabel="Skip to content">
             <DataTable.Root data={MOCK_PAGES} columns={COLUMNS} getRowId={(row) => row.id} aria-label="Pages">
                 <DataTable.Header />
                 <DataTable.Body />
