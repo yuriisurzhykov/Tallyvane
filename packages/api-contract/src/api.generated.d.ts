@@ -802,6 +802,11 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * @description Closed security action set shared with identity's AuthenticationAction enum.
+         * @enum {string}
+         */
+        AuthenticationAction: "SIGN_IN" | "CHANGE_PRIMARY_CREDENTIAL" | "MANAGE_SECOND_FACTORS";
         SignInResult: {
             /** @enum {string} */
             status: "issued" | "requires_second_factor" | "requires_enrollment";
@@ -903,8 +908,7 @@ export interface components {
         };
         AuthenticationScheme: {
             id: string;
-            /** @enum {string} */
-            action: "SIGN_IN" | "CHANGE_PRIMARY_CREDENTIAL" | "MANAGE_SECOND_FACTORS";
+            action: components["schemas"]["AuthenticationAction"];
             required_tokens: ("PASSWORD" | "GOOGLE" | "EMAIL_SIGN_IN_CODE" | "TOTP" | "EMAIL_FACTOR_CODE" | "BACKUP_CODE")[];
             assurance_rank: number;
             enabled: boolean;
@@ -943,9 +947,15 @@ export interface components {
             rules?: components["schemas"]["AuthenticationPolicyRule"][];
             advanced_acknowledged: boolean;
         };
-        Problem: {
+        /**
+         * @description Closed RFC 9457 type catalog. Clients branch on these exact URI values.
+         * @enum {string}
+         */
+        ProblemType: "https://tallyvane.com/errors/malformed-request" | "https://tallyvane.com/errors/validation-failed" | "https://tallyvane.com/errors/unauthorized" | "https://tallyvane.com/errors/forbidden" | "https://tallyvane.com/errors/not-found" | "https://tallyvane.com/errors/conflict" | "https://tallyvane.com/errors/unavailable" | "https://tallyvane.com/errors/internal" | "https://tallyvane.com/errors/too-many-requests" | "https://tallyvane.com/errors/step-up-required" | "about:blank";
+        /** @description RFC 9457 problem with a closed type catalog; only step-up carries an action extension. */
+        Problem: components["schemas"]["ProblemWithoutAction"] | components["schemas"]["StepUpRequiredProblem"];
+        ProblemWithoutAction: {
             /**
-             * Format: uri
              * @description Stable identifier of the *kind* of failure, and the field a client branches on. It
              *     survives rewording of `title` and `detail`.
              *
@@ -954,12 +964,10 @@ export interface components {
              *     status the server produced without reaching any endpoint carries — an unknown path, a
              *     method an endpoint does not accept. A client telling "no such resource" apart from "no
              *     such address" branches on this field, which is the reason it is not one value for both.
-             * @example https://tallyvane.com/errors/validation-failed
-             * @example https://tallyvane.com/errors/malformed-request
-             * @example https://tallyvane.com/errors/internal
-             * @example about:blank
+             *      (enum property replaced by openapi-typescript)
+             * @enum {string}
              */
-            type: string;
+            type: "https://tallyvane.com/errors/malformed-request" | "https://tallyvane.com/errors/validation-failed" | "https://tallyvane.com/errors/unauthorized" | "https://tallyvane.com/errors/forbidden" | "https://tallyvane.com/errors/not-found" | "https://tallyvane.com/errors/conflict" | "https://tallyvane.com/errors/unavailable" | "https://tallyvane.com/errors/internal" | "https://tallyvane.com/errors/too-many-requests" | "about:blank";
             /** @description The kind in human words, identical for every occurrence of one `type`. */
             title: string;
             /** @description Repeated in the body so the document stands alone when forwarded or logged. */
@@ -972,6 +980,24 @@ export interface components {
              * @description Added by the renderer, so it is on every problem body including a 500. The same id is
              *     in the `traceparent` header and on the log lines of that request.
              */
+            trace_id?: string;
+        };
+        StepUpRequiredProblem: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "https://tallyvane.com/errors/step-up-required";
+            /** @description The kind in human words, identical for every occurrence of one `type`. */
+            title: string;
+            /** @constant */
+            status: 403;
+            /** @description This occurrence in human words. Never a driver's message. */
+            detail?: string;
+            /** @description Per-field detail for a validation failure; absent otherwise. */
+            errors?: components["schemas"]["FieldError"][];
+            action: components["schemas"]["AuthenticationAction"];
+            /** @description Request trace id added by the renderer. */
             trace_id?: string;
         };
         FieldError: {
