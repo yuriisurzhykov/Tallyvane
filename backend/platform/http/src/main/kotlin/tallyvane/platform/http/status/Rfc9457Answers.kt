@@ -45,6 +45,13 @@ internal class Rfc9457Answers : Answers {
         detail = detail,
     )
 
+    override fun stepUpRequired(action: Enum<*>): Problem = Problem(
+        type = uri("step-up-required"),
+        title = "Additional identity verification required",
+        status = FORBIDDEN,
+        action = action.name,
+    )
+
     override fun missing(detail: String?): Problem = Problem(
         type = uri("not-found"),
         title = "Not found",

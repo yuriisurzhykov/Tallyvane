@@ -20,6 +20,7 @@ import tallyvane.platform.http.FieldError
  * @property detail this occurrence, in human words. Whatever a module puts here reaches the client
  * verbatim, so it is never a driver's message.
  * @property errors per-field detail for a validation failure, empty otherwise.
+ * @property action the wire name of the typed action requiring renewed proof; present only for the step-up problem.
  */
 @Serializable
 public class Problem internal constructor(
@@ -28,4 +29,5 @@ public class Problem internal constructor(
     public val status: Int,
     public val detail: String? = null,
     public val errors: List<FieldError> = emptyList(),
+    public val action: String? = null,
 )

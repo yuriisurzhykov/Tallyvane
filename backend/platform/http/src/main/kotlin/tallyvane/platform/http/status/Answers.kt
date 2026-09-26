@@ -26,18 +26,21 @@ import tallyvane.platform.http.problems.Problems
  *
  * ### Why the set is closed
  *
- * Nine HTTP meanings, no parameters for a status or a `type`. A module picks the meaning and
- * supplies what only it knows: which field, which code, what to say. So `type` cannot drift into
+ * The fixed HTTP meanings take no caller-supplied status or `type`; step-up accepts only an enum
+ * value for its action. A module picks the meaning and supplies what only it knows: which field,
+ * which code, what to say. So `type` cannot drift into
  * a free string, two modules cannot describe one kind of failure differently, and slice 14 has
  * something enumerable to write into the specification.
  *
- * A tenth meaning means editing this interface, which is the point: adding one is a decision
+ * A new meaning means editing this interface, which is the point: adding one is a decision
  * about the API's contract, and it should appear in a diff of the platform. [malformed] was the
  * seventh, added when a live run showed a malformed body answering 500. [unauthorized] and
  * [tooManyRequests] were the eighth and ninth, added when `identity` — the first module with a
  * real credential to reject — needed both and neither of the first seven says either one:
  * [forbidden] is "known and not allowed", not "not authenticated at all", and none of the rest
- * says "try again later" either.
+ * says "try again later" either. [stepUpRequired] is the separate tenth meaning: still 403, but
+ * its typed action tells the client to ask for proof rather than treat the response as ordinary
+ * access denial.
  */
 public interface Answers {
     /**
@@ -68,6 +71,12 @@ public interface Answers {
      * a judgement for the module, which says so by choosing [missing] instead.
      */
     public fun forbidden(detail: String? = null): Problem
+
+    /**
+     * The caller is authenticated but must prove identity again before this action: 403. The
+     * caller supplies a value from the identity module's closed `AuthenticationAction` enum.
+     */
+    public fun stepUpRequired(action: Enum<*>): Problem
 
     /**
      * Nothing here to act on: 404.
