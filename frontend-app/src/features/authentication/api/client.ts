@@ -3,6 +3,8 @@ import {
     AUTH_PROBLEM_TYPES,
     AuthSessionRuntime,
     createAuthSessionTransport,
+    fromWireJson,
+    toWireJson,
     type AccessDeniedProblem,
     type RefreshResult,
     type SessionProbeResult,
@@ -60,20 +62,6 @@ type RequestBody<Path extends AuthPostPath> = {
 type PostArguments = {
     [Path in AuthPostPath]: [path: Path, body: RequestBody<Path>];
 }[AuthPostPath];
-
-function mapJsonKeys(value: unknown, mapKey: (key: string) => string): unknown {
-    if (Array.isArray(value)) return value.map(item => mapJsonKeys(item, mapKey));
-    if (value === null || typeof value !== "object") return value;
-    return Object.fromEntries(Object.entries(value).map(([key, nested]) => [mapKey(key), mapJsonKeys(nested, mapKey)]));
-}
-
-function toWireJson(value: unknown): unknown {
-    return mapJsonKeys(value, key => key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`));
-}
-
-function fromWireJson(value: unknown): unknown {
-    return mapJsonKeys(value, key => key.replace(/_([a-z])/g, (_match, letter: string) => letter.toUpperCase()));
-}
 
 export function createAuthClient(fetcher: typeof fetch = fetch) {
     async function request<T>(path: string, method: string, body?: unknown, extraHeaders?: Readonly<Record<string, string>>): Promise<T> {

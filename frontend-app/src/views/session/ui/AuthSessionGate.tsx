@@ -13,8 +13,8 @@ import type { AccountAction } from "@/features/authentication/api/actionProof";
 import { AuthenticationActionForm } from "@/widgets/authentication-step/ui/AuthenticationActionForm";
 import styles from "./AuthSessionGate.module.css";
 
-const guestRoutes = ["/login", "/register", "/forgot-password", "/otp", "/mfa", "/mfa/enroll"];
-const publicRoutes = ["/auth-preview", "/auth/google", "/auth/callback"];
+const guestRoutes = ["/login", "/register", "/forgot-password", "/otp", "/mfa", "/mfa/enroll", "/auth/callback"];
+const publicRoutes = ["/auth-preview", "/auth/google"];
 const defaultHome = "/today";
 
 function isAtRoute(pathname: string, route: string) {

@@ -23,7 +23,7 @@ const headings = {
     login: ["loginTitle", "loginDescription"], register: ["registerTitle", "registerDescription"],
     mfa: ["mfaTitle", "mfaTitleHelp"], enrollment: ["enrollTitle", "enrollmentDescription"],
     forgot: ["forgotTitle", "forgotHelp"], otp: ["verifyTitle", "otpHelp"],
-    google: ["google", "googleAvailableHelp"], callback: ["oauthTitle", "callbackDescription"],
+    google: ["google", "googleAvailableHelp"], callback: ["oauthErrorTitle", "oauthErrorDescription"],
     security: ["security", "securityDescription"],
     preview: ["demo", "previewDescription"],
 } as const satisfies Record<AuthPageKind, readonly [AuthStringKey, AuthStringKey]>;
@@ -82,10 +82,12 @@ function AuthPageContent({
     const previewOnly = kind === "preview";
     const displayedKind = previewOnly ? state.preview : kind;
     const stepProps = createStepProps(state, operations, t);
+    const previewCallback = previewOnly && displayedKind === "callback";
     return <>
         { previewOnly && <AuthPreviewSelector state={ state } t={ t } /> }
         { state.notice && <Text as="p" variant="body" role="status" className={ styles.notice ?? "" }>{ state.notice }</Text> }
-        { renderAuthenticationStep(displayedKind, stepProps) }
+        { previewCallback ? <Text variant="body">{ t("previewActionNotice") }</Text> :
+            renderAuthenticationStep(displayedKind, stepProps) }
     </>;
 }
 

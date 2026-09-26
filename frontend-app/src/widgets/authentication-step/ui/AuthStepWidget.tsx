@@ -1,4 +1,4 @@
-import { Text } from "frontend-shared/ui/text";
+import { Link } from "frontend-shared/ui/link";
 import type { AuthPageKind } from "../../../features/authentication/model/AuthPageKind";
 import type { AuthStepProps } from "../model/AuthStepProps";
 import { CredentialStep } from "./CredentialStep";
@@ -24,7 +24,7 @@ export function renderAuthenticationStep(kind: AuthPageKind, props: AuthStepProp
         case "forgot":
             return <PasswordRecoveryStep props={props} />;
         case "callback":
-            return <Text variant="body" role="status">{props.t("callbackChecking")}</Text>;
+            return <Link href="/login">{props.t("backLogin")}</Link>;
         case "preview":
             return <PreviewStep props={props} />;
     }

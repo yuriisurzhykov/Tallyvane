@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # The frontend-app image: the console (app.tallyvane.com), standalone-built.
 #
 # Structurally identical to frontend-web/Dockerfile and frontend-admin/Dockerfile — same
@@ -18,17 +19,20 @@ COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY frontend-web/package.json frontend-web/
 COPY frontend-app/package.json frontend-app/
 COPY frontend-admin/package.json frontend-admin/
+COPY packages/api-contract/package.json packages/api-contract/
 COPY packages/design-tokens/package.json packages/design-tokens/
 COPY packages/frontend-shared/package.json packages/frontend-shared/
 COPY packages/content-kit/package.json packages/content-kit/
 COPY packages/test-kit/package.json packages/test-kit/
 COPY packages/storybook/package.json packages/storybook/
-RUN pnpm install --frozen-lockfile
+COPY .npmrc ./
+RUN --mount=type=cache,id=tallyvane-pnpm-store,target=/pnpm/store,sharing=locked \
+    pnpm install --frozen-lockfile --store-dir=/pnpm/store
 
 FROM deps AS builder
 WORKDIR /workspace
 COPY . .
-RUN pnpm --filter "./frontend-app" run build
+RUN pnpm --filter "./frontend-app" exec next build
 
 # See frontend-web/Dockerfile's comment on this exact line for why: pnpm's workspace
 # symlinks in .next/standalone break across this stage boundary unless dereferenced here,
