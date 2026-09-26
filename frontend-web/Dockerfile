@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # The frontend-web image: the public Next.js app (tallyvane.com), standalone-built.
 #
 # The build context is the repository ROOT, not this directory: pnpm validates
@@ -29,12 +30,15 @@ COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY frontend-web/package.json frontend-web/
 COPY frontend-app/package.json frontend-app/
 COPY frontend-admin/package.json frontend-admin/
+COPY packages/api-contract/package.json packages/api-contract/
 COPY packages/design-tokens/package.json packages/design-tokens/
 COPY packages/frontend-shared/package.json packages/frontend-shared/
 COPY packages/content-kit/package.json packages/content-kit/
 COPY packages/test-kit/package.json packages/test-kit/
 COPY packages/storybook/package.json packages/storybook/
-RUN pnpm install --frozen-lockfile
+COPY .npmrc ./
+RUN --mount=type=cache,id=tallyvane-pnpm-store,target=/pnpm/store,sharing=locked \
+    pnpm install --frozen-lockfile --store-dir=/pnpm/store
 
 FROM deps AS builder
 WORKDIR /workspace
@@ -44,7 +48,7 @@ COPY . .
 # no `--webpack` flag. `outputFileTracingRoot`/`turbopack.root` in next.config.ts already
 # point at this workspace root, which is what lets tracing see frontend-shared and
 # content-kit instead of stopping at this app's own directory.
-RUN pnpm --filter "./frontend-web" run build
+RUN pnpm --filter "./frontend-web" exec next build
 
 # `.next/standalone` traces only the runtime files this app actually needs — a fraction
 # of the full workspace install — but pnpm links workspace and hoisted npm dependencies
