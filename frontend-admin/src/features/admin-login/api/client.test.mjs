@@ -7,12 +7,20 @@ void test("password sign-in sends CSRF and same-origin credentials", async () =>
     const client = createAdminAuthClient(async (input, init) => {
         calls.push({ input: String(input), init });
         if (String(input).endsWith("/csrf")) return Response.json({ token: "csrf-value" });
-        return Response.json({ status: "issued" });
+        return Response.json({
+            status: "requires_second_factor",
+            pending_id: "pending-id",
+            available_methods: ["BACKUP_CODE"],
+        });
     });
 
     const result = await client.signIn("admin@example.test", "test-password");
 
-    expect(result).toEqual({ status: "issued" });
+    expect(result).toEqual({
+        status: "requires_second_factor",
+        pendingId: "pending-id",
+        availableMethods: ["BACKUP_CODE"],
+    });
     expect(calls.map(call => call.input)).toEqual([
         "/api/v1/auth/csrf",
         "/api/v1/auth/login/password",
@@ -23,6 +31,23 @@ void test("password sign-in sends CSRF and same-origin credentials", async () =>
         email: "admin@example.test",
         password: "test-password",
         device: "Admin browser",
+    });
+});
+
+void test("second-factor verification serializes pendingId as pending_id", async () => {
+    const calls = [];
+    const client = createAdminAuthClient(async (input, init) => {
+        calls.push({ input: String(input), init });
+        if (String(input).endsWith("/csrf")) return Response.json({ token: "csrf-value" });
+        return Response.json({ status: "issued" });
+    });
+
+    await client.verifyFactor("pending-id", "BACKUP_CODE", "backup-code");
+
+    expect(JSON.parse(calls[1].init.body)).toEqual({
+        pending_id: "pending-id",
+        kind: "BACKUP_CODE",
+        code: "backup-code",
     });
 });
 

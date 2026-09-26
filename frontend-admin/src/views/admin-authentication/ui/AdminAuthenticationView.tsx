@@ -17,15 +17,15 @@ import { ConfirmationDrawer, ResetFactorPanel } from "./AdminAuthenticationDialo
 interface SchemeBody {
     id: string;
     action: Action;
-    required_tokens: TokenKind[];
-    assurance_rank: number;
+    requiredTokens: TokenKind[];
+    assuranceRank: number;
     enabled: boolean;
 }
 
 interface PolicyBody {
     version: number;
     schemes: SchemeBody[];
-    advanced_acknowledged: boolean;
+    advancedAcknowledged: boolean;
 }
 
 const primaryTokens = new Set<TokenKind>(["PASSWORD", "GOOGLE", "EMAIL_SIGN_IN_CODE"]);
@@ -52,11 +52,11 @@ async function requestPolicy(): Promise<Policy> {
         schemes: body.schemes.map(scheme => ({
             id: scheme.id,
             action: scheme.action,
-            requiredTokens: scheme.required_tokens,
-            assuranceRank: scheme.assurance_rank,
+            requiredTokens: scheme.requiredTokens,
+            assuranceRank: scheme.assuranceRank,
             enabled: scheme.enabled,
         })),
-        advancedAcknowledged: body.advanced_acknowledged,
+        advancedAcknowledged: body.advancedAcknowledged,
     };
 }
 
@@ -344,12 +344,12 @@ async function savePolicy(context: PolicyMutationContext, acknowledged: boolean)
             schemes: policy.schemes.map(scheme => ({
                 id: scheme.id,
                 action: scheme.action,
-                required_tokens: scheme.requiredTokens,
-                assurance_rank: scheme.assuranceRank,
+                requiredTokens: scheme.requiredTokens,
+                assuranceRank: scheme.assuranceRank,
                 enabled: scheme.enabled,
             })),
-            advanced_acknowledged: acknowledged,
-            expected_version: policy.version,
+            advancedAcknowledged: acknowledged,
+            expectedVersion: policy.version,
         });
         setPolicy(await requestPolicy());
         setConflict(null);

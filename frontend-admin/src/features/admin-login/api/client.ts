@@ -2,6 +2,8 @@ import {
     AUTH_PROBLEM_TYPES,
     AuthSessionRuntime,
     createAuthSessionTransport,
+    fromWireJson,
+    toWireJson,
     type AccessDeniedProblem,
     type ApiProblem,
     type RefreshResult,
@@ -52,7 +54,7 @@ export function createAdminAuthClient(fetcher: typeof fetch = fetch) {
         const response = await send(path, method, headers, body);
         if (!response.ok) throw new AdminAuthError(response.status, await readProblem(response));
         if (response.status === 204) return undefined as T;
-        return await response.json() as T;
+        return fromWireJson(await response.json()) as T;
     }
 
     async function send(path: string, method: string, headers?: Headers, body?: unknown): Promise<Response> {
@@ -62,7 +64,7 @@ export function createAdminAuthClient(fetcher: typeof fetch = fetch) {
                 headers: headers ?? { Accept: "application/json" },
                 credentials: "same-origin",
                 cache: "no-store",
-                ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+                ...(body === undefined ? {} : { body: JSON.stringify(toWireJson(body)) }),
             });
         } catch {
             throw new AdminAuthError(0);
@@ -77,18 +79,18 @@ export function createAdminAuthClient(fetcher: typeof fetch = fetch) {
             return { status: response.status, problem: await readProblem(response) };
         },
         readActionSchemes: async (action: AdminAccountAction) => {
-            const result = await request<{ schemes: { id: string; required_tokens: AdminProofTokenKind[]; assurance_rank: number }[] }>(
+            const result = await request<{ schemes: { id: string; requiredTokens: AdminProofTokenKind[]; assuranceRank: number }[] }>(
                 `/account/action-proof/options?action=${encodeURIComponent(action)}`,
             );
             return result.schemes.map(scheme => ({
                 id: scheme.id,
-                requiredTokens: scheme.required_tokens,
-                assuranceRank: scheme.assurance_rank,
+                requiredTokens: scheme.requiredTokens,
+                assuranceRank: scheme.assuranceRank,
             } satisfies AdminProofScheme));
         },
         requestActionEmailCode: async (action: AdminAccountAction, kind: "EMAIL_SIGN_IN_CODE" | "EMAIL_FACTOR_CODE") => {
-            const result = await request<{ challenge_id: string }>("/account/action-proof/email-code", "POST", { action, kind });
-            return { challengeId: result.challenge_id };
+            const result = await request<{ challengeId: string }>("/account/action-proof/email-code", "POST", { action, kind });
+            return { challengeId: result.challengeId };
         },
         startGoogleActionProof: (action: AdminAccountAction) => request<{ url: string }>("/google/proof/start", "POST", { action }),
         issueActionProof: (action: AdminAccountAction, tokens: AdminPresentedProofToken[]) => request<{ proof: string }>(
@@ -97,9 +99,9 @@ export function createAdminAuthClient(fetcher: typeof fetch = fetch) {
                 tokens: tokens.map(token => ({
                     kind: token.kind,
                     value: token.value,
-                    ...(token.challengeId ? { challenge_id: token.challengeId } : {}),
-                    ...(token.codeVerifier ? { code_verifier: token.codeVerifier } : {}),
-                    ...(token.redirectUri ? { redirect_uri: token.redirectUri } : {}),
+                    ...(token.challengeId ? { challengeId: token.challengeId } : {}),
+                    ...(token.codeVerifier ? { codeVerifier: token.codeVerifier } : {}),
+                    ...(token.redirectUri ? { redirectUri: token.redirectUri } : {}),
                 })),
             },
         ),
@@ -132,7 +134,7 @@ export function createAdminAuthClient(fetcher: typeof fetch = fetch) {
 
 async function readProblem(response: Response): Promise<ApiProblem | undefined> {
     if (response.ok) return undefined;
-    const body: unknown = await response.clone().json().catch(() => undefined);
+    const body = fromWireJson(await response.clone().json().catch(() => undefined));
     if (!body || typeof body !== "object" || typeof (body as Record<string, unknown>).type !== "string") return undefined;
     return body as ApiProblem;
 }
