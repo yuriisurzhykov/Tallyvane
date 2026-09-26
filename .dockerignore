@@ -8,6 +8,11 @@
 node_modules
 **/node_modules
 
+# Local Windows Gradle caches are not inputs to the frontend image; exclude them before
+# sending the repository-root build context to Docker Desktop.
+.gradle-cache/
+.gradle-user-home/
+
 .git
 
 # The backend has its own Dockerfile and its own build context; nothing here is a

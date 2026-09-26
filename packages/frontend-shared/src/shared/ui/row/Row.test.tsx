@@ -3,6 +3,16 @@ import { render, screen } from "@testing-library/react";
 import { Row, type SpacingRole } from "./Row";
 
 describe("Row", () => {
+    it("renders a semantic header while keeping the horizontal layout contract", () => {
+        render(
+            <Row as="header" aria-label="Account" gap="inline">
+                <p>Account</p>
+            </Row>,
+        );
+
+        expect(screen.getByRole("banner", { name: "Account" })).toHaveClass("flex", "flex-row", "gap-inline");
+    });
+
     it("renders as a horizontal flex container, centred on the cross axis", () => {
         render(
             <Row gap="inline">

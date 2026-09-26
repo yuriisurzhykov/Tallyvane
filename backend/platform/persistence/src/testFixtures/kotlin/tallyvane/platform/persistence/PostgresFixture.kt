@@ -4,6 +4,7 @@ import org.testcontainers.DockerClientFactory
 import org.testcontainers.containers.PostgreSQLContainer
 import tallyvane.platform.kernel.Secret
 import java.sql.DriverManager
+import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
@@ -63,9 +64,9 @@ public object PostgresFixture {
 
     private const val PORT = 5432
 
-    private const val TEMPLATE = "tallyvane_template"
-
     private val sequence = AtomicInteger()
+
+    private val runId: String = UUID.randomUUID().toString().replace("-", "")
 
     private val container: PostgreSQLContainer<*> by lazy {
         PostgreSQLContainer<Nothing>(IMAGE)
@@ -109,14 +110,14 @@ public object PostgresFixture {
      * when `migrate` returns.
      */
     private val template: String by lazy {
-        val name = TEMPLATE
+        val name = "tallyvane_template_$runId"
         create(name, from = null)
         FlywayMigrations(accessTo(name)).apply()
         name
     }
 
     private fun created(from: String?): String {
-        val name = "spec_${sequence.incrementAndGet()}"
+        val name = "spec_${runId}_${sequence.incrementAndGet()}"
         create(name, from)
         return name
     }
@@ -128,15 +129,32 @@ public object PostgresFixture {
     private fun create(name: String, from: String?) {
         val clause = from?.let { " template $it" } ?: ""
         DriverManager
-            .getConnection(container.jdbcUrl, container.username, container.password)
+            .getConnection(adminUrl, adminUser, adminPassword)
             .use { connection ->
                 connection.createStatement().use { it.execute("create database $name$clause") }
             }
     }
 
-    private fun accessTo(database: String): DatabaseAccess = DatabaseAccess(
-        url = "jdbc:postgresql://${container.host}:${container.getMappedPort(PORT)}/$database",
-        user = container.username,
-        password = Secret(container.password),
-    )
+    private fun accessTo(database: String): DatabaseAccess =
+        DatabaseAccess(databaseUrl(database), adminUser, Secret(adminPassword))
+
+    private val externalUrl: String?
+        get() = System.getenv("TALLYVANE_TEST_POSTGRES_URL")
+
+    private val adminUrl: String
+        get() = externalUrl ?: container.jdbcUrl
+
+    private val adminUser: String
+        get() = System.getenv("TALLYVANE_TEST_POSTGRES_USER") ?: container.username
+
+    private val adminPassword: String
+        get() = System.getenv("TALLYVANE_TEST_POSTGRES_PASSWORD") ?: container.password
+
+    private fun databaseUrl(database: String): String {
+        val base = adminUrl
+        val queryIndex = base.indexOf('?')
+        val query = if (queryIndex >= 0) base.substring(queryIndex) else ""
+        val withoutQuery = if (queryIndex >= 0) base.substring(0, queryIndex) else base
+        return "${withoutQuery.substringBeforeLast('/')}/$database$query"
+    }
 }

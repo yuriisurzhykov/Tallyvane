@@ -24,7 +24,12 @@ type TextColorProps =
     | { readonly tone?: "neutral"; readonly color?: "primary" | "secondary" | "muted" }
     | { readonly tone: "info" | "attention" | "success" | "danger"; readonly color?: never };
 
-export type TextProps = useRender.ComponentProps<"span"> & { readonly variant: TextVariant } & TextColorProps;
+export type TextElement = "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "label" | "p" | "span" | "strong" | "code";
+
+export type TextProps = useRender.ComponentProps<"span"> & {
+    readonly variant: TextVariant;
+    readonly as?: TextElement;
+} & TextColorProps;
 
 const VARIANT_CLASS: Record<TextVariant, string> = {
     hero: "text-hero",
@@ -96,11 +101,11 @@ function resolveColorClassName(tone: TextColorProps["tone"], color: TextColorPro
 }
 
 /** Renders one of the eleven text styles on a polymorphic element. The only way type is applied. */
-export function Text({ variant, tone, color, render, className, ...props }: TextProps) {
+export function Text({ variant, as, tone, color, render, className, ...props }: TextProps) {
     const classNames = `${ VARIANT_CLASS[variant] } ${ resolveColorClassName(tone, color) }`;
 
     return useRender({
-        defaultTagName: defaultTagFor(variant),
+        defaultTagName: as ?? defaultTagFor(variant),
         render,
         props: mergeProps<"span">({ className: classNames }, { ...(className ? { className } : {}), ...props }),
     });

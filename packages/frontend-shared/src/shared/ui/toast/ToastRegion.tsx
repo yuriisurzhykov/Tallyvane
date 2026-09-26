@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, use, useState, type ReactNode } from "react";
+import { createContext, use, useMemo, useState, type ReactNode } from "react";
 import { Toast as BaseToast } from "@base-ui/react/toast";
 import type { ToastManager } from "@base-ui/react/toast";
 import { Dot } from "../dot";
@@ -117,6 +117,11 @@ export function useToast<Data extends object = Record<string, never>>(): {
         throw new Error("useToast must be used inside <ToastRegion>");
     }
     const { toasts, add, close, update } = BaseToast.useToastManager<Data>();
+    const actions = useMemo<ToastRegionActions<Data>>(() => ({
+        add: (options) => add(toBaseOptions(options)),
+        close,
+        update: (id, options) => { update(id, toBaseOptions(options as AddToastOptions<Data>)); },
+    }), [add, close, update]);
 
     return {
         state: {
@@ -128,11 +133,7 @@ export function useToast<Data extends object = Record<string, never>>(): {
                 ...(toast.data === undefined ? {} : { data: toast.data }),
             })),
         },
-        actions: {
-            add: (options) => add(toBaseOptions(options)),
-            close,
-            update: (id, options) => { update(id, toBaseOptions(options as AddToastOptions<Data>)); },
-        },
+        actions,
         meta,
     };
 }

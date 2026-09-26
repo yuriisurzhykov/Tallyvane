@@ -53,10 +53,22 @@ internal fun usecaseHasTest(scope: KoScope): List<String> {
  * schema. That is slice 14's conformance run, which needs `app`. This is the half that works today.
  */
 internal fun openapiCoversRoutes(scope: KoScope): List<String> {
-    val served = scope.files
-        .withoutException("openapi-covers-routes")
-        .flatMap { file -> servedBy(file.codeText()) }
-        .toSet()
+    val files = scope.files.withoutException("openapi-covers-routes")
+    val basePaths = files.mapNotNull { file ->
+        val source = file.codeText()
+        val packageName = PACKAGE.find(source)?.groupValues?.get(1) ?: return@mapNotNull null
+        val basePath = BASE_PATH.find(source)?.groupValues?.get(1) ?: return@mapNotNull null
+        packageName.substringBeforeLast('.') to basePath
+    }
+    val served = files.flatMap { file ->
+        val source = file.codeText()
+        val packageName = PACKAGE.find(source)?.groupValues?.get(1)
+        val inheritedBase = basePaths
+            .filter { (root, _) -> packageName == root || packageName?.startsWith("$root.") == true }
+            .maxByOrNull { (root, _) -> root.length }
+            ?.second
+        servedBy(source, inheritedBase)
+    }.toSet()
     val documented = documentedPaths()
 
     val undocumented = (served - documented).map { path -> "$path is served and absent from docs/openapi.yaml" }
@@ -79,8 +91,8 @@ internal fun openapiCoversRoutes(scope: KoScope): List<String> {
  * there is none; if one appears, this rule will not notice it, which is why slice 14's conformance
  * run against a live server is still owed.
  */
-private fun servedBy(source: String): Set<String> {
-    val base = BASE_PATH.find(source)?.groupValues?.get(1) ?: return emptySet()
+private fun servedBy(source: String, inheritedBase: String? = null): Set<String> {
+    val base = BASE_PATH.find(source)?.groupValues?.get(1) ?: inheritedBase ?: return emptySet()
     val nested = ROUTE.findAll(source)
         .map { found -> found.groupValues[2] }
         .filter { sub -> sub.startsWith("/") }
@@ -103,6 +115,7 @@ private fun documentedPaths(): Set<String> {
 }
 
 private val BASE_PATH = Regex("""BasePath\("([^"]+)"\)""")
+private val PACKAGE = Regex("""(?m)^package\s+([A-Za-z0-9_.]+)""")
 
 private val ROUTE = Regex("""\b(get|post|put|patch|delete)\(\s*"([^"]*)"""")
 
@@ -117,4 +130,39 @@ internal fun registryOwnsBranching(scope: KoScope): List<String> {
             val code = file.codeText()
             code.contains("when") && kinds.any { kind -> code.contains(kind) }
         }.map { it.where() }
+}
+
+/**
+ * The identity HTTP adapter is an interface boundary, including its small helpers.
+ * Data-only contracts have no declared behavior and are deliberately invisible to this rule.
+ * Each concrete type with a public method must implement its own interface and live inside it;
+ * the nested implementation name is one plain word (for example `Default`).
+ */
+internal fun identityWebBehaviorIsInterface(scope: KoScope): List<String> {
+    val identityClasses = scope
+        .classes(includeNested = true, includeLocal = false)
+        .filter { it.resideInPackage("tallyvane.identity.web..") }
+        .filter { klass ->
+            klass.functions(includeNested = false, includeLocal = false).any { function ->
+                val declaration = function.text.substringBefore("{").substringBefore("=")
+                !Regex("\\b(private|internal|protected)\\b").containsMatchIn(declaration)
+            }
+        }
+    val classesByInterface = identityClasses
+        .flatMap { klass -> klass.parentInterfaces().map { it.name.substringBefore('<') to klass } }
+        .groupBy({ it.first }, { it.second })
+    return identityClasses.flatMap { klass ->
+        val interfaces = klass.parentInterfaces().map { it.name.substringBefore('<') }.toSet()
+        when {
+            interfaces.isEmpty() -> listOf(klass.where())
+            else ->
+                interfaces
+                    .filter { interfaceName -> classesByInterface[interfaceName].orEmpty().size == 1 }
+                    .filterNot { interfaceName ->
+                        klass.name.matches(Regex("[A-Z][A-Za-z0-9]*")) &&
+                            klass.isNestedInOwnUseCaseInterface(setOf(interfaceName))
+                    }
+                    .map { klass.where() }
+        }
+    }
 }

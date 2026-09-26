@@ -1,6 +1,7 @@
 import { AppShell } from "frontend-shared/ui/app-shell";
 import { TodayActions } from "@/widgets/today-actions";
 import type { TodayAction } from "@/widgets/today-actions";
+import { AccountMenu } from "@/widgets/account-menu";
 
 /**
  * Static for now — the same "static/mock is enough" scope this whole first
@@ -42,7 +43,7 @@ const NAV_ITEMS = [{ label: "Today", href: "/today", isActive: true }];
  */
 export function TodayPage() {
     return (
-        <AppShell navItems={NAV_ITEMS} title="Today" skipLinkLabel="Skip to content">
+        <AppShell navItems={NAV_ITEMS} title="Today" skipLinkLabel="Skip to content" actions={<AccountMenu />}>
             <TodayActions actions={MOCK_ACTIONS} />
         </AppShell>
     );

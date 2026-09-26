@@ -242,10 +242,40 @@ implementation of either. Modules depend on those interfaces; `app` supplies the
 place the direction is inverted on purpose is `RouteModule`, which names Ktor's `Route` — recorded in
 ADR-050 as a deliberate cost rather than an oversight.
 
+## 2026-09-02 — `CsrfGuard`: three real mechanisms, built ahead of the route that will use them
+
+`identity`'s own design plan calls for CSRF defense once its cookie-based sessions exist, naming
+three mechanisms explicitly: `ContentTypeGuard`, `DoubleSubmitGuard`, `OriginAllowlistGuard`, meant
+to compose rather than replace each other. All three are built and tested here, in `csrf/CsrfGuard.kt`
+— plain classes nested on the port, per `ENGINEERING-PRINCIPLES.md`'s "the file publishes one
+abstraction": none of the three reaches an external technology, each reads only the current
+`ApplicationCall`, so none earns the top-level `internal` adapter shape a real driver would.
+
+**Why building the mechanisms now, without wiring them into `Api`, is not the `AuthenticationMethod`
+mistake.** Each guard is a concrete, working, independently-verifiable algorithm against a real,
+already-existing type (`ApplicationCall`) — not a Strategy interface predicted from zero evidence to
+cover implementations that do not exist yet. `CsrfGuard.Composite` earns its interface the same way
+`FailureTranslator.Chained` already does: three interchangeable mechanisms that must be checked
+together, a real requirement today, not a guess about tomorrow.
+
+**What is deliberately not decided here.** Which guards run in production, what values populate
+`OriginAllowlistGuard`'s allow-list, and — for `DoubleSubmitGuard` specifically — where and when its
+cookie is actually written onto a response, are composition-root decisions. `identity` has no real
+route yet (`web/` is still empty), so wiring a `CsrfGuard.Composite` into `Api.install` now would mean
+guessing which endpoints need it and which don't, before either exists to check the guess against.
+Recorded as an open item, not a silent gap: `backend/.plans/identity-implementation.md`.
+
+**`DoubleSubmitGuard` compares with `Secret`, not plain `String` equality.** The double-submit
+pattern's real defense is same-origin policy, not secrecy of the token — but this codebase already
+treats every presented-token comparison as one that should not leak match length through timing
+(`identity:domain/README.md`'s `HashedToken` entry), and there was no reason to make this the one
+exception.
+
 ## Not here, and whose it is
 
 The engine's real configuration, the port, graceful shutdown and the actual route list belong to `app`
 (slice 13); CIO is a test-only dependency here. Authentication is §11.2 and arrives with `identity`.
-`CallLogging` is undecided: the question is not convenience but whether Ktor's plugin carries values
-into MDC across the dispatcher hops this codebase makes, and ADR-056 already measured that a bare MDC
-put does not — so it is a measurement, not a preference, and it has not been made.
+`CsrfGuard`'s three mechanisms are built (above); wiring them into `Api`'s pipeline is not, for the
+same reason. `CallLogging` is undecided: the question is not convenience but whether Ktor's plugin
+carries values into MDC across the dispatcher hops this codebase makes, and ADR-056 already measured
+that a bare MDC put does not — so it is a measurement, not a preference, and it has not been made.

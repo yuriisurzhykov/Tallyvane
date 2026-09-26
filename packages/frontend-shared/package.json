@@ -35,6 +35,7 @@
     "./ui/toggle": "./src/shared/ui/toggle/index.ts",
     "./ui/toggle-group": "./src/shared/ui/toggle-group/index.ts",
     "./ui/input": "./src/shared/ui/input/index.ts",
+    "./ui/image": "./src/shared/ui/image/index.ts",
     "./ui/text-area": "./src/shared/ui/text-area/index.ts",
     "./ui/form": "./src/shared/ui/form/index.ts",
     "./ui/password-field": "./src/shared/ui/password-field/index.ts",
@@ -84,8 +85,10 @@
     "./ui/top-bar": "./src/shared/ui/layout/top-bar/index.ts",
     "./ui/app-shell": "./src/shared/ui/layout/app-shell/index.ts",
     "./api": "./src/shared/api/index.ts",
+    "./auth-session": "./src/shared/auth-session/index.ts",
     "./i18n": "./src/shared/i18n/index.ts",
     "./lib": "./src/shared/lib/index.ts",
+    "./lib/safe-relative-path": "./src/shared/lib/safe-relative-path.ts",
     "./lib/register-otel": "./src/shared/lib/register-otel.ts",
     "./config": "./src/shared/config/index.ts",
     "./blocks": "./src/shared/blocks/index.ts",
@@ -107,7 +110,8 @@
     "design-token-engine": "workspace:*",
     "lucide-react": "^1.32.0",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "react-dom": "^19.2.8",
+    "tallyvane-api-contract": "workspace:*"
   },
   "devDependencies": {
     "@feature-sliced/filesystem": "^3.1.0",

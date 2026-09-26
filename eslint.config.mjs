@@ -155,6 +155,9 @@ export default [
             // Next writes this and owns it; it is not in any tsconfig we
             // control, so the type-aware parser cannot read it either.
             "**/next-env.d.ts",
+            // Committed OpenAPI output is checked by api:check; applying source-style rules to
+            // generated declarations only reports generator formatting and size choices.
+            "packages/api-contract/src/api.generated.d.ts",
             // Playwright's own report is a bundled application it ships, not
             // source. Linting it produced over a thousand findings about code
             // nobody here can change.

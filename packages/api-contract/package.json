@@ -1,0 +1,17 @@
+{
+  "name": "tallyvane-api-contract",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "api:generate": "openapi-typescript ../../docs/openapi.yaml --output src/api.generated.d.ts",
+    "api:check": "node ../../scripts/check-openapi-snake-case.mjs && node ../../scripts/check-problem-catalog.mjs && openapi-typescript ../../docs/openapi.yaml --output src/api.generated.d.ts --check"
+  },
+  "devDependencies": {
+    "openapi-typescript": "^7.13.0"
+  }
+}

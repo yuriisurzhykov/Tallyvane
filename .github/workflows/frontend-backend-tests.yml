@@ -26,6 +26,9 @@ jobs:
       - name: Prepare workspace
         uses: ./.github/actions/prepare-workspace
 
+      - name: Verify OpenAPI contract and generated TypeScript types
+        run: pnpm run api:check
+
       # Types first. Every check after this reads them, and a type error
       # produces a wall of unrelated failures downstream that costs more to
       # read than to prevent.

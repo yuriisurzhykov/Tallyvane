@@ -5,6 +5,8 @@ import { Text } from "../text";
 export interface FieldsetProps {
     readonly legend: string;
     readonly children: ReactNode;
+    readonly disabled?: boolean;
+    readonly className?: string;
 }
 
 /**
@@ -16,9 +18,9 @@ export interface FieldsetProps {
  * `aria-labelledby`, not a native `<legend>` — see this batch's authoring
  * report for why that default was kept rather than forced with `render`.
  */
-export function Fieldset({ legend, children }: FieldsetProps) {
+export function Fieldset({ legend, children, disabled = false, className }: FieldsetProps) {
     return (
-        <BaseFieldset.Root className="flex flex-col gap-stack">
+        <BaseFieldset.Root disabled={disabled} className={["flex flex-col gap-stack", className].filter(Boolean).join(" ")}>
             <Text variant="title3" color="primary" render={<BaseFieldset.Legend />}>
                 {legend}
             </Text>

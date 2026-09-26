@@ -1,0 +1,21 @@
+# Access must cover this entire hostname, including /api and websocket requests.
+# There is no independently reachable Mailpit origin or SMTP host port.
+map $http_upgrade $mail_connection {
+    default upgrade;
+    '' close;
+}
+server {
+    listen 80;
+    server_name mail.${TALLYVANE_DOMAIN};
+    # Inbox URLs can contain message identifiers. Do not log them.
+    access_log off;
+    location / {
+        proxy_pass http://mailpit:8025;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $mail_connection;
+        proxy_read_timeout 300s;
+    }
+}

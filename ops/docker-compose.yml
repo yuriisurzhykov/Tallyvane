@@ -46,6 +46,19 @@ x-server: &server-defaults
     TALLYVANE_DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
     TALLYVANE_HEALTH_TOKEN: ${TALLYVANE_HEALTH_TOKEN:?TALLYVANE_HEALTH_TOKEN must be set}
     TALLYVANE_LOG_LEVEL: ${TALLYVANE_LOG_LEVEL:-INFO}
+    TALLYVANE_AUTH_ENABLED: "true"
+    TALLYVANE_TOKEN_PEPPER: ${TALLYVANE_TOKEN_PEPPER:?TALLYVANE_TOKEN_PEPPER must be set}
+    TALLYVANE_TOKEN_PEPPER_VERSION: ${TALLYVANE_TOKEN_PEPPER_VERSION:-1}
+    TALLYVANE_TOTP_KEYSET: ${TALLYVANE_TOTP_KEYSET:?TALLYVANE_TOTP_KEYSET must be set}
+    TALLYVANE_COOKIE_SECURE: "true"
+    TALLYVANE_AUTH_ORIGINS: https://app.${DOMAIN},https://admin.${DOMAIN}
+    TALLYVANE_ADMIN_EMAILS: ${TALLYVANE_ADMIN_EMAILS:-}
+    TALLYVANE_SMTP_HOST: mailpit
+    TALLYVANE_SMTP_PORT: "1025"
+    TALLYVANE_SMTP_FROM: ${TALLYVANE_SMTP_FROM:-noreply@surzhykov.icu}
+    TALLYVANE_GOOGLE_CLIENT_ID: ${TALLYVANE_GOOGLE_CLIENT_ID:-}
+    TALLYVANE_GOOGLE_CLIENT_SECRET: ${TALLYVANE_GOOGLE_CLIENT_SECRET:-}
+    TALLYVANE_GOOGLE_REDIRECT_URI: ${TALLYVANE_GOOGLE_REDIRECT_URI:-}
     # -javaagent alongside -XX:MaxRAMPercentage in the same value, same reasoning as the
     # heap/mem_limit pairing this line already carries: two settings that only make sense read
     # together stay written together, not one here and one guessed at from a second file.
@@ -64,7 +77,7 @@ x-server: &server-defaults
       condition: service_healthy
     migrate:
       condition: service_completed_successfully
-  networks: [ edge, data ]
+  networks: [ edge, data, mail ]
   logging: *log-bound
   healthcheck:
     test: [ "CMD", "curl", "--fail", "--silent", "--output", "/dev/null", "http://127.0.0.1:8080/api/v1/health/live" ]
@@ -134,6 +147,22 @@ x-frontend-admin: &frontend-admin-defaults
     start_period: 10s
 
 services:
+  # A retained development inbox, never a relay. No ports published; no internet route.
+  mailpit:
+    image: axllent/mailpit:v1.31.1
+    restart: unless-stopped
+    environment:
+      MP_DATABASE: /data/mailpit.db
+      MP_MAX_MESSAGES: "0"
+      MP_DISABLE_VERSION_CHECK: "true"
+      MP_SMTP_DISABLE_RDNS: "true"
+      MP_SMTP_RELAY_ALL: "false"
+      MP_ALLOWED_HOSTS: mail.${DOMAIN}
+    volumes:
+      - maildata:/data
+    networks: [ mail ]
+    logging: *log-bound
+
   # Nothing listens on a port of this machine. cloudflared opens an outbound connection to
   # Cloudflare and receives requests through it, so the firewall can refuse every inbound
   # port except SSH.
@@ -192,7 +221,10 @@ services:
       # into it, and templates/default.conf.template overwrites the image's own welcome-page
       # server by name; a read-only mount would defeat both.
       - ./nginx/templates:/etc/nginx/templates:ro
-    networks: [ edge ]
+    networks: [ edge, mail ]
+    depends_on:
+      mailpit:
+        condition: service_started
     logging: *log-bound
     healthcheck:
       test: [ "CMD", "wget", "--quiet", "--tries=1", "--output-document=/dev/null", "http://127.0.0.1/healthz" ]
@@ -302,6 +334,8 @@ services:
       start_period: 30s
 
 networks:
+  mail:
+    internal: true
   # cloudflared reaches nginx and nothing else. The subnet is pinned rather than left to
   # Docker because nginx has to name it: behind the tunnel the peer address is a container
   # address, and set_real_ip_from needs the exact range to accept a forwarded client address
@@ -320,4 +354,5 @@ networks:
         - subnet: 172.28.1.0/24
 
 volumes:
+  maildata:
   pgdata:

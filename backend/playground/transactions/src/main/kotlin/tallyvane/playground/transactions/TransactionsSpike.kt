@@ -57,6 +57,18 @@ private fun outcome(sentence: String) {
     println("  committed rows after:  ${committed()}  <- $sentence")
 }
 
+/**
+ * What a "dumb" repository method looks like: a plain Exposed DSL call, no
+ * `transaction { }` of its own. Whether this needs an ambient transaction already
+ * open — and whether it correctly joins one rather than opening a second — is
+ * exactly srez 14's open question.
+ */
+private fun dumbRead(): Int = SpikeRows.selectAll().count().toInt()
+
+private fun dumbInsert(value: Int) {
+    SpikeRows.insert { it[n] = value }
+}
+
 fun main(): Unit =
     runBlocking {
         println("Connecting to ${access.url} as ${access.user}")
@@ -107,7 +119,38 @@ fun main(): Unit =
                 println("  refused: ${cause.message}")
             }
             outcome("the refusal took the outer write down with it")
+
+            println()
+            println("=== a 'dumb' method (no transaction { } of its own) called with none open")
+            try {
+                val count = dumbRead()
+                println("  did NOT throw: read $count rows with no ambient transaction")
+            } catch (cause: Exception) {
+                println("  threw ${cause::class.simpleName}: ${cause.message}")
+            }
+
+            println()
+            println("=== the same 'dumb' method called from inside transactions.inTransaction")
+            val readInside = transactions.inTransaction {
+                val count = dumbRead()
+                Verdict.Commit(count)
+            }
+            println("  did NOT throw: read $readInside rows, using the ambient transaction TransactionRunner opened")
+
+            println()
+            println("=== one use case, one inTransaction, covering a dumb read AND a dumb write")
+            step("read-then-write: mirrors GoogleSignInCompleter.findOrCreateUser's real shape")
+            transactions.inTransaction {
+                val existing = dumbRead()
+                println("  dumb read, from inside the same block that will also write: $existing rows so far")
+                dumbInsert(BY_READ_THEN_WRITE)
+                println("  dumb write, same block, same ambient transaction: ${dumbRead()} rows now visible to it")
+                Verdict.Commit(Unit)
+            }
+            outcome("read and write shared one transaction, no repository opened its own")
         }
         println()
-        println("Pool closed. One row should remain: the one the commit wrote.")
+        println("Pool closed. Two rows should remain: the ones the commit and the read-then-write step wrote.")
     }
+
+private const val BY_READ_THEN_WRITE = 5

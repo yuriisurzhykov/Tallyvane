@@ -1,0 +1,87 @@
+# Standalone localhost demo, not an override of production. Never use production .env.
+name: tallyvane-auth-demo
+services:
+  frontend-app:
+    image: ${DEMO_FRONTEND_APP_IMAGE:-tallyvane-frontend-app:auth-demo}
+    environment:
+      OTEL_SDK_DISABLED: "true"
+    networks: [ demo ]
+  frontend-admin:
+    image: ${DEMO_FRONTEND_ADMIN_IMAGE:-tallyvane-frontend-admin:auth-demo}
+    environment:
+      OTEL_SDK_DISABLED: "true"
+    networks: [ demo ]
+  proxy:
+    image: nginx:alpine
+    ports: [ "127.0.0.1:3080:80", "127.0.0.1:3081:81" ]
+    volumes: [ "./demo/nginx.conf:/etc/nginx/conf.d/default.conf:ro" ]
+    networks: [ demo ]
+    depends_on: [ server, frontend-app, frontend-admin ]
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: tallyvane
+      POSTGRES_USER: tallyvane
+      POSTGRES_PASSWORD: demo-local-only
+    volumes:
+      - demo-pgdata:/var/lib/postgresql/data
+    networks: [ data ]
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U tallyvane -d tallyvane" ]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  migrate:
+    image: ${DEMO_BACKEND_IMAGE:-tallyvane-backend:auth-demo}
+    command: [ "java", "-cp", "/opt/tallyvane/migrate/lib/*", "tallyvane.migrate.MigrateKt" ]
+    environment: &database
+      TALLYVANE_DB_URL: jdbc:postgresql://db:5432/tallyvane
+      TALLYVANE_DB_USER: tallyvane
+      TALLYVANE_DB_PASSWORD: demo-local-only
+    networks: [ data ]
+    depends_on:
+      db:
+        condition: service_healthy
+  server:
+    image: ${DEMO_BACKEND_IMAGE:-tallyvane-backend:auth-demo}
+    environment:
+      <<: *database
+      TALLYVANE_AUTH_ENABLED: "true"
+      TALLYVANE_HEALTH_TOKEN: demo-health-token-isolated-localhost-0123456789
+      TALLYVANE_TOKEN_PEPPER: demo-token-pepper-isolated-localhost-0123456789
+      TALLYVANE_TOTP_KEYSET: ${DEMO_TOTP_KEYSET:?Generate an isolated demo keyset}
+      TALLYVANE_COOKIE_SECURE: "false"
+      TALLYVANE_AUTH_ORIGINS: http://localhost:3080,http://localhost:3081
+      TALLYVANE_ADMIN_EMAILS: owner@example.test
+      TALLYVANE_SMTP_HOST: mailpit
+      TALLYVANE_SMTP_PORT: "1025"
+      TALLYVANE_SMTP_FROM: noreply@example.test
+      OTEL_SDK_DISABLED: "true"
+    ports: [ "127.0.0.1:8080:8080" ]
+    networks: [ data, mail, demo ]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      mailpit:
+        condition: service_started
+  mailpit:
+    image: axllent/mailpit:v1.31.1
+    environment:
+      MP_DATABASE: /data/mailpit.db
+      MP_MAX_MESSAGES: "0"
+      MP_DISABLE_VERSION_CHECK: "true"
+      MP_SMTP_DISABLE_RDNS: "true"
+      MP_SMTP_RELAY_ALL: "false"
+      MP_ALLOWED_HOSTS: localhost,127.0.0.1
+    volumes: [ "demo-maildata:/data" ]
+    ports: [ "127.0.0.1:8025:8025" ]
+    networks: [ mail ]
+networks:
+  data:
+    internal: true
+  mail:
+    internal: true
+  demo: {}
+volumes:
+  demo-pgdata: {}
+  demo-maildata: {}

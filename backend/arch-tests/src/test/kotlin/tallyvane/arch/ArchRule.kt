@@ -4,9 +4,14 @@ import com.lemonappdev.konsist.api.container.KoScope
 
 internal data class ArchRule(
     val id: String,
-    val scope: () -> KoScope = { productionScope() },
+    val scope: ArchScope = ArchScope.Production,
     val violations: (KoScope) -> List<String>,
 )
+
+internal enum class ArchScope {
+    Production,
+    Code,
+}
 
 internal val ARCH_RULES: List<ArchRule> =
     listOf(
@@ -36,11 +41,13 @@ internal val ARCH_RULES: List<ArchRule> =
         ArchRule("problem-has-no-public-source", violations = ::problemHasNoPublicSource),
         ArchRule("openapi-covers-routes", violations = ::openapiCoversRoutes),
         ArchRule("own-schema-only", violations = ::ownSchemaOnly),
+        ArchRule("cache-key-is-module-prefixed", violations = ::cacheKeyIsModulePrefixed),
         ArchRule("no-cross-schema-join", violations = ::noCrossSchemaJoin),
         ArchRule("no-llm-with-personal-data", violations = ::noLlmWithPersonalData),
-        ArchRule("port-has-conformance-suite", scope = { codeScope() }, violations = ::portHasConformanceSuite),
-        ArchRule("usecase-has-test", scope = { codeScope() }, violations = ::usecaseHasTest),
+        ArchRule("port-has-conformance-suite", scope = ArchScope.Code, violations = ::portHasConformanceSuite),
+        ArchRule("usecase-has-test", scope = ArchScope.Code, violations = ::usecaseHasTest),
         ArchRule("registry-owns-branching", violations = ::registryOwnsBranching),
+        ArchRule("identity-web-behavior-is-interface", violations = ::identityWebBehaviorIsInterface),
         ArchRule("app-has-no-logic", violations = ::appHasNoLogic),
         ArchRule("one-top-level-class", violations = ::oneTopLevelClass),
         ArchRule("package-matches-layer", violations = ::packageMatchesLayer),
@@ -51,9 +58,9 @@ internal val ARCH_RULES: List<ArchRule> =
         ArchRule("nested-impl-is-pure", violations = ::nestedImplIsPure),
         ArchRule("adapter-named-by-mechanism", violations = ::adapterNamedByMechanism),
         ArchRule("no-fake-in-main", violations = ::noFakeInMain),
-        ArchRule("no-verdict-in-signature", scope = { codeScope() }, violations = ::noVerdictInSignature),
-        ArchRule("no-mock-libraries", scope = { codeScope() }, violations = ::noMockLibraries),
-        ArchRule("no-di-framework", scope = { codeScope() }, violations = ::noDiFramework),
+        ArchRule("no-verdict-in-signature", scope = ArchScope.Code, violations = ::noVerdictInSignature),
+        ArchRule("no-mock-libraries", scope = ArchScope.Code, violations = ::noMockLibraries),
+        ArchRule("no-di-framework", scope = ArchScope.Code, violations = ::noDiFramework),
         ArchRule("web-one-usecase", violations = ::webOneUsecase),
     )
 

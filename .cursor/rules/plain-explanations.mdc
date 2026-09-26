@@ -1,0 +1,64 @@
+---
+description: Plain, direct explanatory prose for technical decisions and trade-offs — no unexplained jargon, no padding, no rhetorical drama
+alwaysApply: true
+---
+
+# Explain technical decisions plainly
+
+Explanatory prose — chat answers about a technical decision or trade-off, and
+Russian documentation prose in `ARCHITECTURE.md`, `docs/`, `backend/.plans/`,
+ADRs, and README files — has a recognizable "AI report" register: unexplained
+jargon standing in for an actual description of the mechanism, sentences
+compressed exactly where detail is needed and padded exactly where it isn't, a
+rhetorical "not X, but Y" contrast used for drama rather than information, and
+a fact the reader never asked for wrapped in a sentence that only exists to
+sound conclusive.
+
+Concretely, stop producing:
+
+- **Jargon/shorthand standing in for the actual steps.** "По шаблону
+  modules/_template, копия-переименование" names a mechanism without
+  describing it. Say what actually happens: which file gets created, copied
+  from where, what gets renamed, and which other files change and why.
+- **Compression where the reader needs the mechanism, padding where a short
+  sentence would do.** A step-by-step technical description needs
+  enumeration, not a shorthand phrase; a simple fact needs one sentence, not
+  a paragraph building up to it.
+- **A "not X, but Y" contrast used for rhetorical effect rather than to
+  convey a fact.** "Это стоит признать прямо, а не маскировать под «то же
+  самое, просто аккуратнее»" implies a deception nobody claimed, and spends a
+  whole sentence on drama with no new information. State the fact instead:
+  time doesn't decrease, it moves from A to B.
+- **An unrequested fact delivered with a whole justifying paragraph around
+  it**, rather than as one plain clause. If a caveat matters, say it in the
+  sentence it belongs to — don't build a paragraph whose only job is to sound
+  like it earned the caveat.
+
+This applies to new chat answers and new documentation prose going forward.
+It is **not** a mandate to rewrite what's already published — fix an existing
+passage's voice only when you're already substantively editing it for another
+reason, not as a standalone pass.
+
+## Example
+
+### Wrong (a real chat answer this rule exists because of)
+
+> Сегодня рецепт §20 звучит как «класс + одна строка в реестре». Модуль на
+> источник добавляет: свой build.gradle.kts (по шаблону modules/_template,
+> копия-переименование), строку в settings.gradle.kts, запись в modules.yaml.
+> Это всё ещё «правится за минуты» — просто минуты уходят не туда же, куда
+> сегодня. Это стоит признать прямо, а не маскировать под «то же самое,
+> просто аккуратнее».
+
+### Right
+
+> При добавлении нового модуля на источник вакансий каждый модуль создаёт
+> свой файл build.gradle.kts, название модуля дублируется в
+> settings.gradle.kts, а затем правится modules.yaml — файл, который
+> отвечает за архитектуру: туда добавляется ссылка на новый модуль для
+> валидации графа зависимостей между модулями. Если сделаем так, время на
+> добавление источника не уменьшится — просто раньше его тратили на класс и
+> строку в реестре, а теперь будут тратить на эти три файла.
+
+Same underlying fact, no unexplained jargon, no padding, no manufactured
+drama — just what happens and what it costs.

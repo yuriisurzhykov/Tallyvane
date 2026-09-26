@@ -10,18 +10,22 @@ of the product: a complete record, and a read on where it is heading.
 
 ## Status
 
-Scaffolding. The architecture is designed and reviewed; no feature code exists
-yet. Directory structure and configuration are in place so that the rails come
-before the first module, not after it.
+The repository contains feature code: authentication in `frontend-app` and
+`backend/modules/identity`, shared UI components, and content tooling.
+Implementation coverage varies by area; the architecture also describes planned
+capabilities. Source code and its checks establish what is implemented.
+
+For a new feature, start with the [reuse map](docs/engineering/reuse-map.md)
+to find existing building blocks, examples, and their limits.
 
 ## Where the thinking lives
 
-| Document | What it covers |
-| --- | --- |
+| Document                           | What it covers                                                                       |
+|------------------------------------|--------------------------------------------------------------------------------------|
 | [ARCHITECTURE.md](ARCHITECTURE.md) | The whole system: modular monolith, layers, data model, flows, validation, decisions |
-| [docs/frontend/](docs/frontend/) | Design tokens, and the frontend layer specifications as they are written |
-| [docs/backend/](docs/backend/) | Module specifications as they are written |
-| [docs/adr/](docs/adr/) | One file per architectural decision, referenced by ID from the code |
+| [docs/frontend/](docs/frontend/)   | Design tokens, and the frontend layer specifications as they are written             |
+| [docs/backend/](docs/backend/)     | Module specifications as they are written                                            |
+| [docs/adr/](docs/adr/)             | One file per architectural decision, referenced by ID from the code                  |
 
 Read `ARCHITECTURE.md` first. Every non-obvious choice in this repository is
 recorded there with the alternative that was rejected and why.
@@ -30,7 +34,8 @@ recorded there with the alternative that was rejected and why.
 
 ```
 backend/         Kotlin modular monolith — see backend/README.md
-frontend-web/    Next.js app: blog + console — see frontend-web/README.md
+frontend-web/    Next.js app: public blog and landing — see frontend-web/README.md
+frontend-app/    Next.js app: the console — see frontend-app/README.md
 frontend-admin/  Next.js app: CMS admin, a separate deployable — see frontend-admin/README.md
 packages/        Shared workspace packages: design-tokens, frontend-shared, content-kit
 extension/       Chrome extension, the only way LinkedIn can be captured
@@ -40,10 +45,14 @@ templates/       Typst templates for résumé rendering
 docs/            Specifications and decision records
 ```
 
-`frontend-web` and `frontend-admin` used to be one Next.js application with
-three route groups (ADR-011) until the admin surface needed a security
-property a route group can't express — see
+These three started as one Next.js application with three route groups
+(ADR-011). The admin surface split out first, into `frontend-admin`, when it
+needed a security property a route group can't express — see
 [docs/adr/ADR-032-subdomain-split-and-admin-isolation.md](docs/adr/ADR-032-subdomain-split-and-admin-isolation.md).
+The console split out next, into `frontend-app`, once it needed its own
+server-rendering and Server-Sent Events requirements that `frontend-web`'s
+were no longer a good fit for — see
+[docs/adr/ADR-065-console-is-a-third-application.md](docs/adr/ADR-065-console-is-a-third-application.md).
 
 ## Principles that are enforced, not suggested
 
@@ -54,16 +63,17 @@ compilers do not.
 
 ## Checking it
 
-`pnpm verify` runs everything CI runs, in the order CI runs it. The parts, if
-one of them is what you need:
+`pnpm verify` runs the workspace type, lint, architecture, unit-test, and build
+checks. Backend and browser checks have separate workflows; this command is
+not the whole CI pipeline. The workspace checks individually:
 
-| Command | What fails it |
-| --- | --- |
-| `pnpm typecheck` | Types, across every package |
-| `pnpm lint` | ESLint: layer matrix, import cycles, public-API sidesteps, raw colours and dimensions in markup, unnamed stacking layers |
-| `pnpm arch` | Committed token artefacts against a fresh compile, Feature-Sliced rules, the file-level dependency graph |
-| `pnpm test` | Unit tests |
-| `pnpm build` | `next build`, across every app that defines one |
+| Command          | What fails it                                                                                                            |
+|------------------|--------------------------------------------------------------------------------------------------------------------------|
+| `pnpm typecheck` | Types, across every package                                                                                              |
+| `pnpm lint`      | ESLint: layer matrix, import cycles, public-API sidesteps, raw colours and dimensions in markup, unnamed stacking layers |
+| `pnpm arch`      | Committed token artefacts against a fresh compile, Feature-Sliced rules, the file-level dependency graph                 |
+| `pnpm test`      | Unit tests                                                                                                               |
+| `pnpm build`     | `next build`, across every app that defines one                                                                          |
 
 Types run first on purpose: everything after them reads types, and a type error
 otherwise produces a wall of unrelated failures that costs more to read than to

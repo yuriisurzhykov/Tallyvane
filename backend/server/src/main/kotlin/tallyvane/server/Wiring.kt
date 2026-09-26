@@ -3,6 +3,7 @@ package tallyvane.server
 import tallyvane.platform.health.HealthRoutes
 import tallyvane.platform.health.ServiceToken
 import tallyvane.platform.http.Api
+import tallyvane.platform.http.RequestPrincipal
 import tallyvane.platform.http.TraceHeader
 import tallyvane.platform.http.problems.FailureTranslator
 import tallyvane.platform.observability.health.HealthCheck
@@ -21,6 +22,8 @@ import kotlin.time.Duration.Companion.seconds
  * Everything is deferred, so construction touches no database.
  */
 public class Wiring(private val platform: PlatformWiring, private val configuration: Configuration) {
+    private val identity: IdentityWiring by lazy { IdentityWiring(platform, configuration) }
+
     /**
      * Every check the aggregate reports on, each already wrapped so that it can neither hang nor
      * throw by the time the reporter sees it (ADR-054).
@@ -45,10 +48,21 @@ public class Wiring(private val platform: PlatformWiring, private val configurat
                     reporter = HealthReporter.OverChecks(checks),
                     token = ServiceToken(configuration.healthToken.revealed()),
                 ),
-            ),
+            ) + identity.routes,
             failures = FailureTranslator.Chained(emptyList()),
             trace = TraceHeader(platform.ids),
+            authCsrf = identity.csrfGuard,
         )
+    }
+
+    /**
+     * Mounted independently of [api], not as a fourth constructor parameter on it — principal
+     * resolution and `CsrfGuard` are wired the same way through this same root, but as
+     * independent interceptors, per the design's own call: two separate concerns, not one
+     * combined pipeline object.
+     */
+    public val requestPrincipal: RequestPrincipal by lazy {
+        RequestPrincipal(identity.requestPrincipal)
     }
 
     /**

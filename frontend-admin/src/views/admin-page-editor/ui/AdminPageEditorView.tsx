@@ -5,7 +5,7 @@ import { TextArea } from "frontend-shared/ui/text-area";
 import { Panel } from "frontend-shared/ui/panel";
 import { Stack } from "frontend-shared/ui/stack";
 import { Text } from "frontend-shared/ui/text";
-import { adminNavItems } from "@/app/navigation";
+import { useAdminNavItems } from "@/app/navigation";
 
 /**
  * Wired to `AppShell` and real form fields on 2026-08-28, replacing the
@@ -17,7 +17,7 @@ import { adminNavItems } from "@/app/navigation";
  */
 export function AdminPageEditorView() {
     return (
-        <AppShell navItems={adminNavItems("/pages")} title="Edit page" skipLinkLabel="Skip to content">
+        <AppShell navItems={useAdminNavItems("/pages")} title="Edit page" skipLinkLabel="Skip to content">
             <Panel header={<Text variant="bodyStrong">Page details</Text>}>
                 <Stack gap="stack">
                     <Field label="Title">

@@ -47,6 +47,10 @@ private sealed interface Refusal : Failure {
     data object Owner : Refusal
 
     data object Absent : Refusal
+
+    data object NoCredential : Refusal
+
+    data object TooFast : Refusal
 }
 
 private class Refusals : Problems<Refusal> {
@@ -54,6 +58,8 @@ private class Refusals : Problems<Refusal> {
         is Refusal.Range -> invalid(listOf(FieldError("salary_min_cents", "range.invalid")))
         is Refusal.Owner -> forbidden("Not yours")
         is Refusal.Absent -> missing(ABSENT_DETAIL)
+        is Refusal.NoCredential -> unauthorized("Wrong credential")
+        is Refusal.TooFast -> tooManyRequests("Slow down")
     }
 }
 
@@ -78,6 +84,8 @@ private class Probes(private val problems: Refusals) : RouteModule {
         route.get("/refused") { call.respond(Refused(Refusal.Range, problems)) }
         route.get("/forbidden") { call.respond(Refused(Refusal.Owner, problems)) }
         route.get("/absent") { call.respond(Refused(Refusal.Absent, problems)) }
+        route.get("/unauthorized") { call.respond(Refused(Refusal.NoCredential, problems)) }
+        route.get("/too-fast") { call.respond(Refused(Refusal.TooFast, problems)) }
         route.get("/nothing") { call.respond(HttpStatusCode.NoContent) }
         route.get("/boom") {
             error("jdbc:postgresql://tallyvane:hunter2@10.0.0.4:5432/db is unreachable")
@@ -131,6 +139,26 @@ class ApiSpec :
 
                     answer.headers["Content-Type"]!! shouldContain "application/problem+json"
                     answer.status shouldBe HttpStatusCode.Forbidden
+                }
+            }
+
+            "unauthorized answers 401, distinct from forbidden's 403" {
+                testApplication {
+                    application { api().install(this) }
+
+                    val answer = client.get("/api/v1/probes/unauthorized")
+
+                    answer.status shouldBe HttpStatusCode.Unauthorized
+                }
+            }
+
+            "tooManyRequests answers 429" {
+                testApplication {
+                    application { api().install(this) }
+
+                    val answer = client.get("/api/v1/probes/too-fast")
+
+                    answer.status shouldBe HttpStatusCode.TooManyRequests
                 }
             }
 

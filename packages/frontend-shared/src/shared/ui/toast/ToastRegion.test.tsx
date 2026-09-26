@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, renderHook, screen, waitFor } from "@testing-library/react";
 import { fireEvent } from "@testing-library/dom";
 import { ToastRegion, useToast, type ToastTone } from "./ToastRegion";
 
@@ -22,6 +22,17 @@ function Fire({ label, tone, ...rest }: { readonly label: string; readonly tone?
 }
 
 describe("ToastRegion", () => {
+    it("keeps toast actions stable across renders", () => {
+        const { result, rerender } = renderHook(() => useToast(), {
+            wrapper: ({ children }) => <ToastRegion>{ children }</ToastRegion>,
+        });
+        const actions = result.current.actions;
+
+        rerender();
+
+        expect(result.current.actions).toBe(actions);
+    });
+
     it("renders no toasts until one is added", () => {
         render(
             <ToastRegion>

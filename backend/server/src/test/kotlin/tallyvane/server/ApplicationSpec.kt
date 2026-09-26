@@ -17,6 +17,7 @@ import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.toJavaDuration
 
@@ -40,6 +41,17 @@ private fun settings(port: Int, level: Level = Level.INFO): Configuration = Conf
     port = port,
     level = level,
     healthToken = Secret(TOKEN),
+    tokenPepper = Secret(TOKEN),
+    tokenPepperVersion = EnvironmentConfiguration.DEFAULT_PEPPER_VERSION,
+    cookieSecure = false,
+    accessTokenTtl = EnvironmentConfiguration.DEFAULT_ACCESS_TOKEN_TTL_MINUTES.minutes,
+    refreshTokenIdleTtl = EnvironmentConfiguration.DEFAULT_REFRESH_TOKEN_IDLE_TTL_MINUTES.minutes,
+    refreshTokenAbsoluteCap = EnvironmentConfiguration.DEFAULT_REFRESH_TOKEN_ABSOLUTE_CAP_MINUTES.minutes,
+    pendingAuthenticationTtl = EnvironmentConfiguration.DEFAULT_PENDING_AUTHENTICATION_TTL_MINUTES.minutes,
+    signInRateLimitThreshold = EnvironmentConfiguration.DEFAULT_SIGN_IN_RATE_LIMIT_THRESHOLD,
+    signInRateLimitWindow = EnvironmentConfiguration.DEFAULT_SIGN_IN_RATE_LIMIT_WINDOW_MINUTES.minutes,
+    totpIssuer = EnvironmentConfiguration.DEFAULT_TOTP_ISSUER,
+    google = null,
 )
 
 private fun get(port: Int, path: String): HttpResponse<String> = HttpClient

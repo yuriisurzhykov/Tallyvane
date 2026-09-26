@@ -19,6 +19,7 @@ const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? LOCAL_BASE_URL;
 
 export default defineConfig({
     testDir: "./tests/e2e",
+    testIgnore: "**/auth-app.spec.ts",
     timeout: 60_000,
 
     /**

@@ -3,6 +3,16 @@ import { render, screen } from "@testing-library/react";
 import { Fieldset } from "./Fieldset";
 
 describe("Fieldset", () => {
+    it("disables all controls in the grouped fields", () => {
+        render(
+            <Fieldset legend="Authentication methods" disabled>
+                <input aria-label="Password" type="checkbox" />
+            </Fieldset>,
+        );
+
+        expect(screen.getByRole("checkbox", { name: "Password" })).toBeDisabled();
+    });
+
     it("renders the legend text", () => {
         render(
             <Fieldset legend="Notification preferences">

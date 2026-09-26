@@ -1,0 +1,13 @@
+---
+description: Points to the doc-comment-quality skill before finishing a doc comment on a public class, interface or function in Kotlin backend or TypeScript frontend/package code.
+globs: backend/**/*.kt,frontend-web/src/**/*.ts,frontend-web/src/**/*.tsx,frontend-admin/src/**/*.ts,frontend-admin/src/**/*.tsx,packages/*/src/**/*.ts,packages/*/src/**/*.tsx
+alwaysApply: false
+---
+
+# Doc-comment quality
+
+Before finishing a doc comment (KDoc/JSDoc/TSDoc) on a public class,
+interface or function, read and follow
+[.cursor/skills/doc-comment-quality/SKILL.md](../skills/doc-comment-quality/SKILL.md).
+
+Do not duplicate that guidance here — this rule only points to it.
