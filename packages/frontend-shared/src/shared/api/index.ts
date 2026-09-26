@@ -10,3 +10,4 @@ export {
     type StepUpProblem,
 } from "./auth-session-runtime";
 export { createAuthSessionTransport, type SessionAwareFetch } from "./auth-session-transport";
+export { fromWireJson, toWireJson } from "./wire-json";
