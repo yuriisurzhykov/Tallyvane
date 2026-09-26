@@ -2,7 +2,6 @@ import type { Dispatch, SyntheticEvent } from "react";
 import {
     AdminAuthError,
     adminAuthClient,
-    classifyAdminAccessStatus,
 } from "@/features/admin-login";
 import type { AdminFactor, SignInOutcome } from "@/features/admin-login";
 import type { useAdminLoginStrings } from "@/features/admin-login";
@@ -21,9 +20,6 @@ interface FlowContext {
 }
 
 interface AccessContext {
-    readonly dispatch: DispatchAction;
-    readonly navigate: Navigate;
-    readonly t: Translate;
     readonly successPath: string;
 }
 
@@ -47,26 +43,6 @@ function errorMessage(error: unknown, t: Translate, context: "password" | "verif
     if (error.status === 403) return t("accessDenied");
     if (error.status === 429) return t("rateLimited");
     return t("requestFailed");
-}
-
-export async function checkInitialAdminSession(
-    dispatch: DispatchAction,
-    navigate: Navigate,
-    t: Translate,
-    isActive: () => boolean,
-) {
-    try {
-        const status = await adminAuthClient.checkAdminAccess();
-        if (!isActive()) return;
-        applyAccessResult(status, { dispatch, navigate, t, successPath: "/pages" });
-    } catch (reason) {
-        if (isActive()) patch(dispatch, { screen: "unavailable", error: errorMessage(reason, t, "general") });
-    }
-}
-
-export async function retryAdminSession(dispatch: DispatchAction, navigate: Navigate, t: Translate) {
-    patch(dispatch, { screen: "checking", error: "" });
-    await checkInitialAdminSession(dispatch, navigate, t, () => true);
 }
 
 export async function submitAdminPassword(
@@ -96,9 +72,6 @@ async function handleSignInOutcome(
     switch (outcome.status) {
         case "issued":
             await routeAfterIssuedSession({
-                dispatch: context.dispatch,
-                navigate: context.navigate,
-                t: context.t,
                 successPath: context.returnTo,
             });
             break;
@@ -140,7 +113,7 @@ export async function submitAdminMfa(
     context: FlowContext,
 ) {
     event.preventDefault();
-    const { state, dispatch, navigate, returnTo, t } = context;
+    const { state, dispatch, returnTo, t } = context;
     patch(dispatch, { busy: true, error: "" });
     try {
         if (state.factor === "EMAIL_OTP" && !state.emailChallengeId) {
@@ -155,7 +128,7 @@ export async function submitAdminMfa(
             state.factor === "EMAIL_OTP" ? state.emailChallengeId : undefined,
         );
         if (result.status !== "issued") throw new AdminLoginFlowError(t("invalidCode"));
-        await routeAfterIssuedSession({ dispatch, navigate, t, successPath: returnTo });
+        await routeAfterIssuedSession({ successPath: returnTo });
     } catch (reason) {
         const message = reason instanceof AdminLoginFlowError ? reason.message : errorMessage(reason, t, "verification");
         patch(dispatch, { error: message });
@@ -201,20 +174,7 @@ export async function signOutDeniedAccount(dispatch: DispatchAction, t: Translat
 }
 
 async function routeAfterIssuedSession(context: AccessContext) {
-    try {
-        const status = await adminAuthClient.checkAdminAccess();
-        applyAccessResult(status, context);
-    } catch (reason) {
-        patch(context.dispatch, { screen: "unavailable", error: errorMessage(reason, context.t, "general") });
-    }
-}
-
-function applyAccessResult(status: number, context: AccessContext) {
-    const result = classifyAdminAccessStatus(status);
-    if (result === "authorized") context.navigate(context.successPath);
-    else if (result === "unauthenticated") patch(context.dispatch, { screen: "password", error: context.t("requestFailed") });
-    else if (result === "denied") patch(context.dispatch, { screen: "denied", error: context.t("accessDenied") });
-    else patch(context.dispatch, { screen: "unavailable", error: context.t("requestFailed") });
+    window.location.replace(context.successPath);
 }
 
 function isAdminFactor(value: string): value is AdminFactor {

@@ -3,14 +3,13 @@ import { useRouter } from "next/navigation";
 import { resolveAdminLoginReturnTo, useAdminLoginStrings } from "@/features/admin-login";
 import type { AdminLoginState } from "./state";
 import {
-    checkInitialAdminSession,
-    retryAdminSession,
     signOutDeniedAccount,
     submitAdminMfa,
     submitAdminPassword,
     submitRequiredEnrollment,
 } from "./actions";
 import { adminLoginReducer, initialAdminLoginState } from "./state";
+import { adminSessionRuntime } from "@/features/admin-login";
 
 export function useAdminLoginController(returnTo: string | null) {
     const [state, dispatch] = useReducer(adminLoginReducer, initialAdminLoginState);
@@ -20,10 +19,17 @@ export function useAdminLoginController(returnTo: string | null) {
     const navigate = useCallback((path: string) => { router.replace(path); }, [router]);
 
     useEffect(() => {
-        let active = true;
-        void checkInitialAdminSession(dispatch, navigate, t, () => active);
-        return () => { active = false; };
-    }, [navigate, t]);
+        const applySessionState = () => {
+            const status = adminSessionRuntime.getSnapshot().status;
+            if (status === "anonymous") dispatch({ type: "patch", patch: { screen: "password", error: "" } });
+            else if (status === "accessDenied") dispatch({ type: "patch", patch: { screen: "denied", error: t("accessDenied") } });
+            else if (status === "unavailable") dispatch({ type: "patch", patch: { screen: "unavailable", error: t("networkError") } });
+            else if (status === "checking" || status === "refreshing") dispatch({ type: "patch", patch: { screen: "checking" } });
+        };
+        const unsubscribe = adminSessionRuntime.subscribe(applySessionState);
+        applySessionState();
+        return unsubscribe;
+    }, [t]);
 
     return {
         state,
@@ -38,7 +44,7 @@ export function useAdminLoginController(returnTo: string | null) {
         backToPassword: () => {
             dispatch({ type: "patch", patch: { screen: "password", pendingId: "", code: "", emailChallengeId: "", error: "", notice: "" } });
         },
-        retry: () => { void retryAdminSession(dispatch, navigate, t); },
+        retry: () => { void adminSessionRuntime.verifySession(); },
         submitPassword: (event: Parameters<typeof submitAdminPassword>[0]) => {
             void submitAdminPassword(event, { state, dispatch, navigate, returnTo: safeReturnTo, t });
         },

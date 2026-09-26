@@ -34,20 +34,28 @@ export function ResetFactorPanel({ t, email, busy, onEmailChange, onRequest }: R
 export interface ConfirmationDrawerProps {
     readonly t: Translate;
     readonly email: string;
-    readonly confirmation: "advanced" | "reset" | null;
+    readonly confirmation: "advanced" | "reset" | "remove" | null;
+    readonly removal?: { readonly action: string; readonly path: string; readonly rank: number };
     readonly onClose: () => void;
     readonly onConfirm: () => void;
 }
 
-export function ConfirmationDrawer({ t, email, confirmation, onClose, onConfirm }: ConfirmationDrawerProps) {
+export function ConfirmationDrawer({ t, email, confirmation, removal, onClose, onConfirm }: ConfirmationDrawerProps) {
     const advanced = confirmation === "advanced";
+    const remove = confirmation === "remove";
     return <Drawer.Root open={ confirmation !== null } onOpenChange={ open => { if (!open) onClose(); } }>
         <Drawer.Popup>
-            <Drawer.Title>{ advanced ? t("advancedWarningTitle") : t("resetConfirmationTitle") }</Drawer.Title>
-            <Drawer.Description>{ advanced ? t("advancedWarningBody") : t("resetConfirmationBody", { email: email.trim() }) }</Drawer.Description>
+            <Drawer.Title>{ advanced ? t("advancedWarningTitle") : remove ? t("removePathConfirmationTitle") : t("resetConfirmationTitle") }</Drawer.Title>
+            <Drawer.Description>{ advanced
+                ? t("advancedWarningBody")
+                : remove && removal
+                    ? t("removePathConfirmationBody", removal)
+                    : t("resetConfirmationBody", { email: email.trim() }) }</Drawer.Description>
             <Stack gap="inline">
                 <Button tone="neutral" onClick={ onClose }>{ t("cancel") }</Button>
-                <Button tone="danger" onClick={ onConfirm }>{ advanced ? t("acceptRiskSave") : t("resetAndRevoke") }</Button>
+                <Button tone="danger" onClick={ onConfirm }>
+                    { advanced ? t("acceptRiskSave") : remove ? t("confirmRemovePath") : t("resetAndRevoke") }
+                </Button>
             </Stack>
         </Drawer.Popup>
     </Drawer.Root>;
