@@ -8,10 +8,13 @@ import { Button } from "frontend-shared/ui/button";
 import { Field } from "frontend-shared/ui/field";
 import { Form } from "frontend-shared/ui/form";
 import { Input } from "frontend-shared/ui/input";
+import { PasswordField } from "frontend-shared/ui/password-field";
+import { Select } from "frontend-shared/ui/select";
 import { Stack } from "frontend-shared/ui/stack";
 import { Text } from "frontend-shared/ui/text";
 
 type Translate = (key: AuthStringKey, vars?: Record<string, string | number>) => string;
+type ActionProofState = ReturnType<typeof useAuthenticationActionProof>;
 
 const tokenLabels: Record<ProofTokenKind, AuthStringKey> = {
     PASSWORD: "currentPassword",
@@ -21,6 +24,77 @@ const tokenLabels: Record<ProofTokenKind, AuthStringKey> = {
     EMAIL_FACTOR_CODE: "factorEmail",
     BACKUP_CODE: "factorBackup",
 };
+
+const proofErrorLabels: Record<NonNullable<ActionProofState["error"]>, AuthStringKey> = {
+    load: "actionProofLoadFailed",
+    required: "actionProofRequired",
+    invalid: "reauthFailed",
+    google: "actionProofGoogleFailed",
+};
+
+function isEmailCode(kind: ProofTokenKind): kind is "EMAIL_SIGN_IN_CODE" | "EMAIL_FACTOR_CODE" {
+    return kind === "EMAIL_SIGN_IN_CODE" || kind === "EMAIL_FACTOR_CODE";
+}
+
+function ActionProofSchemeField({ proof, busy, t }: {
+    proof: Pick<ActionProofState, "schemes" | "scheme" | "selectScheme">;
+    busy: boolean;
+    t: Translate;
+}) {
+    return <Select.Root value={proof.scheme?.id ?? ""} onValueChange={id => { proof.selectScheme(id ?? ""); }}>
+        <Select.Label>{t("actionProofSchemeLabel")}</Select.Label>
+        <Select.Trigger disabled={busy}>
+            <Select.Value />
+            <Select.Icon />
+        </Select.Trigger>
+        <Select.Popup>
+            {proof.schemes.map(scheme => <Select.Item key={scheme.id} value={scheme.id}>
+                {scheme.requiredTokens.map(kind => t(tokenLabels[kind])).join(" + ")}
+                {` · ${t("actionProofLevel", { rank: scheme.assuranceRank })}`}
+            </Select.Item>)}
+        </Select.Popup>
+    </Select.Root>;
+}
+
+function ActionProofToken({ kind, proof, busy, t }: {
+    kind: ProofTokenKind;
+    proof: Pick<ActionProofState, "values" | "challenges" | "googleReady" | "setValue" | "verifyWithGoogle">;
+    busy: boolean;
+    t: Translate;
+}) {
+    const label = t(tokenLabels[kind]);
+
+    if (kind === "GOOGLE") {
+        return <Stack gap="inline-tight">
+            <Text variant="small" color="primary">{label}</Text>
+            <Button type="button" tone="neutral" disabled={busy} onClick={() => { void proof.verifyWithGoogle(); }}>
+                {t("actionProofGoogleButton")}
+            </Button>
+            {proof.googleReady && <Text variant="small" color="muted" role="status">{t("actionProofGoogleReady")}</Text>}
+        </Stack>;
+    }
+
+    if (isEmailCode(kind) && !proof.challenges[kind]) {
+        return <Stack gap="inline-tight">
+            <Text variant="small" color="primary">{label}</Text>
+            <Text variant="small" color="muted">{t("actionProofEmailRequest")}</Text>
+        </Stack>;
+    }
+
+    const control = kind === "PASSWORD"
+        ? <PasswordField showPasswordLabel={t("showPassword")} hidePasswordLabel={t("hidePassword")}
+            autoComplete="current-password" value={proof.values[kind] ?? ""} disabled={busy}
+            onChange={event => { proof.setValue(kind, event.target.value); }} />
+        : <Input type="text" autoComplete="one-time-code" value={proof.values[kind] ?? ""} disabled={busy}
+            onChange={event => { proof.setValue(kind, event.target.value); }} />;
+
+    return <Field label={label} required>{control}</Field>;
+}
+
+function ActionProofError({ error, t }: { error: ActionProofState["error"]; t: Translate }) {
+    if (!error) return null;
+    return <Text variant="small" tone="danger" role="alert">{t(proofErrorLabels[error])}</Text>;
+}
 
 export function AuthenticationActionForm({ action, t, submitLabel, onAuthorized, onError, children, tone = "primary" }: {
     action: AccountAction;
@@ -35,9 +109,7 @@ export function AuthenticationActionForm({ action, t, submitLabel, onAuthorized,
     const [submitting, setSubmitting] = useState(false);
     const [operationError, setOperationError] = useState(false);
     const busy = proof.busy || submitting;
-    const needsEmailCode = proof.scheme?.requiredTokens.some(kind =>
-        (kind === "EMAIL_SIGN_IN_CODE" || kind === "EMAIL_FACTOR_CODE") && !proof.challenges[kind],
-    ) ?? false;
+    const needsEmailCode = proof.scheme?.requiredTokens.some(kind => isEmailCode(kind) && !proof.challenges[kind]) ?? false;
 
     async function submit(event: SubmitEvent<HTMLFormElement>) {
         event.preventDefault();
@@ -65,42 +137,13 @@ export function AuthenticationActionForm({ action, t, submitLabel, onAuthorized,
         {proof.loading && <Text variant="small" color="muted" role="status">{t("preparingVerification")}</Text>}
         {!proof.loading && proof.schemes.length === 0 && !proof.error &&
             <Text variant="small" color="muted" role="status">{t("actionProofNoSchemes")}</Text>}
-        {proof.schemes.length > 1 && <Field label={t("actionProofSchemeLabel")}>
-            <select value={proof.scheme?.id ?? ""} disabled={busy} onChange={event => { proof.selectScheme(event.target.value); }}>
-                {proof.schemes.map(scheme => <option key={scheme.id} value={scheme.id}>
-                    {scheme.requiredTokens.map(kind => t(tokenLabels[kind])).join(" + ")}
-                    {` · ${t("actionProofLevel", { rank: scheme.assuranceRank })}`}
-                </option>)}
-            </select>
-        </Field>}
+        {proof.schemes.length > 1 && <ActionProofSchemeField proof={proof} busy={busy} t={t} />}
         {proof.scheme && <Stack gap="inline-tight">
-            {proof.scheme.requiredTokens.map(kind => kind === "GOOGLE" ?
-                <Field key={kind} label={t(tokenLabels[kind])}>
-                    <Stack gap="inline-tight">
-                        <Button type="button" tone="neutral" disabled={busy} onClick={() => { void proof.verifyWithGoogle(); }}>
-                            {t("actionProofGoogleButton")}
-                        </Button>
-                        {proof.googleReady && <Text variant="small" color="muted" role="status">{t("actionProofGoogleReady")}</Text>}
-                    </Stack>
-                </Field>
-                : <Field key={kind} label={t(tokenLabels[kind])}>
-                    <Stack gap="inline-tight">
-                        {(kind === "EMAIL_SIGN_IN_CODE" || kind === "EMAIL_FACTOR_CODE") && !proof.challenges[kind] &&
-                            <Text variant="small" color="muted">{t("actionProofEmailRequest")}</Text>}
-                        {(kind !== "EMAIL_SIGN_IN_CODE" && kind !== "EMAIL_FACTOR_CODE" || proof.challenges[kind]) &&
-                            <Input type={kind === "PASSWORD" ? "password" : "text"}
-                                autoComplete={kind === "PASSWORD" ? "current-password" : "one-time-code"}
-                                value={proof.values[kind] ?? ""} disabled={busy} required
-                                onChange={event => { proof.setValue(kind, event.target.value); }} />}
-                    </Stack>
-                </Field>)}
+            {proof.scheme.requiredTokens.map(kind => <ActionProofToken key={kind} kind={kind} proof={proof} busy={busy} t={t} />)}
         </Stack>}
         {children}
-        {proof.error && <Text variant="small" role="alert">
-            {t(proof.error === "load" ? "actionProofLoadFailed" : proof.error === "required" ? "actionProofRequired" :
-                proof.error === "google" ? "actionProofGoogleFailed" : "reauthFailed")}
-        </Text>}
-        {operationError && <Text variant="small" role="alert">{t("requestFailed")}</Text>}
+        <ActionProofError error={proof.error} t={t} />
+        {operationError && <Text variant="small" tone="danger" role="alert">{t("requestFailed")}</Text>}
         <Button tone={tone} type={needsEmailCode ? "button" : "submit"} loading={busy}
             disabled={proof.loading || !proof.scheme}
             onClick={needsEmailCode ? () => { void proof.sendEmailCodes(); } : undefined}>

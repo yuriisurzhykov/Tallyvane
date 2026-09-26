@@ -1,7 +1,5 @@
-import { redirect } from 'next/navigation'
-import { appRoutes } from '@/shared/config'
-
 export default function HomePage() {
-    // Executes instantly on the server
-    redirect(appRoutes.authenticatedHome)
+    // The root session gate redirects an authenticated user to the app home.
+    // Keeping this page empty prevents the server from redirecting before the session is checked.
+    return null;
 }

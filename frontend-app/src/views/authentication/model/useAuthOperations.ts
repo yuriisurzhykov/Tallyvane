@@ -25,14 +25,15 @@ export function useAuthOperations(
         readonly t: Translate;
         readonly notify: Notify;
         readonly navigate: (path: string, replace?: boolean) => void;
+        readonly successPath: string;
         readonly state: AuthPageState;
     },
 ) {
-    const { kind, t, notify, navigate, state } = options;
+    const { kind, t, notify, navigate, state, successPath } = options;
     const operations: AuthOperationsState = {
         kind, t, notify: (title, description, tone) => {
             notify(title, description, tone);
-        }, navigate,
+        }, navigate, successPath,
         code: state.code, setCode: state.setCode, factor: state.factor, payload: state.payload,
         email: state.email, setEmail: state.setEmail,
         emailMfaChallengeId: state.emailMfaChallengeId, setEmailMfaChallengeId: state.setEmailMfaChallengeId,

@@ -1,10 +1,21 @@
-import type { paths } from "tallyvane-api-contract";
+import type { components, paths } from "tallyvane-api-contract";
+import {
+    AUTH_PROBLEM_TYPES,
+    AuthSessionRuntime,
+    createAuthSessionTransport,
+    type AccessDeniedProblem,
+    type RefreshResult,
+    type SessionProbeResult,
+} from "frontend-shared/api";
+
+type ApiProblem = components["schemas"]["Problem"];
 
 export class AuthError extends Error {
     public constructor(
         public readonly status: number,
         public readonly retryAfter = 0,
         public readonly fieldErrors: Readonly<Record<string, string>> = {},
+        public readonly problem?: ApiProblem,
     ) {
         super();
         this.name = "AuthError";
@@ -92,7 +103,7 @@ export function createAuthClient(fetcher: typeof fetch = fetch) {
                 ? Object.fromEntries(Object.entries(rawErrors).filter((entry): entry is [string, string] => typeof entry[1] === "string"))
                 : {};
             const retryAfter = Number(response.headers.get("Retry-After")) || 0;
-            throw new AuthError(response.status, retryAfter, fieldErrors);
+            throw new AuthError(response.status, retryAfter, fieldErrors, problem as ApiProblem);
         }
         return data as T;
     }
@@ -102,7 +113,44 @@ export function createAuthClient(fetcher: typeof fetch = fetch) {
         postWithHeaders: <T>(path: string, body: unknown, headers: Readonly<Record<string, string>>) =>
             request<T>(path, "POST", body, headers),
         refreshSession: () => request<{ status: string }>("/refresh", "POST"),
+        signOut: () => request<undefined>("/logout", "POST"),
         remove: <T>(path: string) => request<T>(path, "DELETE"),
     };
 }
-export const authClient = createAuthClient();
+
+const rawAuthClient = createAuthClient();
+
+async function checkCurrentSession(): Promise<SessionProbeResult> {
+    try {
+        await rawAuthClient.get<void>("/session");
+        return { status: "authenticated" };
+    } catch (reason) {
+        if (!(reason instanceof AuthError)) return { status: "unavailable" };
+        if (reason.status === 401 && reason.problem?.type === AUTH_PROBLEM_TYPES.unauthorized) {
+            return { status: "unauthorized" };
+        }
+        if (reason.status === 403 && reason.problem?.type === AUTH_PROBLEM_TYPES.forbidden) {
+            return { status: "accessDenied", problem: reason.problem as AccessDeniedProblem };
+        }
+        return { status: "unavailable" };
+    }
+}
+
+async function refreshCurrentSession(): Promise<RefreshResult> {
+    try {
+        await rawAuthClient.refreshSession();
+        return "refreshed";
+    } catch (reason) {
+        if (reason instanceof AuthError && reason.status === 401 &&
+            reason.problem?.type === AUTH_PROBLEM_TYPES.unauthorized) return "rejected";
+        return "unavailable";
+    }
+}
+
+export const authSessionRuntime = new AuthSessionRuntime({
+    checkSession: checkCurrentSession,
+    refreshSession: refreshCurrentSession,
+    lockName: "tallyvane.app.auth.refresh",
+});
+
+export const authClient = createAuthClient(createAuthSessionTransport(authSessionRuntime));

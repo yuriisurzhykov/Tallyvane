@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { ThemeInitScript, ThemeProvider } from "frontend-shared/ui/theme";
 import { ToastRegion } from "frontend-shared/ui/toast";
 import { ibmPlexMono, ibmPlexSans } from "./fonts";
+import { AuthSessionGate } from "@/views/session/ui/AuthSessionGate";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -33,7 +34,7 @@ export default function RootLayout({ children }: { readonly children: React.Reac
                 <ThemeInitScript />
             </head>
             <body className="bg-surface-primary text-text-primary">
-                <ThemeProvider><ToastRegion>{children}</ToastRegion></ThemeProvider>
+                <ThemeProvider><ToastRegion><AuthSessionGate>{children}</AuthSessionGate></ToastRegion></ThemeProvider>
             </body>
         </html>
     );

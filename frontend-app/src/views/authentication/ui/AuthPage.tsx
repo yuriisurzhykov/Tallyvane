@@ -18,7 +18,6 @@ import { useAuthPageState } from "../model/useAuthPageState";
 import type { AuthPageState } from "../model/useAuthPageState";
 import { useAuthPageEffects } from "../model/useAuthPageEffects";
 import { useAuthOperations } from "../model/useAuthOperations";
-import { useAuthSessionRedirect } from "../model/useAuthSessionRedirect";
 import { appRoutes } from "../../../shared/config";
 const headings = {
     login: ["loginTitle", "loginDescription"], register: ["registerTitle", "registerDescription"],
@@ -38,7 +37,7 @@ function message(error: unknown, t: (key: AuthStringKey) => string): string {
     return t("requestFailed");
 }
 
-export function AuthPage({ kind }: { kind: AuthPageKind }) {
+export function AuthPage({ kind, returnTo }: { kind: AuthPageKind; returnTo?: string | undefined }) {
     const router = useRouter();
     const t = useAuthStrings("auth");
     const { actions: toast } = useToast();
@@ -47,7 +46,6 @@ export function AuthPage({ kind }: { kind: AuthPageKind }) {
         if (replace) router.replace(path);
         else router.push(path);
     }, [router]);
-    const authPageReady = useAuthSessionRedirect(kind, appRoutes.authenticatedHome, navigate);
     useAuthPageEffects({ kind, state: pageState, t, toast, getErrorMessage: message });
     const operations = useAuthOperations({
         kind,
@@ -57,10 +55,8 @@ export function AuthPage({ kind }: { kind: AuthPageKind }) {
         },
         navigate,
         state: pageState,
+        successPath: returnTo ?? appRoutes.authenticatedHome,
     });
-    if (!authPageReady) {
-        return <AuthLayout><Text variant="body" role="status">{ t("checkingSession") }</Text></AuthLayout>;
-    }
     return <AuthLayout security={kind === "security"}>
         <AuthPageHeading kind={ kind } preview={ pageState.preview } t={ t } />
         <AuthPageContent kind={ kind } state={ pageState } operations={ operations } t={ t } />

@@ -5,6 +5,7 @@ import type { AuthResult } from "../../../features/authentication/api/client";
 import type { AuthStringKey } from "../../../features/authentication/model/strings";
 import type { AuthSession } from "../../../widgets/authentication-step/model/AuthStepProps";
 import { appRoutes } from "../../../shared/config";
+import { isSafeRelativePath } from "frontend-shared/lib";
 
 type Translate = (key: AuthStringKey, vars?: Record<string, string | number>) => string;
 type Tone = "attention" | "danger" | "success";
@@ -20,6 +21,7 @@ export interface AuthOperationsState {
     readonly t: Translate;
     readonly notify: Notify;
     readonly navigate: (path: string, replace?: boolean) => void;
+    readonly successPath: string;
     readonly code: string;
     readonly setCode: Dispatch<SetStateAction<string>>;
     readonly factor: string;
@@ -56,12 +58,21 @@ function announceUnexpectedStep(state: AuthOperationsState) {
     state.notify(state.t("signInContinuedError"), state.t("unknownAuthStep"), "danger");
 }
 
+const RETURN_TO_KEY = "tallyvane.auth.returnTo";
+
+function finishSignIn(state: AuthOperationsState) {
+    const saved = sessionStorage.getItem(RETURN_TO_KEY);
+    sessionStorage.removeItem(RETURN_TO_KEY);
+    const destination = isSafeRelativePath(saved) ? saved : state.successPath;
+    window.location.replace(destination || appRoutes.authenticatedHome);
+}
+
 function continueSignIn(
     result: { status: string; pendingId?: string; availableMethods?: string[] },
     state: AuthOperationsState,
 ) {
     if (result.status === "issued") {
-        state.navigate(appRoutes.authenticatedHome, true);
+        finishSignIn(state);
         return;
     }
     if (!result.pendingId) {
@@ -69,12 +80,14 @@ function continueSignIn(
         return;
     }
     if (result.status === "requires_second_factor") {
+        sessionStorage.setItem(RETURN_TO_KEY, state.successPath);
         sessionStorage.setItem("tallyvane.pendingId", result.pendingId);
         sessionStorage.setItem("tallyvane.availableMethods", JSON.stringify(result.availableMethods ?? []));
         state.navigate("/mfa");
         return;
     }
     if (result.status === "requires_enrollment") {
+        sessionStorage.setItem(RETURN_TO_KEY, state.successPath);
         sessionStorage.setItem("tallyvane.pendingEnrollmentId", result.pendingId);
         sessionStorage.setItem("tallyvane.requiredMethods", JSON.stringify(result.availableMethods ?? []));
         state.navigate(`/mfa/enroll?pending_id=${encodeURIComponent(result.pendingId)}`);
@@ -84,6 +97,7 @@ function continueSignIn(
 }
 
 async function login(form: FormData, state: AuthOperationsState) {
+    sessionStorage.setItem(RETURN_TO_KEY, state.successPath);
     const result = await authClient.post<{
         status: string;
         pendingId?: string;
@@ -132,7 +146,7 @@ async function verifyMfa(state: AuthOperationsState) {
     });
     if (result.status === "issued") {
         sessionStorage.removeItem("tallyvane.pendingId");
-        state.navigate(appRoutes.authenticatedHome, true);
+        finishSignIn(state);
     }
 }
 
@@ -160,7 +174,7 @@ async function enrollAuthenticator(state: AuthOperationsState) {
             state.t("requiredAuthenticatorEnabledDescription"),
             "success",
         );
-        state.navigate(appRoutes.authenticatedHome, true);
+        finishSignIn(state);
         return;
     } else {
         await authClient.post("/mfa/confirm", { kind: "TOTP", code: state.code });
@@ -185,6 +199,7 @@ async function verifyOtp(state: AuthOperationsState) {
 
 async function verifyEmailSignIn(state: AuthOperationsState) {
     if (!state.emailSignInChallengeId) {
+        sessionStorage.setItem(RETURN_TO_KEY, state.successPath);
         const result = await authClient.post<{ challengeId: string }>("/login/email/code", { email: state.email });
         state.setEmailSignInChallengeId(result.challengeId);
         state.setCode("");
