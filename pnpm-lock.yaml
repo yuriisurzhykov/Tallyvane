@@ -330,6 +330,9 @@ importers:
       react-dom:
         specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
+      tallyvane-api-contract:
+        specifier: workspace:*
+        version: link:../api-contract
     devDependencies:
       '@feature-sliced/filesystem':
         specifier: ^3.1.0

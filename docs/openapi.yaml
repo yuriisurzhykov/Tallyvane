@@ -1068,6 +1068,11 @@ components:
             $ref: "#/components/schemas/Problem"
 
   schemas:
+    AuthenticationAction:
+      type: string
+      enum: [SIGN_IN, CHANGE_PRIMARY_CREDENTIAL, MANAGE_SECOND_FACTORS]
+      description: Closed security action set shared with identity's AuthenticationAction enum.
+
     SignInResult:
       type: object
       additionalProperties: false
@@ -1230,7 +1235,7 @@ components:
       required: [id, action, required_tokens, assurance_rank, enabled]
       properties:
         id: { type: string, minLength: 1, maxLength: 80 }
-        action: { type: string, enum: [SIGN_IN, CHANGE_PRIMARY_CREDENTIAL, MANAGE_SECOND_FACTORS] }
+        action: { $ref: "#/components/schemas/AuthenticationAction" }
         required_tokens:
           type: array
           minItems: 1
@@ -1294,13 +1299,59 @@ components:
           items: { $ref: "#/components/schemas/AuthenticationPolicyRule" }
         advanced_acknowledged: { type: boolean }
 
+    ProblemType:
+      type: string
+      enum:
+        - https://tallyvane.com/errors/malformed-request
+        - https://tallyvane.com/errors/validation-failed
+        - https://tallyvane.com/errors/unauthorized
+        - https://tallyvane.com/errors/forbidden
+        - https://tallyvane.com/errors/not-found
+        - https://tallyvane.com/errors/conflict
+        - https://tallyvane.com/errors/unavailable
+        - https://tallyvane.com/errors/internal
+        - https://tallyvane.com/errors/too-many-requests
+        - https://tallyvane.com/errors/step-up-required
+        - about:blank
+      description: Closed RFC 9457 type catalog. Clients branch on these exact URI values.
+
     Problem:
+      oneOf:
+        - $ref: "#/components/schemas/ProblemWithoutAction"
+        - $ref: "#/components/schemas/StepUpRequiredProblem"
+      discriminator:
+        propertyName: type
+        mapping:
+          "https://tallyvane.com/errors/malformed-request": "#/components/schemas/ProblemWithoutAction"
+          "https://tallyvane.com/errors/validation-failed": "#/components/schemas/ProblemWithoutAction"
+          "https://tallyvane.com/errors/unauthorized": "#/components/schemas/ProblemWithoutAction"
+          "https://tallyvane.com/errors/forbidden": "#/components/schemas/ProblemWithoutAction"
+          "https://tallyvane.com/errors/not-found": "#/components/schemas/ProblemWithoutAction"
+          "https://tallyvane.com/errors/conflict": "#/components/schemas/ProblemWithoutAction"
+          "https://tallyvane.com/errors/unavailable": "#/components/schemas/ProblemWithoutAction"
+          "https://tallyvane.com/errors/internal": "#/components/schemas/ProblemWithoutAction"
+          "https://tallyvane.com/errors/too-many-requests": "#/components/schemas/ProblemWithoutAction"
+          "about:blank": "#/components/schemas/ProblemWithoutAction"
+          "https://tallyvane.com/errors/step-up-required": "#/components/schemas/StepUpRequiredProblem"
+      description: RFC 9457 problem with a closed type catalog; only step-up carries an action extension.
+
+    ProblemWithoutAction:
       type: object
       required: [type, title, status]
       properties:
         type:
           type: string
-          format: uri
+          enum:
+            - https://tallyvane.com/errors/malformed-request
+            - https://tallyvane.com/errors/validation-failed
+            - https://tallyvane.com/errors/unauthorized
+            - https://tallyvane.com/errors/forbidden
+            - https://tallyvane.com/errors/not-found
+            - https://tallyvane.com/errors/conflict
+            - https://tallyvane.com/errors/unavailable
+            - https://tallyvane.com/errors/internal
+            - https://tallyvane.com/errors/too-many-requests
+            - about:blank
           description: |
             Stable identifier of the *kind* of failure, and the field a client branches on. It
             survives rewording of `title` and `detail`.
@@ -1310,11 +1361,6 @@ components:
             status the server produced without reaching any endpoint carries — an unknown path, a
             method an endpoint does not accept. A client telling "no such resource" apart from "no
             such address" branches on this field, which is the reason it is not one value for both.
-          examples:
-            - https://tallyvane.com/errors/validation-failed
-            - https://tallyvane.com/errors/malformed-request
-            - https://tallyvane.com/errors/internal
-            - about:blank
         title:
           type: string
           description: The kind in human words, identical for every occurrence of one `type`.
@@ -1335,6 +1381,36 @@ components:
           description: |
             Added by the renderer, so it is on every problem body including a 500. The same id is
             in the `traceparent` header and on the log lines of that request.
+      not:
+        required: [action]
+
+    StepUpRequiredProblem:
+      type: object
+      required: [type, title, status, action]
+      properties:
+        type:
+          type: string
+          const: https://tallyvane.com/errors/step-up-required
+        title:
+          type: string
+          description: The kind in human words, identical for every occurrence of one `type`.
+        status:
+          type: integer
+          const: 403
+        detail:
+          type: string
+          description: This occurrence in human words. Never a driver's message.
+        errors:
+          type: array
+          description: Per-field detail for a validation failure; absent otherwise.
+          items:
+            $ref: "#/components/schemas/FieldError"
+        action:
+          $ref: "#/components/schemas/AuthenticationAction"
+        trace_id:
+          type: string
+          pattern: "^[0-9a-f]{32}$"
+          description: Request trace id added by the renderer.
 
     FieldError:
       type: object
