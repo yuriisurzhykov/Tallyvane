@@ -7,8 +7,5 @@ export function AdminLoginContent({ controller }: { readonly controller: AdminLo
     const { screen } = controller.state;
     if (screen === "password") return <AdminPasswordPanel controller={controller} />;
     if (screen === "mfa") return <AdminMfaPanel controller={controller} />;
-    if (screen === "checking" || screen === "denied" || screen === "unavailable") {
-        return <AdminStatusPanel controller={controller} />;
-    }
-    return null;
+    return <AdminStatusPanel controller={controller} />;
 }

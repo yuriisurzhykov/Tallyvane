@@ -1,9 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useState, type SyntheticEvent } from "react";
 import { Button } from "frontend-shared/ui/button";
+import { Drawer } from "frontend-shared/ui/drawer";
 import { Field } from "frontend-shared/ui/field";
+import { Form } from "frontend-shared/ui/form";
 import { Input } from "frontend-shared/ui/input";
+import { Select } from "frontend-shared/ui/select";
 import { Stack } from "frontend-shared/ui/stack";
 import { Text } from "frontend-shared/ui/text";
 import type { StepUpProblem } from "frontend-shared/api";
@@ -20,11 +23,10 @@ import styles from "./AdminSessionGate.module.css";
 
 const supportedActions: readonly AdminAccountAction[] = ["CHANGE_PRIMARY_CREDENTIAL", "MANAGE_SECOND_FACTORS"];
 const emailKinds: readonly AdminProofTokenKind[] = ["EMAIL_SIGN_IN_CODE", "EMAIL_FACTOR_CODE"];
-type GoogleProof = { readonly value: string; readonly codeVerifier: string; readonly redirectUri: string };
+interface GoogleProof { readonly value: string; readonly codeVerifier: string; readonly redirectUri: string }
 type GoogleProofMessage = { readonly type: "tallyvane-google-action-proof"; readonly state: string; readonly error: boolean } & GoogleProof;
 
 export function AdminStepUpDialog({ problem }: { readonly problem: StepUpProblem }) {
-    const dialog = useRef<HTMLDialogElement>(null);
     const t = useAdminLoginStrings("adminLogin");
     const action = supportedActions.find(value => value === problem.action);
     const [schemes, setSchemes] = useState<AdminProofScheme[]>([]);
@@ -35,13 +37,6 @@ export function AdminStepUpDialog({ problem }: { readonly problem: StepUpProblem
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState(action ? "" : t("stepUpUnavailable"));
     const [notice, setNotice] = useState("");
-
-    useEffect(() => {
-        const element = dialog.current;
-        if (!element) return;
-        if (!element.open) element.showModal();
-        return () => { if (element.open) element.close(); };
-    }, []);
 
     useEffect(() => {
         if (!action) return;
@@ -81,7 +76,7 @@ export function AdminStepUpDialog({ problem }: { readonly problem: StepUpProblem
                 }, 500);
                 function receive(event: MessageEvent<GoogleProofMessage>) {
                     if (event.origin !== window.location.origin || event.source !== popup ||
-                        event.data?.type !== "tallyvane-google-action-proof" || event.data.state !== expectedState) return;
+                        event.data.state !== expectedState) return;
                     cleanup();
                     if (event.data.error || !event.data.value || !event.data.codeVerifier || !event.data.redirectUri) {
                         reject(new Error("Google verification failed"));
@@ -119,7 +114,7 @@ export function AdminStepUpDialog({ problem }: { readonly problem: StepUpProblem
         }
     }
 
-    async function submit(event: FormEvent<HTMLFormElement>) {
+    async function submit(event: SyntheticEvent<HTMLFormElement>) {
         event.preventDefault();
         if (!action || !scheme || busy) return;
         const tokens: AdminPresentedProofToken[] = [];
@@ -148,30 +143,34 @@ export function AdminStepUpDialog({ problem }: { readonly problem: StepUpProblem
         }
     }
 
-    const tokenLabel = (kind: AdminProofTokenKind) => kind === "PASSWORD" ? t("password") :
-        kind === "TOTP" ? t("methodTotp") : kind === "BACKUP_CODE" ? t("methodBackup") :
-            kind === "EMAIL_FACTOR_CODE" ? t("methodEmail") : t("email");
+    const tokenLabel = (kind: AdminProofTokenKind) => {
+        if (kind === "PASSWORD") return t("password");
+        if (kind === "TOTP") return t("methodTotp");
+        if (kind === "EMAIL_FACTOR_CODE") return t("methodEmail");
+        if (kind === "GOOGLE") return t("stepUpGoogle");
+        return t("email");
+    };
 
-    return <dialog ref={dialog} className={styles.stepUpDialog} aria-labelledby="admin-step-up-title"
-        onCancel={event => event.preventDefault()}>
-        <section className={styles.stepUpPanel}>
-            <Text as="h1" variant="title2" id="admin-step-up-title">{t("stepUpTitle")}</Text>
-            <Text as="p" variant="body">{t("stepUpDescription")}</Text>
+    return <Drawer.Root open>
+        <Drawer.Popup className={styles.stepUpPanel ?? ""}>
+            <Drawer.Title>{t("stepUpTitle")}</Drawer.Title>
+            <Drawer.Description>{t("stepUpDescription")}</Drawer.Description>
             {schemes.length > 1 && <Field label={t("verificationTitle")}>
-                <select value={schemeId} disabled={busy} onChange={event => {
-                    setSchemeId(event.target.value);
+                <Select.Root value={schemeId} disabled={busy} onValueChange={value => {
+                    setSchemeId(value ?? "");
                     setValues({});
                     setChallenges({});
                     setGoogleProof(null);
                     setError("");
                     setNotice("");
                 }}>
-                    {schemes.map(value => <option key={value.id} value={value.id}>
+                    <Select.Trigger><Select.Value /><Select.Icon /></Select.Trigger>
+                    <Select.Popup>{schemes.map(value => <Select.Item key={value.id} value={value.id}>
                         {value.requiredTokens.map(tokenLabel).join(" + ")} · {t("stepUpRank", { rank: value.assuranceRank })}
-                    </option>)}
-                </select>
+                    </Select.Item>)}</Select.Popup>
+                </Select.Root>
             </Field>}
-            {scheme && <form onSubmit={event => { void submit(event); }}>
+            {scheme && <Form onSubmit={event => { void submit(event); }}>
                 <Stack gap="inline-tight">
                     {scheme.requiredTokens.map(kind => <Field key={kind} label={tokenLabel(kind)}>
                         {kind === "GOOGLE" ? <Stack gap="inline-tight">
@@ -182,7 +181,7 @@ export function AdminStepUpDialog({ problem }: { readonly problem: StepUpProblem
                             <Input required type={kind === "PASSWORD" ? "password" : "text"}
                                 autoComplete={kind === "PASSWORD" ? "current-password" : "one-time-code"}
                                 value={values[kind] ?? ""} disabled={busy}
-                                onChange={event => setValues(current => ({ ...current, [kind]: event.target.value }))} />}
+                                onChange={event => { setValues(current => ({ ...current, [kind]: event.target.value })); }} />}
                     </Field>)}
                     {notice && <Text role="status" variant="small">{notice}</Text>}
                     {error && <Text role="alert" variant="small">{error}</Text>}
@@ -192,8 +191,8 @@ export function AdminStepUpDialog({ problem }: { readonly problem: StepUpProblem
                         <Button type="submit" tone="primary" loading={busy}>{t("stepUpSubmit")}</Button>
                     </Stack>
                 </Stack>
-            </form>}
+            </Form>}
             {!scheme && !error && <Text role="status" variant="small">{t("checkingSession")}</Text>}
-        </section>
-    </dialog>;
+        </Drawer.Popup>
+    </Drawer.Root>;
 }

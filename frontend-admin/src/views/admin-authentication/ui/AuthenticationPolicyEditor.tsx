@@ -3,18 +3,19 @@
 import { useState } from "react";
 import { Button } from "frontend-shared/ui/button";
 import { Checkbox } from "frontend-shared/ui/checkbox";
+import { Collapsible } from "frontend-shared/ui/collapsible";
 import { Field } from "frontend-shared/ui/field";
 import { Fieldset } from "frontend-shared/ui/fieldset";
 import { Input } from "frontend-shared/ui/input";
 import { Panel } from "frontend-shared/ui/panel";
-import { Radio } from "frontend-shared/ui/radio";
-import { RadioGroup } from "frontend-shared/ui/radio-group";
+import { Row } from "frontend-shared/ui/row";
 import { Select } from "frontend-shared/ui/select";
 import { Stack } from "frontend-shared/ui/stack";
+import { Switch } from "frontend-shared/ui/switch";
 import { Text } from "frontend-shared/ui/text";
-import { useAdminAuthenticationStrings } from "@/app/i18n";
+import type { useAdminAuthenticationStrings } from "@/app/i18n";
 
-export type TokenKind = "PASSWORD" | "GOOGLE" | "EMAIL_SIGN_IN_CODE" | "TOTP" | "EMAIL_FACTOR_CODE" | "BACKUP_CODE";
+export type TokenKind = "PASSWORD" | "GOOGLE" | "EMAIL_SIGN_IN_CODE" | "TOTP" | "EMAIL_FACTOR_CODE";
 export type Action = "SIGN_IN" | "CHANGE_PRIMARY_CREDENTIAL" | "MANAGE_SECOND_FACTORS";
 
 export interface Scheme {
@@ -31,17 +32,25 @@ export interface Policy {
     advancedAcknowledged: boolean;
 }
 
-export type SchemeUpdate = Partial<Scheme>;
+type SchemeDraft = Omit<Scheme, "id">;
+type ScreenState =
+    | { kind: "overview" }
+    | { kind: "action"; action: Action }
+    | { kind: "scheme"; action: Action; schemeId: string | null; draft: SchemeDraft };
+
 export type Translate = ReturnType<typeof useAdminAuthenticationStrings>;
 export type TokenLabels = Record<TokenKind, string>;
 export type ActionLabels = Record<Action, string>;
 
-const tokenKinds: TokenKind[] = ["PASSWORD", "GOOGLE", "EMAIL_SIGN_IN_CODE", "TOTP", "EMAIL_FACTOR_CODE", "BACKUP_CODE"];
-const primaryTokens = ["PASSWORD", "GOOGLE", "EMAIL_SIGN_IN_CODE"] as const satisfies readonly TokenKind[];
-const factorTokens = ["TOTP", "EMAIL_FACTOR_CODE", "BACKUP_CODE"] as const satisfies readonly TokenKind[];
-const steps = ["chooseAction", "chooseProofs", "chooseRank", "reviewPath"] as const;
-
-type Step = 1 | 2 | 3 | 4;
+const actions: Action[] = ["SIGN_IN", "CHANGE_PRIMARY_CREDENTIAL", "MANAGE_SECOND_FACTORS"];
+const tokenKinds: TokenKind[] = ["PASSWORD", "GOOGLE", "EMAIL_SIGN_IN_CODE", "TOTP", "EMAIL_FACTOR_CODE"];
+const primaryTokens: TokenKind[] = ["PASSWORD", "GOOGLE", "EMAIL_SIGN_IN_CODE"];
+const factorTokens: TokenKind[] = ["TOTP", "EMAIL_FACTOR_CODE"];
+const actionDescriptions = {
+    SIGN_IN: "signInActionHelp",
+    CHANGE_PRIMARY_CREDENTIAL: "changeCredentialActionHelp",
+    MANAGE_SECOND_FACTORS: "manageFactorsActionHelp",
+} as const satisfies Record<Action, string>;
 
 export interface AuthenticationPolicyEditorProps {
     readonly t: Translate;
@@ -52,9 +61,8 @@ export interface AuthenticationPolicyEditorProps {
     readonly policyIssue: string | null;
     readonly validationError: string | null;
     readonly conflict: Policy | null;
-    readonly onUpdate: (id: string, patch: SchemeUpdate) => void;
-    readonly onAdd: (action: Action) => string;
-    readonly onRemove: (id: string) => void;
+    readonly onUpdate: (id: string, patch: Partial<Scheme>) => void;
+    readonly onAdd: (scheme: SchemeDraft) => void;
     readonly onRequestRemove: (scheme: Scheme) => void;
     readonly onSave: () => void;
     readonly onResolveConflict: (resolution: "reload" | "replace") => void;
@@ -63,63 +71,46 @@ export interface AuthenticationPolicyEditorProps {
 export function AuthenticationPolicyEditor(props: AuthenticationPolicyEditorProps) {
     const {
         t, tokenLabels, actionLabels, policy, busy, policyIssue, validationError, conflict,
-        onUpdate, onAdd, onRemove, onRequestRemove, onSave, onResolveConflict,
+        onUpdate, onAdd, onRequestRemove, onSave, onResolveConflict,
     } = props;
-    const [action, setAction] = useState<Action>("SIGN_IN");
-    const [selectedId, setSelectedId] = useState<string | null>(null);
-    const [step, setStep] = useState<Step>(1);
-    const [newSchemeIds, setNewSchemeIds] = useState<Set<string>>(() => new Set());
-    const [showStartError, setShowStartError] = useState(false);
-    const selected = policy.schemes.find(scheme => scheme.id === selectedId);
-    const visibleSchemes = policy.schemes.filter(scheme => scheme.action === action);
-    const invalid = policyIssue !== null || policy.schemes.some(scheme =>
+    const [screen, setScreen] = useState<ScreenState>({ kind: "overview" });
+    const action = screen.kind === "overview" ? null : screen.action;
+    const visibleSchemes = action ? policy.schemes.filter(scheme => scheme.action === action) : [];
+
+    const openAction = (nextAction: Action) => setScreen({ kind: "action", action: nextAction });
+
+    const beginAdd = () => {
+        if (!action) return;
+        setScreen({
+            kind: "scheme",
+            action,
+            schemeId: null,
+            draft: { action, requiredTokens: ["PASSWORD"], assuranceRank: 1, enabled: true },
+        });
+    };
+
+    const beginEdit = (scheme: Scheme) => setScreen({
+        kind: "scheme",
+        action: scheme.action,
+        schemeId: scheme.id,
+        draft: { action: scheme.action, requiredTokens: [...scheme.requiredTokens], assuranceRank: scheme.assuranceRank, enabled: scheme.enabled },
+    });
+
+    const updateDraft = (patch: Partial<SchemeDraft>) => {
+        setScreen(current => current.kind === "scheme"
+            ? { ...current, draft: { ...current.draft, ...patch } }
+            : current);
+    };
+
+    const saveScheme = (draft: SchemeDraft, schemeId: string | null) => {
+        if (schemeId) onUpdate(schemeId, draft);
+        else onAdd(draft);
+        setScreen({ kind: "action", action: draft.action });
+    };
+
+    const policyInvalid = policyIssue !== null || policy.schemes.some(scheme =>
         scheme.requiredTokens.length === 0 || !Number.isInteger(scheme.assuranceRank) || scheme.assuranceRank < 1,
     );
-
-    const chooseAction = (value: string | null) => {
-        if (!value || !["SIGN_IN", "CHANGE_PRIMARY_CREDENTIAL", "MANAGE_SECOND_FACTORS"].includes(value)) return;
-        setAction(value as Action);
-        setSelectedId(null);
-        setStep(1);
-        setShowStartError(false);
-    };
-
-    const add = () => {
-        const id = onAdd(action);
-        setNewSchemeIds(current => new Set(current).add(id));
-        setSelectedId(id);
-        setStep(2);
-        setShowStartError(true);
-    };
-
-    const open = (scheme: Scheme) => {
-        setSelectedId(scheme.id);
-        setStep(2);
-        setShowStartError(false);
-    };
-
-    const cancelNew = (id: string) => {
-        onRemove(id);
-        setNewSchemeIds(current => {
-            const next = new Set(current);
-            next.delete(id);
-            return next;
-        });
-        setSelectedId(null);
-        setStep(1);
-        setShowStartError(false);
-    };
-
-    const complete = (id: string) => {
-        setNewSchemeIds(current => {
-            const next = new Set(current);
-            next.delete(id);
-            return next;
-        });
-        setSelectedId(null);
-        setStep(1);
-        setShowStartError(false);
-    };
 
     return <Stack gap="stack">
         { conflict && <PolicyConflictPanel
@@ -130,320 +121,315 @@ export function AuthenticationPolicyEditor(props: AuthenticationPolicyEditorProp
             actionLabels={ actionLabels }
             onResolve={ onResolveConflict }
         /> }
-        <div className="grid grid-cols-1 gap-stack lg:grid-cols-[minmax(16rem,0.8fr)_minmax(0,1.2fr)]">
-            <Panel header={ <Text variant="bodyStrong">{ t("protectedAction") }</Text> }>
-                <Stack gap="stack">
-                    <Field label={ t("action") }>
-                        <Select.Root value={ action } disabled={ busy || conflict !== null } onValueChange={ chooseAction }>
-                            <Select.Trigger>
-                                <Select.Value>{ actionLabels[action] }</Select.Value>
-                                <Select.Icon />
-                            </Select.Trigger>
-                            <Select.Popup>
-                                { (["SIGN_IN", "CHANGE_PRIMARY_CREDENTIAL", "MANAGE_SECOND_FACTORS"] as const).map(value =>
-                                    <Select.Item key={ value } value={ value }>{ actionLabels[value] }</Select.Item>,
-                                ) }
-                            </Select.Popup>
-                        </Select.Root>
-                    </Field>
-                    <Text variant="body" color="secondary">{ t("actionListHelp") }</Text>
-                    { visibleSchemes.length === 0
-                        ? <Text variant="body" color="muted">{ t("noPaths") }</Text>
-                        : <div className="flex flex-col gap-stack">
-                            { visibleSchemes.map(scheme => <SchemeListItem
-                                key={ scheme.id }
-                                scheme={ scheme }
-                                title={ schemeTitle(scheme, tokenLabels) }
-                                isDraft={ newSchemeIds.has(scheme.id) }
-                                actionLabel={ actionLabels[scheme.action] }
-                                busy={ busy || conflict !== null }
-                                t={ t }
-                                onOpen={ () => { open(scheme); } }
-                                onEnabledChange={ enabled => { onUpdate(scheme.id, { enabled }); } }
-                                onCancel={ () => { cancelNew(scheme.id); } }
-                            />) }
-                        </div> }
-                    <Button tone="primary" type="button" disabled={ busy || conflict !== null } onClick={ add }>
-                        { t("addPath") }
-                    </Button>
+
+        { screen.kind === "overview" && <ActionOverview
+            t={ t }
+            actionLabels={ actionLabels }
+            schemes={ policy.schemes }
+            disabled={ busy || conflict !== null }
+            onOpen={ openAction }
+        /> }
+
+        { screen.kind === "action" && <ActionSchemes
+            t={ t }
+            actionLabel={ actionLabels[screen.action] }
+            schemes={ visibleSchemes }
+            tokenLabels={ tokenLabels }
+            busy={ busy || conflict !== null }
+            onBack={ () => { setScreen({ kind: "overview" }); } }
+            onAdd={ beginAdd }
+            onEdit={ beginEdit }
+            onEnabledChange={ (scheme, enabled) => { onUpdate(scheme.id, { enabled }); } }
+            onRequestRemove={ onRequestRemove }
+        /> }
+
+        { screen.kind === "scheme" && <SchemeEditor
+            t={ t }
+            actionLabel={ actionLabels[screen.action] }
+            tokenLabels={ tokenLabels }
+            scheme={ screen.draft }
+            editing={ screen.schemeId !== null }
+            busy={ busy || conflict !== null }
+            validationError={ validationError }
+            onChange={ updateDraft }
+            onCancel={ () => { setScreen({ kind: "action", action: screen.action }); } }
+            onSave={ () => { saveScheme(screen.draft, screen.schemeId); } }
+        /> }
+
+        <Panel>
+            <Stack gap="inline" className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                <Stack gap="inline-tight">
+                    <Text variant="bodyStrong">{ t("policyVersion", { version: policy.version }) }</Text>
+                    <Text variant="small" color="secondary">{ t("draftOnlyUntilSave") }</Text>
+                    { policyIssue && <Text variant="small" role="alert" tone="danger">{ policyIssue }</Text> }
                 </Stack>
-            </Panel>
-            <Panel>
-                { validationError && <Text variant="body" role="alert" tone="danger">{ validationError }</Text> }
-                { selected
-                    ? <PathFlow
-                        scheme={ selected }
-                        tokenLabels={ tokenLabels }
-                        actionLabels={ actionLabels }
-                        t={ t }
-                        step={ step }
-                        busy={ busy || conflict !== null }
-                        showStartError={ showStartError }
-                        strongerPaths={ visibleSchemes.filter(other => other.id !== selected.id && other.enabled &&
-                            other.assuranceRank > selected.assuranceRank) }
-                        onStepChange={ setStep }
-                        onUpdate={ patch => { onUpdate(selected.id, patch); } }
-                        onStartErrorChange={ setShowStartError }
-                        { ...(newSchemeIds.has(selected.id) ? { onCancelNew: () => { cancelNew(selected.id); } } : {}) }
-                        onRequestRemove={ () => { onRequestRemove(selected); } }
-                        onComplete={ () => { complete(selected.id); } }
-                    />
-                    : <PathIntro
-                        action={ action }
-                        actionLabel={ actionLabels[action] }
-                        t={ t }
-                        onAdd={ add }
-                        disabled={ busy || conflict !== null }
-                    /> }
-            </Panel>
-        </div>
-        <Panel className="flex flex-wrap items-center justify-between gap-stack">
-            <Stack gap="inline-tight">
-                <Text variant="bodyStrong">{ t("policyVersion", { version: policy.version }) }</Text>
-                <Text variant="small" color="secondary">{ t("draftOnlyUntilSave") }</Text>
-                { policyIssue && <Text variant="body" role="alert" tone="danger">{ policyIssue }</Text> }
+                <Button
+                    className="w-full sm:w-auto"
+                    tone="primary"
+                    loading={ busy }
+                    disabled={ policyInvalid || conflict !== null || screen.kind === "scheme" }
+                    onClick={ onSave }
+                >
+                    { t("savePolicy") }
+                </Button>
             </Stack>
-            <Button tone="primary" loading={ busy } disabled={ invalid || conflict !== null } onClick={ onSave }>
-                { t("savePolicy") }
-            </Button>
         </Panel>
     </Stack>;
 }
 
-interface SchemeListItemProps {
-    readonly scheme: Scheme;
-    readonly title: string;
-    readonly isDraft: boolean;
-    readonly actionLabel: string;
-    readonly busy: boolean;
+interface ActionOverviewProps {
     readonly t: Translate;
-    readonly onOpen: () => void;
-    readonly onEnabledChange: (enabled: boolean) => void;
-    readonly onCancel: () => void;
+    readonly actionLabels: ActionLabels;
+    readonly schemes: Scheme[];
+    readonly disabled: boolean;
+    readonly onOpen: (action: Action) => void;
 }
 
-function SchemeListItem({ scheme, title, isDraft, actionLabel, busy, t, onOpen, onEnabledChange, onCancel }: SchemeListItemProps) {
-    return <Panel variant="inset" header={ <Text variant="bodyStrong">{ title }</Text> }>
+function ActionOverview({ t, actionLabels, schemes, disabled, onOpen }: ActionOverviewProps) {
+    return <Stack gap="stack">
+        <Stack gap="inline-tight">
+            <Text variant="title2" as="h2">{ t("actionOverviewTitle") }</Text>
+            <Text variant="body" color="secondary">{ t("actionOverviewHelp") }</Text>
+        </Stack>
+        <Stack gap="stack" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+            { actions.map(action => <Panel key={ action }>
+                <Stack gap="stack" className="h-full">
+                    <Stack gap="inline-tight">
+                        <Text variant="title3" as="h3">{ actionLabels[action] }</Text>
+                        <Text variant="small" color="secondary">{ t(actionDescriptions[action]) }</Text>
+                    </Stack>
+                    <Row gap="inline" className="mt-auto flex-wrap items-center justify-between">
+                        <Text variant="small" color="muted">
+                            { t("actionSchemeCount", { count: schemes.filter(scheme => scheme.action === action).length }) }
+                        </Text>
+                        <Button tone="neutral" size="sm" disabled={ disabled } onClick={ () => { onOpen(action); } }>
+                            { t("configureAction") }
+                        </Button>
+                    </Row>
+                </Stack>
+            </Panel>) }
+        </Stack>
+    </Stack>;
+}
+
+interface ActionSchemesProps {
+    readonly t: Translate;
+    readonly actionLabel: string;
+    readonly schemes: Scheme[];
+    readonly tokenLabels: TokenLabels;
+    readonly busy: boolean;
+    readonly onBack: () => void;
+    readonly onAdd: () => void;
+    readonly onEdit: (scheme: Scheme) => void;
+    readonly onEnabledChange: (scheme: Scheme, enabled: boolean) => void;
+    readonly onRequestRemove: (scheme: Scheme) => void;
+}
+
+function ActionSchemes({
+    t, actionLabel, schemes, tokenLabels, busy, onBack, onAdd, onEdit, onEnabledChange, onRequestRemove,
+}: ActionSchemesProps) {
+    return <Stack gap="stack">
+        <Button tone="ghost" className="self-start" disabled={ busy } onClick={ onBack}>
+            { t("backToActions") }
+        </Button>
+        <Stack gap="inline-tight">
+            <Text variant="title2" as="h2">{ actionLabel }</Text>
+            <Text variant="body" color="secondary">{ t("actionSchemesHelp") }</Text>
+        </Stack>
+        { schemes.length === 0
+            ? <Panel><Text variant="body" color="secondary">{ t("noPaths") }</Text></Panel>
+            : <Stack gap="inline">
+                { schemes.map(scheme => <SchemeCard
+                    key={ scheme.id }
+                    t={ t }
+                    actionLabel={ actionLabel }
+                    tokenLabels={ tokenLabels }
+                    scheme={ scheme }
+                    busy={ busy }
+                    onEdit={ () => { onEdit(scheme); } }
+                    onEnabledChange={ enabled => { onEnabledChange(scheme, enabled); } }
+                    onRequestRemove={ () => { onRequestRemove(scheme); } }
+                />) }
+            </Stack> }
+        <Button className="self-start" tone="primary" disabled={ busy } onClick={ onAdd }>
+            { t("addPath") }
+        </Button>
+    </Stack>;
+}
+
+interface SchemeCardProps {
+    readonly t: Translate;
+    readonly actionLabel: string;
+    readonly tokenLabels: TokenLabels;
+    readonly scheme: Scheme;
+    readonly busy: boolean;
+    readonly onEdit: () => void;
+    readonly onEnabledChange: (enabled: boolean) => void;
+    readonly onRequestRemove: () => void;
+}
+
+function SchemeCard({ t, actionLabel, tokenLabels, scheme, busy, onEdit, onEnabledChange, onRequestRemove }: SchemeCardProps) {
+    const title = schemeTitle(scheme, tokenLabels);
+    return <Panel variant="inset">
         <Stack gap="inline">
-            <Text variant="small" color="secondary">{ t("pathSummary", { rank: scheme.assuranceRank, action: actionLabel }) }</Text>
-            <Text variant="small" color="secondary">{ t("pathStatus", { state: t(scheme.enabled ? "policyEnabled" : "policyDisabled") }) }</Text>
-            <Field label={ t("pathEnabled") }>
-                <Checkbox checked={ scheme.enabled } disabled={ busy } onCheckedChange={ onEnabledChange } />
-            </Field>
-            { isDraft && <Text variant="small" tone="attention">{ t("unfinishedPath") }</Text> }
-            <div className="flex flex-wrap gap-inline">
-                <Button tone="neutral" size="sm" type="button" disabled={ busy } onClick={ onOpen}>{ t("editPath") }</Button>
-                { isDraft && <Button tone="ghost" size="sm" type="button" disabled={ busy } onClick={ onCancel}>
-                    { t("cancelPath") }
-                </Button> }
-            </div>
+            <Row gap="inline" className="flex-col items-start justify-between sm:flex-row sm:items-center">
+                <Stack gap="inline-tight">
+                    <Text variant="bodyStrong">{ title }</Text>
+                    <Text variant="small" color="secondary">
+                        { t("pathSummary", { rank: scheme.assuranceRank, action: actionLabel }) }
+                    </Text>
+                </Stack>
+                <Row gap="inline" className="items-center">
+                    <Text variant="small">{ t(scheme.enabled ? "policyEnabled" : "policyDisabled") }</Text>
+                    <Switch
+                        aria-label={ t("schemeEnabledLabel", { action: actionLabel, path: title }) }
+                        checked={ scheme.enabled }
+                        disabled={ busy }
+                        onCheckedChange={ onEnabledChange }
+                    />
+                </Row>
+            </Row>
+            <Row gap="inline" className="flex-wrap">
+                <Button tone="neutral" size="sm" disabled={ busy } onClick={ onEdit}>{ t("editPath") }</Button>
+                <Button tone="danger" size="sm" disabled={ busy } onClick={ onRequestRemove}>{ t("removePath") }</Button>
+            </Row>
         </Stack>
     </Panel>;
 }
 
-interface PathIntroProps {
-    readonly action: Action;
+interface SchemeEditorProps {
+    readonly t: Translate;
     readonly actionLabel: string;
-    readonly t: Translate;
-    readonly disabled: boolean;
-    readonly onAdd: () => void;
-}
-
-function PathIntro({ action, actionLabel, t, disabled, onAdd }: PathIntroProps) {
-    return <Stack gap="stack">
-        <Text variant="title2" as="h2">{ t("guidedEditorTitle") }</Text>
-        <Text variant="body">{ t("guidedEditorHelp", { action: actionLabel }) }</Text>
-        <Panel variant="inset">
-            <Text variant="body" color="secondary">
-                { action === "SIGN_IN" ? t("signInPathExample") : t("accountPathExample") }
-            </Text>
-        </Panel>
-        <div><Button tone="primary" type="button" disabled={ disabled } onClick={ onAdd}>{ t("addPath") }</Button></div>
-    </Stack>;
-}
-
-interface PathFlowProps {
-    readonly scheme: Scheme;
     readonly tokenLabels: TokenLabels;
-    readonly actionLabels: ActionLabels;
-    readonly t: Translate;
-    readonly step: Step;
+    readonly scheme: SchemeDraft;
+    readonly editing: boolean;
     readonly busy: boolean;
-    readonly showStartError: boolean;
-    readonly strongerPaths: Scheme[];
-    readonly onStepChange: (step: Step) => void;
-    readonly onUpdate: (patch: SchemeUpdate) => void;
-    readonly onStartErrorChange: (visible: boolean) => void;
-    readonly onCancelNew?: () => void;
-    readonly onRequestRemove: () => void;
-    readonly onComplete: () => void;
+    readonly validationError: string | null;
+    readonly onChange: (patch: Partial<SchemeDraft>) => void;
+    readonly onCancel: () => void;
+    readonly onSave: () => void;
 }
 
-function PathFlow(props: PathFlowProps) {
-    const {
-        scheme, tokenLabels, actionLabels, t, step, busy, showStartError, strongerPaths,
-        onStepChange, onUpdate, onStartErrorChange, onCancelNew, onRequestRemove, onComplete,
-    } = props;
-    const startingOptions: TokenKind[] = scheme.action === "SIGN_IN" ? [...primaryTokens] : tokenKinds;
-    const startingToken = scheme.requiredTokens.find(token => startingOptions.includes(token)) ??
-        (scheme.action === "SIGN_IN" ? undefined : scheme.requiredTokens[0]);
-    const extraTokens = scheme.requiredTokens.filter(token => token !== startingToken);
-    const selectedFactor = extraTokens.find(token => factorTokens.includes(token as (typeof factorTokens)[number]));
-    const hasStartingToken = startingToken !== undefined && startingOptions.includes(startingToken);
-    const stepTitle = t(steps[step - 1]!);
+function SchemeEditor({
+    t, actionLabel, tokenLabels, scheme, editing, busy, validationError, onChange, onCancel, onSave,
+}: SchemeEditorProps) {
+    const isSignIn = scheme.action === "SIGN_IN";
+    const primary = isSignIn
+        ? scheme.requiredTokens.find(token => primaryTokens.includes(token)) ?? "PASSWORD"
+        : scheme.requiredTokens[0] ?? "PASSWORD";
+    const extraTokens = scheme.requiredTokens.filter(token => token !== primary);
+    const factor = extraTokens.find(token => factorTokens.includes(token));
+    const validRank = Number.isInteger(scheme.assuranceRank) && scheme.assuranceRank > 0;
+    const validSignIn = !isSignIn || (
+        scheme.requiredTokens.filter(token => primaryTokens.includes(token)).length === 1 && extraTokens.length <= 1
+    );
+    const canSave = !busy && validRank && scheme.requiredTokens.length > 0 && validSignIn;
 
-    const chooseStartingToken = (value: string | undefined) => {
-        if (!value || !startingOptions.includes(value as TokenKind)) return;
-        const remaining = scheme.requiredTokens.filter(token => token !== startingToken && token !== value);
-        onUpdate({ requiredTokens: [value as TokenKind, ...remaining] });
-        onStartErrorChange(false);
+    const setPrimary = (value: string | null) => {
+        if (!value || !tokenKinds.includes(value as TokenKind)) return;
+        const remaining = scheme.requiredTokens.filter(token => token !== primary && token !== value);
+        onChange({ requiredTokens: [value as TokenKind, ...remaining] });
     };
 
-    const chooseSignInFactor = (value: string | undefined) => {
-        if (!startingToken) return;
-        onUpdate({ requiredTokens: value && factorTokens.includes(value as (typeof factorTokens)[number])
-            ? [startingToken, value as TokenKind]
-            : [startingToken] });
+    const setFactor = (value: string | null) => {
+        if (!value) return;
+        onChange({ requiredTokens: [primary, ...(value === "none" ? [] : [value as TokenKind])] });
     };
 
-    const toggleAccountProof = (token: TokenKind, checked: boolean) => {
-        if (!startingToken) return;
+    const toggleExtraToken = (token: TokenKind, checked: boolean) => {
         const remaining = extraTokens.filter(item => item !== token);
-        onUpdate({ requiredTokens: [startingToken, ...(checked ? [...remaining, token] : remaining)] });
-    };
-
-    const continueToRank = () => {
-        if (!hasStartingToken) {
-            onStartErrorChange(true);
-            return;
-        }
-        onStepChange(3);
+        onChange({ requiredTokens: [primary, ...(checked ? [...remaining, token] : remaining)] });
     };
 
     return <Stack gap="stack">
-        <Text variant="title2" as="h2">{ t("guidedEditorTitle") }</Text>
-        <ol aria-label={ t("editorSteps") } className="flex flex-wrap gap-inline">
-            { steps.map((name, index) => <li key={ name } aria-current={ step === index + 1 ? "step" : undefined }>
-                <Text variant="small" color={ step === index + 1 ? "primary" : "muted" }>
-                    { t("stepLabel", { number: index + 1, title: t(name) }) }
-                </Text>
-            </li>) }
-        </ol>
-        <Text variant="bodyStrong">{ t("stepLabel", { number: step, title: stepTitle }) }</Text>
-        { step === 2 && <Stack gap="stack">
-            <Text variant="body">{ t(scheme.action === "SIGN_IN" ? "signInProofHelp" : "accountProofHelp") }</Text>
-            <Fieldset legend={ t(scheme.action === "SIGN_IN" ? "primaryMethod" : "startingProof") }>
-                <RadioGroup
-                    aria-label={ t(scheme.action === "SIGN_IN" ? "primaryMethod" : "startingProof") }
-                    value={ startingToken ?? "" }
-                    disabled={ busy }
-                    onValueChange={ value => { chooseStartingToken(value); }}
-                >
-                    { startingOptions.map(token => <label key={ token }
-                        className="flex cursor-pointer items-center gap-inline rounded-control border border-border-default p-stack"
-                        onClick={ () => { if (!busy) chooseStartingToken(token); } }
-                    >
-                        <Radio value={ token } aria-label={ tokenLabels[token] } />
-                        <Text variant="small">{ tokenLabels[token] }</Text>
-                    </label>) }
-                </RadioGroup>
-                { showStartError && !hasStartingToken && <Text variant="small" role="alert" tone="danger">
-                    { t("startingProofRequired") }
-                </Text> }
-            </Fieldset>
-            { scheme.action === "SIGN_IN"
-                ? <Fieldset legend={ t("additionalFactorOptional") }>
-                    <RadioGroup
-                        aria-label={ t("additionalFactorOptional") }
-                        value={ selectedFactor ?? "none" }
-                        disabled={ busy }
-                        onValueChange={ value => { chooseSignInFactor(value === "none" ? undefined : value); }}
-                    >
-                        <label className="flex cursor-pointer items-center gap-inline rounded-control border border-border-default p-stack"
-                            onClick={ () => { if (!busy) chooseSignInFactor(undefined); } }
-                        >
-                            <Radio value="none" aria-label={ t("noAdditionalProof") } />
-                            <Text variant="small">{ t("noAdditionalProof") }</Text>
-                        </label>
-                        { factorTokens.map(token => <label key={ token }
-                            className="flex cursor-pointer items-center gap-inline rounded-control border border-border-default p-stack"
-                            onClick={ () => { if (!busy) chooseSignInFactor(token); } }
-                        >
-                            <Radio value={ token } aria-label={ tokenLabels[token] } />
-                            <Text variant="small">{ tokenLabels[token] }</Text>
-                        </label>) }
-                    </RadioGroup>
-                </Fieldset>
-                : <Fieldset legend={ t("additionalProofsOptional") } disabled={ busy || !hasStartingToken }>
-                    <Stack gap="inline">
-                        { tokenKinds.filter(token => token !== startingToken).map(token => <Field key={ token } label={ tokenLabels[token] }>
-                            <Checkbox checked={ extraTokens.includes(token) } disabled={ busy || !hasStartingToken }
-                                onCheckedChange={ checked => { toggleAccountProof(token, checked); } } />
-                        </Field>) }
-                    </Stack>
-                </Fieldset> }
-            <Panel variant="inset">
-                <Text variant="body">{ t("pathResult", { path: schemeTitle(scheme, tokenLabels) }) }</Text>
-                <Text variant="small" color="secondary">{ t("proofsAnded") }</Text>
-            </Panel>
-            <div className="flex flex-wrap gap-inline">
-                { onCancelNew && <Button tone="ghost" type="button" disabled={ busy } onClick={ onCancelNew}>{ t("cancelPath") }</Button> }
-                <Button tone="primary" type="button" disabled={ busy } onClick={ continueToRank}>{ t("nextRank") }</Button>
-            </div>
-        </Stack> }
-        { step === 3 && <Stack gap="stack">
-            <Text variant="body">{ t("rankHelp") }</Text>
-            <div className="flex flex-wrap gap-inline">
-                { [1, 2, 3].map(rank => <Button key={ rank } tone={ scheme.assuranceRank === rank ? "primary" : "neutral" }
-                    type="button" aria-pressed={ scheme.assuranceRank === rank } disabled={ busy }
-                    onClick={ () => { onUpdate({ assuranceRank: rank }); }}>
-                    { t("rankOption", { rank }) }
-                </Button>) }
-            </div>
-            <Field label={ t("customRank") } description={ t("customRankHelp") }>
-                <Input type="number" min={ 1 } step={ 1 }
-                    value={ scheme.assuranceRank > 3 ? scheme.assuranceRank : "" }
-                    placeholder={ t("customRankPlaceholder") }
-                    disabled={ busy }
-                    onChange={ event => { onUpdate({ assuranceRank: Number(event.target.value) }); }}
-                />
+        <Button tone="ghost" className="self-start" disabled={ busy } onClick={ onCancel }>{ t("backToActionSchemes") }</Button>
+        <Stack gap="inline-tight">
+            <Text variant="title2" as="h2">{ t(editing ? "editPath" : "newPathTitle") }</Text>
+            <Text variant="body" color="secondary">{ t("schemeEditorHelp", { action: actionLabel }) }</Text>
+        </Stack>
+
+        <Stack gap="stack" className="max-w-2xl">
+            <Field label={ t(isSignIn ? "primaryMethod" : "startingProof") }>
+                <Select.Root value={ primary } disabled={ busy } onValueChange={ setPrimary }>
+                    <Select.Trigger>
+                        <Select.Value>{ tokenLabels[primary] }</Select.Value>
+                        <Select.Icon />
+                    </Select.Trigger>
+                    <Select.Popup>
+                        { (isSignIn ? primaryTokens : tokenKinds).map(token => <Select.Item key={ token } value={ token }>
+                            { tokenLabels[token] }
+                        </Select.Item>) }
+                    </Select.Popup>
+                </Select.Root>
             </Field>
-            { (!Number.isInteger(scheme.assuranceRank) || scheme.assuranceRank < 1) && <Text variant="small" role="alert" tone="danger">
-                { t("rankRequired") }
-            </Text> }
-            <Panel variant="inset"><Text variant="body">{ t("currentRank", { path: schemeTitle(scheme, tokenLabels), rank: scheme.assuranceRank }) }</Text></Panel>
-            <div className="flex flex-wrap gap-inline">
-                <Button tone="neutral" type="button" disabled={ busy } onClick={ () => { onStepChange(2); }}>{ t("backToProofs") }</Button>
-                <Button tone="primary" type="button" disabled={ busy || !Number.isInteger(scheme.assuranceRank) || scheme.assuranceRank < 1 }
-                    onClick={ () => { onStepChange(4); }}>
-                    { t("nextReview") }
-                </Button>
-            </div>
-        </Stack> }
-        { step === 4 && <Stack gap="stack">
-            <Text variant="body">{ t("reviewHelp") }</Text>
+
+            { isSignIn
+                ? <Field label={ t("additionalFactorOptional") }>
+                    <Select.Root value={ factor ?? "none" } disabled={ busy } onValueChange={ setFactor }>
+                        <Select.Trigger>
+                            <Select.Value>{ factor ? tokenLabels[factor] : t("noAdditionalProof") }</Select.Value>
+                            <Select.Icon />
+                        </Select.Trigger>
+                        <Select.Popup>
+                            <Select.Item value="none">{ t("noAdditionalProof") }</Select.Item>
+                            { factorTokens.map(token => <Select.Item key={ token } value={ token }>{ tokenLabels[token] }</Select.Item>) }
+                        </Select.Popup>
+                    </Select.Root>
+                </Field>
+                : <Collapsible.Root>
+                    <Stack gap="inline">
+                        <Collapsible.Trigger className="w-full justify-between">
+                            { t("additionalProofsOptionalCount", { count: extraTokens.length }) }
+                        </Collapsible.Trigger>
+                        <Collapsible.Panel>
+                            <Fieldset legend={ t("additionalProofsOptional") } disabled={ busy }>
+                                <Stack gap="inline">
+                                    { tokenKinds.filter(token => token !== primary).map(token => <Field key={ token } label={ tokenLabels[token] }>
+                                        <Checkbox
+                                            checked={ extraTokens.includes(token) }
+                                            disabled={ busy }
+                                            onCheckedChange={ checked => { toggleExtraToken(token, checked); } }
+                                        />
+                                    </Field>) }
+                                </Stack>
+                            </Fieldset>
+                        </Collapsible.Panel>
+                    </Stack>
+                </Collapsible.Root> }
+
             <Panel variant="inset">
-                <Text variant="bodyStrong">{ t("reviewSummary", {
-                    action: actionLabels[scheme.action], path: schemeTitle(scheme, tokenLabels), rank: scheme.assuranceRank,
-                }) }</Text>
-                <Text variant="small" color="secondary">{ t("pathStatus", { state: t(scheme.enabled ? "policyEnabled" : "policyDisabled") }) }</Text>
-                <Text variant="body" color="secondary">
-                    { strongerPaths.length > 0 ? t("higherRankedPathNote") : t("highestRankedPathNote") }
-                </Text>
-                { strongerPaths.length > 0 && <ul className="list-disc pl-stack">
-                    { strongerPaths.map(other => <li key={ other.id }>
-                        <Text variant="small">{ t("rankedPathSummary", {
-                            path: schemeTitle(other, tokenLabels), rank: other.assuranceRank,
-                        }) }</Text>
-                    </li>) }
-                </ul> }
+                <Stack gap="inline-tight">
+                    <Text variant="bodyStrong">{ t("pathResult", { path: schemeTitle(scheme, tokenLabels) }) }</Text>
+                    <Text variant="small" color="secondary">{ t("proofsAnded") }</Text>
+                </Stack>
             </Panel>
-            <div className="flex flex-wrap gap-inline">
-                <Button tone="neutral" type="button" disabled={ busy } onClick={ () => { onStepChange(2); }}>{ t("editProofs") }</Button>
-                <Button tone="danger" type="button" disabled={ busy } onClick={ onRequestRemove}>{ t("removePath") }</Button>
-                <Button tone="primary" type="button" disabled={ busy } onClick={ onComplete}>{ t("doneEditingPath") }</Button>
-            </div>
-        </Stack> }
+
+            <Collapsible.Root>
+                <Stack gap="inline">
+                    <Collapsible.Trigger className="w-full justify-between">{ t("advancedSchemeSettings") }</Collapsible.Trigger>
+                    <Collapsible.Panel>
+                        <Field label={ t("assuranceRank") } description={ t("rankHelp") }>
+                            <Input
+                                type="number"
+                                min={ 1 }
+                                step={ 1 }
+                                value={ scheme.assuranceRank }
+                                disabled={ busy }
+                                onChange={ event => { onChange({ assuranceRank: Number(event.target.value) }); } }
+                            />
+                        </Field>
+                        { !validRank && <Text variant="small" role="alert" tone="danger">{ t("rankRequired") }</Text> }
+                    </Collapsible.Panel>
+                </Stack>
+            </Collapsible.Root>
+
+            { validationError && <Text variant="small" role="alert" tone="danger">{ validationError }</Text> }
+            { !validSignIn && <Text variant="small" role="alert" tone="danger">{ t("signInCompositionError") }</Text> }
+            <Row gap="inline" className="flex-wrap">
+                <Button tone="neutral" disabled={ busy } onClick={ onCancel}>{ t("cancel") }</Button>
+                <Button tone="primary" disabled={ !canSave } onClick={ onSave}>{ t("saveSchemeToDraft") }</Button>
+            </Row>
+        </Stack>
     </Stack>;
 }
 
@@ -463,43 +449,49 @@ function PolicyConflictPanel({ t, draft, latest, tokenLabels, actionLabels, onRe
             <Text variant="body">{ t("conflictHelp", { draftVersion: draft.version, latestVersion: latest.version }) }</Text>
             { changes.length === 0
                 ? <Text variant="body" color="secondary">{ t("conflictNoSchemeChanges") }</Text>
-                : <div className="flex flex-col gap-stack">
+                : <Stack gap="stack">
                     { changes.map(change => <Panel key={ change.id } variant="inset">
-                        <Text variant="small" color="muted">{ actionLabels[(change.draft ?? change.latest)!.action] }</Text>
-                        <div className="grid grid-cols-1 gap-stack sm:grid-cols-2">
+                        <Text variant="small" color="muted">{ actionLabels[schemeForChange(change).action] }</Text>
+                        <Stack gap="stack" className="grid grid-cols-1 sm:grid-cols-2">
                             <Stack gap="inline-tight">
                                 <Text variant="bodyStrong">{ t("yourDraft") }</Text>
                                 <Text variant="body">{ change.draft ? schemeTitle(change.draft, tokenLabels) : t("pathRemoved") }</Text>
                                 { change.draft && <Text variant="small" color="secondary">
-                                    { t("rankAndState", { rank: change.draft.assuranceRank, state: change.draft.enabled ? t("policyEnabled") : t("policyDisabled") }) }
+                                    { t("rankAndState", { rank: change.draft.assuranceRank, state: t(change.draft.enabled ? "policyEnabled" : "policyDisabled") }) }
                                 </Text> }
                             </Stack>
                             <Stack gap="inline-tight">
                                 <Text variant="bodyStrong">{ t("latestPolicy") }</Text>
                                 <Text variant="body">{ change.latest ? schemeTitle(change.latest, tokenLabels) : t("pathRemoved") }</Text>
                                 { change.latest && <Text variant="small" color="secondary">
-                                    { t("rankAndState", { rank: change.latest.assuranceRank, state: change.latest.enabled ? t("policyEnabled") : t("policyDisabled") }) }
+                                    { t("rankAndState", { rank: change.latest.assuranceRank, state: t(change.latest.enabled ? "policyEnabled" : "policyDisabled") }) }
                                 </Text> }
                             </Stack>
-                        </div>
+                        </Stack>
                     </Panel>) }
-                </div> }
+                </Stack> }
             { draft.advancedAcknowledged !== latest.advancedAcknowledged && <Text variant="body" role="status">
                 { t("emailRiskAckComparison", {
                     draft: t(draft.advancedAcknowledged ? "confirmed" : "notConfirmed"),
                     latest: t(latest.advancedAcknowledged ? "confirmed" : "notConfirmed"),
                 }) }
             </Text> }
-            <div className="flex flex-wrap gap-inline">
+            <Row gap="inline" className="flex-wrap">
                 <Button tone="neutral" type="button" onClick={ () => { onResolve("reload"); }}>
                     { t("discardDraftReload", { version: latest.version }) }
                 </Button>
                 <Button tone="danger" type="button" onClick={ () => { onResolve("replace"); }}>
                     { t("replaceLatestWithDraft", { version: latest.version }) }
                 </Button>
-            </div>
+            </Row>
         </Stack>
     </Panel>;
+}
+
+function schemeForChange(change: { draft?: Scheme; latest?: Scheme }): Scheme {
+    const scheme = change.draft ?? change.latest;
+    if (!scheme) throw new Error("A policy change must contain a draft or latest scheme");
+    return scheme;
 }
 
 function policyChanges(draft: Policy, latest: Policy): { id: string; draft?: Scheme; latest?: Scheme }[] {
@@ -519,6 +511,6 @@ function schemesEqual(left: Scheme, right: Scheme): boolean {
         [...left.requiredTokens].sort().join("|") === [...right.requiredTokens].sort().join("|");
 }
 
-function schemeTitle(scheme: Scheme, labels: TokenLabels): string {
+function schemeTitle(scheme: Pick<Scheme, "requiredTokens">, labels: TokenLabels): string {
     return tokenKinds.filter(token => scheme.requiredTokens.includes(token)).map(token => labels[token]).join(" + ");
 }

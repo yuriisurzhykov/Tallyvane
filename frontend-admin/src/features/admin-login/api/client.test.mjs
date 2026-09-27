@@ -10,7 +10,8 @@ void test("password sign-in sends CSRF and same-origin credentials", async () =>
         return Response.json({
             status: "requires_second_factor",
             pending_id: "pending-id",
-            available_methods: ["BACKUP_CODE"],
+            recommended_method: "TOTP",
+            available_methods: ["TOTP", "EMAIL_OTP"],
         });
     });
 
@@ -19,7 +20,8 @@ void test("password sign-in sends CSRF and same-origin credentials", async () =>
     expect(result).toEqual({
         status: "requires_second_factor",
         pendingId: "pending-id",
-        availableMethods: ["BACKUP_CODE"],
+        recommendedMethod: "TOTP",
+        availableMethods: ["TOTP", "EMAIL_OTP"],
     });
     expect(calls.map(call => call.input)).toEqual([
         "/api/v1/auth/csrf",
@@ -42,12 +44,12 @@ void test("second-factor verification serializes pendingId as pending_id", async
         return Response.json({ status: "issued" });
     });
 
-    await client.verifyFactor("pending-id", "BACKUP_CODE", "backup-code");
+    await client.verifyFactor("pending-id", "TOTP", "123456");
 
     expect(JSON.parse(calls[1].init.body)).toEqual({
         pending_id: "pending-id",
-        kind: "BACKUP_CODE",
-        code: "backup-code",
+        kind: "TOTP",
+        code: "123456",
     });
 });
 

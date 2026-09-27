@@ -1,6 +1,6 @@
-import type { AdminFactor } from "@/features/admin-login";
+import type { AdminFactor, AdminPrimarySignInMethod } from "@/features/admin-login";
 
-export type AdminLoginScreen = "checking" | "password" | "mfa" | "enrollment" | "denied" | "unavailable";
+export type AdminLoginScreen = "checking" | "password" | "mfa" | "denied" | "unavailable";
 
 export interface AdminLoginState {
     readonly screen: AdminLoginScreen;
@@ -9,12 +9,14 @@ export interface AdminLoginState {
     readonly notice: string;
     readonly email: string;
     readonly password: string;
+    readonly signInMode: "PASSWORD" | "EMAIL_SIGN_IN_CODE";
+    readonly emailSignInChallengeId: string;
     readonly pendingId: string;
     readonly availableMethods: AdminFactor[];
+    readonly primaryMethods: AdminPrimarySignInMethod[];
     readonly factor: AdminFactor;
     readonly code: string;
     readonly emailChallengeId: string;
-    readonly otpauthUri: string;
 }
 
 export interface AdminLoginAction {
@@ -29,12 +31,14 @@ export const initialAdminLoginState: AdminLoginState = {
     notice: "",
     email: "",
     password: "",
+    signInMode: "PASSWORD",
+    emailSignInChallengeId: "",
     pendingId: "",
     availableMethods: [],
+    primaryMethods: [],
     factor: "TOTP",
     code: "",
     emailChallengeId: "",
-    otpauthUri: "",
 };
 
 export function adminLoginReducer(state: AdminLoginState, action: AdminLoginAction): AdminLoginState {

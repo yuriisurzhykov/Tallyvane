@@ -2,6 +2,7 @@ export { AdminAuthError, adminAuthClient, adminSessionRuntime } from "./api";
 export type {
     AdminAccountAction,
     AdminFactor,
+    AdminPrimarySignInMethod,
     AdminPresentedProofToken,
     AdminProofScheme,
     AdminProofTokenKind,

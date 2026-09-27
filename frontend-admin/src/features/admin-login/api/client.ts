@@ -4,15 +4,15 @@ import {
     createAuthSessionTransport,
     fromWireJson,
     toWireJson,
-    type AccessDeniedProblem,
     type ApiProblem,
     type RefreshResult,
     type SessionProbeResult,
 } from "frontend-shared/api";
 
-export type AdminFactor = "TOTP" | "EMAIL_OTP" | "BACKUP_CODE";
+export type AdminFactor = "TOTP" | "EMAIL_OTP";
+export type AdminPrimarySignInMethod = "PASSWORD" | "GOOGLE" | "EMAIL_SIGN_IN_CODE";
 export type AdminAccountAction = "CHANGE_PRIMARY_CREDENTIAL" | "MANAGE_SECOND_FACTORS";
-export type AdminProofTokenKind = "PASSWORD" | "GOOGLE" | "EMAIL_SIGN_IN_CODE" | "TOTP" | "EMAIL_FACTOR_CODE" | "BACKUP_CODE";
+export type AdminProofTokenKind = "PASSWORD" | "GOOGLE" | "EMAIL_SIGN_IN_CODE" | "TOTP" | "EMAIL_FACTOR_CODE";
 export interface AdminProofScheme {
     readonly id: string;
     readonly requiredTokens: AdminProofTokenKind[];
@@ -27,8 +27,9 @@ export interface AdminPresentedProofToken {
 }
 
 export interface SignInOutcome {
-    readonly status: "issued" | "requires_second_factor" | "requires_enrollment";
+    readonly status: "issued" | "requires_second_factor";
     readonly pendingId?: string;
+    readonly recommendedMethod?: AdminFactor;
     readonly availableMethods?: AdminFactor[];
 }
 
@@ -59,7 +60,10 @@ export function createAdminAuthClient(fetcher: typeof fetch = fetch) {
 
     async function send(path: string, method: string, headers?: Headers, body?: unknown): Promise<Response> {
         try {
-            return await fetcher(`/api/v1/auth${path}`, {
+            const endpoint = path === "/csrf"
+                ? `/api/v1/auth${path}`
+                : `/api/v1/auth/admin${path}`;
+            return await fetcher(endpoint, {
                 method,
                 headers: headers ?? { Accept: "application/json" },
                 credentials: "same-origin",
@@ -73,9 +77,9 @@ export function createAdminAuthClient(fetcher: typeof fetch = fetch) {
 
     return {
         requestJson: <T>(path: string, method = "GET", body?: unknown) => request<T>(path, method, body),
-        checkAdminAccess: () => send("/admin/policy", "GET").then(response => response.status),
+        checkAdminAccess: () => send("/policy", "GET").then(response => response.status),
         probeAdminAccess: async () => {
-            const response = await send("/admin/policy", "GET");
+            const response = await send("/policy", "GET");
             return { status: response.status, problem: await readProblem(response) };
         },
         readActionSchemes: async (action: AdminAccountAction) => {
@@ -105,11 +109,13 @@ export function createAdminAuthClient(fetcher: typeof fetch = fetch) {
                 })),
             },
         ),
-        signIn: (email: string, password: string) => request<SignInOutcome>("/login/password", "POST", {
-            email,
-            password,
-            device: "Admin browser",
-        }),
+        signIn: (email: string, password: string) =>
+            request<SignInOutcome>("/login/password", "POST", { email, password, device: "Admin browser" }),
+        requestEmailSignInCode: (email: string) => request<{ challengeId: string }>("/login/email/code", "POST", { email }),
+        verifyEmailSignInCode: (challengeId: string, email: string, code: string) =>
+            request<SignInOutcome>("/login/email/verify", "POST", { challengeId, email, code, device: "Admin browser" }),
+        readSignInOptions: () => request<{ primaryMethods: AdminPrimarySignInMethod[] }>("/sign-in-options")
+            .then(result => result.primaryMethods),
         requestEmailFactorCode: (pendingId: string) => request<{ challengeId: string }>("/mfa/email/request", "POST", { pendingId }),
         verifyFactor: (pendingId: string, kind: AdminFactor, code: string, challengeId?: string) =>
             request<{ status: string }>("/mfa/verify", "POST", {
@@ -118,15 +124,6 @@ export function createAdminAuthClient(fetcher: typeof fetch = fetch) {
                 code,
                 ...(challengeId ? { challengeId } : {}),
             }),
-        beginRequiredEnrollment: (pendingId: string) => request<{ otpauthUri: string }>("/mfa/required/enroll", "POST", {
-            pendingId,
-            kind: "TOTP",
-        }),
-        confirmRequiredEnrollment: (pendingId: string, code: string) => request<undefined>("/mfa/required/confirm", "POST", {
-            pendingId,
-            kind: "TOTP",
-            code,
-        }),
         signOut: () => request<undefined>("/logout", "POST"),
         refreshSession: () => request<{ status: string }>("/refresh", "POST"),
     };
@@ -149,7 +146,7 @@ async function checkAdminSession(): Promise<SessionProbeResult> {
             return { status: "unauthorized" };
         }
         if (result.status === 403 && result.problem?.type === AUTH_PROBLEM_TYPES.forbidden) {
-            return { status: "accessDenied", problem: result.problem as AccessDeniedProblem };
+            return { status: "accessDenied", problem: result.problem };
         }
         return { status: "unavailable" };
     } catch {

@@ -2,6 +2,7 @@ import type { Dispatch, SyntheticEvent } from "react";
 import {
     AdminAuthError,
     adminAuthClient,
+    resolveAdminLoginReturnTo,
 } from "@/features/admin-login";
 import type { AdminFactor, SignInOutcome } from "@/features/admin-login";
 import type { useAdminLoginStrings } from "@/features/admin-login";
@@ -9,12 +10,10 @@ import type { AdminLoginAction, AdminLoginState } from "./state";
 
 type Translate = ReturnType<typeof useAdminLoginStrings>;
 type DispatchAction = Dispatch<AdminLoginAction>;
-type Navigate = (path: string) => void;
 
 interface FlowContext {
     readonly state: AdminLoginState;
     readonly dispatch: DispatchAction;
-    readonly navigate: Navigate;
     readonly returnTo: string;
     readonly t: Translate;
 }
@@ -64,6 +63,33 @@ export async function submitAdminPassword(
     }
 }
 
+export async function submitAdminEmailCode(
+    event: SyntheticEvent<HTMLFormElement>,
+    context: FlowContext,
+) {
+    event.preventDefault();
+    const { state, dispatch, t } = context;
+    patch(dispatch, { busy: true, error: "" });
+    try {
+        if (!state.emailSignInChallengeId) {
+            const result = await adminAuthClient.requestEmailSignInCode(state.email.trim());
+            patch(dispatch, { emailSignInChallengeId: result.challengeId, code: "", notice: t("emailSignInCodeSent") });
+            return;
+        }
+        const outcome = await adminAuthClient.verifyEmailSignInCode(
+            state.emailSignInChallengeId,
+            state.email.trim(),
+            state.code,
+        );
+        await handleSignInOutcome(outcome, context);
+    } catch (reason) {
+        const message = reason instanceof AdminLoginFlowError ? reason.message : errorMessage(reason, t, "verification");
+        patch(dispatch, { error: message });
+    } finally {
+        patch(dispatch, { busy: false });
+    }
+}
+
 async function handleSignInOutcome(
     outcome: SignInOutcome,
     context: FlowContext,
@@ -71,41 +97,32 @@ async function handleSignInOutcome(
     const { dispatch, t } = context;
     switch (outcome.status) {
         case "issued":
-            await routeAfterIssuedSession({
+            routeAfterIssuedSession({
                 successPath: context.returnTo,
             });
             break;
         case "requires_second_factor":
-            beginMfa(outcome, dispatch);
-            break;
-        case "requires_enrollment":
-            await beginRequiredEnrollment(outcome, dispatch, t);
+            beginMfa(outcome, dispatch, t);
             break;
     }
 }
 
-function beginMfa(outcome: SignInOutcome, dispatch: DispatchAction) {
-    if (!outcome.pendingId) throw new AdminLoginFlowError("The sign-in check expired. Please sign in again.");
+function beginMfa(outcome: SignInOutcome, dispatch: DispatchAction, t: Translate) {
+    if (!outcome.pendingId) throw new AdminLoginFlowError(t("signInExpired"));
     const methods = outcome.availableMethods?.filter(isAdminFactor) ?? [];
+    const recommended = outcome.recommendedMethod && methods.includes(outcome.recommendedMethod)
+        ? outcome.recommendedMethod
+        : undefined;
+    if (!recommended || methods.length === 0) throw new AdminLoginFlowError(t("signInExpired"));
     patch(dispatch, {
         screen: "mfa",
         pendingId: outcome.pendingId,
         availableMethods: methods,
-        factor: methods[0] ?? "TOTP",
+        factor: recommended,
         code: "",
         emailChallengeId: "",
         notice: "",
     });
-}
-
-async function beginRequiredEnrollment(outcome: SignInOutcome, dispatch: DispatchAction, t: Translate) {
-    if (!outcome.pendingId) throw new AdminLoginFlowError(t("requestFailed"));
-    if (outcome.availableMethods?.length && !outcome.availableMethods.includes("TOTP")) {
-        throw new AdminLoginFlowError(t("requiredMethodUnavailable"));
-    }
-    patch(dispatch, { screen: "enrollment", pendingId: outcome.pendingId, otpauthUri: "", code: "" });
-    const enrollment = await adminAuthClient.beginRequiredEnrollment(outcome.pendingId);
-    patch(dispatch, { otpauthUri: enrollment.otpauthUri });
 }
 
 export async function submitAdminMfa(
@@ -128,34 +145,10 @@ export async function submitAdminMfa(
             state.factor === "EMAIL_OTP" ? state.emailChallengeId : undefined,
         );
         if (result.status !== "issued") throw new AdminLoginFlowError(t("invalidCode"));
-        await routeAfterIssuedSession({ successPath: returnTo });
+        routeAfterIssuedSession({ successPath: returnTo });
     } catch (reason) {
         const message = reason instanceof AdminLoginFlowError ? reason.message : errorMessage(reason, t, "verification");
         patch(dispatch, { error: message });
-    } finally {
-        patch(dispatch, { busy: false });
-    }
-}
-
-export async function submitRequiredEnrollment(
-    event: SyntheticEvent<HTMLFormElement>,
-    state: AdminLoginState,
-    dispatch: DispatchAction,
-    t: Translate,
-) {
-    event.preventDefault();
-    patch(dispatch, { busy: true, error: "" });
-    try {
-        await adminAuthClient.confirmRequiredEnrollment(state.pendingId, state.code);
-        patch(dispatch, {
-            screen: "password",
-            pendingId: "",
-            otpauthUri: "",
-            code: "",
-            notice: t("enrollmentComplete"),
-        });
-    } catch (reason) {
-        patch(dispatch, { error: errorMessage(reason, t, "verification") });
     } finally {
         patch(dispatch, { busy: false });
     }
@@ -173,10 +166,12 @@ export async function signOutDeniedAccount(dispatch: DispatchAction, t: Translat
     }
 }
 
-async function routeAfterIssuedSession(context: AccessContext) {
-    window.location.replace(context.successPath);
+function routeAfterIssuedSession(context: AccessContext) {
+    const saved = sessionStorage.getItem("tallyvane.admin.auth.returnTo");
+    sessionStorage.removeItem("tallyvane.admin.auth.returnTo");
+    window.location.replace(resolveAdminLoginReturnTo(saved ?? context.successPath));
 }
 
 function isAdminFactor(value: string): value is AdminFactor {
-    return value === "TOTP" || value === "EMAIL_OTP" || value === "BACKUP_CODE";
+    return value === "TOTP" || value === "EMAIL_OTP";
 }

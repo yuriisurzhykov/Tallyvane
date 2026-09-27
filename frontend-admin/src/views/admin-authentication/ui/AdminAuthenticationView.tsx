@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
+import { Link } from "frontend-shared/ui/link";
 import { AppShell } from "frontend-shared/ui/app-shell";
 import { Button } from "frontend-shared/ui/button";
+import { Collapsible } from "frontend-shared/ui/collapsible";
 import { Stack } from "frontend-shared/ui/stack";
 import { Text } from "frontend-shared/ui/text";
 import type { AddToastOptions } from "frontend-shared/ui/toast";
@@ -42,7 +43,7 @@ function failureText(reason: unknown, t: ReturnType<typeof useAdminAuthenticatio
 }
 
 async function request<T>(path: string, method = "GET", body?: unknown): Promise<T> {
-    return adminAuthClient.requestJson<T>(`/admin/${path}`, method, body);
+    return adminAuthClient.requestJson<T>(`/${path}`, method, body);
 }
 
 async function requestPolicy(): Promise<Policy> {
@@ -74,11 +75,6 @@ function policyIssue(policy: Policy, t: ReturnType<typeof useAdminAuthentication
             scheme.requiredTokens.filter(token => !primaryTokens.has(token)).length > 1))) {
         return t("signInCompositionError");
     }
-    const enabledPrimaries = new Set(signInSchemes.flatMap(scheme => scheme.requiredTokens.filter(token => primaryTokens.has(token))));
-    const missingFallback = [...enabledPrimaries].some(primary => !signInSchemes.some(scheme =>
-        scheme.requiredTokens.length === 1 && scheme.requiredTokens[0] === primary,
-    ));
-    if (missingFallback) return t("primaryFallbackError");
     return null;
 }
 
@@ -90,7 +86,7 @@ function Editor() {
     const t = useAdminAuthenticationStrings("adminAuthentication");
     const tokenLabels: Record<TokenKind, string> = {
         PASSWORD: t("password"), GOOGLE: t("google"), EMAIL_SIGN_IN_CODE: t("emailCode"),
-        TOTP: t("authenticator"), EMAIL_FACTOR_CODE: t("emailOtp"), BACKUP_CODE: t("backupCode"),
+        TOTP: t("authenticator"), EMAIL_FACTOR_CODE: t("emailOtp"),
     };
     const actionLabels: Record<Action, string> = {
         SIGN_IN: t("signIn"), CHANGE_PRIMARY_CREDENTIAL: t("changePrimaryCredential"),
@@ -161,16 +157,15 @@ function Editor() {
     const reset = () => resetFactors({ email, setEmail, setConfirmation, setBusy, setError,
         notify: options => { actions.add(options); }, t, fail });
 
-    const add = (action: Action): string => {
+    const add = (scheme: Omit<Scheme, "id">) => {
         const id = globalThis.crypto.randomUUID();
         setError(null);
         setValidationError(null);
         setPolicy(current => current && ({
             ...current,
             advancedAcknowledged: false,
-            schemes: [...current.schemes, { id, action, requiredTokens: [], assuranceRank: 1, enabled: true }],
+            schemes: [...current.schemes, { ...scheme, id }],
         }));
-        return id;
     };
     const remove = (id: string) => {
         setError(null);
@@ -214,7 +209,6 @@ function Editor() {
         onReload={ load }
         onUpdate={ update }
         onAdd={ add }
-        onRemove={ remove }
         onRequestRemove={ scheme => { setSchemeToRemove(scheme); setConfirmation("remove"); } }
         onEmailChange={ setEmail }
         onConfirmationChange={ value => {
@@ -255,8 +249,7 @@ interface EditorContentProps {
     readonly policyIssue: string | null;
     readonly onReload: () => Promise<void>;
     readonly onUpdate: (id: string, patch: Partial<Scheme>) => void;
-    readonly onAdd: (action: Action) => string;
-    readonly onRemove: (id: string) => void;
+    readonly onAdd: (scheme: Omit<Scheme, "id">) => void;
     readonly onRequestRemove: (scheme: Scheme) => void;
     readonly onEmailChange: (email: string) => void;
     readonly onConfirmationChange: (value: "advanced" | "reset" | "remove" | null) => void;
@@ -300,14 +293,20 @@ function EditorContent(props: EditorContentProps) {
                 conflict={ conflict }
                 onUpdate={ props.onUpdate }
                 onAdd={ props.onAdd }
-                onRemove={ props.onRemove }
                 onRequestRemove={ props.onRequestRemove }
                 onSave={ props.onSave }
                 onResolveConflict={ props.onResolveConflict }
             /> }
-            { !loading && policy && <ResetFactorPanel t={ t } email={ email } busy={ busy }
-                onEmailChange={ props.onEmailChange }
-                onRequest={ () => { props.onConfirmationChange("reset"); }} /> }
+            { !loading && policy && <Collapsible.Root>
+                <Stack gap="inline">
+                    <Collapsible.Trigger className="w-full justify-between">{ t("userAccountTools") }</Collapsible.Trigger>
+                    <Collapsible.Panel>
+                        <ResetFactorPanel t={ t } email={ email } busy={ busy }
+                            onEmailChange={ props.onEmailChange }
+                            onRequest={ () => { props.onConfirmationChange("reset"); }} />
+                    </Collapsible.Panel>
+                </Stack>
+            </Collapsible.Root> }
         </Stack>
         <ConfirmationDrawer t={ t } email={ email } confirmation={ confirmation } { ...(removal ? { removal } : {}) }
             onClose={ () => { props.onConfirmationChange(null); }}

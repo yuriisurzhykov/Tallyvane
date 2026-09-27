@@ -2,6 +2,7 @@ export { AdminAuthError, adminAuthClient, adminSessionRuntime, createAdminAuthCl
 export type {
     AdminAccountAction,
     AdminFactor,
+    AdminPrimarySignInMethod,
     AdminPresentedProofToken,
     AdminProofScheme,
     AdminProofTokenKind,
