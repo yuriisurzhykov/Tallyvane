@@ -11,6 +11,7 @@ import io.ktor.server.application.call
 import io.ktor.server.application.install
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.statuspages.StatusPages
+import io.ktor.server.request.httpMethod
 import io.ktor.server.request.path
 import io.ktor.server.response.ApplicationSendPipeline
 import io.ktor.server.response.respond
@@ -21,7 +22,6 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonObject
-import org.slf4j.LoggerFactory
 import tallyvane.platform.http.csrf.CsrfGuard
 import tallyvane.platform.http.problems.FailureTranslator
 import tallyvane.platform.http.problems.Problem
@@ -30,6 +30,11 @@ import tallyvane.platform.http.problems.TransportFailures
 import tallyvane.platform.http.status.Answers
 import tallyvane.platform.http.status.Rfc9457Answers
 import tallyvane.platform.http.status.Statuses
+import tallyvane.platform.kernel.Clock
+import tallyvane.platform.kernel.MonotonicClock
+import tallyvane.platform.observability.log.LogRecord
+import tallyvane.platform.observability.log.LoggerFactory
+import tallyvane.platform.observability.log.Severity
 import tallyvane.platform.observability.log.Trace
 import tallyvane.platform.observability.log.TraceContext
 
@@ -72,7 +77,11 @@ public class Api(
     private val failures: FailureTranslator,
     private val trace: TraceHeader,
     private val authCsrf: CsrfGuard? = null,
+    private val loggerFactory: LoggerFactory = LoggerFactory(clock = Clock.Wall()),
+    private val monotonicClock: MonotonicClock = MonotonicClock.System(),
 ) {
+    private val logger = loggerFactory.getLogger(Api::class.java.name)
+
     init {
         val repeated = routes.groupBy { module -> module.basePath }.filterValues { it.size > 1 }.keys
         require(repeated.isEmpty()) {
@@ -86,6 +95,7 @@ public class Api(
             exception<Throwable> { call, cause -> call.respondProblem(call.translated(cause)) }
         }
         traced(application)
+        accessLogged(application)
         authCsrf?.let { guard ->
             application.intercept(ApplicationCallPipeline.Call) {
                 if (call.request.path().startsWith("/api/v1/auth/") && !guard.allows(call)) {
@@ -119,9 +129,58 @@ public class Api(
     private suspend fun ApplicationCall.translated(cause: Throwable): Problem {
         val problem = with(answers) { with(chain) { translate(cause) } ?: unexpected() }
         if (problem.status >= SERVER_FAULT) {
-            withContext(TraceContext(traced())) { logger.error("Request failed", cause) }
+            withContext(TraceContext(traced())) {
+                logger.emit(
+                    LogRecord(
+                        severity = Severity.ERROR,
+                        event = "http.server.request.failed",
+                        body = "Request failed",
+                        attributes =
+                        mapOf(
+                            "http.request.method" to request.httpMethod.value,
+                            "url.path" to request.path(),
+                            "http.response.status_code" to problem.status,
+                        ),
+                        cause = cause,
+                    ),
+                )
+            }
         }
         return problem
+    }
+
+    /**
+     * Emits one structured completion record after Ktor and the route have selected a response.
+     */
+    private fun accessLogged(application: Application) {
+        application.intercept(ApplicationCallPipeline.Monitoring) {
+            val startedAt = monotonicClock.nowNanos()
+            try {
+                proceed()
+            } finally {
+                val status = call.response.status()?.value ?: HttpStatusCode.InternalServerError.value
+                val severity = when {
+                    status >= SERVER_FAULT -> Severity.ERROR
+                    status >= FAULT -> Severity.WARN
+                    else -> Severity.INFO
+                }
+                val durationMs = (monotonicClock.nowNanos() - startedAt) / NANOS_PER_MILLISECOND
+                logger.emit(
+                    LogRecord(
+                        severity = severity,
+                        event = "http.server.request",
+                        body = "HTTP request completed",
+                        attributes =
+                        mapOf(
+                            "http.request.method" to call.request.httpMethod.value,
+                            "url.path" to call.request.path(),
+                            "http.response.status_code" to status,
+                            "http.server.duration_ms" to durationMs,
+                        ),
+                    ),
+                )
+            }
+        }
     }
 
     /**
@@ -255,13 +314,13 @@ public class Api(
          */
         const val SERVER_FAULT = 500
 
+        const val NANOS_PER_MILLISECOND = 1_000_000.0
+
         /**
          * §11.1: the version lives in the path, and a module never writes it itself.
          */
         const val VERSIONED = "/api/v1"
 
         val PROBLEM_JSON = ContentType("application", "problem+json")
-
-        val logger = LoggerFactory.getLogger(Api::class.java)
     }
 }

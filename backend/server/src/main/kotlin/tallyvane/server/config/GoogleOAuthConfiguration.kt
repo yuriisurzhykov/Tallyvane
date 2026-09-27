@@ -14,4 +14,5 @@ public data class GoogleOAuthConfiguration(
     public val clientId: String,
     public val clientSecret: Secret,
     public val redirectUri: String,
+    public val adminRedirectUri: String? = null,
 )

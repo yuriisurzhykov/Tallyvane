@@ -6,8 +6,10 @@ import tallyvane.platform.http.Api
 import tallyvane.platform.http.RequestPrincipal
 import tallyvane.platform.http.TraceHeader
 import tallyvane.platform.http.problems.FailureTranslator
+import tallyvane.platform.kernel.Clock
 import tallyvane.platform.observability.health.HealthCheck
 import tallyvane.platform.observability.health.HealthReporter
+import tallyvane.platform.observability.log.LoggerFactory
 import tallyvane.platform.persistence.MigrationsApplied
 import tallyvane.platform.persistence.observability.DatabaseAnswers
 import tallyvane.server.config.Configuration
@@ -22,7 +24,8 @@ import kotlin.time.Duration.Companion.seconds
  * Everything is deferred, so construction touches no database.
  */
 public class Wiring(private val platform: PlatformWiring, private val configuration: Configuration) {
-    private val identity: IdentityWiring by lazy { IdentityWiring(platform, configuration) }
+    private val loggers: LoggerFactory by lazy { LoggerFactory(clock = Clock.Wall()) }
+    private val identity: IdentityWiring by lazy { IdentityWiring(platform, configuration, loggers) }
 
     /**
      * Every check the aggregate reports on, each already wrapped so that it can neither hang nor
@@ -52,6 +55,7 @@ public class Wiring(private val platform: PlatformWiring, private val configurat
             failures = FailureTranslator.Chained(emptyList()),
             trace = TraceHeader(platform.ids),
             authCsrf = identity.csrfGuard,
+            loggerFactory = loggers,
         )
     }
 

@@ -185,7 +185,12 @@ public class EnvironmentConfiguration(private val environment: Environment) {
         val present = listOfNotNull(clientId, clientSecret, redirectUri).size
         return when (present) {
             0 -> null
-            THREE -> GoogleOAuthConfiguration(clientId!!, Secret(clientSecret!!), redirectUri!!)
+            THREE -> GoogleOAuthConfiguration(
+                clientId!!,
+                Secret(clientSecret!!),
+                redirectUri!!,
+                environment.read(GOOGLE_ADMIN_REDIRECT_URI)?.takeIf { it.isNotBlank() },
+            )
             else -> null.also {
                 faults +=
                     "$GOOGLE_CLIENT_ID, $GOOGLE_CLIENT_SECRET and $GOOGLE_REDIRECT_URI must be set together or not at all"
@@ -267,6 +272,8 @@ public class EnvironmentConfiguration(private val environment: Environment) {
         public const val GOOGLE_CLIENT_SECRET: String = "TALLYVANE_GOOGLE_CLIENT_SECRET"
 
         public const val GOOGLE_REDIRECT_URI: String = "TALLYVANE_GOOGLE_REDIRECT_URI"
+
+        public const val GOOGLE_ADMIN_REDIRECT_URI: String = "TALLYVANE_GOOGLE_ADMIN_REDIRECT_URI"
 
         /**
          * Long enough that nobody types one by accident.
