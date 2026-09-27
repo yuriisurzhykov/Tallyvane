@@ -194,6 +194,31 @@ paths:
         default:
           $ref: "#/components/responses/Problem"
 
+  /auth/sign-in-options:
+    get:
+      tags: [auth]
+      operationId: readPublicSignInOptions
+      summary: List policy-enabled primary sign-in entry points available on this deployment
+      responses:
+        "200":
+          description: Account-neutral primary sign-in methods from the current stored policy.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [primary_methods]
+                properties:
+                  primary_methods:
+                    type: array
+                    uniqueItems: true
+                    items: { type: string, enum: [PASSWORD, GOOGLE, EMAIL_SIGN_IN_CODE] }
+        default:
+          $ref: "#/components/responses/Problem"
+
   /auth/google/oauth/start:
     get:
       tags: [auth]
@@ -663,9 +688,10 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [enrolled, recently_authenticated]
+                required: [enrolled, recovery_codes_issued, recently_authenticated]
                 properties:
-                  enrolled: { type: array, items: { type: string, enum: [TOTP, EMAIL_OTP, BACKUP_CODE] } }
+                  enrolled: { type: array, items: { type: string, enum: [TOTP, EMAIL_OTP] } }
+                  recovery_codes_issued: { type: boolean }
                   recently_authenticated: { type: boolean }
         default: { $ref: "#/components/responses/Problem" }
 
@@ -684,7 +710,7 @@ paths:
               type: object
               required: [kind, confirmed]
               properties:
-                kind: { type: string, enum: [TOTP, EMAIL_OTP, BACKUP_CODE] }
+                kind: { type: string, enum: [TOTP, EMAIL_OTP] }
                 confirmed: { type: boolean, const: true }
       responses:
         "204": { description: The selected factor was removed. }
@@ -764,31 +790,207 @@ paths:
         "204": { description: Email factor enrollment confirmed. }
         default: { $ref: "#/components/responses/Problem" }
 
-  /auth/mfa/required/enroll:
+  /auth/admin/sign-in-options:
+    get:
+      tags: [auth]
+      operationId: readAdminSignInOptions
+      summary: List sign-in methods available in the administrator identity realm
+      responses:
+        "200":
+          description: Policy-enabled administrator sign-in methods available on this deployment.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [primary_methods]
+                properties:
+                  primary_methods:
+                    type: array
+                    uniqueItems: true
+                    items: { type: string, enum: [PASSWORD, GOOGLE, EMAIL_SIGN_IN_CODE] }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /auth/admin/login/password:
     post:
       tags: [auth]
-      operationId: beginRequiredMfaEnrollment
-      summary: Begin a factor enrollment using the scoped sign-in challenge
+      operationId: signInAdminWithPassword
+      summary: Sign in to the administrator realm with a verified admin account's password
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [pending_id, kind]
+              required: [email, password, device]
               properties:
-                pending_id: { type: string, format: uuid }
-                kind: { type: string, enum: [TOTP] }
+                email: { type: string, format: email }
+                password: { type: string }
+                device: { type: string }
       responses:
-        "200": { description: Enrollment payload for the selected factor. }
+        "200":
+          description: Admin session cookies were issued or a second-factor step is required.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SignInResult" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /auth/admin/login/email/code:
+    post:
+      tags: [auth]
+      operationId: requestAdminEmailSignInCode
+      summary: Send an email sign-in code for an existing administrator account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+      responses:
+        "202":
+          description: Code request accepted.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [challenge_id]
+                properties:
+                  challenge_id: { type: string, format: uuid }
+        "429":
+          description: A code was requested recently; retry after the Retry-After delay.
+          headers:
+            Retry-After: { schema: { type: integer } }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /auth/admin/login/email/verify:
+    post:
+      tags: [auth]
+      operationId: completeAdminEmailSignIn
+      summary: Verify an admin email code and continue the server-selected sign-in policy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [challenge_id, email, code, device]
+              properties:
+                challenge_id: { type: string, format: uuid }
+                email: { type: string, format: email }
+                code: { type: string, pattern: "^[0-9]{6}$" }
+                device: { type: string }
+      responses:
+        "200":
+          description: Admin session cookies were issued or the next server-selected authentication step is returned.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SignInResult" }
+        "401": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /auth/admin/password/forgot:
+    post:
+      tags: [auth]
+      operationId: requestAdminPasswordResetCode
+      summary: Request an administrator-realm password reset code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+      responses:
+        "202":
+          description: Code request accepted.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [challenge_id]
+                properties:
+                  challenge_id: { type: string, format: uuid }
+        "429": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /auth/admin/password/reset:
+    post:
+      tags: [auth]
+      operationId: resetAdminPassword
+      summary: Replace an administrator password using its emailed reset challenge
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [challenge_id, email, code, new_password]
+              properties:
+                challenge_id: { type: string, format: uuid }
+                email: { type: string, format: email }
+                code: { type: string, pattern: "^[0-9]{6}$" }
+                new_password: { type: string, minLength: 15, maxLength: 128 }
+      responses:
+        "200": { description: Administrator password changed. }
+        "401": { $ref: "#/components/responses/Problem" }
         "422": { $ref: "#/components/responses/Problem" }
         default: { $ref: "#/components/responses/Problem" }
 
-  /auth/mfa/required/confirm:
+  /auth/admin/google/oauth/start:
+    get:
+      tags: [auth]
+      operationId: startAdminGoogleOAuth
+      summary: Begin Google OAuth sign-in for the administrator realm
+      responses:
+        "302":
+          description: Redirects to Google and sets admin-scoped HttpOnly state and verifier cookies.
+        default: { $ref: "#/components/responses/Problem" }
+
+  /auth/admin/google/callback:
+    get:
+      tags: [auth]
+      operationId: completeAdminGoogleOAuth
+      summary: Complete Google OAuth and return to the administrator frontend
+      parameters:
+        - { name: code, in: query, required: false, schema: { type: string } }
+        - { name: state, in: query, required: false, schema: { type: string } }
+        - { name: error, in: query, required: false, schema: { type: string } }
+      responses:
+        "302": { description: Redirects to the admin callback page after processing OAuth state. }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /auth/admin/mfa/email/request:
     post:
       tags: [auth]
-      operationId: confirmRequiredMfaEnrollment
-      summary: Confirm required factor enrollment and complete sign-in
+      operationId: requestAdminSignInEmailMfaCode
+      summary: Send an email factor code for a pending administrator sign-in
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [pending_id]
+              properties:
+                pending_id: { type: string, format: uuid }
+      responses:
+        "202": { description: Code accepted for delivery; response includes challenge_id. }
+        "429": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /auth/admin/mfa/verify:
+    post:
+      tags: [auth]
+      operationId: verifyAdminSignInSecondFactor
+      summary: Complete an administrator sign-in with TOTP or email MFA
       requestBody:
         required: true
         content:
@@ -798,15 +1000,38 @@ paths:
               required: [pending_id, kind, code]
               properties:
                 pending_id: { type: string, format: uuid }
-                kind: { type: string, enum: [TOTP] }
-                code: { type: string, minLength: 6, maxLength: 6 }
+                kind: { type: string, enum: [TOTP, EMAIL_OTP] }
+                code: { type: string }
+                challenge_id: { type: string, format: uuid, description: Required when kind is EMAIL_OTP. }
       responses:
-        "200":
-          description: Enrollment accepted and session cookies issued.
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/SignInResult" }
-        "422": { $ref: "#/components/responses/Problem" }
+        "200": { description: Administrator session issued after factor verification. }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /auth/admin/refresh:
+    post:
+      tags: [auth]
+      operationId: refreshAdminSession
+      summary: Rotate the administrator refresh token and issue a new access token
+      responses:
+        "200": { description: New administrator session tokens were issued in cookies. }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /auth/admin/logout:
+    post:
+      tags: [auth]
+      operationId: signOutAdminSession
+      summary: Revoke the current administrator session and clear its cookies
+      responses:
+        "204": { description: Current administrator session revoked. }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /auth/admin/logout-all:
+    post:
+      tags: [auth]
+      operationId: signOutAllAdminSessions
+      summary: Revoke every session for the signed-in administrator account
+      responses:
+        "204": { description: All administrator sessions revoked. }
         default: { $ref: "#/components/responses/Problem" }
 
   /auth/admin/policy:
@@ -896,6 +1121,34 @@ paths:
         "204": { description: All sessions revoked. }
         default: { $ref: "#/components/responses/Problem" }
 
+  /auth/recovery:
+    post:
+      tags: [auth]
+      operationId: recoverAccountWithRecoveryCode
+      summary: Perform full account recovery with an account email and recovery code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [email, recovery_code, new_password, device]
+              properties:
+                email: { type: string, format: email }
+                recovery_code: { type: string, minLength: 1, writeOnly: true }
+                new_password: { type: string, minLength: 15, maxLength: 128, writeOnly: true }
+                device: { type: string, minLength: 1, maxLength: 120 }
+      responses:
+        "200":
+          description: Recovery completed atomically and a new session was issued.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SignInResult" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
   /auth/account/action-proof/email-code:
     post:
       tags: [auth]
@@ -949,7 +1202,7 @@ paths:
                         id: { type: string }
                         required_tokens:
                           type: array
-                          items: { type: string, enum: [PASSWORD, GOOGLE, EMAIL_SIGN_IN_CODE, TOTP, EMAIL_FACTOR_CODE, BACKUP_CODE] }
+                          items: { type: string, enum: [PASSWORD, GOOGLE, EMAIL_SIGN_IN_CODE, TOTP, EMAIL_FACTOR_CODE] }
                         assurance_rank: { type: integer, minimum: 1 }
         "401": { $ref: "#/components/responses/Problem" }
         default: { $ref: "#/components/responses/Problem" }
@@ -968,6 +1221,85 @@ paths:
       responses:
         "200":
           description: One-use proof bound to this action, session, and current policy version.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthenticationActionProof" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /auth/admin/account/action-proof/email-code:
+    post:
+      tags: [auth]
+      operationId: requestAdminAuthenticationActionEmailCode
+      summary: Send an email proof code for an administrator account action
+      security: [{ cookieAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AuthenticationActionEmailCodeRequest" }
+      responses:
+        "202":
+          description: Code accepted for delivery; response includes challenge_id.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [challenge_id]
+                properties:
+                  challenge_id: { type: string, format: uuid }
+        "401": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /auth/admin/account/action-proof/options:
+    get:
+      tags: [auth]
+      operationId: readAdminAuthenticationActionProofOptions
+      summary: Read the strongest authentication schemes available for an administrator action
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - name: action
+          in: query
+          required: true
+          schema: { type: string, enum: [CHANGE_PRIMARY_CREDENTIAL, MANAGE_SECOND_FACTORS] }
+      responses:
+        "200":
+          description: Highest assurance schemes satisfiable by the signed-in administrator's credentials and factors.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [schemes]
+                properties:
+                  schemes:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, required_tokens, assurance_rank]
+                      properties:
+                        id: { type: string }
+                        required_tokens:
+                          type: array
+                          items: { type: string, enum: [PASSWORD, GOOGLE, EMAIL_SIGN_IN_CODE, TOTP, EMAIL_FACTOR_CODE] }
+                        assurance_rank: { type: integer, minimum: 1 }
+        "401": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /auth/admin/account/action-proof:
+    post:
+      tags: [auth]
+      operationId: authorizeAdminAuthenticationAction
+      summary: Verify the strongest configured proof scheme for an administrator action
+      security: [{ cookieAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AuthenticationActionProofRequest" }
+      responses:
+        "200":
+          description: One-use proof bound to this administrator action, session, and current policy version.
           content:
             application/json:
               schema: { $ref: "#/components/schemas/AuthenticationActionProof" }
@@ -1074,18 +1406,25 @@ components:
       description: Closed security action set shared with identity's AuthenticationAction enum.
 
     SignInResult:
-      type: object
-      additionalProperties: false
-      required: [status]
-      properties:
-        status: { type: string, enum: [issued, requires_second_factor, requires_enrollment] }
-        pending_id: { type: string, format: uuid }
-        available_methods:
-          type: array
-          uniqueItems: true
-          items: { type: string, enum: [TOTP, EMAIL_OTP, BACKUP_CODE] }
-          description: Enrolled factors for MFA, or factors that can satisfy a required enrollment.
-        primary_method: { type: string, enum: [PASSWORD, GOOGLE, EMAIL_CODE] }
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required: [status]
+          properties:
+            status: { type: string, const: issued }
+        - type: object
+          additionalProperties: false
+          required: [status, pending_id, recommended_method, available_methods]
+          properties:
+            status: { type: string, const: requires_second_factor }
+            pending_id: { type: string, format: uuid }
+            recommended_method: { type: string, enum: [TOTP, EMAIL_OTP] }
+            available_methods:
+              type: array
+              minItems: 1
+              uniqueItems: true
+              items: { type: string, enum: [TOTP, EMAIL_OTP] }
+              description: Every policy-enabled enrolled factor accepted for this pending sign-in.
 
     HealthStatus:
       type: string
@@ -1211,7 +1550,7 @@ components:
         allowed_methods:
           type: array
           uniqueItems: true
-          items: { type: string, enum: [TOTP, EMAIL_OTP, BACKUP_CODE] }
+          items: { type: string, enum: [TOTP, EMAIL_OTP] }
 
     AuthenticationPolicy:
       type: object
@@ -1240,7 +1579,7 @@ components:
           type: array
           minItems: 1
           uniqueItems: true
-          items: { type: string, enum: [PASSWORD, GOOGLE, EMAIL_SIGN_IN_CODE, TOTP, EMAIL_FACTOR_CODE, BACKUP_CODE] }
+          items: { type: string, enum: [PASSWORD, GOOGLE, EMAIL_SIGN_IN_CODE, TOTP, EMAIL_FACTOR_CODE] }
         assurance_rank: { type: integer, minimum: 1 }
         enabled: { type: boolean }
 
@@ -1268,7 +1607,7 @@ components:
       additionalProperties: false
       required: [kind, value]
       properties:
-        kind: { type: string, enum: [PASSWORD, GOOGLE, EMAIL_SIGN_IN_CODE, TOTP, EMAIL_FACTOR_CODE, BACKUP_CODE] }
+        kind: { type: string, enum: [PASSWORD, GOOGLE, EMAIL_SIGN_IN_CODE, TOTP, EMAIL_FACTOR_CODE] }
         value: { type: string, minLength: 1, writeOnly: true }
         challenge_id: { type: string, format: uuid }
         code_verifier: { type: string, writeOnly: true }
