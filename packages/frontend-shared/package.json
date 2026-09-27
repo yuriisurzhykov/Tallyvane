@@ -44,6 +44,7 @@
     "./ui/popover": "./src/shared/ui/popover/index.ts",
     "./ui/tooltip": "./src/shared/ui/tooltip/index.ts",
     "./ui/drawer": "./src/shared/ui/drawer/index.ts",
+    "./ui/alert-dialog": "./src/shared/ui/alert-dialog/index.ts",
     "./ui/context-menu": "./src/shared/ui/context-menu/index.ts",
     "./ui/preview-card": "./src/shared/ui/preview-card/index.ts",
     "./ui/toast": "./src/shared/ui/toast/index.ts",

@@ -1,11 +1,9 @@
 # drawer
 
-**The creation surface.** With modal windows banned outright
-(`ARCHITECTURE.md` §12.9 — editing happens in place, creation happens here),
-every "new item" flow in this product — capture a job by hand, log an
-interview, record a communication — ends at this one component holding a
-form. Tier 0: it knows it is a slide-in surface and nothing about what a
-job application is.
+A side panel for creation flows and side navigation. The component knows how
+to open, close, and manage focus; its caller supplies the content. Main work
+screens use drawers for creation, while the settings workspace also uses a
+left drawer for mobile section navigation.
 
 ## What needed doing
 
@@ -17,10 +15,11 @@ deliver all of that for free.
 
 ## The one default this module overrides, and why
 
-Base UI's own `swipeDirection` defaults to `'down'` — a bottom sheet. Every
-drawer in this product is a side panel, so `'right'` is this component's own
-default (still Base UI's real prop, still overridable) rather than an
-upstream default that would slide the wrong way for every call site here.
+Base UI's own `swipeDirection` defaults to `'down'` — a bottom sheet. This
+component defaults to `'right'` for the product's regular creation panel.
+Pass `'left'` to `Drawer.Root` together with `placement="left"` on
+`Drawer.Popup` for a left navigation drawer. Popup width is capped at the
+shared drawer token and shrinks on narrow viewports.
 
 ## A real bug, found only by rendering in an actual browser
 

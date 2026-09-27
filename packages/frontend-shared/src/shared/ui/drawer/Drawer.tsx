@@ -14,12 +14,9 @@ export type DrawerRootProps<Payload = unknown> = BaseDrawer.Root.Props<Payload>;
 
 /**
  * The one place this module overrides a Base UI default: `swipeDirection`
- * defaults to `'down'` (a bottom sheet) upstream, but every drawer in this
- * product is the side creation panel (`COMPONENTS.md`: "with modals banned,
- * everything that would have been 'new item' dialog is a drawer"), so
- * `'right'` is this component's own default — still Base UI's real prop,
- * still overridable, just not left at an upstream default that would slide
- * the wrong way for every call site here.
+ * defaults to `'down'` (a bottom sheet) upstream. The regular creation
+ * panel opens from the right, so that remains the default; side-navigation
+ * drawers can choose the left explicitly.
  */
 function DrawerRoot<Payload = unknown>({ swipeDirection = "right", ...props }: DrawerRootProps<Payload>) {
     return <BaseDrawer.Root swipeDirection={swipeDirection} {...props} />;
@@ -37,6 +34,8 @@ const FULL_VIEWPORT_STYLE = { position: "fixed", inset: 0 } as const;
 export interface DrawerPopupOwnProps {
     readonly children: ReactNode;
     readonly className?: string;
+    /** Which edge the panel is attached to. @default "right" */
+    readonly placement?: "left" | "right";
 }
 
 export type DrawerPopupProps = DrawerPopupOwnProps & Omit<BaseDrawer.Popup.Props, "className" | "children">;
@@ -48,22 +47,28 @@ export type DrawerPopupProps = DrawerPopupOwnProps & Omit<BaseDrawer.Popup.Props
  * exactly what makes this the load-bearing one — focus trap and page-scroll
  * lock both come from that default, not from anything written here.
  */
-function DrawerPopup({ className, children, ...rest }: DrawerPopupProps) {
+function DrawerPopup({ className, children, placement = "right", ...rest }: DrawerPopupProps) {
     return (
         <BaseDrawer.Portal>
             <BaseDrawer.Backdrop
                 style={FULL_VIEWPORT_STYLE}
                 className="z-scrim bg-surface-overlay transition-popover data-[starting-style]:opacity-0 data-[ending-style]:opacity-0"
             />
-            <BaseDrawer.Viewport style={FULL_VIEWPORT_STYLE} className="z-modal flex items-stretch justify-end">
+            <BaseDrawer.Viewport
+                style={FULL_VIEWPORT_STYLE}
+                className={["z-modal flex items-stretch", placement === "left" ? "justify-start" : "justify-end"].join(" ")}
+            >
                 <BaseDrawer.Popup
                     className={[
-                        "flex h-full flex-col gap-stack overflow-y-auto border-l border-border-subtle bg-surface-elevated p-stack text-body text-text-primary shadow-elevation3 outline-none transition-drawer data-[starting-style]:translate-x-full data-[ending-style]:translate-x-full",
+                        "flex h-full flex-col gap-stack overflow-y-auto border-border-subtle bg-surface-elevated p-stack text-body text-text-primary shadow-elevation3 outline-none transition-drawer",
+                        placement === "left"
+                            ? "border-r data-[starting-style]:-translate-x-full data-[ending-style]:-translate-x-full"
+                            : "border-l data-[starting-style]:translate-x-full data-[ending-style]:translate-x-full",
                         className,
                     ]
                         .filter(Boolean)
                         .join(" ")}
-                    style={{ width: "var(--ds-component-drawer-width)" }}
+                    style={{ width: "min(85vw, var(--ds-component-drawer-width))" }}
                     {...rest}
                 >
                     {children}
@@ -138,9 +143,8 @@ function DrawerClose({ label, className }: DrawerCloseProps) {
 }
 
 /**
- * Tier 0 — the creation surface. With modals banned (`ARCHITECTURE.md`
- * §12.9), every "new item" flow in the product is this component holding a
- * form. Behaviour — portal, focus trap while open, page-scroll lock,
+ * Tier 0 — a side panel for creation flows and side navigation. Behaviour —
+ * portal, focus trap while open, page-scroll lock,
  * dismiss-on-outside-click, Escape-to-close, focus return to the trigger on
  * close, and swipe-to-dismiss — is entirely Base UI's own
  * (`@base-ui/react/drawer`, ADR-031); load-bearing enough that

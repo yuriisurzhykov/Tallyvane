@@ -73,9 +73,11 @@ fact and `shared` is not allowed to know one. The mapping from status to tone
 lives in `entities/application`. The same split applies to every badge, dot,
 icon and label that looks domain-shaped.
 
-**No modal windows** (§12.9). Editing happens in place; creation happens in a
-drawer. This removes an entire component from the inventory and promotes
-`Drawer` and `InlineEdit` to load-bearing.
+**The main work screens use no modal windows** (§12.9). Editing there happens
+in place; creation uses a drawer. This keeps the job-search workspace focused
+on its primary tasks. Purpose-specific flows such as settings navigation
+confirmation may use an `AlertDialog`; this exception does not turn ordinary
+content editing into a modal workflow.
 
 **Autosave at 400 ms, optimistic, rolling back on failure** (§12.9). Not a
 behaviour bolted onto forms later — it is the default write path, which means
@@ -201,7 +203,8 @@ methodology rule.
 |-------------------------|--------------------------------------------------------------------------------------------------------------|---------|--------|
 | `Popover`               | Anchored panel with collision handling.                                                                      | Base UI | client |
 | `Tooltip`               | Hint for sighted users; never the only carrier of information.                                               | Base UI | client |
-| `Drawer`                | **The creation surface.** With modals banned, everything that would have been "new item" dialog is a drawer. | Base UI | client |
+| `Drawer`                | Side panel for creation flows or navigation; supports left and right placement.                                  | Base UI | client |
+| `AlertDialog`           | A blocking confirmation for an action that discards work or cannot be undone. Not a surface for general content. | Base UI | client |
 | `ContextMenu`           | Right-click actions on table rows, opened at the pointer rather than a trigger edge.                         | Base UI | client |
 | `PreviewCard`           | Hover preview for a linked job or contact.                                                                   | Base UI | client |
 | `Toast` / `ToastRegion` | The failure channel for optimistic writes, and the host of undo.                                             | Base UI | client |
@@ -422,7 +425,7 @@ each of these will otherwise be proposed roughly once a quarter.
 
 | Not building                             | Why                                                                                                                                                                                |
 |------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `Modal` / `Dialog` for content           | §12.9 bans modal windows outright. Editing is in place, creation is a drawer. `AlertDialog` stays unused unless an irreversible destructive action appears that undo cannot cover. |
+| `Dialog` for general content             | §12.9 keeps the main work screens free of modal content. Editing is in place and creation uses a drawer. Purpose-specific confirmation, including settings navigation, uses `AlertDialog`. |
 | Numbered `Pagination`                    | The API is cursor-paginated and cannot report a page count. `LoadMore` instead.                                                                                                    |
 | A generic `Box` with style props         | It is a hole in the token discipline shaped like convenience. `Stack`, `Row` and `Grid` cover the real cases and only accept scale values.                                         |
 | A second colour vocabulary on components | No `color` prop that takes a palette step. Components take a `tone`, which resolves to roles.                                                                                      |
