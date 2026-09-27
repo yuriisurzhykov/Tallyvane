@@ -61,6 +61,10 @@ RUN pnpm --filter "./frontend-web" exec next build
 # stage where the fix is cheap, producing a tree that is genuinely self-contained rather
 # than one that only looks it until it's moved.
 RUN cp -rL frontend-web/.next/standalone /tmp/standalone
+RUN mkdir -p /tmp/standalone/frontend-web/node_modules/frontend-shared/src/shared/lib /tmp/standalone/frontend-web/node_modules/frontend-shared/node_modules \
+  && cp packages/frontend-shared/src/shared/lib/logger.cjs /tmp/standalone/frontend-web/node_modules/frontend-shared/src/shared/lib/logger.cjs \
+  && cp packages/frontend-shared/src/shared/lib/node-http-access-logging.cjs /tmp/standalone/frontend-web/node_modules/frontend-shared/src/shared/lib/node-http-access-logging.cjs \
+  && cp -rL packages/frontend-shared/node_modules/@opentelemetry /tmp/standalone/frontend-web/node_modules/frontend-shared/node_modules/
 
 # `sharp` is next's own optionalDependency for `next/image`; nothing in this app calls
 # `next/image` yet. `outputFileTracingExcludes` in next.config.ts was tried first and
@@ -119,8 +123,12 @@ RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 # that already explains why.
 COPY --from=builder --chown=nextjs:nodejs /tmp/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /workspace/frontend-web/.next/static ./frontend-web/.next/static
+COPY --from=builder --chown=nextjs:nodejs /tmp/standalone/frontend-web/node_modules/frontend-shared/src/shared/lib ./frontend-web/node_modules/frontend-shared/src/shared/lib
+COPY --from=builder --chown=nextjs:nodejs /tmp/standalone/frontend-web/node_modules/frontend-shared/node_modules/@opentelemetry ./frontend-web/node_modules/frontend-shared/node_modules/@opentelemetry
+
+RUN OTEL_LOGS_EXPORTER=otlp node --require /app/frontend-web/node_modules/frontend-shared/src/shared/lib/node-http-access-logging.cjs --eval "process.exit(0)"
 
 USER nextjs
 EXPOSE 3000
 
-CMD ["node", "frontend-web/server.js"]
+CMD ["node", "--require", "/app/frontend-web/node_modules/frontend-shared/src/shared/lib/node-http-access-logging.cjs", "frontend-web/server.js"]
