@@ -8,15 +8,20 @@ import kotlin.time.Instant
 /**
  * Writes security audit events to PostgreSQL in the caller's transaction.
  */
-internal class AuthenticationPolicyAuditStoreOverExposed : AuthenticationPolicyAuditStore {
+internal class AuthenticationPolicyAuditStoreOverExposed(private val realm: IdentityRealm = IdentityRealm.USER) :
+    AuthenticationPolicyAuditStore {
     private val instant = InstantColumn()
+    private val table: AuthenticationPolicyAuditRowsTable = when (realm) {
+        IdentityRealm.USER -> AuthenticationPolicyAuditTable
+        IdentityRealm.ADMIN -> AdminAuthenticationPolicyAuditTable
+    }
 
     override suspend fun record(actor: UserId, action: String, policyVersion: Long, occurredAt: Instant) {
-        AuthenticationPolicyAuditTable.insert {
-            it[actorUserId] = actor.value
-            it[AuthenticationPolicyAuditTable.action] = action
-            it[AuthenticationPolicyAuditTable.policyVersion] = policyVersion
-            it[AuthenticationPolicyAuditTable.occurredAt] = instant.toColumn(occurredAt)
+        table.insert {
+            it[table.actorUserId] = actor.value
+            it[table.action] = action
+            it[table.policyVersion] = policyVersion
+            it[table.occurredAt] = instant.toColumn(occurredAt)
         }
     }
 }

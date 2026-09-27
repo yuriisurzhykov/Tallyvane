@@ -20,11 +20,15 @@ import kotlin.time.Instant
  * [SessionStore] over [SessionsTable], for a real Postgres. Opens no transaction of its own — see
  * that port's own KDoc for why.
  */
-internal class SessionStoreOverExposed : SessionStore {
+internal class SessionStoreOverExposed(private val realm: IdentityRealm = IdentityRealm.USER) : SessionStore {
     private val instant = InstantColumn()
+    private val table: SessionRowsTable = when (realm) {
+        IdentityRealm.USER -> SessionsTable
+        IdentityRealm.ADMIN -> AdminSessionsTable
+    }
 
     override suspend fun save(session: Session) {
-        SessionsTable.insert {
+        table.insert {
             it[id] = session.id.value
             it[userId] = session.userId.value
             it[device] = session.device.value
@@ -37,57 +41,56 @@ internal class SessionStoreOverExposed : SessionStore {
     }
 
     override suspend fun find(id: SessionId): Session? =
-        SessionsTable.selectAll().where { SessionsTable.id eq id.value }.singleOrNull()?.toSession()
+        table.selectAll().where { table.id eq id.value }.singleOrNull()?.toSession()
 
     override suspend fun revoke(id: SessionId, revokedAt: Instant) {
-        SessionsTable.update({ SessionsTable.id eq id.value }) {
-            it[SessionsTable.revokedAt] = instant.toColumn(revokedAt)
+        table.update({ table.id eq id.value }) {
+            it[table.revokedAt] = instant.toColumn(revokedAt)
         }
     }
 
     override suspend fun revokeAllFor(userId: UserId, revokedAt: Instant) {
-        SessionsTable.update({ SessionsTable.userId eq userId.value }) {
-            it[SessionsTable.revokedAt] = instant.toColumn(revokedAt)
+        table.update({ table.userId eq userId.value }) {
+            it[table.revokedAt] = instant.toColumn(revokedAt)
         }
     }
 
     override suspend fun listFor(userId: UserId): List<Session> =
-        SessionsTable.selectAll().where { SessionsTable.userId eq userId.value }.map { it.toSession() }
+        table.selectAll().where { table.userId eq userId.value }.map { it.toSession() }
 
-    override suspend fun recordReauthentication(id: SessionId, userId: UserId, at: Instant): Boolean =
-        SessionsTable.update({
-            (SessionsTable.id eq id.value) and (SessionsTable.userId eq userId.value) and
-                SessionsTable.revokedAt.isNull()
-        }) {
-            it[reauthenticatedAt] = instant.toColumn(at)
-        } == 1
+    override suspend fun recordReauthentication(id: SessionId, userId: UserId, at: Instant): Boolean = table.update({
+        (table.id eq id.value) and (table.userId eq userId.value) and
+            table.revokedAt.isNull()
+    }) {
+        it[table.reauthenticatedAt] = instant.toColumn(at)
+    } == 1
 
     override suspend fun attachAccessToken(id: SessionId, hash: HashedToken, expiresAt: Instant, lastUsedAt: Instant) {
-        SessionsTable.update({ SessionsTable.id eq id.value }) {
-            it[currentAccessTokenHash] = hash.hash.revealed()
-            it[currentAccessTokenPepperVersion] = hash.pepperVersion
-            it[currentAccessTokenExpiresAt] = instant.toColumn(expiresAt)
-            it[SessionsTable.lastUsedAt] = instant.toColumn(lastUsedAt)
+        table.update({ table.id eq id.value }) {
+            it[table.currentAccessTokenHash] = hash.hash.revealed()
+            it[table.currentAccessTokenPepperVersion] = hash.pepperVersion
+            it[table.currentAccessTokenExpiresAt] = instant.toColumn(expiresAt)
+            it[table.lastUsedAt] = instant.toColumn(lastUsedAt)
         }
     }
 
     override suspend fun findByAccessTokenHash(hash: HashedToken, now: Instant): Session? {
-        val row = SessionsTable
+        val row = table
             .selectAll()
-            .where { SessionsTable.currentAccessTokenHash eq hash.hash.revealed() }
+            .where { table.currentAccessTokenHash eq hash.hash.revealed() }
             .singleOrNull()
-        val expiresAt = row?.get(SessionsTable.currentAccessTokenExpiresAt)?.let(instant::toDomain)
+        val expiresAt = row?.get(table.currentAccessTokenExpiresAt)?.let(instant::toDomain)
         return row?.toSession()?.takeIf { expiresAt != null && it.revokedAt == null && expiresAt > now }
     }
 
     private fun ResultRow.toSession(): Session = Session(
-        id = SessionId(this[SessionsTable.id]),
-        userId = UserId(this[SessionsTable.userId]),
-        device = DeviceLabel(this[SessionsTable.device]),
-        tokenFamilyId = TokenFamilyId(this[SessionsTable.tokenFamilyId]),
-        createdAt = instant.toDomain(this[SessionsTable.createdAt]),
-        lastUsedAt = instant.toDomain(this[SessionsTable.lastUsedAt]),
-        revokedAt = this[SessionsTable.revokedAt]?.let(instant::toDomain),
-        reauthenticatedAt = this[SessionsTable.reauthenticatedAt]?.let(instant::toDomain),
+        id = SessionId(this[table.id]),
+        userId = UserId(this[table.userId]),
+        device = DeviceLabel(this[table.device]),
+        tokenFamilyId = TokenFamilyId(this[table.tokenFamilyId]),
+        createdAt = instant.toDomain(this[table.createdAt]),
+        lastUsedAt = instant.toDomain(this[table.lastUsedAt]),
+        revokedAt = this[table.revokedAt]?.let(instant::toDomain),
+        reauthenticatedAt = this[table.reauthenticatedAt]?.let(instant::toDomain),
     )
 }

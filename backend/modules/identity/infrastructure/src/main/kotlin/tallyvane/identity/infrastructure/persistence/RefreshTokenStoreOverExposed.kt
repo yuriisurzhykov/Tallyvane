@@ -18,8 +18,13 @@ import kotlin.time.Instant
  * [RefreshTokenStore] over [RefreshTokensTable], for a real Postgres. Opens no transaction of its
  * own — see that port's own KDoc for why.
  */
-internal class RefreshTokenStoreOverExposed : RefreshTokenStore {
+internal class RefreshTokenStoreOverExposed(private val realm: IdentityRealm = IdentityRealm.USER) :
+    RefreshTokenStore {
     private val instant = InstantColumn()
+    private val table: RefreshTokenRowsTable = when (realm) {
+        IdentityRealm.USER -> RefreshTokensTable
+        IdentityRealm.ADMIN -> AdminRefreshTokensTable
+    }
 
     override suspend fun issueFirst(
         sessionId: SessionId,
@@ -28,25 +33,25 @@ internal class RefreshTokenStoreOverExposed : RefreshTokenStore {
         expiresAt: Instant,
         issuedAt: Instant,
     ) {
-        RefreshTokensTable.insert {
-            it[RefreshTokensTable.hash] = hash.hash.revealed()
-            it[RefreshTokensTable.familyId] = familyId.value
-            it[RefreshTokensTable.sessionId] = sessionId.value
-            it[pepperVersion] = hash.pepperVersion
-            it[status] = RefreshTokenStatus.ACTIVE.name.lowercase()
-            it[RefreshTokensTable.issuedAt] = instant.toColumn(issuedAt)
-            it[RefreshTokensTable.expiresAt] = instant.toColumn(expiresAt)
+        table.insert {
+            it[table.hash] = hash.hash.revealed()
+            it[table.familyId] = familyId.value
+            it[table.sessionId] = sessionId.value
+            it[table.pepperVersion] = hash.pepperVersion
+            it[table.status] = RefreshTokenStatus.ACTIVE.name.lowercase()
+            it[table.issuedAt] = instant.toColumn(issuedAt)
+            it[table.expiresAt] = instant.toColumn(expiresAt)
         }
     }
 
     override suspend fun stateOf(hash: HashedToken): TokenFamilyState? {
-        val row = RefreshTokensTable
+        val row = table
             .selectAll()
-            .where { RefreshTokensTable.hash eq hash.hash.revealed() }
+            .where { table.hash eq hash.hash.revealed() }
             .singleOrNull() ?: return null
-        val status = RefreshTokenStatus.valueOf(row[RefreshTokensTable.status].uppercase())
+        val status = RefreshTokenStatus.valueOf(row[table.status].uppercase())
         return TokenFamilyState(
-            sessionId = SessionId(row[RefreshTokensTable.sessionId]),
+            sessionId = SessionId(row[table.sessionId]),
             used = status != RefreshTokenStatus.ACTIVE,
         )
     }
@@ -63,45 +68,45 @@ internal class RefreshTokenStoreOverExposed : RefreshTokenStore {
         expiresAt: Instant,
         now: Instant,
     ): RefreshTokenStore.RotateOutcome {
-        val old = RefreshTokensTable
+        val old = table
             .selectAll()
-            .where { RefreshTokensTable.hash eq oldHash.hash.revealed() }
+            .where { table.hash eq oldHash.hash.revealed() }
             .singleOrNull()
 
         val consumed = old != null &&
-            RefreshTokensTable.update({
-                (RefreshTokensTable.hash eq oldHash.hash.revealed()) and
-                    (RefreshTokensTable.status eq RefreshTokenStatus.ACTIVE.name.lowercase())
+            table.update({
+                (table.hash eq oldHash.hash.revealed()) and
+                    (table.status eq RefreshTokenStatus.ACTIVE.name.lowercase())
             }) {
-                it[status] = RefreshTokenStatus.CONSUMED.name.lowercase()
-                it[consumedAt] = instant.toColumn(now)
+                it[table.status] = RefreshTokenStatus.CONSUMED.name.lowercase()
+                it[table.consumedAt] = instant.toColumn(now)
             } == 1
 
         return if (old == null || !consumed) {
             RefreshTokenStore.RotateOutcome.AlreadyRotated
         } else {
-            RefreshTokensTable.insert {
-                it[hash] = newHash.hash.revealed()
-                it[familyId] = old[RefreshTokensTable.familyId]
-                it[sessionId] = old[RefreshTokensTable.sessionId]
-                it[pepperVersion] = newHash.pepperVersion
-                it[status] = RefreshTokenStatus.ACTIVE.name.lowercase()
-                it[issuedAt] = instant.toColumn(now)
-                it[RefreshTokensTable.expiresAt] = instant.toColumn(expiresAt)
+            table.insert {
+                it[table.hash] = newHash.hash.revealed()
+                it[table.familyId] = old[table.familyId]
+                it[table.sessionId] = old[table.sessionId]
+                it[table.pepperVersion] = newHash.pepperVersion
+                it[table.status] = RefreshTokenStatus.ACTIVE.name.lowercase()
+                it[table.issuedAt] = instant.toColumn(now)
+                it[table.expiresAt] = instant.toColumn(expiresAt)
             }
-            RefreshTokenStore.RotateOutcome.Rotated(SessionId(old[RefreshTokensTable.sessionId]))
+            RefreshTokenStore.RotateOutcome.Rotated(SessionId(old[table.sessionId]))
         }
     }
 
     override suspend fun revokeAllFor(sessionId: SessionId) {
-        RefreshTokensTable.update({
-            (RefreshTokensTable.sessionId eq sessionId.value) and
-                (RefreshTokensTable.status eq RefreshTokenStatus.ACTIVE.name.lowercase())
+        table.update({
+            (table.sessionId eq sessionId.value) and
+                (table.status eq RefreshTokenStatus.ACTIVE.name.lowercase())
         }) {
-            it[status] = RefreshTokenStatus.REVOKED.name.lowercase()
+            it[table.status] = RefreshTokenStatus.REVOKED.name.lowercase()
         }
     }
 
     override suspend fun deleteIssuedBefore(cutoff: Instant): Int =
-        RefreshTokensTable.deleteWhere { issuedAt less instant.toColumn(cutoff) }
+        table.deleteWhere { table.issuedAt less instant.toColumn(cutoff) }
 }

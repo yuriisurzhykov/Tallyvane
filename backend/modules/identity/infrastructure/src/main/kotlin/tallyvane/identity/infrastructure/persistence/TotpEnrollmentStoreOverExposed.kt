@@ -18,32 +18,37 @@ import tallyvane.identity.domain.user.UserId
  * confirming what [tallyvane.identity.application.secondfactor.EnrollSecondFactorUseCase] started
  * — rewrites the one row instead of colliding on the primary key.
  */
-internal class TotpEnrollmentStoreOverExposed : TotpEnrollmentStore {
+internal class TotpEnrollmentStoreOverExposed(private val realm: IdentityRealm = IdentityRealm.USER) :
+    TotpEnrollmentStore {
     private val instant = InstantColumn()
+    private val table: TotpEnrollmentRowsTable = when (realm) {
+        IdentityRealm.USER -> TotpEnrollmentsTable
+        IdentityRealm.ADMIN -> AdminTotpEnrollmentsTable
+    }
 
     override suspend fun save(enrollment: TotpEnrollment) {
-        TotpEnrollmentsTable.upsert {
-            it[userId] = enrollment.userId.value
-            it[encryptedSecret] = enrollment.secret.value
-            it[active] = enrollment.active
-            it[createdAt] = instant.toColumn(enrollment.createdAt)
+        table.upsert {
+            it[table.userId] = enrollment.userId.value
+            it[table.encryptedSecret] = enrollment.secret.value
+            it[table.active] = enrollment.active
+            it[table.createdAt] = instant.toColumn(enrollment.createdAt)
         }
     }
 
-    override suspend fun find(userId: UserId): TotpEnrollment? = TotpEnrollmentsTable
+    override suspend fun find(userId: UserId): TotpEnrollment? = table
         .selectAll()
-        .where { TotpEnrollmentsTable.userId eq userId.value }
+        .where { table.userId eq userId.value }
         .singleOrNull()
         ?.let { row ->
             TotpEnrollment(
-                userId = UserId(row[TotpEnrollmentsTable.userId]),
-                secret = EncryptedSecret(row[TotpEnrollmentsTable.encryptedSecret]),
-                active = row[TotpEnrollmentsTable.active],
-                createdAt = instant.toDomain(row[TotpEnrollmentsTable.createdAt]),
+                userId = UserId(row[table.userId]),
+                secret = EncryptedSecret(row[table.encryptedSecret]),
+                active = row[table.active],
+                createdAt = instant.toDomain(row[table.createdAt]),
             )
         }
 
     override suspend fun delete(userId: UserId) {
-        TotpEnrollmentsTable.deleteWhere { TotpEnrollmentsTable.userId eq userId.value }
+        table.deleteWhere { table.userId eq userId.value }
     }
 }

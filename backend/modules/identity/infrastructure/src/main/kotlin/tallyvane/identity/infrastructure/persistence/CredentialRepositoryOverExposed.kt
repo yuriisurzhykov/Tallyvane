@@ -24,52 +24,110 @@ import tallyvane.platform.kernel.Secret
  * concurrent race between two such calls would surface as an uncaught constraint violation rather
  * than a graceful outcome — a known, open gap, not a silent one: `application/README.md`.
  */
-internal class CredentialRepositoryOverExposed : CredentialRepository {
-    override suspend fun findPasswordFor(userId: UserId): Credential.PasswordRecord? = PasswordCredentialsTable
-        .selectAll()
-        .where { PasswordCredentialsTable.userId eq userId.value }
-        .singleOrNull()
-        ?.let { row -> Credential.PasswordRecord(PasswordHash(Secret(row[PasswordCredentialsTable.passwordHash]))) }
+internal class CredentialRepositoryOverExposed(
+    private val realm: IdentityRealm = IdentityRealm.USER,
+    adminEmails: Set<String> = emptySet(),
+) : CredentialRepository {
+    private val admins = adminEmails.mapTo(mutableSetOf()) { it.trim().lowercase() }
 
-    override suspend fun findGoogleFor(userId: UserId): Credential.GoogleRecord? = GoogleCredentialsTable
-        .selectAll()
-        .where { GoogleCredentialsTable.userId eq userId.value }
-        .singleOrNull()
-        ?.let { row -> Credential.GoogleRecord(GoogleSubject(row[GoogleCredentialsTable.googleSubject])) }
+    override suspend fun findPasswordFor(userId: UserId): Credential.PasswordRecord? = when (realm) {
+        IdentityRealm.USER -> PasswordCredentialsTable.selectAll()
+            .where { PasswordCredentialsTable.userId eq userId.value }
+            .singleOrNull()
+            ?.let { row -> Credential.PasswordRecord(PasswordHash(Secret(row[PasswordCredentialsTable.passwordHash]))) }
+        IdentityRealm.ADMIN -> AdminPasswordCredentialsTable.selectAll()
+            .where { AdminPasswordCredentialsTable.adminId eq userId.value }
+            .singleOrNull()
+            ?.let { row ->
+                Credential.PasswordRecord(PasswordHash(Secret(row[AdminPasswordCredentialsTable.passwordHash])))
+            }
+    }
 
-    override suspend fun findUserIdByGoogleSubject(subject: GoogleSubject): UserId? = GoogleCredentialsTable
-        .selectAll()
-        .where { GoogleCredentialsTable.googleSubject eq subject.value }
-        .singleOrNull()
-        ?.let { row -> UserId(row[GoogleCredentialsTable.userId]) }
+    override suspend fun findGoogleFor(userId: UserId): Credential.GoogleRecord? = when (realm) {
+        IdentityRealm.USER -> GoogleCredentialsTable.selectAll()
+            .where { GoogleCredentialsTable.userId eq userId.value }
+            .singleOrNull()
+            ?.let { row -> Credential.GoogleRecord(GoogleSubject(row[GoogleCredentialsTable.googleSubject])) }
+        IdentityRealm.ADMIN -> AdminGoogleCredentialsTable.selectAll()
+            .where { AdminGoogleCredentialsTable.adminId eq userId.value }
+            .singleOrNull()
+            ?.let { row -> Credential.GoogleRecord(GoogleSubject(row[AdminGoogleCredentialsTable.googleSubject])) }
+    }
 
-    override suspend fun deleteGoogleFor(userId: UserId): Boolean =
-        GoogleCredentialsTable.deleteWhere { GoogleCredentialsTable.userId eq userId.value } > 0
+    override suspend fun findUserIdByGoogleSubject(subject: GoogleSubject): UserId? = when (realm) {
+        IdentityRealm.USER -> GoogleCredentialsTable.selectAll()
+            .where { GoogleCredentialsTable.googleSubject eq subject.value }
+            .singleOrNull()
+            ?.let { row -> UserId(row[GoogleCredentialsTable.userId]) }
+        IdentityRealm.ADMIN -> {
+            val adminId = AdminGoogleCredentialsTable.selectAll()
+                .where { AdminGoogleCredentialsTable.googleSubject eq subject.value }
+                .singleOrNull()
+                ?.let { row -> UserId(row[AdminGoogleCredentialsTable.adminId]) }
+                ?: return null
+            val email = AdminsTable.selectAll()
+                .where { AdminsTable.id eq adminId.value }
+                .singleOrNull()
+                ?.get(AdminsTable.email)
+            adminId.takeIf { email?.lowercase()?.let(admins::contains) == true }
+        }
+    }
 
-    override suspend fun saveGoogleIfUnclaimed(userId: UserId, subject: GoogleSubject): Boolean =
-        GoogleCredentialsTable.insertIgnore {
+    override suspend fun deleteGoogleFor(userId: UserId): Boolean = when (realm) {
+        IdentityRealm.USER -> GoogleCredentialsTable.deleteWhere { GoogleCredentialsTable.userId eq userId.value } > 0
+        IdentityRealm.ADMIN -> AdminGoogleCredentialsTable.deleteWhere {
+            AdminGoogleCredentialsTable.adminId eq
+                userId.value
+        } >
+            0
+    }
+
+    override suspend fun saveGoogleIfUnclaimed(userId: UserId, subject: GoogleSubject): Boolean = when (realm) {
+        IdentityRealm.USER -> GoogleCredentialsTable.insertIgnore {
             it[GoogleCredentialsTable.userId] = userId.value
             it[googleSubject] = subject.value
         }.insertedCount == 1
+        IdentityRealm.ADMIN -> AdminGoogleCredentialsTable.insertIgnore {
+            it[AdminGoogleCredentialsTable.adminId] = userId.value
+            it[AdminGoogleCredentialsTable.googleSubject] = subject.value
+        }.insertedCount == 1
+    }
 
     override suspend fun save(userId: UserId, credential: Credential) {
         when (credential) {
-            is Credential.PasswordRecord -> PasswordCredentialsTable.insert {
-                it[PasswordCredentialsTable.userId] = userId.value
-                it[passwordHash] = credential.hash.encoded.revealed()
+            is Credential.PasswordRecord -> when (realm) {
+                IdentityRealm.USER -> PasswordCredentialsTable.insert {
+                    it[PasswordCredentialsTable.userId] = userId.value
+                    it[passwordHash] = credential.hash.encoded.revealed()
+                }
+                IdentityRealm.ADMIN -> AdminPasswordCredentialsTable.insert {
+                    it[AdminPasswordCredentialsTable.adminId] = userId.value
+                    it[AdminPasswordCredentialsTable.passwordHash] = credential.hash.encoded.revealed()
+                }
             }
-
-            is Credential.GoogleRecord -> GoogleCredentialsTable.insert {
-                it[GoogleCredentialsTable.userId] = userId.value
-                it[googleSubject] = credential.subject.value
+            is Credential.GoogleRecord -> when (realm) {
+                IdentityRealm.USER -> GoogleCredentialsTable.insert {
+                    it[GoogleCredentialsTable.userId] = userId.value
+                    it[googleSubject] = credential.subject.value
+                }
+                IdentityRealm.ADMIN -> AdminGoogleCredentialsTable.insert {
+                    it[AdminGoogleCredentialsTable.adminId] = userId.value
+                    it[AdminGoogleCredentialsTable.googleSubject] = credential.subject.value
+                }
             }
         }
     }
 
     override suspend fun saveOrReplacePasswordFor(userId: UserId, credential: Credential.PasswordRecord) {
-        PasswordCredentialsTable.upsert(PasswordCredentialsTable.userId) {
-            it[PasswordCredentialsTable.userId] = userId.value
-            it[PasswordCredentialsTable.passwordHash] = credential.hash.encoded.revealed()
+        when (realm) {
+            IdentityRealm.USER -> PasswordCredentialsTable.upsert(PasswordCredentialsTable.userId) {
+                it[PasswordCredentialsTable.userId] = userId.value
+                it[PasswordCredentialsTable.passwordHash] = credential.hash.encoded.revealed()
+            }
+            IdentityRealm.ADMIN -> AdminPasswordCredentialsTable.upsert(AdminPasswordCredentialsTable.adminId) {
+                it[AdminPasswordCredentialsTable.adminId] = userId.value
+                it[AdminPasswordCredentialsTable.passwordHash] = credential.hash.encoded.revealed()
+            }
         }
     }
 }

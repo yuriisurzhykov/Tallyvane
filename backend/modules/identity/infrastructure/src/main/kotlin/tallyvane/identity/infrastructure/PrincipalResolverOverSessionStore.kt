@@ -1,5 +1,6 @@
 package tallyvane.identity.infrastructure
 
+import tallyvane.identity.application.IdentityRealm
 import tallyvane.identity.application.port.SessionStore
 import tallyvane.identity.application.port.TokenHasher
 import tallyvane.identity.contract.Principal
@@ -27,6 +28,7 @@ internal class PrincipalResolverOverSessionStore(
     private val tokenHasher: TokenHasher,
     private val clock: Clock,
     private val transactions: TransactionRunner,
+    private val realm: IdentityRealm,
 ) : PrincipalResolver {
     override suspend fun resolve(rawSessionCookie: String): ResolvedPrincipal? {
         val presented = runCatching { TokenValue(rawSessionCookie) }.getOrNull() ?: return null
@@ -34,7 +36,10 @@ internal class PrincipalResolverOverSessionStore(
             val session = sessions.findByAccessTokenHash(tokenHasher.hash(presented), clock.now())
             val resolved = session?.let {
                 ResolvedPrincipal(
-                    principal = Principal.User(ContractUserId(it.userId.value)),
+                    principal = when (realm) {
+                        IdentityRealm.USER -> Principal.User(ContractUserId(it.userId.value))
+                        IdentityRealm.ADMIN -> Principal.Admin(tallyvane.identity.contract.AdminId(it.userId.value))
+                    },
                     sessionId = ContractSessionId(it.id.value),
                 )
             }

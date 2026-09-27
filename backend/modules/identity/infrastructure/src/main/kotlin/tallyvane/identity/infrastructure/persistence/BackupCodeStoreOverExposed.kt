@@ -12,29 +12,38 @@ import tallyvane.platform.kernel.Secret
 /**
  * Lock the owner row even for an empty code set, so concurrent reissues never merge generations.
  */
-internal class BackupCodeStoreOverExposed : BackupCodeStore {
+internal class BackupCodeStoreOverExposed(private val realm: IdentityRealm = IdentityRealm.USER) : BackupCodeStore {
+    private val table: BackupCodeRowsTable = when (realm) {
+        IdentityRealm.USER -> BackupCodesTable
+        IdentityRealm.ADMIN -> AdminBackupCodesTable
+    }
+
     override suspend fun replace(userId: UserId, hashes: List<Secret>) {
         lockOwner(userId)
-        BackupCodesTable.deleteWhere { BackupCodesTable.userId eq userId.value }
+        table.deleteWhere { table.userId eq userId.value }
         hashes.forEach { hash ->
-            BackupCodesTable.insert {
-                it[BackupCodesTable.userId] = userId.value
-                it[BackupCodesTable.hash] = hash.revealed()
+            table.insert {
+                it[table.userId] = userId.value
+                it[table.hash] = hash.revealed()
             }
         }
     }
 
     override suspend fun consume(userId: UserId, hash: Secret): Boolean {
         lockOwner(userId)
-        return BackupCodesTable.deleteWhere {
-            (BackupCodesTable.userId eq userId.value) and (BackupCodesTable.hash eq hash.revealed())
+        return table.deleteWhere {
+            (table.userId eq userId.value) and (table.hash eq hash.revealed())
         } == 1
     }
 
     override suspend fun hasAny(userId: UserId): Boolean =
-        BackupCodesTable.selectAll().where { BackupCodesTable.userId eq userId.value }.limit(1).singleOrNull() != null
+        table.selectAll().where { table.userId eq userId.value }.limit(1).singleOrNull() != null
 
     private fun lockOwner(userId: UserId) {
-        check(UsersTable.selectAll().where { UsersTable.id eq userId.value }.forUpdate().singleOrNull() != null)
+        val exists = when (realm) {
+            IdentityRealm.USER -> UsersTable.selectAll().where { UsersTable.id eq userId.value }
+            IdentityRealm.ADMIN -> AdminsTable.selectAll().where { AdminsTable.id eq userId.value }
+        }.forUpdate().singleOrNull() != null
+        check(exists)
     }
 }

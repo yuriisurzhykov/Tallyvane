@@ -34,7 +34,7 @@ import kotlin.uuid.Uuid
 
 private const val MAX_FAILED_GUESSES = 5
 private const val PARALLEL_REQUESTS = 8
-private const val BACKUP_CODE_COUNT = 10
+private const val RECOVERY_CODE_COUNT = 10
 
 class EmailChallengesOverPostgresSpec :
     StringSpec({
@@ -182,7 +182,7 @@ class EmailChallengesOverPostgresSpec :
                 }
                 val subject = BackupCodes(BackupCodeStoreOverExposed(), codes)
                 val original = persistence.transactions.inTransaction { Verdict.Commit(subject.issue(userId)) }
-                original.size shouldBe BACKUP_CODE_COUNT
+                original.size shouldBe RECOVERY_CODE_COUNT
                 persistence.transactions.inTransaction { Verdict.Commit(subject.hasAny(userId)) } shouldBe true
                 val results =
                     coroutineScope {
@@ -197,11 +197,13 @@ class EmailChallengesOverPostgresSpec :
                 results.count { it } shouldBe 1
                 val replacement = persistence.transactions.inTransaction { Verdict.Commit(subject.issue(userId)) }
                 original.forEach { code ->
-                    persistence.transactions.inTransaction { Verdict.Commit(subject.consume(userId, code)) } shouldBe false
+                    persistence.transactions.inTransaction { Verdict.Commit(subject.consume(userId, code)) } shouldBe
+                        false
                 }
                 persistence.transactions.inTransaction { Verdict.Commit(subject.hasAny(userId)) } shouldBe true
                 replacement.forEach { code ->
-                    persistence.transactions.inTransaction { Verdict.Commit(subject.consume(userId, code)) } shouldBe true
+                    persistence.transactions.inTransaction { Verdict.Commit(subject.consume(userId, code)) } shouldBe
+                        true
                 }
                 persistence.transactions.inTransaction { Verdict.Commit(subject.hasAny(userId)) } shouldBe false
             }

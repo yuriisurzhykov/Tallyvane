@@ -9,8 +9,8 @@ import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
 import tallyvane.identity.application.port.AuthenticationPolicyStore
-import tallyvane.identity.domain.secondfactor.AuthenticationPolicy
 import tallyvane.identity.domain.secondfactor.AuthenticationAction
+import tallyvane.identity.domain.secondfactor.AuthenticationPolicy
 import tallyvane.identity.domain.secondfactor.AuthenticationScheme
 import tallyvane.identity.domain.secondfactor.AuthenticationTokenKind
 

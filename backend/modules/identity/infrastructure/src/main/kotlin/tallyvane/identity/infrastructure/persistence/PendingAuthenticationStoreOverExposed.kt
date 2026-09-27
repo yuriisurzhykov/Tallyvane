@@ -16,50 +16,51 @@ import tallyvane.identity.domain.user.UserId
  * [PendingAuthenticationStore] over [PendingAuthenticationsTable], for a real Postgres. Opens no
  * transaction of its own — see that port's own KDoc for why.
  */
-internal class PendingAuthenticationStoreOverExposed : PendingAuthenticationStore {
+internal class PendingAuthenticationStoreOverExposed(private val realm: IdentityRealm = IdentityRealm.USER) :
+    PendingAuthenticationStore {
     private val instant = InstantColumn()
+    private val table: PendingAuthenticationRowsTable = when (realm) {
+        IdentityRealm.USER -> PendingAuthenticationsTable
+        IdentityRealm.ADMIN -> AdminPendingAuthenticationsTable
+    }
 
     override suspend fun save(pending: PendingAuthentication) {
-        PendingAuthenticationsTable.insert {
-            it[id] = pending.id.value
-            it[userId] = pending.userId.value
-            it[device] = pending.device.value
-            it[availableMethods] = pending.availableMethods.map { method -> method.name }
-            it[createdAt] = instant.toColumn(pending.createdAt)
-            it[expiresAt] = instant.toColumn(pending.expiresAt)
-            it[requiresEnrollment] = pending.requiresEnrollment
-            it[primaryMethod] = pending.primaryMethod?.name
-            it[policyVersion] = pending.policyVersion
+        table.insert {
+            it[table.id] = pending.id.value
+            it[table.userId] = pending.userId.value
+            it[table.device] = pending.device.value
+            it[table.recommendedMethod] = pending.recommendedMethod.name
+            it[table.availableMethods] = pending.availableMethods.map { method -> method.name }
+            it[table.createdAt] = instant.toColumn(pending.createdAt)
+            it[table.expiresAt] = instant.toColumn(pending.expiresAt)
+            it[table.policyVersion] = pending.policyVersion
         }
     }
 
-    override suspend fun find(id: PendingAuthenticationId): PendingAuthentication? = PendingAuthenticationsTable
+    override suspend fun find(id: PendingAuthenticationId): PendingAuthentication? = table
         .selectAll()
-        .where { PendingAuthenticationsTable.id eq id.value }
+        .where { table.id eq id.value }
         .singleOrNull()
         ?.toPendingAuthentication()
 
     override suspend fun delete(id: PendingAuthenticationId) {
-        PendingAuthenticationsTable.deleteWhere { PendingAuthenticationsTable.id eq id.value }
+        table.deleteWhere { table.id eq id.value }
     }
 
     override suspend fun deleteFor(userId: UserId) {
-        PendingAuthenticationsTable.deleteWhere { PendingAuthenticationsTable.userId eq userId.value }
+        table.deleteWhere { table.userId eq userId.value }
     }
 
     private fun ResultRow.toPendingAuthentication(): PendingAuthentication = PendingAuthentication(
-        id = PendingAuthenticationId(this[PendingAuthenticationsTable.id]),
-        userId = UserId(this[PendingAuthenticationsTable.userId]),
-        device = DeviceLabel(this[PendingAuthenticationsTable.device]),
-        availableMethods = this[PendingAuthenticationsTable.availableMethods].map {
+        id = PendingAuthenticationId(this[table.id]),
+        userId = UserId(this[table.userId]),
+        device = DeviceLabel(this[table.device]),
+        recommendedMethod = SecondFactorKind.valueOf(this[table.recommendedMethod]),
+        availableMethods = this[table.availableMethods].map {
             SecondFactorKind.valueOf(it)
         }.toSet(),
-        createdAt = instant.toDomain(this[PendingAuthenticationsTable.createdAt]),
-        expiresAt = instant.toDomain(this[PendingAuthenticationsTable.expiresAt]),
-        requiresEnrollment = this[PendingAuthenticationsTable.requiresEnrollment],
-        primaryMethod = this[PendingAuthenticationsTable.primaryMethod]?.let {
-            tallyvane.identity.domain.secondfactor.PrimaryMethod.valueOf(it)
-        },
-        policyVersion = this[PendingAuthenticationsTable.policyVersion],
+        createdAt = instant.toDomain(this[table.createdAt]),
+        expiresAt = instant.toDomain(this[table.expiresAt]),
+        policyVersion = this[table.policyVersion],
     )
 }

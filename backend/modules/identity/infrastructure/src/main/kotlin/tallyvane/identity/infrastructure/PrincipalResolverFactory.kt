@@ -1,5 +1,6 @@
 package tallyvane.identity.infrastructure
 
+import tallyvane.identity.application.IdentityRealm
 import tallyvane.identity.application.port.TokenHasher
 import tallyvane.identity.contract.PrincipalResolver
 import tallyvane.identity.infrastructure.persistence.SessionStoreOverExposed
@@ -26,10 +27,12 @@ public class PrincipalResolverFactory {
         clock: Clock,
         tokenPepper: Secret,
         tokenPepperVersion: Int,
+        realm: IdentityRealm = IdentityRealm.USER,
     ): PrincipalResolver = PrincipalResolverOverSessionStore(
-        sessions = SessionStoreOverExposed(),
+        sessions = SessionStoreOverExposed(realm),
         tokenHasher = TokenHasher.Hmac(tokenPepper, tokenPepperVersion),
         clock = clock,
         transactions = transactions,
+        realm = realm,
     )
 }
