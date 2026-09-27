@@ -10,9 +10,10 @@ class UpdateSpec :
             fixture.addUser(fixture.admin, "admin@example.test", verified = true)
             val rules = fixture.rulesRequiringPasswordMfa()
 
-            val saved = fixture.update.update(fixture.admin, 1, rules, false)
+            val change = UpdateAuthenticationPolicyUseCase.Change.Rules(rules)
+            val saved = fixture.update.update(fixture.admin, 1, change, false)
             (saved as AuthenticationPolicyResult.Policy).value.version shouldBe 2
-            fixture.update.update(fixture.admin, 1, rules, false) shouldBe AuthenticationPolicyResult.Conflict
+            fixture.update.update(fixture.admin, 1, change, false) shouldBe AuthenticationPolicyResult.Conflict
             fixture.currentPolicy.version shouldBe 2
             fixture.auditRecords shouldBe listOf("POLICY_UPDATED", "POLICY_UPDATE_CONFLICT")
         }

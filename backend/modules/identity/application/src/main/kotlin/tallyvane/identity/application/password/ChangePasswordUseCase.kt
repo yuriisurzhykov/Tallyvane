@@ -38,11 +38,15 @@ public interface ChangePasswordUseCase : UseCase {
                 val record = credentials.findPasswordFor(userId)
                 val accountCanChangePassword = user != null && user.disabledAt == null && user.emailVerified
                 val authorized = actionProofs?.consume(
-                    actionProof, userId, sessionId, AuthenticationAction.CHANGE_PRIMARY_CREDENTIAL,
+                    actionProof,
+                    userId,
+                    sessionId,
+                    AuthenticationAction.CHANGE_PRIMARY_CREDENTIAL,
                 ) == true
                 if (!accountCanChangePassword || !authorized) {
                     Verdict.Rollback(false)
-                } else if (record != null && passwords.verify(tallyvane.platform.kernel.Secret(newPassword), record.hash)
+                } else if (record != null &&
+                    passwords.verify(tallyvane.platform.kernel.Secret(newPassword), record.hash)
                 ) {
                     Verdict.Rollback(false)
                 } else {

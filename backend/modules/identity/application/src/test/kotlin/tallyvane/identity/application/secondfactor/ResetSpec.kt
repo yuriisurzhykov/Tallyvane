@@ -84,6 +84,7 @@ class ResetSpec :
                     pendingId,
                     targetId,
                     DeviceLabel("Browser"),
+                    SecondFactorKind.TOTP,
                     setOf(SecondFactorKind.TOTP),
                     now,
                     now + 5.days,

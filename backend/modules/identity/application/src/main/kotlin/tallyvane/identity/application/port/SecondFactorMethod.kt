@@ -28,14 +28,14 @@ import kotlin.time.Duration.Companion.seconds
  * against `AuthenticationMethod`, which needed no such dispatch and was reverted for exactly that
  * reason.
  *
- * [startEnrollment]'s and [confirmEnrollment]'s recovery-code question is still open, though —
- * `application/README.md` names it.
+ * Recovery codes deliberately do not implement this port: they authorize full account recovery,
+ * not ordinary second-factor verification or enrollment during sign-in.
  */
 public interface SecondFactorMethod {
     public val kind: SecondFactorKind
 
     /**
-     * False for factors managed by a dedicated enrollment operation, such as recovery codes.
+     * False for factors managed by a dedicated enrollment operation, such as email OTP.
      */
     public val supportsEnrollment: Boolean get() = true
 
@@ -67,24 +67,6 @@ public interface SecondFactorMethod {
      * not-yet-active enrollment, activating it only on a match.
      */
     public suspend fun confirmEnrollment(userId: UserId, code: String): Boolean
-
-    /**
-     * Recovery codes are issued through their one-time-display endpoint, then consumed here.
-     */
-    public class Backup(private val codes: tallyvane.identity.application.email.BackupCodes) : SecondFactorMethod {
-        override val kind: SecondFactorKind = SecondFactorKind.BACKUP_CODE
-        override val supportsEnrollment: Boolean = false
-
-        override suspend fun isEnrolledFor(userId: UserId): Boolean = codes.hasAny(userId)
-
-        override suspend fun verify(userId: UserId, proof: SecondFactorProof): Boolean =
-            codes.consume(userId, Secret(proof.code))
-
-        override suspend fun startEnrollment(userId: UserId): String =
-            error("Backup codes are issued through the one-time-display workflow")
-
-        override suspend fun confirmEnrollment(userId: UserId, code: String): Boolean = false
-    }
 
     /**
      * Email OTP is available only after explicit enrollment and is bound to one pending login.

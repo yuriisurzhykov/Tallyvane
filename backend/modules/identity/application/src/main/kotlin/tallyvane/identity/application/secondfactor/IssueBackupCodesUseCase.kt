@@ -20,7 +20,10 @@ public interface IssueBackupCodesUseCase : UseCase {
         override suspend fun issue(userId: UserId, sessionId: SessionId, actionProof: String?): List<Secret>? =
             transactions.inTransaction {
                 val authorized = actionProofs?.consume(
-                    actionProof, userId, sessionId, AuthenticationAction.MANAGE_SECOND_FACTORS,
+                    actionProof,
+                    userId,
+                    sessionId,
+                    AuthenticationAction.MANAGE_SECOND_FACTORS,
                 ) == true
                 if (authorized) {
                     Verdict.Commit(codes.issue(userId))

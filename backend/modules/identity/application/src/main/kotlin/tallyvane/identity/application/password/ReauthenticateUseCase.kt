@@ -15,15 +15,23 @@ import tallyvane.platform.kernel.UseCase
 import tallyvane.platform.kernel.Verdict
 
 public interface ReauthenticateUseCase : UseCase {
-    public suspend fun password(userId: UserId, sessionId: SessionId, password: Secret): Outcome
+    public suspend fun reauthenticate(request: Request): Outcome
 
-    public suspend fun google(
-        userId: UserId,
-        sessionId: SessionId,
-        code: String,
-        codeVerifier: String,
-        redirectUri: String,
-    ): Outcome
+    public sealed interface Request {
+        public val userId: UserId
+        public val sessionId: SessionId
+
+        public data class Password(override val userId: UserId, override val sessionId: SessionId, val value: Secret) :
+            Request
+
+        public data class Google(
+            override val userId: UserId,
+            override val sessionId: SessionId,
+            val code: String,
+            val codeVerifier: String,
+            val redirectUri: String,
+        ) : Request
+    }
 
     public enum class Outcome { REAUTHENTICATED, INVALID_CREDENTIAL, PROVIDER_UNAVAILABLE }
 
@@ -36,31 +44,30 @@ public interface ReauthenticateUseCase : UseCase {
         private val clock: Clock,
         private val transactions: TransactionRunner,
     ) : ReauthenticateUseCase {
-        override suspend fun password(userId: UserId, sessionId: SessionId, password: Secret): Outcome =
-            transactions.inTransaction {
-                val user = users.findById(userId)
-                val passwordRecord = credentials.findPasswordFor(userId)
-                val valid = user != null &&
-                    user.disabledAt == null &&
-                    user.emailVerified &&
-                    passwordRecord?.let { passwords.verify(password, it.hash) } == true
-                if (!valid || !sessions.recordReauthentication(sessionId, userId, clock.now())) {
-                    Verdict.Rollback(Outcome.INVALID_CREDENTIAL)
-                } else {
-                    Verdict.Commit(Outcome.REAUTHENTICATED)
-                }
-            }
+        override suspend fun reauthenticate(request: Request): Outcome = when (request) {
+            is Request.Password -> password(request)
+            is Request.Google -> google(request)
+        }
 
-        override suspend fun google(
-            userId: UserId,
-            sessionId: SessionId,
-            code: String,
-            codeVerifier: String,
-            redirectUri: String,
-        ): Outcome {
+        private suspend fun password(request: Request.Password): Outcome = transactions.inTransaction {
+            val user = users.findById(request.userId)
+            val passwordRecord = credentials.findPasswordFor(request.userId)
+            val valid = user != null &&
+                user.disabledAt == null &&
+                user.emailVerified &&
+                passwordRecord?.let { passwords.verify(request.value, it.hash) } == true
+            if (!valid || !sessions.recordReauthentication(request.sessionId, request.userId, clock.now())) {
+                Verdict.Rollback(Outcome.INVALID_CREDENTIAL)
+            } else {
+                Verdict.Commit(Outcome.REAUTHENTICATED)
+            }
+        }
+
+        private suspend fun google(request: Request.Google): Outcome {
             val gateway = google ?: return Outcome.PROVIDER_UNAVAILABLE
-            val identity = gateway.exchangeCode(code, codeVerifier, redirectUri) ?: return Outcome.INVALID_CREDENTIAL
-            return recordGoogleProof(userId, sessionId, identity)
+            val identity = gateway.exchangeCode(request.code, request.codeVerifier, request.redirectUri)
+                ?: return Outcome.INVALID_CREDENTIAL
+            return recordGoogleProof(request.userId, request.sessionId, identity)
         }
 
         private suspend fun recordGoogleProof(

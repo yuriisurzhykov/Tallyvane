@@ -12,8 +12,11 @@ import tallyvane.identity.application.port.TokenFactoryFake
 import tallyvane.identity.application.port.TokenHasherFake
 import tallyvane.identity.application.secondfactor.SecondFactorMethodRegistry
 import tallyvane.identity.domain.outcome.AuthenticationOutcome
+import tallyvane.identity.domain.secondfactor.AuthenticationAction
 import tallyvane.identity.domain.secondfactor.AuthenticationPolicy
 import tallyvane.identity.domain.secondfactor.AuthenticationRule
+import tallyvane.identity.domain.secondfactor.AuthenticationScheme
+import tallyvane.identity.domain.secondfactor.AuthenticationTokenKind
 import tallyvane.identity.domain.secondfactor.MfaRequirement
 import tallyvane.identity.domain.secondfactor.PrimaryMethod
 import tallyvane.identity.domain.secondfactor.SecondFactorKind
@@ -35,7 +38,7 @@ class AuthenticationCompleterSpec :
         fun completer(
             methods: List<SecondFactorMethodFake> = emptyList(),
             pending: PendingAuthenticationStoreFake = PendingAuthenticationStoreFake(),
-            policy: AuthenticationPolicy? = null,
+            policy: AuthenticationPolicy = AuthenticationPolicy.defaults(),
         ) = AuthenticationCompleter.Default(
             registry = SecondFactorMethodRegistry.Default(methods),
             pendingAuthentications = pending,
@@ -52,7 +55,7 @@ class AuthenticationCompleterSpec :
             ids = IdGeneratorFake(),
             clock = ClockFake(now),
             pendingAuthenticationTtl = 5.minutes,
-            policies = policy?.let { PolicyStore(it) },
+            policies = PolicyStore(policy),
         )
 
         "a user with no second factor enrolled is issued a session directly" {
@@ -70,8 +73,65 @@ class AuthenticationCompleterSpec :
 
             val outcome = result.shouldBeInstanceOf<SignInOutcome.NotIssued>()
             val reason = outcome.reason.shouldBeInstanceOf<AuthenticationOutcome.RequiresSecondFactor>()
+            reason.recommendedMethod shouldBe SecondFactorKind.TOTP
             reason.availableMethods shouldBe setOf(SecondFactorKind.TOTP)
             pending.saved[reason.pendingId]?.userId shouldBe userId
+            pending.saved[reason.pendingId]?.recommendedMethod shouldBe SecondFactorKind.TOTP
+        }
+
+        "the highest-ranked compatible factor is recommended while every compatible factor remains available" {
+            val totp = SecondFactorMethodFake(SecondFactorKind.TOTP).also { it.enroll(userId) }
+            val email = SecondFactorMethodFake(SecondFactorKind.EMAIL_OTP).also { it.enroll(userId) }
+            val pending = PendingAuthenticationStoreFake()
+            val policy = AuthenticationPolicy.fromSchemes(
+                7,
+                listOf(
+                    AuthenticationScheme(
+                        "password-only",
+                        AuthenticationAction.SIGN_IN,
+                        setOf(AuthenticationTokenKind.PASSWORD),
+                        assuranceRank = 1,
+                    ),
+                    AuthenticationScheme(
+                        "password-totp",
+                        AuthenticationAction.SIGN_IN,
+                        setOf(AuthenticationTokenKind.PASSWORD, AuthenticationTokenKind.TOTP),
+                        assuranceRank = 9,
+                    ),
+                    AuthenticationScheme(
+                        "password-email-factor",
+                        AuthenticationAction.SIGN_IN,
+                        setOf(AuthenticationTokenKind.PASSWORD, AuthenticationTokenKind.EMAIL_FACTOR_CODE),
+                        assuranceRank = 5,
+                    ),
+                ),
+            )
+
+            val result = completer(listOf(totp, email), pending, policy).complete(userId, device)
+
+            val reason = (result as SignInOutcome.NotIssued).reason
+                .shouldBeInstanceOf<AuthenticationOutcome.RequiresSecondFactor>()
+            reason.recommendedMethod shouldBe SecondFactorKind.TOTP
+            reason.availableMethods shouldBe setOf(SecondFactorKind.TOTP, SecondFactorKind.EMAIL_OTP)
+            pending.saved[reason.pendingId]?.recommendedMethod shouldBe SecondFactorKind.TOTP
+        }
+
+        "a factor-only scheme refuses a user who has not enrolled its factor" {
+            val policy = AuthenticationPolicy.fromSchemes(
+                7,
+                listOf(
+                    AuthenticationScheme(
+                        "password-totp-only",
+                        AuthenticationAction.SIGN_IN,
+                        setOf(AuthenticationTokenKind.PASSWORD, AuthenticationTokenKind.TOTP),
+                        assuranceRank = 9,
+                    ),
+                ),
+            )
+
+            val result = completer(policy = policy).complete(userId, device)
+
+            (result as SignInOutcome.NotIssued).reason shouldBe AuthenticationOutcome.InvalidCredential
         }
 
         "the pending authentication carries the same device the primary sign-in presented" {
@@ -100,7 +160,7 @@ class AuthenticationCompleterSpec :
             (result as SignInOutcome.NotIssued).reason shouldBe AuthenticationOutcome.InvalidCredential
         }
 
-        "required MFA creates a policy-versioned enrollment challenge without issuing a session" {
+        "a legacy required rule does not invent enrollment when its factor is not enrolled" {
             val policy = AuthenticationPolicy.defaults(4).withRule(
                 AuthenticationRule(PrimaryMethod.PASSWORD, true, MfaRequirement.REQUIRED, setOf(SecondFactorKind.TOTP)),
             )
@@ -109,12 +169,8 @@ class AuthenticationCompleterSpec :
             val totp = SecondFactorMethodFake(SecondFactorKind.TOTP)
             val result = completer(listOf(totp), pending, policy).complete(userId, device)
 
-            val reason = (result as SignInOutcome.NotIssued).reason
-                .shouldBeInstanceOf<AuthenticationOutcome.RequiresEnrollment>()
-            val saved = pending.saved[reason.pendingId]!!
-            saved.requiresEnrollment shouldBe true
-            saved.policyVersion shouldBe 4
-            saved.availableMethods shouldBe setOf(SecondFactorKind.TOTP)
+            result.shouldBeInstanceOf<SignInOutcome.Issued>()
+            pending.saved shouldBe emptyMap()
         }
     })
 

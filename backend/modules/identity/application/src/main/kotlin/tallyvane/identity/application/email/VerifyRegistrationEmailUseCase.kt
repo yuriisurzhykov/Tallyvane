@@ -21,10 +21,16 @@ public interface VerifyRegistrationEmailUseCase : UseCase {
     ) : VerifyRegistrationEmailUseCase {
         override suspend fun verify(challengeId: Uuid, email: Email, code: Secret): Boolean {
             val challenge = challenges.challenge(challengeId) ?: return false
-            if (challenge.purpose != EmailChallengePurpose.REGISTRATION || !userMatches(challenge.email, email)) return false
+            if (challenge.purpose != EmailChallengePurpose.REGISTRATION ||
+                !userMatches(challenge.email, email)
+            ) {
+                return false
+            }
             val userId = runCatching { UserId(Uuid.parse(challenge.binding)) }.getOrNull() ?: return false
             val user = transactions.inTransaction { Verdict.Commit(users.findById(userId)) } ?: return false
-            return user.disabledAt == null && !user.emailVerified && userMatches(user.email, email) &&
+            return user.disabledAt == null &&
+                !user.emailVerified &&
+                userMatches(user.email, email) &&
                 challenges.verify(challengeId, email, EmailChallengePurpose.REGISTRATION, code, challenge.binding) &&
                 markVerified(userId)
         }

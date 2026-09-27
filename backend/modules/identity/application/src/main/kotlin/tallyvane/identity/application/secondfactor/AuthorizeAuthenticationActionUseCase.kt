@@ -12,7 +12,6 @@ import tallyvane.identity.application.port.TokenFactory
 import tallyvane.identity.application.port.TokenHasher
 import tallyvane.identity.application.port.UserRepository
 import tallyvane.identity.domain.email.EmailChallengePurpose
-import tallyvane.identity.domain.user.Email
 import tallyvane.identity.domain.secondfactor.AuthenticationAction
 import tallyvane.identity.domain.secondfactor.AuthenticationActionProof
 import tallyvane.identity.domain.secondfactor.AuthenticationPolicy
@@ -22,9 +21,9 @@ import tallyvane.identity.domain.secondfactor.SecondFactorKind
 import tallyvane.identity.domain.session.SessionId
 import tallyvane.identity.domain.token.TokenKind
 import tallyvane.identity.domain.token.TokenValue
+import tallyvane.identity.domain.user.Email
 import tallyvane.identity.domain.user.UserId
 import tallyvane.platform.kernel.Clock
-import tallyvane.platform.kernel.IdGenerator
 import tallyvane.platform.kernel.Secret
 import tallyvane.platform.kernel.TransactionRunner
 import tallyvane.platform.kernel.UseCase
@@ -33,22 +32,11 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 import kotlin.uuid.Uuid
 
-/** Verifies the highest available scheme for a protected account action and grants one-use proof. */
+/**
+ * Verifies the highest available scheme for a protected account action and grants one-use proof.
+ */
 public interface AuthorizeAuthenticationActionUseCase : UseCase {
     public suspend fun authorize(request: Request): Result
-
-    public suspend fun strongestSchemes(
-        userId: UserId,
-        sessionId: SessionId,
-        action: AuthenticationAction,
-    ): List<AuthenticationScheme>
-
-    public suspend fun requestEmailCode(
-        userId: UserId,
-        sessionId: SessionId,
-        action: AuthenticationAction,
-        kind: AuthenticationTokenKind,
-    ): Uuid?
 
     public data class PresentedToken(
         public val kind: AuthenticationTokenKind,
@@ -90,8 +78,10 @@ public interface AuthorizeAuthenticationActionUseCase : UseCase {
         private val clock: Clock,
         private val transactions: TransactionRunner,
         private val ttl: Duration = 3.minutes,
-    ) : AuthorizeAuthenticationActionUseCase {
-        override suspend fun strongestSchemes(
+    ) : AuthorizeAuthenticationActionUseCase,
+        ReadAuthenticationActionSchemesUseCase,
+        RequestAuthenticationActionEmailCodeUseCase {
+        override suspend fun read(
             userId: UserId,
             sessionId: SessionId,
             action: AuthenticationAction,
@@ -101,11 +91,11 @@ public interface AuthorizeAuthenticationActionUseCase : UseCase {
             if (session?.userId != userId || session.revokedAt != null) return@inTransaction Verdict.Commit(emptyList())
             users.findById(userId)?.takeIf { it.disabledAt == null && it.emailVerified }
                 ?: return@inTransaction Verdict.Commit(emptyList())
-            val policy = policies.current() ?: AuthenticationPolicy.defaults()
+            val policy = policies.current() ?: return@inTransaction Verdict.Commit(emptyList())
             Verdict.Commit(policy.strongest(action, availableTokens(userId, action, policy)))
         }
 
-        override suspend fun requestEmailCode(
+        override suspend fun request(
             userId: UserId,
             sessionId: SessionId,
             action: AuthenticationAction,
@@ -113,18 +103,20 @@ public interface AuthorizeAuthenticationActionUseCase : UseCase {
         ): Uuid? {
             if (action == AuthenticationAction.SIGN_IN ||
                 kind !in setOf(AuthenticationTokenKind.EMAIL_SIGN_IN_CODE, AuthenticationTokenKind.EMAIL_FACTOR_CODE)
-            ) return null
+            ) {
+                return null
+            }
             val target = transactions.inTransaction {
                 val user = users.findById(userId)?.takeIf { it.disabledAt == null && it.emailVerified }
                     ?: return@inTransaction Verdict.Rollback(null)
                 val session = sessions.find(sessionId)?.takeIf { it.userId == userId && it.revokedAt == null }
                     ?: return@inTransaction Verdict.Rollback(null)
-                val policy = policies.current() ?: AuthenticationPolicy.defaults()
+                val policy = policies.current() ?: return@inTransaction Verdict.Rollback(null)
                 val available = availableTokens(userId, action, policy)
                 if (policy.strongest(action, available).none { kind in it.requiredTokens }) {
                     return@inTransaction Verdict.Rollback(null)
                 }
-                Verdict.Commit(user.email to "action-proof:${action}:${session.id.value}:${policy.version}")
+                Verdict.Commit(user.email to "action-proof:$action:${session.id.value}:${policy.version}")
             } ?: return null
             val purpose = if (kind == AuthenticationTokenKind.EMAIL_SIGN_IN_CODE) {
                 EmailChallengePurpose.EMAIL_LOGIN
@@ -135,7 +127,9 @@ public interface AuthorizeAuthenticationActionUseCase : UseCase {
         }
 
         override suspend fun authorize(request: Request): Result {
-            if (request.action == AuthenticationAction.SIGN_IN || request.tokens.map { it.kind }.toSet().size != request.tokens.size) {
+            if (request.action == AuthenticationAction.SIGN_IN ||
+                request.tokens.map { it.kind }.toSet().size != request.tokens.size
+            ) {
                 return Result.Refused
             }
             val presented = request.tokens.associateBy { it.kind }
@@ -146,7 +140,7 @@ public interface AuthorizeAuthenticationActionUseCase : UseCase {
                 }
                 val user = users.findById(request.userId)?.takeIf { it.disabledAt == null && it.emailVerified }
                     ?: return@inTransaction Verdict.Rollback(null)
-                val policy = policies.current() ?: AuthenticationPolicy.defaults()
+                val policy = policies.current() ?: return@inTransaction Verdict.Rollback(null)
                 val available = availableTokens(request.userId, request.action, policy)
                 val scheme = policy.strongest(request.action, available)
                     .firstOrNull { candidate -> candidate.requiredTokens.all(presented::containsKey) }
@@ -155,25 +149,35 @@ public interface AuthorizeAuthenticationActionUseCase : UseCase {
             } ?: return Result.Refused
             val (email, policy, scheme) = initial
             for (kind in listOf(AuthenticationTokenKind.PASSWORD, AuthenticationTokenKind.GOOGLE)) {
-                if (kind in scheme.requiredTokens && !verify(request, email, presented.getValue(kind), policy.version)) {
+                if (kind in scheme.requiredTokens &&
+                    !verify(request, email, presented.getValue(kind), policy.version)
+                ) {
                     return Result.Refused
                 }
             }
             return transactions.inTransaction {
-                val active = sessions.find(request.sessionId)?.let { it.userId == request.userId && it.revokedAt == null } == true
+                val active =
+                    sessions.find(request.sessionId)?.let { it.userId == request.userId && it.revokedAt == null } ==
+                        true
                 val currentUser = users.findById(request.userId)?.takeIf { it.disabledAt == null && it.emailVerified }
-                val currentPolicy = policies.current() ?: AuthenticationPolicy.defaults()
+                val currentPolicy = policies.current()
+                    ?: return@inTransaction Verdict.Rollback(Result.Refused)
                 val stillStrongest = currentPolicy.version == policy.version &&
                     scheme in currentPolicy.strongest(
-                        request.action, availableTokens(request.userId, request.action, currentPolicy),
+                        request.action,
+                        availableTokens(request.userId, request.action, currentPolicy),
                     )
-                if (!active || currentUser == null || !stillStrongest) return@inTransaction Verdict.Rollback(Result.Refused)
+                if (!active ||
+                    currentUser == null ||
+                    !stillStrongest
+                ) {
+                    return@inTransaction Verdict.Rollback(Result.Refused)
+                }
 
                 for (kind in listOf(
                     AuthenticationTokenKind.TOTP,
                     AuthenticationTokenKind.EMAIL_SIGN_IN_CODE,
                     AuthenticationTokenKind.EMAIL_FACTOR_CODE,
-                    AuthenticationTokenKind.BACKUP_CODE,
                 )) {
                     if (kind in scheme.requiredTokens &&
                         !verify(request, currentUser.email, presented.getValue(kind), currentPolicy.version)
@@ -233,7 +237,6 @@ public interface AuthorizeAuthenticationActionUseCase : UseCase {
                 }
                 AuthenticationTokenKind.TOTP,
                 AuthenticationTokenKind.EMAIL_FACTOR_CODE,
-                AuthenticationTokenKind.BACKUP_CODE,
                 -> {
                     val kind = token.kind.toFactorKind()
                     val method: SecondFactorMethod = factors.find(kind) ?: return false
@@ -261,9 +264,10 @@ public interface AuthorizeAuthenticationActionUseCase : UseCase {
             if (credentials.findPasswordFor(userId) != null) add(AuthenticationTokenKind.PASSWORD)
             if (google != null && credentials.findGoogleFor(userId) != null) add(AuthenticationTokenKind.GOOGLE)
             val emailCodeSignInEnabled = policy.schemesFor(AuthenticationAction.SIGN_IN).any {
-                it.requiredTokens == setOf(AuthenticationTokenKind.EMAIL_SIGN_IN_CODE)
+                AuthenticationTokenKind.EMAIL_SIGN_IN_CODE in it.requiredTokens
             }
-            if (emailChallenges != null && emailCodeSignInEnabled &&
+            if (emailChallenges != null &&
+                emailCodeSignInEnabled &&
                 policy.schemesFor(action).any { AuthenticationTokenKind.EMAIL_SIGN_IN_CODE in it.requiredTokens }
             ) {
                 add(AuthenticationTokenKind.EMAIL_SIGN_IN_CODE)
@@ -280,13 +284,11 @@ public interface AuthorizeAuthenticationActionUseCase : UseCase {
         private fun SecondFactorKind.toToken(): AuthenticationTokenKind = when (this) {
             SecondFactorKind.TOTP -> AuthenticationTokenKind.TOTP
             SecondFactorKind.EMAIL_OTP -> AuthenticationTokenKind.EMAIL_FACTOR_CODE
-            SecondFactorKind.BACKUP_CODE -> AuthenticationTokenKind.BACKUP_CODE
         }
 
         private fun AuthenticationTokenKind.toFactorKind(): SecondFactorKind = when (this) {
             AuthenticationTokenKind.TOTP -> SecondFactorKind.TOTP
             AuthenticationTokenKind.EMAIL_FACTOR_CODE -> SecondFactorKind.EMAIL_OTP
-            AuthenticationTokenKind.BACKUP_CODE -> SecondFactorKind.BACKUP_CODE
             else -> error("$this is not a second-factor token")
         }
     }

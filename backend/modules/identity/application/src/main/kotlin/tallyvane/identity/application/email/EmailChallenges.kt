@@ -79,7 +79,9 @@ public class EmailChallenges(
         Verdict.Commit(verifyInCurrentTransaction(id, email, purpose, code, binding))
     }
 
-    /** Use only inside an existing [TransactionRunner] transaction. */
+    /**
+     * Use only inside an existing [TransactionRunner] transaction.
+     */
     public suspend fun verifyInCurrentTransaction(
         id: Uuid,
         email: Email,
@@ -88,7 +90,8 @@ public class EmailChallenges(
         binding: String = "",
     ): Boolean {
         val challenge = store.find(id)
-        return matchesPurposeAndEmail(challenge, email, purpose) && challenge?.binding == binding &&
+        return matchesPurposeAndEmail(challenge, email, purpose) &&
+            challenge?.binding == binding &&
             store.consume(id, codes.hash(context(challenge), code), clock.now())
     }
 

@@ -26,7 +26,9 @@ internal class AuthenticationPolicyAdministration(
             audit.record(actor, "POLICY_READ_DENIED", policies.current()?.version ?: 0, clock.now())
             Verdict.Commit(AuthenticationPolicyResult.Forbidden)
         } else {
-            Verdict.Commit(AuthenticationPolicyResult.Policy(policies.current() ?: AuthenticationPolicy.defaults()))
+            val policy = policies.current()
+                ?: return@inTransaction Verdict.Commit(AuthenticationPolicyResult.Invalid)
+            Verdict.Commit(AuthenticationPolicyResult.Policy(policy))
         }
     }
 
@@ -53,7 +55,8 @@ internal class AuthenticationPolicyAdministration(
         expectedVersion: Long,
         createReplacement: () -> AuthenticationPolicy,
     ): AuthenticationPolicyResult = transactions.inTransaction {
-        val current = policies.current() ?: AuthenticationPolicy.defaults()
+        val current = policies.current()
+            ?: return@inTransaction Verdict.Commit(AuthenticationPolicyResult.Invalid)
         if (!authorized(actor)) {
             audit.record(actor, "POLICY_UPDATE_DENIED", current.version, clock.now())
             Verdict.Commit(AuthenticationPolicyResult.Forbidden)

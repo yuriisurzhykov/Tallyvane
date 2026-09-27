@@ -1,7 +1,5 @@
 package tallyvane.identity.application.password
 
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 import tallyvane.identity.application.AuthenticationCompleter
 import tallyvane.identity.application.SignInOutcome
 import tallyvane.identity.application.port.CredentialRepository
@@ -16,6 +14,9 @@ import tallyvane.platform.kernel.Secret
 import tallyvane.platform.kernel.TransactionRunner
 import tallyvane.platform.kernel.UseCase
 import tallyvane.platform.kernel.Verdict
+import tallyvane.platform.observability.log.LogRecord
+import tallyvane.platform.observability.log.Logger
+import tallyvane.platform.observability.log.Severity
 import kotlin.time.Duration
 
 /**
@@ -94,12 +95,20 @@ public interface SignInWithPasswordUseCase : UseCase {
         private val attempts: LoginAttempts,
         private val threshold: Int,
         private val window: Duration,
+        private val logger: Logger,
     ) : SignInWithPasswordUseCase {
         override suspend fun signIn(request: SignInWithPasswordRequest): SignInOutcome {
             val key = rateLimitKey(request.email)
             val count = Fallback { attempts.failuresWithin(key, window) }
                 .orRecover { failure ->
-                    logger.warn("Login-attempts store unavailable; failing closed for this sign-in", failure)
+                    logger.emit(
+                        LogRecord(
+                            severity = Severity.WARN,
+                            event = "identity.sign_in.rate_limit_store_unavailable",
+                            body = "Login-attempts store unavailable; failing closed for this sign-in",
+                            cause = failure,
+                        ),
+                    )
                     threshold.toLong()
                 }
             if (count >= threshold) {
@@ -109,7 +118,14 @@ public interface SignInWithPasswordUseCase : UseCase {
             if (result == SignInOutcome.NotIssued(AuthenticationOutcome.InvalidCredential)) {
                 Fallback { attempts.recordFailure(key, window) }
                     .orRecover { failure ->
-                        logger.warn("Login-attempts store unavailable; could not record a failed sign-in", failure)
+                        logger.emit(
+                            LogRecord(
+                                severity = Severity.WARN,
+                                event = "identity.sign_in.rate_limit_store_unavailable",
+                                body = "Login-attempts store unavailable; could not record a failed sign-in",
+                                cause = failure,
+                            ),
+                        )
                     }
             }
             return result
@@ -126,7 +142,6 @@ public interface SignInWithPasswordUseCase : UseCase {
          */
         public companion object {
             private const val KEY_PREFIX = "identity:sign-in-password:"
-            private val logger: Logger = LoggerFactory.getLogger(RateLimited::class.java)
 
             internal fun rateLimitKey(email: Email): String = "$KEY_PREFIX${email.value}"
         }

@@ -4,14 +4,14 @@ import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.shouldBe
 import tallyvane.identity.application.email.EmailChallenges
 import tallyvane.identity.application.port.AuthenticationCodes
-import tallyvane.identity.application.port.CredentialRepositoryFake
 import tallyvane.identity.application.port.EmailChallengeStore
 import tallyvane.identity.application.port.EmailDelivery
-import tallyvane.identity.application.port.PasswordHasherFake
 import tallyvane.identity.application.port.UserRepositoryFake
-import tallyvane.identity.domain.credential.Credential
+import tallyvane.identity.application.port.VALID_ACTION_PROOF
+import tallyvane.identity.application.port.acceptingActionProofRequirement
 import tallyvane.identity.domain.email.EmailChallenge
 import tallyvane.identity.domain.email.EmailChallengePurpose
+import tallyvane.identity.domain.session.SessionId
 import tallyvane.identity.domain.user.Email
 import tallyvane.identity.domain.user.User
 import tallyvane.identity.domain.user.UserId
@@ -24,13 +24,11 @@ import kotlin.uuid.Uuid
 
 class BeginSpec :
     StringSpec({
-        "email MFA enrollment sends a purpose-bound challenge only after password reauthentication" {
+        "email MFA enrollment sends a purpose-bound challenge only after an action proof" {
             val id = UserId(Uuid.parse("00000000-0000-7000-8000-000000000001"))
+            val sessionId = SessionId(Uuid.parse("00000000-0000-7000-8000-000000000002"))
             val users = UserRepositoryFake()
             users.insert(User(id, Email("person@example.test"), null, NOW, null, emailVerified = true))
-            val hasher = PasswordHasherFake()
-            val credentials = CredentialRepositoryFake()
-            credentials.save(id, Credential.PasswordRecord(hasher.hash(Secret("current password"))))
             val challengeStore = EnrollmentChallengeStore()
             val challenges =
                 EmailChallenges(
@@ -43,15 +41,14 @@ class BeginSpec :
                 )
             val begin = BeginEmailMfaEnrollmentUseCase.Begin(
                 users,
-                credentials,
-                hasher,
                 challenges,
                 TransactionRunnerFake(),
+                acceptingActionProofRequirement(id, sessionId, NOW),
             )
 
-            begin.begin(id, Secret("wrong password")) shouldBe null
+            begin.begin(id, sessionId, null) shouldBe null
             challengeStore.last shouldBe null
-            val challengeId = begin.begin(id, Secret("current password"))
+            val challengeId = begin.begin(id, sessionId, VALID_ACTION_PROOF)
             challengeId shouldBe challengeStore.last?.id
             challengeStore.last?.purpose shouldBe EmailChallengePurpose.MFA
             challengeStore.last?.binding shouldBe BeginEmailMfaEnrollmentUseCase.enrollmentBinding(id)

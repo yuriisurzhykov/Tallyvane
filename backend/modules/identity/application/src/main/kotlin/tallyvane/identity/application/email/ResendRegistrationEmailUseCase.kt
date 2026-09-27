@@ -22,9 +22,12 @@ public interface ResendRegistrationEmailUseCase : UseCase {
         override suspend fun resend(email: Email): Uuid? {
             val user = transactions.inTransaction { Verdict.Commit(users.findByEmail(email)) } ?: return null
             if (
-                user.emailVerified || user.disabledAt != null ||
+                user.emailVerified ||
+                user.disabledAt != null ||
                 !user.email.value.equals(email.value, ignoreCase = true)
-            ) return null
+            ) {
+                return null
+            }
             return challenges.issue(email, EmailChallengePurpose.REGISTRATION, user.id.value.toString())?.id
         }
     }

@@ -1,11 +1,9 @@
 package tallyvane.identity.application.secondfactor
 
 import tallyvane.identity.application.port.AuthenticationPolicyStore
-import tallyvane.identity.application.port.BackupCodeStore
 import tallyvane.identity.application.port.EmailMfaEnrollmentStore
 import tallyvane.identity.application.port.SessionStore
 import tallyvane.identity.application.port.TotpEnrollmentStore
-import tallyvane.identity.domain.secondfactor.AuthenticationPolicy
 import tallyvane.identity.domain.secondfactor.AuthenticationAction
 import tallyvane.identity.domain.secondfactor.AuthenticationTokenKind
 import tallyvane.identity.domain.secondfactor.SecondFactorKind
@@ -39,7 +37,6 @@ public interface DisableSecondFactorUseCase : UseCase {
         private val sessions: SessionStore,
         private val totp: TotpEnrollmentStore,
         private val emailMfa: EmailMfaEnrollmentStore,
-        private val backupCodes: BackupCodeStore,
         private val policies: AuthenticationPolicyStore,
         private val clock: Clock,
         private val transactions: TransactionRunner,
@@ -49,9 +46,13 @@ public interface DisableSecondFactorUseCase : UseCase {
             val activeSession = sessions.find(request.sessionId)?.let {
                 it.userId == request.userId && it.revokedAt == null
             } == true
-            val authorized = activeSession && actionProofs?.consume(
-                request.actionProof, request.userId, request.sessionId, AuthenticationAction.MANAGE_SECOND_FACTORS,
-            ) == true
+            val authorized = activeSession &&
+                actionProofs?.consume(
+                    request.actionProof,
+                    request.userId,
+                    request.sessionId,
+                    AuthenticationAction.MANAGE_SECOND_FACTORS,
+                ) == true
             if (!authorized) {
                 return@inTransaction Verdict.Rollback(Outcome.REAUTHENTICATION_REQUIRED)
             }
@@ -59,7 +60,8 @@ public interface DisableSecondFactorUseCase : UseCase {
 
             val enrolled = enrolled(request.userId)
             if (request.kind !in enrolled) return@inTransaction Verdict.Rollback(Outcome.NOT_ENROLLED)
-            val policy = policies.current() ?: AuthenticationPolicy.defaults()
+            val policy = policies.current()
+                ?: return@inTransaction Verdict.Rollback(Outcome.REQUIRED_BY_POLICY)
             val remaining = enrolled - request.kind
             if (remaining.isNotEmpty()) {
                 val remainingTokens = remaining.mapTo(mutableSetOf(), ::toToken)
@@ -73,7 +75,6 @@ public interface DisableSecondFactorUseCase : UseCase {
             when (request.kind) {
                 SecondFactorKind.TOTP -> totp.delete(request.userId)
                 SecondFactorKind.EMAIL_OTP -> emailMfa.unenroll(request.userId)
-                SecondFactorKind.BACKUP_CODE -> backupCodes.replace(request.userId, emptyList())
             }
             Verdict.Commit(Outcome.DISABLED)
         }
@@ -81,13 +82,11 @@ public interface DisableSecondFactorUseCase : UseCase {
         private suspend fun enrolled(userId: UserId): Set<SecondFactorKind> = buildSet {
             if (totp.find(userId)?.active == true) add(SecondFactorKind.TOTP)
             if (emailMfa.isEnrolled(userId)) add(SecondFactorKind.EMAIL_OTP)
-            if (backupCodes.hasAny(userId)) add(SecondFactorKind.BACKUP_CODE)
         }
 
         private fun toToken(kind: SecondFactorKind): AuthenticationTokenKind = when (kind) {
             SecondFactorKind.TOTP -> AuthenticationTokenKind.TOTP
             SecondFactorKind.EMAIL_OTP -> AuthenticationTokenKind.EMAIL_FACTOR_CODE
-            SecondFactorKind.BACKUP_CODE -> AuthenticationTokenKind.BACKUP_CODE
         }
     }
 }

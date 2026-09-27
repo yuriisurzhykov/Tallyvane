@@ -6,6 +6,7 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 import tallyvane.identity.application.AuthenticationCompleter
 import tallyvane.identity.application.SessionIssuer
 import tallyvane.identity.application.SignInOutcome
+import tallyvane.identity.application.port.AuthenticationPolicyStoreFake
 import tallyvane.identity.application.port.CredentialRepositoryFake
 import tallyvane.identity.application.port.PasswordHasherFake
 import tallyvane.identity.application.port.PendingAuthenticationStoreFake
@@ -64,6 +65,7 @@ class SignInSpec :
                 ids = IdGeneratorFake(),
                 clock = ClockFake(Instant.parse("2026-01-01T00:00:00Z")),
                 pendingAuthenticationTtl = 5.minutes,
+                policies = AuthenticationPolicyStoreFake(),
             )
 
         suspend fun withRegisteredUser(

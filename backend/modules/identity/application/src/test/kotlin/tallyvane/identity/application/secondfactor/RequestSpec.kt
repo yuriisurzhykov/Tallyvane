@@ -62,6 +62,7 @@ private class RequestFixture(pendingExpiresAt: Instant = NOW + kotlin.time.Durat
                 pendingId,
                 userId,
                 DeviceLabel("Browser"),
+                SecondFactorKind.EMAIL_OTP,
                 setOf(SecondFactorKind.EMAIL_OTP),
                 NOW,
                 pendingExpiresAt,

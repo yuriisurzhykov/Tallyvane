@@ -16,7 +16,11 @@ import kotlin.time.Duration.Companion.minutes
 public interface ReadSecondFactorStatusUseCase : UseCase {
     public suspend fun read(userId: UserId, sessionId: SessionId): Status
 
-    public data class Status(public val enrolled: Set<SecondFactorKind>, public val recentlyAuthenticated: Boolean)
+    public data class Status(
+        public val enrolled: Set<SecondFactorKind>,
+        public val recoveryCodesIssued: Boolean,
+        public val recentlyAuthenticated: Boolean,
+    )
 
     public class Read(
         private val sessions: SessionStore,
@@ -32,13 +36,15 @@ public interface ReadSecondFactorStatusUseCase : UseCase {
             val enrolled = buildSet {
                 if (totp.find(userId)?.active == true) add(SecondFactorKind.TOTP)
                 if (emailMfa.isEnrolled(userId)) add(SecondFactorKind.EMAIL_OTP)
-                if (backupCodes.hasAny(userId)) add(SecondFactorKind.BACKUP_CODE)
             }
             val authenticatedAt = session?.reauthenticatedAt
             Verdict.Commit(
                 Status(
                     enrolled,
-                    authenticatedAt != null && authenticatedAt <= now && now - authenticatedAt <= REAUTHENTICATION_WINDOW,
+                    backupCodes.hasAny(userId),
+                    authenticatedAt != null &&
+                        authenticatedAt <= now &&
+                        now - authenticatedAt <= REAUTHENTICATION_WINDOW,
                 ),
             )
         }

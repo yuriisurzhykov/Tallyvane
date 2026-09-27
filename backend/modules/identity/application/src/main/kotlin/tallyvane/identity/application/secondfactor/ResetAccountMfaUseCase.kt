@@ -9,7 +9,6 @@ import tallyvane.identity.application.port.RefreshTokenStore
 import tallyvane.identity.application.port.SessionStore
 import tallyvane.identity.application.port.TotpEnrollmentStore
 import tallyvane.identity.application.port.UserRepository
-import tallyvane.identity.domain.secondfactor.AuthenticationPolicy
 import tallyvane.identity.domain.user.Email
 import tallyvane.identity.domain.user.UserId
 import tallyvane.platform.kernel.Clock
@@ -22,6 +21,19 @@ import tallyvane.platform.kernel.Verdict
  */
 public interface ResetAccountMfaUseCase : UseCase {
     public suspend fun reset(request: Request): Outcome
+
+    /**
+     * Stores for the account realm whose MFA and sessions an administrator may reset.
+     */
+    public data class TargetStores(
+        public val users: UserRepository,
+        public val sessions: SessionStore,
+        public val refreshTokens: RefreshTokenStore,
+        public val pending: PendingAuthenticationStore,
+        public val totp: TotpEnrollmentStore,
+        public val emailMfa: EmailMfaEnrollmentStore,
+        public val backupCodes: BackupCodeStore,
+    )
 
     public data class Request(public val actor: UserId, public val targetEmail: Email, public val confirmed: Boolean)
 
@@ -40,11 +52,12 @@ public interface ResetAccountMfaUseCase : UseCase {
         adminEmails: Set<String>,
         private val clock: Clock,
         private val transactions: TransactionRunner,
+        private val administrators: UserRepository = users,
     ) : ResetAccountMfaUseCase {
         private val admins = adminEmails.mapTo(mutableSetOf()) { it.trim().lowercase() }
 
         override suspend fun reset(request: Request): Outcome = transactions.inTransaction {
-            val actor = users.findById(request.actor)
+            val actor = administrators.findById(request.actor)
             val allowed =
                 actor != null &&
                     actor.disabledAt == null &&
@@ -65,7 +78,7 @@ public interface ResetAccountMfaUseCase : UseCase {
             audit.record(
                 request.actor,
                 "MFA_RESET:${target.id.value}",
-                policies.current()?.version ?: AuthenticationPolicy.defaults().version,
+                policies.current()?.version ?: 0,
                 now,
             )
             Verdict.Commit(Outcome.RESET)

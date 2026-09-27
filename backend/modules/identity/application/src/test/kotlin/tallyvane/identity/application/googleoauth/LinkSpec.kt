@@ -6,8 +6,11 @@ import tallyvane.identity.application.google.GoogleIdentity
 import tallyvane.identity.application.port.CredentialRepositoryFake
 import tallyvane.identity.application.port.GoogleOAuthGateway
 import tallyvane.identity.application.port.UserRepositoryFake
+import tallyvane.identity.application.port.VALID_ACTION_PROOF
+import tallyvane.identity.application.port.acceptingActionProofRequirement
 import tallyvane.identity.domain.credential.Credential
 import tallyvane.identity.domain.credential.GoogleSubject
+import tallyvane.identity.domain.session.SessionId
 import tallyvane.identity.domain.user.Email
 import tallyvane.identity.domain.user.User
 import tallyvane.identity.domain.user.UserId
@@ -20,6 +23,8 @@ class LinkSpec :
         "links only an explicitly authorized Google identity and refuses a subject owned by another account" {
             val userId = UserId(Uuid.parse("00000000-0000-7000-8000-000000000042"))
             val otherId = UserId(Uuid.parse("00000000-0000-7000-8000-000000000043"))
+            val sessionId = SessionId(Uuid.parse("00000000-0000-7000-8000-000000000044"))
+            val now = Instant.parse("2026-01-01T00:00:00Z")
             val users = UserRepositoryFake().also {
                 it.insert(
                     User(userId, Email("person@example.test"), null, Instant.parse("2026-01-01T00:00:00Z"), null, true),
@@ -35,11 +40,19 @@ class LinkSpec :
                 override suspend fun exchangeCode(code: String, codeVerifier: String, redirectUri: String) =
                     if (code == "invalid") null else GoogleIdentity(GoogleSubject(code), Email("google@example.test"))
             }
-            val useCase = LinkGoogleAccountUseCase.Link(gateway, users, credentials, TransactionRunnerFake())
+            val useCase = LinkGoogleAccountUseCase.Link(
+                gateway,
+                users,
+                credentials,
+                TransactionRunnerFake(),
+                acceptingActionProofRequirement(userId, sessionId, now),
+            )
 
             useCase.link(
                 LinkGoogleAccountUseCase.Request(
                     userId,
+                    sessionId,
+                    VALID_ACTION_PROOF,
                     "invalid",
                     "verifier",
                     "https://app/callback",
@@ -51,6 +64,8 @@ class LinkSpec :
             useCase.link(
                 LinkGoogleAccountUseCase.Request(
                     userId,
+                    sessionId,
+                    VALID_ACTION_PROOF,
                     "already-linked",
                     "verifier",
                     "https://app/callback",
@@ -62,6 +77,8 @@ class LinkSpec :
             useCase.link(
                 LinkGoogleAccountUseCase.Request(
                     userId,
+                    sessionId,
+                    VALID_ACTION_PROOF,
                     "new-subject",
                     "verifier",
                     "https://app/callback",
@@ -73,6 +90,8 @@ class LinkSpec :
 
         "does not link an invalid OAuth code" {
             val userId = UserId(Uuid.parse("00000000-0000-7000-8000-000000000044"))
+            val sessionId = SessionId(Uuid.parse("00000000-0000-7000-8000-000000000045"))
+            val now = Instant.parse("2026-01-01T00:00:00Z")
             val users = UserRepositoryFake().also {
                 it.insert(
                     User(userId, Email("person@example.test"), null, Instant.parse("2026-01-01T00:00:00Z"), null, true),
@@ -86,8 +105,21 @@ class LinkSpec :
                     redirectUri: String,
                 ): GoogleIdentity? = null
             }
-            val useCase = LinkGoogleAccountUseCase.Link(gateway, users, credentials, TransactionRunnerFake())
-            val request = LinkGoogleAccountUseCase.Request(userId, "code", "verifier", "https://app/callback")
+            val useCase = LinkGoogleAccountUseCase.Link(
+                gateway,
+                users,
+                credentials,
+                TransactionRunnerFake(),
+                acceptingActionProofRequirement(userId, sessionId, now),
+            )
+            val request = LinkGoogleAccountUseCase.Request(
+                userId,
+                sessionId,
+                VALID_ACTION_PROOF,
+                "code",
+                "verifier",
+                "https://app/callback",
+            )
 
             useCase.link(request) shouldBe LinkGoogleAccountUseCase.Result.InvalidCredential
             credentials.findGoogleFor(userId) shouldBe null

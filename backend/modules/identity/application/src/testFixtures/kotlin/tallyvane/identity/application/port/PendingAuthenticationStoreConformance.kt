@@ -119,6 +119,7 @@ public abstract class PendingAuthenticationStoreConformance : StringSpec() {
             id = PendingAuthenticationId(Uuid.random()),
             userId = userId,
             device = DeviceLabel("Chrome on MacBook"),
+            recommendedMethod = SecondFactorKind.TOTP,
             availableMethods = setOf(SecondFactorKind.TOTP),
             createdAt = now,
             expiresAt = now + 5.minutes,

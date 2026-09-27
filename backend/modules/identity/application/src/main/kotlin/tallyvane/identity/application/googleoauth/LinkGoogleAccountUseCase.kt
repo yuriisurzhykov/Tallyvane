@@ -3,10 +3,10 @@ package tallyvane.identity.application.googleoauth
 import tallyvane.identity.application.port.CredentialRepository
 import tallyvane.identity.application.port.GoogleOAuthGateway
 import tallyvane.identity.application.port.UserRepository
-import tallyvane.identity.domain.user.UserId
-import tallyvane.identity.domain.session.SessionId
-import tallyvane.identity.domain.secondfactor.AuthenticationAction
 import tallyvane.identity.application.secondfactor.AuthenticationActionProofRequirement
+import tallyvane.identity.domain.secondfactor.AuthenticationAction
+import tallyvane.identity.domain.session.SessionId
+import tallyvane.identity.domain.user.UserId
 import tallyvane.platform.kernel.TransactionRunner
 import tallyvane.platform.kernel.UseCase
 import tallyvane.platform.kernel.Verdict
@@ -42,7 +42,9 @@ public interface LinkGoogleAccountUseCase : UseCase {
                 ?: return Result.InvalidCredential
             return transactions.inTransaction {
                 val authorized = actionProofs?.consume(
-                    request.actionProof, request.userId, request.sessionId,
+                    request.actionProof,
+                    request.userId,
+                    request.sessionId,
                     AuthenticationAction.CHANGE_PRIMARY_CREDENTIAL,
                 ) == true
                 val user = users.findById(request.userId)

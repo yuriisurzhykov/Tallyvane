@@ -6,6 +6,7 @@ import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import tallyvane.identity.application.SessionIssuer
+import tallyvane.identity.application.port.AuthenticationPolicyStoreFake
 import tallyvane.identity.application.port.PendingAuthenticationStoreFake
 import tallyvane.identity.application.port.RefreshTokenStoreFake
 import tallyvane.identity.application.port.SecondFactorMethodFake
@@ -36,28 +37,34 @@ class VerifySpec :
             id = pendingId,
             userId = userId,
             device = device,
+            recommendedMethod = SecondFactorKind.TOTP,
             availableMethods = setOf(SecondFactorKind.TOTP),
             createdAt = now,
             expiresAt = now + 5.minutes,
         )
 
-        fun verify(store: PendingAuthenticationStoreFake, totp: SecondFactorMethodFake, clockAt: Instant = now) =
-            VerifySecondFactorUseCase.Verify(
-                pendingAuthentications = store,
-                registry = SecondFactorMethodRegistry.Default(listOf(totp)),
-                sessions = SessionIssuer.Default(
-                    sessions = SessionStoreFake(),
-                    refreshTokens = RefreshTokenStoreFake(),
-                    tokenFactory = TokenFactoryFake(),
-                    tokenHasher = TokenHasherFake(),
-                    clock = ClockFake(clockAt),
-                    ids = IdGeneratorFake(),
-                    accessTokenTtl = 15.minutes,
-                    refreshTokenIdleTtl = 30.days,
-                ),
+        fun verify(
+            store: PendingAuthenticationStoreFake,
+            totp: SecondFactorMethodFake,
+            clockAt: Instant = now,
+            email: SecondFactorMethodFake? = null,
+        ) = VerifySecondFactorUseCase.Verify(
+            pendingAuthentications = store,
+            registry = SecondFactorMethodRegistry.Default(listOfNotNull(totp, email)),
+            sessions = SessionIssuer.Default(
+                sessions = SessionStoreFake(),
+                refreshTokens = RefreshTokenStoreFake(),
+                tokenFactory = TokenFactoryFake(),
+                tokenHasher = TokenHasherFake(),
                 clock = ClockFake(clockAt),
-                transactions = TransactionRunnerFake(),
-            )
+                ids = IdGeneratorFake(),
+                accessTokenTtl = 15.minutes,
+                refreshTokenIdleTtl = 30.days,
+            ),
+            clock = ClockFake(clockAt),
+            transactions = TransactionRunnerFake(),
+            policies = AuthenticationPolicyStoreFake(),
+        )
 
         "an unknown pending id is refused, distinct from a wrong code" {
             val store = PendingAuthenticationStoreFake()
@@ -112,6 +119,44 @@ class VerifySpec :
             store.find(pendingId).shouldBeNull()
         }
 
+        "a pending authentication accepts a policy-approved alternative to its recommended method" {
+            val store = PendingAuthenticationStoreFake().also {
+                it.save(pending.copy(availableMethods = setOf(SecondFactorKind.TOTP, SecondFactorKind.EMAIL_OTP)))
+            }
+            val totp = SecondFactorMethodFake(SecondFactorKind.TOTP).also { it.enroll(userId) }
+            val email = SecondFactorMethodFake(SecondFactorKind.EMAIL_OTP).also { it.enroll(userId) }
+
+            val result = verify(store, totp, email = email).verify(
+                VerifySecondFactorRequest(
+                    pendingId,
+                    SecondFactorKind.EMAIL_OTP,
+                    "123456",
+                    challengeId = Uuid.parse("00000000-0000-7000-8000-000000000003"),
+                ),
+            )
+
+            result.shouldBeInstanceOf<VerifySecondFactorOutcome.Issued>().session.session.userId shouldBe userId
+            store.find(pendingId).shouldBeNull()
+        }
+
+        "an enrolled factor absent from this pending authentication is refused" {
+            val store = PendingAuthenticationStoreFake().also { it.save(pending) }
+            val totp = SecondFactorMethodFake(SecondFactorKind.TOTP).also { it.enroll(userId) }
+            val email = SecondFactorMethodFake(SecondFactorKind.EMAIL_OTP).also { it.enroll(userId) }
+
+            val result = verify(store, totp, email = email).verify(
+                VerifySecondFactorRequest(
+                    pendingId,
+                    SecondFactorKind.EMAIL_OTP,
+                    "123456",
+                    challengeId = Uuid.parse("00000000-0000-7000-8000-000000000003"),
+                ),
+            )
+
+            result shouldBe VerifySecondFactorOutcome.NotCompleted(SecondFactorOutcome.WrongCode)
+            store.find(pendingId).shouldNotBeNull()
+        }
+
         "the issued session keeps the device the primary sign-in presented, not one resent on this request" {
             val store = PendingAuthenticationStoreFake().also { it.save(pending) }
             val totp = SecondFactorMethodFake(SecondFactorKind.TOTP).also { it.enroll(userId) }
@@ -155,6 +200,7 @@ class VerifySpec :
                 ),
                 clock = ClockFake(now),
                 transactions = TransactionRunnerFake(),
+                policies = AuthenticationPolicyStoreFake(),
             )
 
             val result = empty.verify(VerifySecondFactorRequest(pendingId, SecondFactorKind.TOTP, "123456"))

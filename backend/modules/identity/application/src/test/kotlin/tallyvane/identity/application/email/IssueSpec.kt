@@ -2,11 +2,13 @@ package tallyvane.identity.application.email
 
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.shouldBe
+import tallyvane.identity.application.login.ReadSignInOptionsUseCase
 import tallyvane.identity.application.port.AuthenticationCodes
 import tallyvane.identity.application.port.EmailChallengeStore
 import tallyvane.identity.application.port.EmailDelivery
 import tallyvane.identity.domain.email.EmailChallenge
 import tallyvane.identity.domain.email.EmailChallengePurpose
+import tallyvane.identity.domain.secondfactor.AuthenticationTokenKind
 import tallyvane.identity.domain.user.Email
 import tallyvane.platform.kernel.ClockFake
 import tallyvane.platform.kernel.IdGeneratorFake
@@ -49,7 +51,11 @@ class IssueSpec :
         )
 
         "email sign-in code requests create EMAIL_LOGIN challenges" {
-            val challenge = RequestEmailSignInCodeUseCase.Issue(service).request(Email("person@example.test"))!!
+            val options = object : ReadSignInOptionsUseCase {
+                override suspend fun read() = setOf(AuthenticationTokenKind.EMAIL_SIGN_IN_CODE)
+            }
+            val result = RequestEmailSignInCodeUseCase.Issue(service, options).request(Email("person@example.test"))
+            val challenge = (result as RequestEmailSignInCodeUseCase.Result.Issued).challenge
             service.challenge(challenge.id)?.purpose shouldBe EmailChallengePurpose.EMAIL_LOGIN
         }
     })

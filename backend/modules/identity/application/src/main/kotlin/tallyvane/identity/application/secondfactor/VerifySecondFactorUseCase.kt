@@ -1,8 +1,7 @@
 package tallyvane.identity.application.secondfactor
 
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 import tallyvane.identity.application.SessionIssuer
+import tallyvane.identity.application.port.AuthenticationPolicyStore
 import tallyvane.identity.application.port.LoginAttempts
 import tallyvane.identity.application.port.PendingAuthenticationStore
 import tallyvane.identity.contract.Principal
@@ -14,6 +13,9 @@ import tallyvane.platform.kernel.Fallback
 import tallyvane.platform.kernel.TransactionRunner
 import tallyvane.platform.kernel.UseCase
 import tallyvane.platform.kernel.Verdict
+import tallyvane.platform.observability.log.LogRecord
+import tallyvane.platform.observability.log.Logger
+import tallyvane.platform.observability.log.Severity
 import kotlin.time.Duration
 import tallyvane.identity.contract.UserId as ContractUserId
 
@@ -36,6 +38,7 @@ public interface VerifySecondFactorUseCase : UseCase {
         private val sessions: SessionIssuer,
         private val clock: Clock,
         private val transactions: TransactionRunner,
+        private val policies: AuthenticationPolicyStore,
     ) : VerifySecondFactorUseCase {
         /**
          * One [transactions.inTransaction] covers the whole method, the lookup included — see
@@ -48,7 +51,7 @@ public interface VerifySecondFactorUseCase : UseCase {
                 val pending = pendingAuthentications.find(request.pendingId)
                 val outcome = if (pending == null) {
                     VerifySecondFactorOutcome.NotCompleted(SecondFactorOutcome.UnknownPending)
-                } else if (clock.now() >= pending.expiresAt) {
+                } else if (clock.now() >= pending.expiresAt || policies.current()?.version != pending.policyVersion) {
                     pendingAuthentications.delete(pending.id)
                     VerifySecondFactorOutcome.NotCompleted(SecondFactorOutcome.Expired)
                 } else {
@@ -62,8 +65,7 @@ public interface VerifySecondFactorUseCase : UseCase {
             request: VerifySecondFactorRequest,
         ): VerifySecondFactorOutcome {
             val method = registry.find(request.kind)
-            val verified = !pending.requiresEnrollment &&
-                request.kind in pending.availableMethods &&
+            val verified = request.kind in pending.availableMethods &&
                 method != null &&
                 method.verify(
                     pending.userId,
@@ -91,12 +93,20 @@ public interface VerifySecondFactorUseCase : UseCase {
         private val attempts: LoginAttempts,
         private val threshold: Int,
         private val window: Duration,
+        private val logger: Logger,
     ) : VerifySecondFactorUseCase {
         override suspend fun verify(request: VerifySecondFactorRequest): VerifySecondFactorOutcome {
             val key = rateLimitKey(request.pendingId)
             val count = Fallback { attempts.failuresWithin(key, window) }
                 .orRecover { failure ->
-                    logger.warn("Login-attempts store unavailable; failing closed for this verification", failure)
+                    logger.emit(
+                        LogRecord(
+                            severity = Severity.WARN,
+                            event = "identity.second_factor.rate_limit_store_unavailable",
+                            body = "Login-attempts store unavailable; failing closed for this verification",
+                            cause = failure,
+                        ),
+                    )
                     threshold.toLong()
                 }
             if (count >= threshold) {
@@ -106,7 +116,14 @@ public interface VerifySecondFactorUseCase : UseCase {
             if (result == VerifySecondFactorOutcome.NotCompleted(SecondFactorOutcome.WrongCode)) {
                 Fallback { attempts.recordFailure(key, window) }
                     .orRecover { failure ->
-                        logger.warn("Login-attempts store unavailable; could not record a wrong code", failure)
+                        logger.emit(
+                            LogRecord(
+                                severity = Severity.WARN,
+                                event = "identity.second_factor.rate_limit_store_unavailable",
+                                body = "Login-attempts store unavailable; could not record a wrong code",
+                                cause = failure,
+                            ),
+                        )
                     }
             }
             return result
@@ -114,7 +131,6 @@ public interface VerifySecondFactorUseCase : UseCase {
 
         public companion object {
             private const val KEY_PREFIX = "identity:verify-second-factor:"
-            private val logger: Logger = LoggerFactory.getLogger(RateLimited::class.java)
 
             internal fun rateLimitKey(pendingId: PendingAuthenticationId): String = "$KEY_PREFIX${pendingId.value}"
         }

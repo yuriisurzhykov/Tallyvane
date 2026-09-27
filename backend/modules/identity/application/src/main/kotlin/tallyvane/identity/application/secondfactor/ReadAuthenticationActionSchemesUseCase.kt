@@ -1,0 +1,15 @@
+package tallyvane.identity.application.secondfactor
+
+import tallyvane.identity.domain.secondfactor.AuthenticationAction
+import tallyvane.identity.domain.secondfactor.AuthenticationScheme
+import tallyvane.identity.domain.session.SessionId
+import tallyvane.identity.domain.user.UserId
+import tallyvane.platform.kernel.UseCase
+
+public interface ReadAuthenticationActionSchemesUseCase : UseCase {
+    public suspend fun read(
+        userId: UserId,
+        sessionId: SessionId,
+        action: AuthenticationAction,
+    ): List<AuthenticationScheme>
+}

@@ -80,11 +80,12 @@ internal interface SessionIssuer {
         }
 
         /**
-         * The only case [Principal] has today — exhaustive without an `else`, so a second case
-         * fails to compile here until this function says what a service's session looks like.
+         * The application model uses [UserId] as an opaque identifier within the selected realm.
+         * The HTTP contract preserves whether that identifier belongs to a user or administrator.
          */
         private fun userIdOf(principal: Principal): UserId = when (principal) {
             is Principal.User -> UserId(principal.id.value)
+            is Principal.Admin -> UserId(principal.id.value)
         }
     }
 }

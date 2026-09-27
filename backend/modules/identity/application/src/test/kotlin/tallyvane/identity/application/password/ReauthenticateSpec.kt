@@ -31,7 +31,9 @@ class ReauthenticateSpec :
             fixture.addUser()
             fixture.credentials.save(fixture.userId, Credential.PasswordRecord(PasswordHash(Secret("correct"))))
 
-            fixture.reauthenticate.password(fixture.userId, fixture.sessionId, Secret("correct")) shouldBe
+            fixture.reauthenticate.reauthenticate(
+                ReauthenticateUseCase.Request.Password(fixture.userId, fixture.sessionId, Secret("correct")),
+            ) shouldBe
                 ReauthenticateUseCase.Outcome.REAUTHENTICATED
             fixture.sessions.find(fixture.sessionId)?.reauthenticatedAt shouldBe Fixture.now
         }
@@ -41,7 +43,9 @@ class ReauthenticateSpec :
             fixture.addUser()
             fixture.credentials.save(fixture.userId, Credential.PasswordRecord(PasswordHash(Secret("correct"))))
 
-            fixture.reauthenticate.password(fixture.userId, fixture.sessionId, Secret("wrong")) shouldBe
+            fixture.reauthenticate.reauthenticate(
+                ReauthenticateUseCase.Request.Password(fixture.userId, fixture.sessionId, Secret("wrong")),
+            ) shouldBe
                 ReauthenticateUseCase.Outcome.INVALID_CREDENTIAL
             fixture.sessions.find(fixture.sessionId)?.reauthenticatedAt shouldBe null
         }
@@ -53,12 +57,14 @@ class ReauthenticateSpec :
             fixture.credentials.save(fixture.userId, Credential.GoogleRecord(linkedSubject))
             fixture.google.identity = GoogleIdentity(linkedSubject, Email("different@example.test"))
 
-            fixture.reauthenticate.google(
-                fixture.userId,
-                fixture.sessionId,
-                "oauth-code",
-                "verifier",
-                "https://app.example.test/api/v1/auth/google/callback",
+            fixture.reauthenticate.reauthenticate(
+                ReauthenticateUseCase.Request.Google(
+                    fixture.userId,
+                    fixture.sessionId,
+                    "oauth-code",
+                    "verifier",
+                    "https://app.example.test/api/v1/auth/google/callback",
+                ),
             ) shouldBe ReauthenticateUseCase.Outcome.REAUTHENTICATED
             fixture.sessions.find(fixture.sessionId)?.reauthenticatedAt shouldBe Fixture.now
         }
@@ -72,12 +78,14 @@ class ReauthenticateSpec :
             )
             fixture.google.identity = GoogleIdentity(GoogleSubject("other-subject"), Email("person@example.test"))
 
-            fixture.reauthenticate.google(
-                fixture.userId,
-                fixture.sessionId,
-                "oauth-code",
-                "verifier",
-                "https://app.example.test/api/v1/auth/google/callback",
+            fixture.reauthenticate.reauthenticate(
+                ReauthenticateUseCase.Request.Google(
+                    fixture.userId,
+                    fixture.sessionId,
+                    "oauth-code",
+                    "verifier",
+                    "https://app.example.test/api/v1/auth/google/callback",
+                ),
             ) shouldBe ReauthenticateUseCase.Outcome.INVALID_CREDENTIAL
             fixture.sessions.find(fixture.sessionId)?.reauthenticatedAt shouldBe null
         }

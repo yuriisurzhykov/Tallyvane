@@ -8,6 +8,7 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 import tallyvane.identity.application.AuthenticationCompleter
 import tallyvane.identity.application.SessionIssuer
 import tallyvane.identity.application.SignInOutcome
+import tallyvane.identity.application.port.AuthenticationPolicyStoreFake
 import tallyvane.identity.application.port.CredentialRepositoryFake
 import tallyvane.identity.application.port.PendingAuthenticationStoreFake
 import tallyvane.identity.application.port.RefreshTokenStoreFake
@@ -55,6 +56,7 @@ class GoogleSignInCompleterSpec :
             ids = IdGeneratorFake(),
             clock = ClockFake(now),
             pendingAuthenticationTtl = 5.minutes,
+            policies = AuthenticationPolicyStoreFake(),
         )
 
         fun googleSignInCompleter(
@@ -67,6 +69,7 @@ class GoogleSignInCompleterSpec :
             transactions = TransactionRunnerFake(),
             ids = IdGeneratorFake(),
             clock = ClockFake(now),
+            policies = AuthenticationPolicyStoreFake(),
         )
 
         "a first-time identity registers an account and issues a session" {

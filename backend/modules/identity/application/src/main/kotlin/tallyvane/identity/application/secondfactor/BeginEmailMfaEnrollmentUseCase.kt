@@ -24,7 +24,10 @@ public interface BeginEmailMfaEnrollmentUseCase : UseCase {
             val email = transactions.inTransaction {
                 val user = users.findById(userId)
                 val authorized = actionProofs?.consume(
-                    actionProof, userId, sessionId, AuthenticationAction.MANAGE_SECOND_FACTORS,
+                    actionProof,
+                    userId,
+                    sessionId,
+                    AuthenticationAction.MANAGE_SECOND_FACTORS,
                 ) == true
                 when {
                     !authorized -> Verdict.Rollback(null)

@@ -1,9 +1,9 @@
 package tallyvane.identity.application.secondfactor
 
+import tallyvane.identity.domain.secondfactor.AuthenticationAction
 import tallyvane.platform.kernel.TransactionRunner
 import tallyvane.platform.kernel.UseCase
 import tallyvane.platform.kernel.Verdict
-import tallyvane.identity.domain.secondfactor.AuthenticationAction
 
 /**
  * Starts enrolling the already-signed-in caller in one second factor — one action, per ADR-053,
@@ -37,11 +37,15 @@ public interface EnrollSecondFactorUseCase : UseCase {
         private val actionProofs: AuthenticationActionProofRequirement? = null,
     ) : EnrollSecondFactorUseCase {
         override suspend fun enroll(request: EnrollSecondFactorRequest): String? = transactions.inTransaction {
-            val authorized = actionProofs != null && request.sessionId?.let { sessionId ->
-                actionProofs.consume(
-                    request.actionProof, request.userId, sessionId, AuthenticationAction.MANAGE_SECOND_FACTORS,
-                )
-            } == true
+            val authorized = actionProofs != null &&
+                request.sessionId?.let { sessionId ->
+                    actionProofs.consume(
+                        request.actionProof,
+                        request.userId,
+                        sessionId,
+                        AuthenticationAction.MANAGE_SECOND_FACTORS,
+                    )
+                } == true
             if (!authorized) return@inTransaction Verdict.Rollback(null)
             val method = registry.find(request.kind)?.takeIf { it.supportsEnrollment }
             Verdict.Commit(method?.startEnrollment(request.userId))

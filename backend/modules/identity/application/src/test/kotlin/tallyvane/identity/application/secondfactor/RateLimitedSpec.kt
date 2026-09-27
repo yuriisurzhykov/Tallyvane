@@ -1,21 +1,19 @@
 package tallyvane.identity.application.secondfactor
 
-import ch.qos.logback.classic.Level
-import ch.qos.logback.classic.spi.ILoggingEvent
-import ch.qos.logback.core.read.ListAppender
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
-import org.slf4j.LoggerFactory
 import tallyvane.identity.application.port.LoginAttempts
 import tallyvane.identity.application.port.LoginAttemptsFake
 import tallyvane.identity.domain.outcome.SecondFactorOutcome
 import tallyvane.identity.domain.secondfactor.PendingAuthenticationId
 import tallyvane.identity.domain.secondfactor.SecondFactorKind
+import tallyvane.platform.observability.log.LogRecord
+import tallyvane.platform.observability.log.Logger
+import tallyvane.platform.observability.log.Severity
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 import kotlin.uuid.Uuid
-import ch.qos.logback.classic.Logger as LogbackLogger
 
 class RateLimitedSpec :
     StringSpec({
@@ -27,8 +25,12 @@ class RateLimitedSpec :
         // — see VerifySecondFactorUseCase.RateLimited's own KDoc for why the function exists.
         val key = VerifySecondFactorUseCase.RateLimited.rateLimitKey(pendingId)
 
-        fun rateLimited(origin: FixedOutcomeOrigin, attempts: LoginAttempts, threshold: Int = 5) =
-            VerifySecondFactorUseCase.RateLimited(origin.asUseCase, attempts, threshold, 15.minutes)
+        fun rateLimited(
+            origin: FixedOutcomeOrigin,
+            attempts: LoginAttempts,
+            threshold: Int = 5,
+            logger: Logger = Logger {},
+        ) = VerifySecondFactorUseCase.RateLimited(origin.asUseCase, attempts, threshold, 15.minutes, logger)
 
         "the rate-limit key keeps this module's own prefix, so platform:cache's key-collision guard sees it" {
             key shouldBe "identity:verify-second-factor:${pendingId.value}"
@@ -84,28 +86,32 @@ class RateLimitedSpec :
         "logs a warning naming the cause when failing closed on the read" {
             val origin = FixedOutcomeOrigin(notCompletedExpired)
 
-            val events = capturedWarnings { rateLimited(origin, BrokenLoginAttempts()).verify(request) }
+            val events =
+                capturedWarnings { logger ->
+                    rateLimited(origin, BrokenLoginAttempts(), logger = logger).verify(request)
+                }
 
             val event = events.single()
-            event.level shouldBe Level.WARN
-            event.throwableProxy.shouldNotBeNull()
+            event.severity shouldBe Severity.WARN
+            event.cause.shouldNotBeNull().message shouldBe "store unavailable"
         }
 
         "logs a warning naming the cause when failing open on the write" {
             val origin = FixedOutcomeOrigin(notCompletedWrongCode)
             val attempts = BrokenLoginAttempts(failFailuresWithin = false)
 
-            val events = capturedWarnings { rateLimited(origin, attempts).verify(request) }
+            val events = capturedWarnings { logger -> rateLimited(origin, attempts, logger = logger).verify(request) }
 
             val event = events.single()
-            event.level shouldBe Level.WARN
-            event.throwableProxy.shouldNotBeNull()
+            event.severity shouldBe Severity.WARN
+            event.cause.shouldNotBeNull().message shouldBe "store unavailable"
         }
 
         "does not log anything when the attempts store answers normally" {
             val origin = FixedOutcomeOrigin(notCompletedExpired)
 
-            val events = capturedWarnings { rateLimited(origin, LoginAttemptsFake()).verify(request) }
+            val events =
+                capturedWarnings { logger -> rateLimited(origin, LoginAttemptsFake(), logger = logger).verify(request) }
 
             events shouldBe emptyList()
         }
@@ -117,18 +123,10 @@ class RateLimitedSpec :
  * `ENGINEERING-PRINCIPLES.md`'s "A recovered failure is logged where its meaning is known" asks
  * for, independent of `RateLimited`'s own return value.
  */
-private suspend fun capturedWarnings(block: suspend () -> Unit): List<ILoggingEvent> {
-    val appender = ListAppender<ILoggingEvent>()
-    val logger = LoggerFactory.getLogger(VerifySecondFactorUseCase.RateLimited::class.java) as LogbackLogger
-    appender.start()
-    logger.addAppender(appender)
-    try {
-        block()
-    } finally {
-        logger.detachAppender(appender)
-        appender.stop()
-    }
-    return appender.list
+private suspend fun capturedWarnings(block: suspend (Logger) -> Unit): List<LogRecord> {
+    val records = mutableListOf<LogRecord>()
+    block(Logger(records::add))
+    return records
 }
 
 /**

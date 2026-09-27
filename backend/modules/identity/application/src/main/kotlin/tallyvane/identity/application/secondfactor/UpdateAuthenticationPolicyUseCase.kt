@@ -9,36 +9,30 @@ public interface UpdateAuthenticationPolicyUseCase : UseCase {
     public suspend fun update(
         actor: UserId,
         expectedVersion: Long,
-        rules: List<AuthenticationRule>,
+        change: Change,
         advancedAcknowledged: Boolean,
     ): AuthenticationPolicyResult
 
-    public suspend fun updateSchemes(
-        actor: UserId,
-        expectedVersion: Long,
-        schemes: List<AuthenticationScheme>,
-        advancedAcknowledged: Boolean,
-    ): AuthenticationPolicyResult
+    public sealed interface Change {
+        public data class Rules(public val value: List<AuthenticationRule>) : Change
+        public data class Schemes(public val value: List<AuthenticationScheme>) : Change
+    }
 
     public class Update internal constructor(private val administration: AuthenticationPolicyAdministration) :
         UpdateAuthenticationPolicyUseCase {
         override suspend fun update(
             actor: UserId,
             expectedVersion: Long,
-            rules: List<AuthenticationRule>,
+            change: Change,
             advancedAcknowledged: Boolean,
-        ): AuthenticationPolicyResult = administration.update(actor, expectedVersion, rules, advancedAcknowledged)
-
-        override suspend fun updateSchemes(
-            actor: UserId,
-            expectedVersion: Long,
-            schemes: List<AuthenticationScheme>,
-            advancedAcknowledged: Boolean,
-        ): AuthenticationPolicyResult = administration.updateSchemes(
-            actor,
-            expectedVersion,
-            schemes,
-            advancedAcknowledged,
-        )
+        ): AuthenticationPolicyResult = when (change) {
+            is Change.Rules -> administration.update(actor, expectedVersion, change.value, advancedAcknowledged)
+            is Change.Schemes -> administration.updateSchemes(
+                actor,
+                expectedVersion,
+                change.value,
+                advancedAcknowledged,
+            )
+        }
     }
 }
