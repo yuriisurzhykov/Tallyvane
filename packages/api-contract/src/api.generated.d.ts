@@ -129,6 +129,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/sign-in-options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List policy-enabled primary sign-in entry points available on this deployment */
+        get: operations["readPublicSignInOptions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/google/oauth/start": {
         parameters: {
             query?: never;
@@ -576,24 +593,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/auth/mfa/required/enroll": {
+    "/auth/admin/sign-in-options": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** List sign-in methods available in the administrator identity realm */
+        get: operations["readAdminSignInOptions"];
         put?: never;
-        /** Begin a factor enrollment using the scoped sign-in challenge */
-        post: operations["beginRequiredMfaEnrollment"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/auth/mfa/required/confirm": {
+    "/auth/admin/login/password": {
         parameters: {
             query?: never;
             header?: never;
@@ -602,8 +619,195 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Confirm required factor enrollment and complete sign-in */
-        post: operations["confirmRequiredMfaEnrollment"];
+        /** Sign in to the administrator realm with a verified admin account's password */
+        post: operations["signInAdminWithPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/admin/login/email/code": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send an email sign-in code for an existing administrator account */
+        post: operations["requestAdminEmailSignInCode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/admin/login/email/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Verify an admin email code and continue the server-selected sign-in policy */
+        post: operations["completeAdminEmailSignIn"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/admin/password/forgot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Request an administrator-realm password reset code */
+        post: operations["requestAdminPasswordResetCode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/admin/password/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Replace an administrator password using its emailed reset challenge */
+        post: operations["resetAdminPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/admin/google/oauth/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Begin Google OAuth sign-in for the administrator realm */
+        get: operations["startAdminGoogleOAuth"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/admin/google/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Complete Google OAuth and return to the administrator frontend */
+        get: operations["completeAdminGoogleOAuth"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/admin/mfa/email/request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send an email factor code for a pending administrator sign-in */
+        post: operations["requestAdminSignInEmailMfaCode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/admin/mfa/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Complete an administrator sign-in with TOTP or email MFA */
+        post: operations["verifyAdminSignInSecondFactor"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/admin/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Rotate the administrator refresh token and issue a new access token */
+        post: operations["refreshAdminSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/admin/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Revoke the current administrator session and clear its cookies */
+        post: operations["signOutAdminSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/admin/logout-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Revoke every session for the signed-in administrator account */
+        post: operations["signOutAllAdminSessions"];
         delete?: never;
         options?: never;
         head?: never;
@@ -696,6 +900,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/recovery": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Perform full account recovery with an account email and recovery code */
+        post: operations["recoverAccountWithRecoveryCode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/account/action-proof/email-code": {
         parameters: {
             query?: never;
@@ -741,6 +962,57 @@ export interface paths {
         put?: never;
         /** Verify the strongest configured proof scheme for an account action */
         post: operations["authorizeAuthenticationAction"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/admin/account/action-proof/email-code": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send an email proof code for an administrator account action */
+        post: operations["requestAdminAuthenticationActionEmailCode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/admin/account/action-proof/options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read the strongest authentication schemes available for an administrator action */
+        get: operations["readAdminAuthenticationActionProofOptions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/admin/account/action-proof": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Verify the strongest configured proof scheme for an administrator action */
+        post: operations["authorizeAdminAuthenticationAction"];
         delete?: never;
         options?: never;
         head?: never;
@@ -808,14 +1080,17 @@ export interface components {
          */
         AuthenticationAction: "SIGN_IN" | "CHANGE_PRIMARY_CREDENTIAL" | "MANAGE_SECOND_FACTORS";
         SignInResult: {
-            /** @enum {string} */
-            status: "issued" | "requires_second_factor" | "requires_enrollment";
+            /** @constant */
+            status: "issued";
+        } | {
+            /** @constant */
+            status: "requires_second_factor";
             /** Format: uuid */
-            pending_id?: string;
-            /** @description Enrolled factors for MFA, or factors that can satisfy a required enrollment. */
-            available_methods?: ("TOTP" | "EMAIL_OTP" | "BACKUP_CODE")[];
+            pending_id: string;
             /** @enum {string} */
-            primary_method?: "PASSWORD" | "GOOGLE" | "EMAIL_CODE";
+            recommended_method: "TOTP" | "EMAIL_OTP";
+            /** @description Every policy-enabled enrolled factor accepted for this pending sign-in. */
+            available_methods: ("TOTP" | "EMAIL_OTP")[];
         };
         /**
          * @description Three states, not two. `degraded` means working with something missing — the distinction
@@ -898,7 +1173,7 @@ export interface components {
             enabled: boolean;
             /** @enum {string} */
             requirement: "DISABLED" | "IF_ENROLLED" | "REQUIRED";
-            allowed_methods: ("TOTP" | "EMAIL_OTP" | "BACKUP_CODE")[];
+            allowed_methods: ("TOTP" | "EMAIL_OTP")[];
         };
         AuthenticationPolicy: {
             version: number;
@@ -909,7 +1184,7 @@ export interface components {
         AuthenticationScheme: {
             id: string;
             action: components["schemas"]["AuthenticationAction"];
-            required_tokens: ("PASSWORD" | "GOOGLE" | "EMAIL_SIGN_IN_CODE" | "TOTP" | "EMAIL_FACTOR_CODE" | "BACKUP_CODE")[];
+            required_tokens: ("PASSWORD" | "GOOGLE" | "EMAIL_SIGN_IN_CODE" | "TOTP" | "EMAIL_FACTOR_CODE")[];
             assurance_rank: number;
             enabled: boolean;
         };
@@ -926,7 +1201,7 @@ export interface components {
         };
         PresentedAuthenticationToken: {
             /** @enum {string} */
-            kind: "PASSWORD" | "GOOGLE" | "EMAIL_SIGN_IN_CODE" | "TOTP" | "EMAIL_FACTOR_CODE" | "BACKUP_CODE";
+            kind: "PASSWORD" | "GOOGLE" | "EMAIL_SIGN_IN_CODE" | "TOTP" | "EMAIL_FACTOR_CODE";
             value: string;
             /** Format: uuid */
             challenge_id?: string;
@@ -1199,6 +1474,30 @@ export interface operations {
                 content: {
                     "application/json": {
                         google: boolean;
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    readPublicSignInOptions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Account-neutral primary sign-in methods from the current stored policy. */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        primary_methods: ("PASSWORD" | "GOOGLE" | "EMAIL_SIGN_IN_CODE")[];
                     };
                 };
             };
@@ -1827,7 +2126,8 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        enrolled: ("TOTP" | "EMAIL_OTP" | "BACKUP_CODE")[];
+                        enrolled: ("TOTP" | "EMAIL_OTP")[];
+                        recovery_codes_issued: boolean;
                         recently_authenticated: boolean;
                     };
                 };
@@ -1849,7 +2149,7 @@ export interface operations {
             content: {
                 "application/json": {
                     /** @enum {string} */
-                    kind: "TOTP" | "EMAIL_OTP" | "BACKUP_CODE";
+                    kind: "TOTP" | "EMAIL_OTP";
                     /** @constant */
                     confirmed: true;
                 };
@@ -1985,36 +2285,31 @@ export interface operations {
             default: components["responses"]["Problem"];
         };
     };
-    beginRequiredMfaEnrollment: {
+    readAdminSignInOptions: {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** Format: uuid */
-                    pending_id: string;
-                    /** @enum {string} */
-                    kind: "TOTP";
-                };
-            };
-        };
+        requestBody?: never;
         responses: {
-            /** @description Enrollment payload for the selected factor. */
+            /** @description Policy-enabled administrator sign-in methods available on this deployment. */
             200: {
                 headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        primary_methods: ("PASSWORD" | "GOOGLE" | "EMAIL_SIGN_IN_CODE")[];
+                    };
+                };
             };
-            422: components["responses"]["Problem"];
             default: components["responses"]["Problem"];
         };
     };
-    confirmRequiredMfaEnrollment: {
+    signInAdminWithPassword: {
         parameters: {
             query?: never;
             header?: never;
@@ -2024,16 +2319,15 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
-                    /** Format: uuid */
-                    pending_id: string;
-                    /** @enum {string} */
-                    kind: "TOTP";
-                    code: string;
+                    /** Format: email */
+                    email: string;
+                    password: string;
+                    device: string;
                 };
             };
         };
         responses: {
-            /** @description Enrollment accepted and session cookies issued. */
+            /** @description Admin session cookies were issued or a second-factor step is required. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2042,7 +2336,302 @@ export interface operations {
                     "application/json": components["schemas"]["SignInResult"];
                 };
             };
+            default: components["responses"]["Problem"];
+        };
+    };
+    requestAdminEmailSignInCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: email */
+                    email: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Code request accepted. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        challenge_id: string;
+                    };
+                };
+            };
+            /** @description A code was requested recently; retry after the Retry-After delay. */
+            429: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    completeAdminEmailSignIn: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    challenge_id: string;
+                    /** Format: email */
+                    email: string;
+                    code: string;
+                    device: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Admin session cookies were issued or the next server-selected authentication step is returned. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignInResult"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    requestAdminPasswordResetCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: email */
+                    email: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Code request accepted. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        challenge_id: string;
+                    };
+                };
+            };
+            429: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    resetAdminPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    challenge_id: string;
+                    /** Format: email */
+                    email: string;
+                    code: string;
+                    new_password: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Administrator password changed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem"];
             422: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    startAdminGoogleOAuth: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Redirects to Google and sets admin-scoped HttpOnly state and verifier cookies. */
+            302: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    completeAdminGoogleOAuth: {
+        parameters: {
+            query?: {
+                code?: string;
+                state?: string;
+                error?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Redirects to the admin callback page after processing OAuth state. */
+            302: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    requestAdminSignInEmailMfaCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    pending_id: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Code accepted for delivery; response includes challenge_id. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            429: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    verifyAdminSignInSecondFactor: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    pending_id: string;
+                    /** @enum {string} */
+                    kind: "TOTP" | "EMAIL_OTP";
+                    code: string;
+                    /**
+                     * Format: uuid
+                     * @description Required when kind is EMAIL_OTP.
+                     */
+                    challenge_id?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Administrator session issued after factor verification. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    refreshAdminSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description New administrator session tokens were issued in cookies. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    signOutAdminSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current administrator session revoked. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    signOutAllAdminSessions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description All administrator sessions revoked. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             default: components["responses"]["Problem"];
         };
     };
@@ -2186,6 +2775,39 @@ export interface operations {
             default: components["responses"]["Problem"];
         };
     };
+    recoverAccountWithRecoveryCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: email */
+                    email: string;
+                    recovery_code: string;
+                    new_password: string;
+                    device: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Recovery completed atomically and a new session was issued. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignInResult"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
     requestAuthenticationActionEmailCode: {
         parameters: {
             query?: never;
@@ -2235,7 +2857,7 @@ export interface operations {
                     "application/json": {
                         schemes: {
                             id: string;
-                            required_tokens: ("PASSWORD" | "GOOGLE" | "EMAIL_SIGN_IN_CODE" | "TOTP" | "EMAIL_FACTOR_CODE" | "BACKUP_CODE")[];
+                            required_tokens: ("PASSWORD" | "GOOGLE" | "EMAIL_SIGN_IN_CODE" | "TOTP" | "EMAIL_FACTOR_CODE")[];
                             assurance_rank: number;
                         }[];
                     };
@@ -2259,6 +2881,92 @@ export interface operations {
         };
         responses: {
             /** @description One-use proof bound to this action, session, and current policy version. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticationActionProof"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    requestAdminAuthenticationActionEmailCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AuthenticationActionEmailCodeRequest"];
+            };
+        };
+        responses: {
+            /** @description Code accepted for delivery; response includes challenge_id. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        challenge_id: string;
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    readAdminAuthenticationActionProofOptions: {
+        parameters: {
+            query: {
+                action: "CHANGE_PRIMARY_CREDENTIAL" | "MANAGE_SECOND_FACTORS";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Highest assurance schemes satisfiable by the signed-in administrator's credentials and factors. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        schemes: {
+                            id: string;
+                            required_tokens: ("PASSWORD" | "GOOGLE" | "EMAIL_SIGN_IN_CODE" | "TOTP" | "EMAIL_FACTOR_CODE")[];
+                            assurance_rank: number;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    authorizeAdminAuthenticationAction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AuthenticationActionProofRequest"];
+            };
+        };
+        responses: {
+            /** @description One-use proof bound to this administrator action, session, and current policy version. */
             200: {
                 headers: {
                     [name: string]: unknown;

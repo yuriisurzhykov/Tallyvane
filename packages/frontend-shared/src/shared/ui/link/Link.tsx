@@ -3,7 +3,7 @@ import { useRender } from "@base-ui/react/use-render";
 import { mergeProps } from "@base-ui/react/merge-props";
 
 export interface LinkOwnProps {
-    readonly children: ReactNode;
+    readonly children?: ReactNode;
 }
 
 /** No Base UI behaviour backs this one (`COMPONENTS.md`'s "Actions" row lists `Base: —`) — polymorphic via `useRender` directly, the same mechanism `Text`/`VisuallyHidden` already use. */

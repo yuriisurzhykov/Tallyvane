@@ -25,6 +25,7 @@ export interface StackProps {
     readonly role?: string;
     readonly "aria-label"?: string;
     readonly "aria-labelledby"?: string;
+    readonly "aria-current"?: "page" | "step" | "location" | "date" | "time" | true | false;
 }
 
 /** Tier 0 — vertical flow. Gaps only from the spacing roles; there is no other way to space children apart. */

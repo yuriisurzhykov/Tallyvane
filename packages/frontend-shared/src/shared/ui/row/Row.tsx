@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { MouseEventHandler, ReactNode } from "react";
 import { useRender } from "@base-ui/react/use-render";
 import { mergeProps } from "@base-ui/react/merge-props";
 
@@ -20,11 +20,12 @@ export interface RowProps {
     /** Layout and position only — see `COMPONENTS.md` §11. */
     readonly className?: string;
     /** The semantic block element. Defaults to `div`. */
-    readonly as?: "article" | "aside" | "div" | "footer" | "header" | "li" | "main" | "nav" | "section";
+    readonly as?: "article" | "aside" | "div" | "footer" | "header" | "label" | "li" | "main" | "nav" | "section";
     readonly id?: string;
     readonly role?: string;
     readonly "aria-label"?: string;
     readonly "aria-labelledby"?: string;
+    readonly onClick?: MouseEventHandler<HTMLElement>;
 }
 
 /**

@@ -1,4 +1,6 @@
 import { registerOTel } from "@vercel/otel";
+import { OTLPLogExporter } from "@opentelemetry/exporter-logs-otlp-http";
+import { BatchLogRecordProcessor } from "@opentelemetry/sdk-logs";
 
 /**
  * Called once, from each app's own root `instrumentation.ts` (a Next.js convention: the file
@@ -14,11 +16,18 @@ import { registerOTel } from "@vercel/otel";
  *
  * `@vercel/otel` reads `OTEL_EXPORTER_OTLP_ENDPOINT`/`OTEL_EXPORTER_OTLP_HEADERS` itself — the
  * same two variables the backend's OpenTelemetry Java agent already uses (ADR-067), one Grafana
- * Cloud project for all four services. Nothing here repeats them.
+ * Cloud project for all four services. `OTEL_LOGS_EXPORTER=otlp` adds the official batched OTLP
+ * Logs processor; local Compose disables that processor and the shared logger selects JSON stdout.
  *
  * @param serviceName Distinguishes one app's spans from another's in Grafana Cloud —
  * `tallyvane-frontend-web`, `tallyvane-frontend-app`, `tallyvane-frontend-admin`.
  */
 export function registerTallyvaneOtel(serviceName: string): void {
-    registerOTel({ serviceName });
+    const exporters = process.env.OTEL_LOGS_EXPORTER?.split(",").map((value) => value.trim()) ?? [];
+    const logRecordProcessors =
+        process.env.OTEL_SDK_DISABLED?.toLowerCase() === "true" || !exporters.includes("otlp")
+            ? []
+            : [new BatchLogRecordProcessor({ exporter: new OTLPLogExporter() })];
+
+    registerOTel({ serviceName, logRecordProcessors });
 }

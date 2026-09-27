@@ -21,40 +21,44 @@ function sinks(): { console: LogSink; otlp: LogSink } {
 describe("the shared logger contract", () => {
     it("routes local records to stdout when OpenTelemetry is disabled", () => {
         const outputs = sinks();
-        const logger = createLogger("tallyvane-frontend-app", {
-            env: { OTEL_SDK_DISABLED: "true", OTEL_LOGS_EXPORTER: "otlp" },
+        const logger = createLogger("http.server.access", {
+            env: {
+                OTEL_SDK_DISABLED: "true",
+                OTEL_LOGS_EXPORTER: "otlp",
+                OTEL_SERVICE_NAME: "tallyvane-frontend-app",
+            },
             sinks: outputs,
         });
 
         logger.emit(record);
 
-        expect(outputs.console.emit).toHaveBeenCalledWith("tallyvane-frontend-app", record);
+        expect(outputs.console.emit).toHaveBeenCalledWith("http.server.access", "tallyvane-frontend-app", record);
         expect(outputs.otlp.emit).not.toHaveBeenCalled();
     });
 
     it("routes production records to the configured OTLP implementation", () => {
         const outputs = sinks();
-        const logger = createLogger("tallyvane-frontend-admin", {
-            env: { OTEL_LOGS_EXPORTER: "otlp" },
+        const logger = createLogger("http.server.access", {
+            env: { OTEL_LOGS_EXPORTER: "otlp", OTEL_SERVICE_NAME: "tallyvane-frontend-admin" },
             sinks: outputs,
         });
 
         logger.emit(record);
 
-        expect(outputs.otlp.emit).toHaveBeenCalledWith("tallyvane-frontend-admin", record);
+        expect(outputs.otlp.emit).toHaveBeenCalledWith("http.server.access", "tallyvane-frontend-admin", record);
         expect(outputs.console.emit).not.toHaveBeenCalled();
     });
 
     it("uses stdout when no remote log exporter is configured", () => {
         const outputs = sinks();
-        const logger = createLogger("tallyvane-frontend-web", {
-            env: { OTEL_LOGS_EXPORTER: "none" },
+        const logger = createLogger("http.server.access", {
+            env: { OTEL_LOGS_EXPORTER: "none", OTEL_SERVICE_NAME: "tallyvane-frontend-web" },
             sinks: outputs,
         });
 
         logger.emit(record);
 
-        expect(outputs.console.emit).toHaveBeenCalledWith("tallyvane-frontend-web", record);
+        expect(outputs.console.emit).toHaveBeenCalledWith("http.server.access", "tallyvane-frontend-web", record);
         expect(outputs.otlp.emit).not.toHaveBeenCalled();
     });
 });
