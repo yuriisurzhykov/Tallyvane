@@ -10,7 +10,7 @@
 layers:
   contract:       [platform:kernel, platform:events]
   domain:         [platform:kernel]
-  application:    [own:domain, own:contract, platform:kernel, platform:events, any:contract]
+  application:    [own:domain, own:contract, platform:kernel, platform:events, platform:observability, any:contract]
   infrastructure: [own:application, own:contract, "platform:*"]
   web:            [own:application, own:contract, platform:http]
 
