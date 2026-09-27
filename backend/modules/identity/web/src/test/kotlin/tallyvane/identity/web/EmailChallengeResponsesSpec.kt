@@ -37,7 +37,7 @@ class EmailChallengeResponsesSpec :
                 expiresAt = Instant.parse("2026-01-01T00:00:00Z"),
             )
             val request = object : RequestEmailSignInCodeUseCase {
-                override suspend fun request(email: Email) = challenge
+                override suspend fun request(email: Email) = RequestEmailSignInCodeUseCase.Result.Issued(challenge)
             }
 
             testApplication {
@@ -87,7 +87,7 @@ private fun installEmailChallengeRoutes(
 }
 
 private fun unusedEmailSignIn() = object : RequestEmailSignInCodeUseCase {
-    override suspend fun request(email: Email): EmailChallenge? = null
+    override suspend fun request(email: Email) = RequestEmailSignInCodeUseCase.Result.RateLimited
 }
 
 private fun unusedPasswordReset() = object : RequestPasswordResetUseCase {

@@ -11,6 +11,6 @@ import kotlinx.serialization.Serializable
 internal data class SignInResponseBody(
     val status: String,
     val pendingId: String? = null,
+    val recommendedMethod: String? = null,
     val availableMethods: List<String>? = null,
-    val primaryMethod: String? = null,
 )

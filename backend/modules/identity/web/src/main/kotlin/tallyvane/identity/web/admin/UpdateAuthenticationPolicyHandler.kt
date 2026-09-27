@@ -6,11 +6,11 @@ import io.ktor.server.routing.Route
 import io.ktor.server.routing.put
 import tallyvane.identity.application.secondfactor.AuthenticationPolicyResult
 import tallyvane.identity.application.secondfactor.UpdateAuthenticationPolicyUseCase
-import tallyvane.identity.domain.secondfactor.AuthenticationPolicy
 import tallyvane.identity.domain.secondfactor.AuthenticationAction
+import tallyvane.identity.domain.secondfactor.AuthenticationPolicy
+import tallyvane.identity.domain.secondfactor.AuthenticationRule
 import tallyvane.identity.domain.secondfactor.AuthenticationScheme
 import tallyvane.identity.domain.secondfactor.AuthenticationTokenKind
-import tallyvane.identity.domain.secondfactor.AuthenticationRule
 import tallyvane.identity.domain.secondfactor.MfaRequirement
 import tallyvane.identity.domain.secondfactor.PrimaryMethod
 import tallyvane.identity.domain.secondfactor.SecondFactorKind
@@ -24,22 +24,21 @@ internal class UpdateAuthenticationPolicyHandler(
     private val problems: AuthenticationPolicyProblems,
 ) : AuthHandler {
     override fun install(route: Route) {
-        route.put("/admin/policy") {
+        route.put("/policy") {
             val identity = currentPrincipal.resolve(call) ?: return@put
             val body = call.receive<UpdateAuthenticationPolicyBody>()
             val schemes = body.schemes.toSchemesOrNull()
             val rules = body.rules.toDomainOrNull()
-            if ((body.schemes.isEmpty() && (rules == null || body.rules.isEmpty())) ||
-                (body.schemes.isNotEmpty() && schemes == null) || body.expectedVersion < 1
-            ) {
+            if (body.hasInvalidPolicy(schemes, rules)) {
                 call.respond(Refused(AuthenticationPolicyFailure.Invalid, problems))
                 return@put
             }
-            val result = if (schemes != null && body.schemes.isNotEmpty()) {
-                update.updateSchemes(identity.userId, body.expectedVersion, schemes, body.advancedAcknowledged)
+            val change = if (body.schemes.isNotEmpty()) {
+                UpdateAuthenticationPolicyUseCase.Change.Schemes(requireNotNull(schemes))
             } else {
-                update.update(identity.userId, body.expectedVersion, requireNotNull(rules), body.advancedAcknowledged)
+                UpdateAuthenticationPolicyUseCase.Change.Rules(requireNotNull(rules))
             }
+            val result = update.update(identity.userId, body.expectedVersion, change, body.advancedAcknowledged)
             when (result) {
                 is AuthenticationPolicyResult.Policy -> call.respond(result.value.toBody())
                 AuthenticationPolicyResult.Forbidden -> call.respond(
@@ -52,6 +51,18 @@ internal class UpdateAuthenticationPolicyHandler(
                     Refused(AuthenticationPolicyFailure.Invalid, problems),
                 )
             }
+        }
+    }
+
+    private fun UpdateAuthenticationPolicyBody.hasInvalidPolicy(
+        schemes: List<AuthenticationScheme>?,
+        rules: List<AuthenticationRule>?,
+    ): Boolean {
+        if (expectedVersion < 1) return true
+        return when {
+            this.schemes.isNotEmpty() -> schemes == null
+            rules.isNullOrEmpty() -> true
+            else -> false
         }
     }
 

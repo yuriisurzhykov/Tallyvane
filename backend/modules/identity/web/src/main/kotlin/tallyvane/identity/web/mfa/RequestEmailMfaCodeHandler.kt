@@ -30,7 +30,7 @@ internal class RequestEmailMfaCodeHandler(
                 call.respond(Refused(RequestValidationFailure.FieldsInvalid(errors), validationProblems))
                 return@post
             }
-            val challengeId = request.request(pendingId!!)
+            val challengeId = request.request(requireNotNull(pendingId))
             if (challengeId == null) {
                 call.respond(Refused(SecondFactorFailure.RateLimited, problems))
             } else {

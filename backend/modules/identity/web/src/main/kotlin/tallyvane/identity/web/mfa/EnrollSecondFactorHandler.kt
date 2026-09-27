@@ -42,7 +42,7 @@ internal class EnrollSecondFactorHandler(
             }
 
             val payload = useCase.enroll(
-                EnrollSecondFactorRequest(identity.userId, kind!!, identity.sessionId, actionProof),
+                EnrollSecondFactorRequest(identity.userId, requireNotNull(kind), identity.sessionId, actionProof),
             )
             if (payload == null) {
                 call.respond(Refused(SecondFactorFailure.UnsupportedMethod, secondFactorProblems))

@@ -31,7 +31,7 @@ internal class RequestPasswordResetHandler(
                 call.respond(Refused(RequestValidationFailure.FieldsInvalid(errors), validationProblems))
                 return@post
             }
-            val challengeId = requestReset.request(email!!)
+            val challengeId = requestReset.request(requireNotNull(email))
             if (challengeId == null) {
                 call.response.headers.append("Retry-After", "60")
                 call.respond(Refused(AuthenticationFailure.RateLimited, authenticationProblems))

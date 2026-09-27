@@ -22,7 +22,11 @@ internal class ReauthenticatePasswordHandler(
         route.post("/account/reauth/password") {
             val identity = current.resolve(call) ?: return@post
             val body = call.receive<ReauthenticatePasswordBody>()
-            when (reauthenticate.password(identity.userId, identity.sessionId, Secret(body.password))) {
+            when (
+                reauthenticate.reauthenticate(
+                    ReauthenticateUseCase.Request.Password(identity.userId, identity.sessionId, Secret(body.password)),
+                )
+            ) {
                 ReauthenticateUseCase.Outcome.REAUTHENTICATED -> call.respond(HttpStatusCode.NoContent)
                 ReauthenticateUseCase.Outcome.INVALID_CREDENTIAL,
                 ReauthenticateUseCase.Outcome.PROVIDER_UNAVAILABLE,

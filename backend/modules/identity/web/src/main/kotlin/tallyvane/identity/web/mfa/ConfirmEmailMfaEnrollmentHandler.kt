@@ -37,7 +37,9 @@ internal class ConfirmEmailMfaEnrollmentHandler(
                 return@post
             }
             if (!confirm.confirm(
-                    identity.userId, challengeId!!, code!!,
+                    identity.userId,
+                    requireNotNull(challengeId),
+                    requireNotNull(code),
                 )
             ) {
                 call.respond(Refused(SecondFactorFailure.WrongCode, factors))

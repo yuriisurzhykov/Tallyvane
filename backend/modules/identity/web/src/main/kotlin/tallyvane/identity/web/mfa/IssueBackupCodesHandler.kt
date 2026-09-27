@@ -23,7 +23,9 @@ internal class IssueBackupCodesHandler(
         route.post("/mfa/backup-codes") {
             val identity = currentPrincipal.resolve(call) ?: return@post
             val issued = issue.issue(
-                identity.userId, identity.sessionId, call.request.headers["X-Action-Proof"],
+                identity.userId,
+                identity.sessionId,
+                call.request.headers["X-Action-Proof"],
             )
             if (issued == null) {
                 call.respond(Refused(AuthenticationFailure.InvalidCredential, authenticationProblems))

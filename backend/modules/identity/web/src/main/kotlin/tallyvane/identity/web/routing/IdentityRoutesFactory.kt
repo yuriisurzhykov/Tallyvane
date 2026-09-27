@@ -1,14 +1,18 @@
 package tallyvane.identity.web.routing
 
 import tallyvane.identity.application.IdentityUseCases
-import tallyvane.identity.application.email.EmailChallenges
-import tallyvane.identity.web.admin.AuthenticationPolicyProblems
+import tallyvane.identity.application.admin.BootstrapAdminAccountsUseCase
+import tallyvane.identity.application.login.ReadSignInOptionsUseCase
 import tallyvane.identity.web.admin.AuthenticationActionProofHandler
+import tallyvane.identity.web.admin.AuthenticationPolicyProblems
+import tallyvane.identity.web.admin.ReadAuthenticationActionSchemesHandler
 import tallyvane.identity.web.admin.ReadAuthenticationPolicyHandler
+import tallyvane.identity.web.admin.RequestAuthenticationActionEmailCodeHandler
 import tallyvane.identity.web.admin.ResetAccountMfaHandler
 import tallyvane.identity.web.admin.UpdateAuthenticationPolicyHandler
 import tallyvane.identity.web.login.AuthenticationProblems
 import tallyvane.identity.web.login.EmailSignInHandler
+import tallyvane.identity.web.login.ReadSignInOptionsHandler
 import tallyvane.identity.web.login.RequestEmailSignInCodeHandler
 import tallyvane.identity.web.login.SignInResponses
 import tallyvane.identity.web.login.SignInWithPasswordHandler
@@ -22,15 +26,15 @@ import tallyvane.identity.web.mfa.EnrollSecondFactorHandler
 import tallyvane.identity.web.mfa.IssueBackupCodesHandler
 import tallyvane.identity.web.mfa.ReadSecondFactorStatusHandler
 import tallyvane.identity.web.mfa.RequestEmailMfaCodeHandler
-import tallyvane.identity.web.mfa.RequiredFactorConfirmationHandler
-import tallyvane.identity.web.mfa.RequiredFactorEnrollmentHandler
 import tallyvane.identity.web.mfa.SecondFactorProblems
 import tallyvane.identity.web.mfa.VerifySecondFactorHandler
+import tallyvane.identity.web.oauth.GoogleOAuthConfiguration
 import tallyvane.identity.web.oauth.GoogleOAuthHandler
 import tallyvane.identity.web.password.ChangePasswordHandler
 import tallyvane.identity.web.password.ReauthenticatePasswordHandler
 import tallyvane.identity.web.password.RequestPasswordResetHandler
 import tallyvane.identity.web.password.ResetPasswordHandler
+import tallyvane.identity.web.recovery.RecoverAccountHandler
 import tallyvane.identity.web.registration.RegisterProblems
 import tallyvane.identity.web.registration.RegisterWithPasswordHandler
 import tallyvane.identity.web.registration.RegistrationEmailProblems
@@ -44,6 +48,7 @@ import tallyvane.identity.web.session.SessionProblems
 import tallyvane.identity.web.shared.CurrentPrincipal
 import tallyvane.identity.web.shared.RequestValidationProblems
 import tallyvane.identity.web.shared.SessionCookies
+import tallyvane.identity.web.shared.SessionTokenLifetimes
 import tallyvane.platform.http.RouteModule
 import tallyvane.platform.http.csrf.CsrfGuard
 
@@ -53,44 +58,57 @@ import tallyvane.platform.http.csrf.CsrfGuard
 interface IdentityRoutesFactory {
     fun routes(
         cases: IdentityUseCases,
-        secure: Boolean,
-        accessTtl: kotlin.time.Duration,
-        refreshTtl: kotlin.time.Duration,
-        googleClientId: String? = null,
-        googleRedirectUri: String? = null,
+        configuration: Configuration,
+        adminCases: IdentityUseCases? = null,
+        adminBootstrap: BootstrapAdminAccountsUseCase? = null,
     ): RouteModule
 
     fun csrf(origins: Set<String>): CsrfGuard
 
+    data class Configuration(
+        val secureCookies: Boolean,
+        val tokenLifetimes: SessionTokenLifetimes,
+        val googleClientId: String? = null,
+        val googleRedirectUri: String? = null,
+        val adminGoogleRedirectUri: String? = null,
+    )
+
     class Routes : IdentityRoutesFactory {
         override fun routes(
             cases: IdentityUseCases,
-            secure: Boolean,
-            accessTtl: kotlin.time.Duration,
-            refreshTtl: kotlin.time.Duration,
-            googleClientId: String?,
-            googleRedirectUri: String?,
+            configuration: Configuration,
+            adminCases: IdentityUseCases?,
+            adminBootstrap: BootstrapAdminAccountsUseCase?,
         ): RouteModule {
-            val services = services(secure, accessTtl, refreshTtl)
-            val googleSignIn = cases.signInWithGoogleOAuth
+            val services = services(configuration.secureCookies, configuration.tokenLifetimes)
+            val adminServices = services(configuration.secureCookies, configuration.tokenLifetimes, adminRealm = true)
             val googleOAuth = googleOAuth(
-                googleClientId,
-                googleRedirectUri,
-                googleSignIn,
-                cases.linkGoogleAccount,
-                cases.unlinkGoogleAccount,
-                cases.readGoogleAccountLink,
-                cases.reauthenticate,
-                cases.authorizeAuthenticationAction,
+                cases,
+                configuration.googleClientId,
+                configuration.googleRedirectUri,
+                configuration.secureCookies,
                 services,
-                secure,
+                adminRealm = false,
             )
+            val adminGoogleOAuth = adminCases?.let {
+                googleOAuth(
+                    it,
+                    configuration.googleClientId,
+                    configuration.adminGoogleRedirectUri,
+                    configuration.secureCookies,
+                    adminServices,
+                    adminRealm = true,
+                )
+            }
             return AuthRoutes.Installation(
-                handlers = handlers(cases, services),
-                secure = secure,
+                handlers = handlers(cases, services, adminRealm = false),
+                secure = configuration.secureCookies,
                 googleEnabled = googleOAuth != null,
                 googleOAuth = googleOAuth,
                 registrationEmailVerification = registrationEmailVerification(cases, services.validation),
+                adminHandlers = adminCases?.let { handlers(it, adminServices, adminBootstrap, adminRealm = true) }
+                    .orEmpty(),
+                adminGoogleOAuth = adminGoogleOAuth,
             )
         }
 
@@ -102,62 +120,51 @@ interface IdentityRoutesFactory {
             val factors: SecondFactorProblems,
             val authentication: AuthenticationProblems,
             val responses: SignInResponses.Writer,
-            val accessTtl: kotlin.time.Duration,
-            val refreshTtl: kotlin.time.Duration,
+            val tokenLifetimes: SessionTokenLifetimes,
         )
 
         private fun services(
             secure: Boolean,
-            accessTtl: kotlin.time.Duration,
-            refreshTtl: kotlin.time.Duration,
+            tokenLifetimes: SessionTokenLifetimes,
+            adminRealm: Boolean = false,
         ): Services {
-            val cookies = SessionCookies.CookieJar(secure)
+            val cookies = SessionCookies.CookieJar(secure, adminRealm)
             val sessions = SessionProblems()
             return Services(
                 cookies,
                 sessions,
-                CurrentPrincipal.Resolver(sessions),
+                CurrentPrincipal.Resolver(sessions, adminRealm),
                 RequestValidationProblems(),
                 SecondFactorProblems(),
                 AuthenticationProblems(),
-                SignInResponses.Writer(cookies, accessTtl, refreshTtl),
-                accessTtl,
-                refreshTtl,
+                SignInResponses.Writer(cookies, tokenLifetimes),
+                tokenLifetimes,
             )
         }
 
         private fun googleOAuth(
+            cases: IdentityUseCases,
             clientId: String?,
             redirectUri: String?,
-            signIn: tallyvane.identity.application.googleoauth.SignInWithGoogleOAuthUseCase?,
-            linker: tallyvane.identity.application.googleoauth.LinkGoogleAccountUseCase?,
-            unlinker: tallyvane.identity.application.googleoauth.UnlinkGoogleAccountUseCase,
-            linkStatus: tallyvane.identity.application.googleoauth.ReadGoogleAccountLinkUseCase,
-            reauthenticate: tallyvane.identity.application.password.ReauthenticateUseCase,
-            authorizeAction: tallyvane.identity.application.secondfactor.AuthorizeAuthenticationActionUseCase?,
+            secureCookies: Boolean,
             services: Services,
-            secure: Boolean,
-        ): GoogleOAuthHandler.Redirector? = if (clientId == null || redirectUri == null) {
+            adminRealm: Boolean,
+        ): GoogleOAuthHandler.Redirector? = if (
+            clientId == null || redirectUri == null
+        ) {
             null
-        } else if (signIn == null || linker == null) {
+        } else if (cases.signInWithGoogleOAuth == null || cases.linkGoogleAccount == null) {
             null
         } else {
             GoogleOAuthHandler.Redirector(
-                clientId,
-                redirectUri,
-                signIn,
-                services.responses,
-                secure,
-                linker,
-                tallyvane.identity.web.oauth.GoogleOAuthStateCookie.Cookie(),
-                tallyvane.identity.web.oauth.GoogleOAuthCallbackResponses.Redirector(),
-                services.current,
-                services.authentication,
-                unlinker,
-                tallyvane.identity.web.oauth.GoogleAccountProblems.Table(),
-                linkStatus,
-                reauthenticate,
-                authorizeAction,
+                GoogleOAuthConfiguration(
+                    clientId,
+                    redirectUri,
+                    secureCookies,
+                    if (adminRealm) "/api/v1/auth/admin/google" else "/api/v1/auth/google",
+                ),
+                cases,
+                GoogleOAuthHandler.Services(services.responses, services.current, services.authentication),
             )
         }
 
@@ -170,23 +177,81 @@ interface IdentityRoutesFactory {
             RegistrationEmailProblems(),
         )
 
-        private fun handlers(cases: IdentityUseCases, services: Services): List<AuthHandler> = buildList {
+        private fun handlers(
+            cases: IdentityUseCases,
+            services: Services,
+            bootstrap: BootstrapAdminAccountsUseCase? = null,
+            adminRealm: Boolean,
+        ): List<AuthHandler> = buildList {
             val emailChallenges = requireNotNull(cases.emailChallenges) {
                 "Enabled identity routes require configured email delivery."
             }
-            addAll(baseHandlers(cases, services, emailChallenges))
+            add(
+                ReadSignInOptionsHandler(
+                    if (bootstrap == null) {
+                        cases.readSignInOptions
+                    } else {
+                        ReadSignInOptionsUseCase.AfterProvisioning(bootstrap, cases.readSignInOptions)
+                    },
+                ),
+            )
+            if (!adminRealm) {
+                add(
+                    RegisterWithPasswordHandler(
+                        cases.register,
+                        RegisterProblems(),
+                        services.validation,
+                        emailChallenges,
+                    ),
+                )
+                addEmailHandlers(cases, services, includeRegistrationHandlers = true)
+            } else {
+                addEmailHandlers(cases, services, includeRegistrationHandlers = false)
+            }
+            addAll(baseHandlers(cases, services))
             addOptionalFactorHandlers(cases, services)
-            addPolicyHandlers(cases, services)
-            addEmailHandlers(cases, services)
             addPasswordResetHandlers(cases, services)
+            if (cases.authorizeAuthenticationAction != null) {
+                add(
+                    ReadAuthenticationActionSchemesHandler(
+                        requireNotNull(cases.readAuthenticationActionSchemes),
+                        services.current,
+                        services.validation,
+                    ),
+                )
+                add(
+                    RequestAuthenticationActionEmailCodeHandler(
+                        requireNotNull(cases.requestAuthenticationActionEmailCode),
+                        services.current,
+                        services.validation,
+                    ),
+                )
+                add(
+                    AuthenticationActionProofHandler(
+                        requireNotNull(cases.authorizeAuthenticationAction),
+                        services.current,
+                        services.validation,
+                    ),
+                )
+            }
+            if (adminRealm) {
+                addPolicyHandlers(cases, services)
+            }
+            if (!adminRealm) {
+                cases.recoverAccount?.let { recover ->
+                    add(
+                        RecoverAccountHandler(
+                            recover,
+                            services.responses,
+                            services.authentication,
+                            services.validation,
+                        ),
+                    )
+                }
+            }
         }
 
-        private fun baseHandlers(
-            cases: IdentityUseCases,
-            services: Services,
-            emailChallenges: EmailChallenges,
-        ): List<AuthHandler> = listOf(
-            RegisterWithPasswordHandler(cases.register, RegisterProblems(), services.validation, emailChallenges),
+        private fun baseHandlers(cases: IdentityUseCases, services: Services): List<AuthHandler> = listOf(
             ChangePasswordHandler(cases.changePassword, services.current, services.validation, services.authentication),
             SignInWithPasswordHandler(cases.signIn, services.responses, services.authentication, services.validation),
             VerifySecondFactorHandler(
@@ -194,8 +259,7 @@ interface IdentityRoutesFactory {
                 services.cookies,
                 services.factors,
                 services.validation,
-                services.accessTtl,
-                services.refreshTtl,
+                services.tokenLifetimes,
             ),
             EnrollSecondFactorHandler(
                 cases.enroll,
@@ -209,21 +273,11 @@ interface IdentityRoutesFactory {
                 services.factors,
                 services.validation,
             ),
-            RequiredFactorEnrollmentHandler(cases.beginRequiredFactorEnrollment, services.factors, services.validation),
-            RequiredFactorConfirmationHandler(
-                cases.confirmRequiredFactorEnrollment,
-                services.cookies,
-                services.factors,
-                services.validation,
-                services.accessTtl,
-                services.refreshTtl,
-            ),
             RefreshSessionHandler(
                 cases.refresh,
                 services.cookies,
                 services.sessions,
-                services.accessTtl,
-                services.refreshTtl,
+                services.tokenLifetimes,
             ),
             ReadCurrentSessionHandler(services.current),
             ListSessionsHandler(cases.listSessions, services.current),
@@ -231,10 +285,6 @@ interface IdentityRoutesFactory {
             LogoutHandler(cases.revoke, services.current, services.cookies),
             LogoutAllHandler(cases.revokeAll, services.current, services.cookies),
             ReauthenticatePasswordHandler(cases.reauthenticate, services.current, services.authentication),
-        ) + listOfNotNull(
-            cases.authorizeAuthenticationAction?.let {
-                AuthenticationActionProofHandler(it, services.current, services.validation)
-            },
         )
 
         private fun MutableList<AuthHandler>.addOptionalFactorHandlers(cases: IdentityUseCases, services: Services) {
@@ -261,9 +311,15 @@ interface IdentityRoutesFactory {
             add(ResetAccountMfaHandler(cases.resetAccountMfa, services.current, policyProblems, services.validation))
         }
 
-        private fun MutableList<AuthHandler>.addEmailHandlers(cases: IdentityUseCases, services: Services) {
-            cases.resendRegistrationEmail?.let { resend ->
-                add(ResendRegistrationEmailHandler(resend, services.validation))
+        private fun MutableList<AuthHandler>.addEmailHandlers(
+            cases: IdentityUseCases,
+            services: Services,
+            includeRegistrationHandlers: Boolean,
+        ) {
+            if (includeRegistrationHandlers) {
+                cases.resendRegistrationEmail?.let { resend ->
+                    add(ResendRegistrationEmailHandler(resend, services.validation))
+                }
             }
             cases.requestEmailSignInCode?.let { requestCode ->
                 add(

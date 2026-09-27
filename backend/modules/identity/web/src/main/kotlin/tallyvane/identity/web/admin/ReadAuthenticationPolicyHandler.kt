@@ -19,7 +19,7 @@ internal class ReadAuthenticationPolicyHandler(
     private val problems: AuthenticationPolicyProblems,
 ) : AuthHandler {
     override fun install(route: Route) {
-        route.get("/admin/policy") {
+        route.get("/policy") {
             val identity = currentPrincipal.resolve(call) ?: return@get
             when (val result = read.read(identity.userId)) {
                 is AuthenticationPolicyResult.Policy -> call.respond(result.value.toBody())

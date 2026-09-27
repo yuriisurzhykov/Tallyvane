@@ -31,7 +31,7 @@ internal interface VerifyRegistrationEmailHandler {
                 call.respond(Refused(RequestValidationFailure.FieldsInvalid(errors), validationProblems))
                 return
             }
-            if (useCase.verify(challengeId!!, email!!, code!!)) {
+            if (useCase.verify(requireNotNull(challengeId), requireNotNull(email), requireNotNull(code))) {
                 call.respond(io.ktor.http.HttpStatusCode.NoContent)
             } else {
                 call.respond(Refused(RegistrationEmailFailure.InvalidCode, verificationProblems))

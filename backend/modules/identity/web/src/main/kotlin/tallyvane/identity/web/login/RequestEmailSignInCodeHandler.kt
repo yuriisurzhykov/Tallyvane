@@ -29,12 +29,15 @@ internal class RequestEmailSignInCodeHandler(
                 call.respond(Refused(RequestValidationFailure.FieldsInvalid(errors), validationProblems))
                 return@post
             }
-            val challenge = requestCode.request(email!!)
-            if (challenge == null) {
-                call.response.headers.append("Retry-After", "60")
-                call.respond(Refused(AuthenticationFailure.RateLimited, authenticationProblems))
-            } else {
-                call.respond(HttpStatusCode.Accepted, EmailChallengeResponseBody(challenge.id.toString()))
+            when (val result = requestCode.request(requireNotNull(email))) {
+                is RequestEmailSignInCodeUseCase.Result.Issued ->
+                    call.respond(HttpStatusCode.Accepted, EmailChallengeResponseBody(result.challenge.id.toString()))
+                RequestEmailSignInCodeUseCase.Result.Refused ->
+                    call.respond(Refused(AuthenticationFailure.InvalidCredential, authenticationProblems))
+                RequestEmailSignInCodeUseCase.Result.RateLimited -> {
+                    call.response.headers.append("Retry-After", "60")
+                    call.respond(Refused(AuthenticationFailure.RateLimited, authenticationProblems))
+                }
             }
         }
     }

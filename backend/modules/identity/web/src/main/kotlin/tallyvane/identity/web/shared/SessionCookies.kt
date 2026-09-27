@@ -26,7 +26,7 @@ internal interface SessionCookies {
     fun attachRefreshOnly(call: ApplicationCall, refresh: TokenValue, refreshTtl: Duration)
     fun clear(call: ApplicationCall)
 
-    class CookieJar(private val secure: Boolean) : SessionCookies {
+    class CookieJar(private val secure: Boolean, private val adminRealm: Boolean = false) : SessionCookies {
         override fun attach(call: ApplicationCall, tokens: IssuedTokens) {
             call.response.cookies.append(accessCookie(tokens.access, tokens.accessTtl))
             call.response.cookies.append(refreshCookie(tokens.refresh, tokens.refreshTtl))
@@ -53,20 +53,23 @@ internal interface SessionCookies {
          */
         override fun clear(call: ApplicationCall) {
             call.response.cookies.append(expired(ACCESS_COOKIE, ACCESS_PATH))
-            call.response.cookies.append(expired(REFRESH_COOKIE, REFRESH_PATH))
+            call.response.cookies.append(expired(REFRESH_COOKIE, refreshPath))
         }
 
         private fun accessCookie(token: TokenValue, ttl: Duration): Cookie =
-            cookie(ACCESS_COOKIE, token.raw, ACCESS_PATH, ttl)
+            cookie(CookieSettings(ACCESS_COOKIE, token.raw, ACCESS_PATH, ttl))
 
         private fun refreshCookie(token: TokenValue, ttl: Duration): Cookie =
-            cookie(REFRESH_COOKIE, token.raw, REFRESH_PATH, ttl)
+            cookie(CookieSettings(REFRESH_COOKIE, token.raw, refreshPath, ttl))
 
-        private fun cookie(name: String, value: String, path: String, ttl: Duration): Cookie = Cookie(
-            name = name,
-            value = value,
-            maxAge = ttl.inWholeSeconds.toInt(),
-            path = path,
+        private val refreshPath: String =
+            if (adminRealm) "/api/v1/auth/admin/refresh" else "/api/v1/auth/refresh"
+
+        private fun cookie(settings: CookieSettings): Cookie = Cookie(
+            name = settings.name,
+            value = settings.value,
+            maxAge = settings.ttl.inWholeSeconds.toInt(),
+            path = settings.path,
             secure = secure,
             httpOnly = true,
             extensions = SAME_SITE_LAX,
@@ -82,6 +85,8 @@ internal interface SessionCookies {
             extensions = SAME_SITE_LAX,
         )
 
+        private data class CookieSettings(val name: String, val value: String, val path: String, val ttl: Duration)
+
         private companion object {
             const val ACCESS_COOKIE = RequestPrincipal.COOKIE_NAME
             const val ACCESS_PATH = "/"
@@ -93,8 +98,6 @@ internal interface SessionCookies {
              * longer-lived, more sensitive of the two, and there is no reason for the browser to send
              * it on every request the way the access token has to be.
              */
-            const val REFRESH_PATH = "/api/v1/auth/refresh"
-
             val SAME_SITE_LAX = mapOf("SameSite" to "Lax")
         }
     }

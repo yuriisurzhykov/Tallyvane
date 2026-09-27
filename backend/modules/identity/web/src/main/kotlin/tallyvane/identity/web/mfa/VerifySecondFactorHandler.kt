@@ -18,8 +18,8 @@ import tallyvane.identity.web.shared.IssuedTokens
 import tallyvane.identity.web.shared.RequestValidationFailure
 import tallyvane.identity.web.shared.RequestValidationProblems
 import tallyvane.identity.web.shared.SessionCookies
+import tallyvane.identity.web.shared.SessionTokenLifetimes
 import tallyvane.platform.http.Refused
-import kotlin.time.Duration
 import kotlin.uuid.Uuid
 
 /**
@@ -34,8 +34,7 @@ internal class VerifySecondFactorHandler(
     private val cookies: SessionCookies,
     private val secondFactorProblems: SecondFactorProblems,
     private val validationProblems: RequestValidationProblems,
-    private val accessTtl: Duration,
-    private val refreshTtl: Duration,
+    private val tokenLifetimes: SessionTokenLifetimes,
 ) : AuthHandler {
     override fun install(route: Route) {
         route.post("/mfa/verify") {
@@ -50,11 +49,19 @@ internal class VerifySecondFactorHandler(
                 return@post
             }
 
-            val request = VerifySecondFactorRequest(pendingId!!, kind!!, body.code, challengeId)
+            val request = VerifySecondFactorRequest(
+                requireNotNull(pendingId),
+                requireNotNull(kind),
+                body.code,
+                challengeId,
+            )
             when (val outcome = useCase.verify(request)) {
                 is VerifySecondFactorOutcome.Issued -> {
                     val tokens = outcome.session.tokens
-                    cookies.attach(call, IssuedTokens(tokens.access, accessTtl, tokens.refresh, refreshTtl))
+                    cookies.attach(
+                        call,
+                        IssuedTokens(tokens.access, tokenLifetimes.access, tokens.refresh, tokenLifetimes.refresh),
+                    )
                     call.respond(SignInResponseBody(status = "issued"))
                 }
 

@@ -40,7 +40,7 @@ internal class ChangePasswordHandler(
                     identity.userId,
                     identity.sessionId,
                     call.request.headers["X-Action-Proof"],
-                    next!!,
+                    requireNotNull(next),
                 )
             ) {
                 call.respond(Refused(AuthenticationFailure.InvalidCredential, authenticationProblems))

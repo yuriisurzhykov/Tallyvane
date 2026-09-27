@@ -35,7 +35,14 @@ internal class EmailSignInHandler(
                 call.respond(Refused(RequestValidationFailure.FieldsInvalid(errors), validationProblems))
                 return@post
             }
-            val outcome = signIn.signIn(SignInWithEmailCodeRequest(challengeId!!, email!!, code!!, device!!))
+            val outcome = signIn.signIn(
+                SignInWithEmailCodeRequest(
+                    requireNotNull(challengeId),
+                    requireNotNull(email),
+                    requireNotNull(code),
+                    requireNotNull(device),
+                ),
+            )
             responses.respond(call, outcome, authenticationProblems)
         }
     }

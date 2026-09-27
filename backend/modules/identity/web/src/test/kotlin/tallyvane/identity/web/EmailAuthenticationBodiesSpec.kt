@@ -34,78 +34,88 @@ import tallyvane.platform.http.problems.FailureTranslator
 import tallyvane.platform.kernel.IdGenerator
 import kotlin.uuid.Uuid
 
-class EmailAuthenticationBodiesSpec : StringSpec({
-    "email sign-in code request accepts the API JSON body" {
-        var requestedEmail: Email? = null
-        val request = object : RequestEmailSignInCodeUseCase {
-            override suspend fun request(email: Email) = null.also { requestedEmail = email }
-        }
-
-        testApplication {
-            application { installAuthRoutes(this, request, unusedSignIn(), unusedMfa()) }
-            val response = client.post("/api/v1/auth/login/email/code") {
-                header(HttpHeaders.ContentType, "application/json")
-                setBody("""{"email":"taylor@example.test"}""")
+class EmailAuthenticationBodiesSpec :
+    StringSpec({
+        "email sign-in code request accepts the API JSON body" {
+            var requestedEmail: Email? = null
+            val request = object : RequestEmailSignInCodeUseCase {
+                override suspend fun request(email: Email): RequestEmailSignInCodeUseCase.Result {
+                    requestedEmail = email
+                    return RequestEmailSignInCodeUseCase.Result.RateLimited
+                }
             }
 
-            response.status shouldBe HttpStatusCode.TooManyRequests
-            requestedEmail shouldBe Email("taylor@example.test")
-        }
-    }
+            testApplication {
+                application { installAuthRoutes(this, request, unusedSignIn(), unusedMfa()) }
+                val response = client.post("/api/v1/auth/login/email/code") {
+                    header(HttpHeaders.ContentType, "application/json")
+                    setBody("""{"email":"taylor@example.test"}""")
+                }
 
-    "email sign-in verification accepts snake case API fields" {
-        var submitted: SignInWithEmailCodeRequest? = null
-        val signIn = object : SignInWithEmailCodeUseCase {
-            override suspend fun signIn(request: SignInWithEmailCodeRequest): SignInOutcome {
-                submitted = request
-                return SignInOutcome.NotIssued(AuthenticationOutcome.InvalidCredential)
+                response.status shouldBe HttpStatusCode.TooManyRequests
+                requestedEmail shouldBe Email("taylor@example.test")
             }
         }
 
-        testApplication {
-            application { installAuthRoutes(this, unusedEmailRequest(), signIn, unusedMfa()) }
-            val response = client.post("/api/v1/auth/login/email/verify") {
-                header(HttpHeaders.ContentType, "application/json")
-                setBody(
-                    """{"challenge_id":"00000000-0000-7000-8000-000000000001","email":"taylor@example.test","code":"123456","device":"Browser"}""",
-                )
+        "email sign-in verification accepts snake case API fields" {
+            var submitted: SignInWithEmailCodeRequest? = null
+            val signIn = object : SignInWithEmailCodeUseCase {
+                override suspend fun signIn(request: SignInWithEmailCodeRequest): SignInOutcome {
+                    submitted = request
+                    return SignInOutcome.NotIssued(AuthenticationOutcome.InvalidCredential)
+                }
             }
 
-            response.status shouldBe HttpStatusCode.NoContent
-            submitted?.challengeId.toString() shouldBe "00000000-0000-7000-8000-000000000001"
-            submitted?.email shouldBe Email("taylor@example.test")
-        }
-    }
+            testApplication {
+                application { installAuthRoutes(this, unusedEmailRequest(), signIn, unusedMfa()) }
+                val response = client.post("/api/v1/auth/login/email/verify") {
+                    header(HttpHeaders.ContentType, "application/json")
+                    setBody(
+                        """{"challenge_id":"00000000-0000-7000-8000-000000000001","email":"taylor@example.test",""" +
+                            """"code":"123456","device":"Browser"}""",
+                    )
+                }
 
-    "email MFA code request accepts pending_id" {
-        var requestedPendingId: PendingAuthenticationId? = null
-        val request = object : RequestEmailMfaCodeUseCase {
-            override suspend fun request(pendingId: PendingAuthenticationId) =
-                null.also { requestedPendingId = pendingId }
+                response.status shouldBe HttpStatusCode.NoContent
+                submitted?.challengeId.toString() shouldBe "00000000-0000-7000-8000-000000000001"
+                submitted?.email shouldBe Email("taylor@example.test")
+            }
         }
 
-        testApplication {
-            application { installAuthRoutes(this, unusedEmailRequest(), unusedSignIn(), request) }
-            val response = client.post("/api/v1/auth/mfa/email/request") {
-                header(HttpHeaders.ContentType, "application/json")
-                setBody("""{"pending_id":"00000000-0000-7000-8000-000000000001"}""")
+        "email MFA code request accepts pending_id" {
+            var requestedPendingId: PendingAuthenticationId? = null
+            val request = object : RequestEmailMfaCodeUseCase {
+                override suspend fun request(pendingId: PendingAuthenticationId) =
+                    null.also { requestedPendingId = pendingId }
             }
 
-            response.status shouldBe HttpStatusCode.TooManyRequests
-            requestedPendingId?.value.toString() shouldBe "00000000-0000-7000-8000-000000000001"
+            testApplication {
+                application { installAuthRoutes(this, unusedEmailRequest(), unusedSignIn(), request) }
+                val response = client.post("/api/v1/auth/mfa/email/request") {
+                    header(HttpHeaders.ContentType, "application/json")
+                    setBody("""{"pending_id":"00000000-0000-7000-8000-000000000001"}""")
+                }
+
+                response.status shouldBe HttpStatusCode.TooManyRequests
+                requestedPendingId?.value.toString() shouldBe "00000000-0000-7000-8000-000000000001"
+            }
         }
-    }
-})
+    })
 
 private fun installAuthRoutes(
     application: Application,
     emailRequest: RequestEmailSignInCodeUseCase,
     emailSignIn: SignInWithEmailCodeUseCase,
     mfaRequest: RequestEmailMfaCodeUseCase,
-): Unit {
+) {
     val handlers = listOf(
         RequestEmailSignInCodeHandler(emailRequest, AuthenticationProblems(), RequestValidationProblems()),
-        EmailSignInHandler(emailSignIn, NoContentSignInResponses, AuthenticationProblems(), RequestValidationProblems()),
+        EmailSignInHandler(
+            emailSignIn,
+            NoContentSignInResponses,
+            AuthenticationProblems(),
+            RequestValidationProblems(),
+        ),
         RequestEmailMfaCodeHandler(mfaRequest, SecondFactorProblems(), RequestValidationProblems()),
     )
     Api(
@@ -128,7 +138,7 @@ private object NoContentSignInResponses : SignInResponses {
 }
 
 private fun unusedEmailRequest() = object : RequestEmailSignInCodeUseCase {
-    override suspend fun request(email: Email) = null
+    override suspend fun request(email: Email) = RequestEmailSignInCodeUseCase.Result.RateLimited
 }
 
 private fun unusedSignIn() = object : SignInWithEmailCodeUseCase {

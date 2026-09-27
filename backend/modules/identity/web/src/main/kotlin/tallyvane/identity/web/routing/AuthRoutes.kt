@@ -5,6 +5,7 @@ import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
+import io.ktor.server.routing.route
 import tallyvane.identity.web.oauth.GoogleOAuthHandler
 import tallyvane.identity.web.registration.VerifyRegistrationEmailHandler
 import tallyvane.platform.http.BasePath
@@ -25,6 +26,8 @@ internal interface AuthRoutes : RouteModule {
         private val googleEnabled: Boolean = false,
         private val googleOAuth: GoogleOAuthHandler? = null,
         private val registrationEmailVerification: VerifyRegistrationEmailHandler? = null,
+        private val adminHandlers: List<AuthHandler> = emptyList(),
+        private val adminGoogleOAuth: GoogleOAuthHandler? = null,
     ) : AuthRoutes {
         override val basePath: BasePath = BasePath("/auth")
 
@@ -46,7 +49,14 @@ internal interface AuthRoutes : RouteModule {
                 )
                 call.respond(mapOf("token" to token))
             }
-            route.get("/providers") { call.respond(mapOf("google" to googleEnabled)) }
+            route.get("/providers") {
+                call.response.headers.append("Cache-Control", "no-store")
+                call.respond(
+                    mapOf(
+                        "google" to googleEnabled,
+                    ),
+                )
+            }
             googleOAuth?.let { oauth ->
                 route.get("/google/oauth/start") { oauth.start(call) }
                 route.post("/google/link/start") { oauth.startLink(call) }
@@ -60,6 +70,18 @@ internal interface AuthRoutes : RouteModule {
                 route.post("/register/email/verify") { verification.handle(call) }
             }
             handlers.forEach { it.install(route) }
+            route.route("/admin") {
+                adminGoogleOAuth?.let { oauth ->
+                    get("/google/oauth/start") { oauth.start(call) }
+                    post("/google/link/start") { oauth.startLink(call) }
+                    post("/google/proof/start") { oauth.startActionProof(call) }
+                    get("/google/reauth/start") { oauth.startReauthentication(call) }
+                    post("/google/unlink") { oauth.unlink(call) }
+                    get("/google/status") { oauth.status(call) }
+                    get("/google/callback") { oauth.callback(call) }
+                }
+                adminHandlers.forEach { it.install(this) }
+            }
         }
     }
 }

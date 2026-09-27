@@ -19,6 +19,7 @@ internal class ReadSecondFactorStatusHandler(
             call.respond(
                 SecondFactorStatusBody(
                     enrolled = status.enrolled.map(SecondFactorKind::name).sorted(),
+                    recoveryCodesIssued = status.recoveryCodesIssued,
                     recentlyAuthenticated = status.recentlyAuthenticated,
                 ),
             )

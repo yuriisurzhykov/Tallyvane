@@ -7,9 +7,9 @@ import tallyvane.identity.application.SignInOutcome
 import tallyvane.identity.domain.outcome.AuthenticationOutcome
 import tallyvane.identity.web.shared.IssuedTokens
 import tallyvane.identity.web.shared.SessionCookies
+import tallyvane.identity.web.shared.SessionTokenLifetimes
 import tallyvane.platform.http.Refused
 import tallyvane.platform.http.problems.Problems
-import kotlin.time.Duration
 
 /**
  * The one place a [SignInOutcome] becomes an HTTP answer — shared by every primary sign-in method
@@ -20,15 +20,17 @@ internal interface SignInResponses {
     fun attachIssued(call: ApplicationCall, outcome: SignInOutcome.Issued)
     suspend fun respond(call: ApplicationCall, outcome: SignInOutcome, problems: Problems<AuthenticationFailure>)
 
-    class Writer(
-        private val cookies: SessionCookies,
-        private val accessTtl: Duration,
-        private val refreshTtl: Duration,
-    ) : SignInResponses {
+    class Writer(private val cookies: SessionCookies, private val tokenLifetimes: SessionTokenLifetimes) :
+        SignInResponses {
         override fun attachIssued(call: ApplicationCall, outcome: SignInOutcome.Issued) {
             cookies.attach(
                 call,
-                IssuedTokens(outcome.session.tokens.access, accessTtl, outcome.session.tokens.refresh, refreshTtl),
+                IssuedTokens(
+                    outcome.session.tokens.access,
+                    tokenLifetimes.access,
+                    outcome.session.tokens.refresh,
+                    tokenLifetimes.refresh,
+                ),
             )
         }
 
@@ -58,17 +60,8 @@ internal interface SignInResponses {
                     SignInResponseBody(
                         status = STATUS_REQUIRES_SECOND_FACTOR,
                         pendingId = reason.pendingId.value.toString(),
+                        recommendedMethod = reason.recommendedMethod.name,
                         availableMethods = reason.availableMethods.map { it.name },
-                    ),
-                )
-
-                is AuthenticationOutcome.RequiresEnrollment -> call.respond(
-                    HttpStatusCode.OK,
-                    SignInResponseBody(
-                        status = "requires_enrollment",
-                        pendingId = reason.pendingId.value.toString(),
-                        availableMethods = reason.requiredMethods.map { it.name },
-                        primaryMethod = reason.primaryMethod.name,
                     ),
                 )
 

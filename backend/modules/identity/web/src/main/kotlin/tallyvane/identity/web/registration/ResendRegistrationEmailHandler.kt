@@ -28,7 +28,7 @@ internal class ResendRegistrationEmailHandler(
                 return@post
             }
             val challengeId = try {
-                resend.resend(email!!)
+                resend.resend(requireNotNull(email))
             } catch (_: Exception) {
                 // Keep registration recoverable during SMTP outages and the response account-neutral.
                 null

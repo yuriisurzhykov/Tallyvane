@@ -40,7 +40,11 @@ internal class RegisterWithPasswordHandler(
                 return@post
             }
 
-            when (val outcome = useCase.register(RegisterWithPasswordRequest(email!!, password!!, body.displayName))) {
+            when (
+                val outcome = useCase.register(
+                    RegisterWithPasswordRequest(requireNotNull(email), requireNotNull(password), body.displayName),
+                )
+            ) {
                 is RegisterOutcome.Registered -> {
                     val challenge = try {
                         emailChallenges.issue(

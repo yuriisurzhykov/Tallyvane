@@ -38,7 +38,7 @@ internal class ConfirmSecondFactorEnrollmentHandler(
             }
 
             val confirmed = useCase.confirm(
-                ConfirmSecondFactorEnrollmentRequest(identity.userId, kind!!, body.code),
+                ConfirmSecondFactorEnrollmentRequest(identity.userId, requireNotNull(kind), body.code),
             )
             if (confirmed) {
                 call.respond(HttpStatusCode.NoContent)

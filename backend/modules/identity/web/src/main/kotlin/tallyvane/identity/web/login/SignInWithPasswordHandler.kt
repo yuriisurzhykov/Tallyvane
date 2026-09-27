@@ -39,7 +39,9 @@ internal class SignInWithPasswordHandler(
                 return@post
             }
 
-            val outcome: SignInOutcome = useCase.signIn(SignInWithPasswordRequest(email!!, password!!, device!!))
+            val outcome: SignInOutcome = useCase.signIn(
+                SignInWithPasswordRequest(requireNotNull(email), requireNotNull(password), requireNotNull(device)),
+            )
             responses.respond(call, outcome, authenticationProblems)
         }
     }

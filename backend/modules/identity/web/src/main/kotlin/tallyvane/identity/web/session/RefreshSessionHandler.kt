@@ -10,8 +10,8 @@ import tallyvane.identity.web.login.SignInResponseBody
 import tallyvane.identity.web.routing.AuthHandler
 import tallyvane.identity.web.shared.IssuedTokens
 import tallyvane.identity.web.shared.SessionCookies
+import tallyvane.identity.web.shared.SessionTokenLifetimes
 import tallyvane.platform.http.Refused
-import kotlin.time.Duration
 
 /**
  * `POST /api/v1/auth/refresh` — redeems the `refresh` cookie [SessionCookies.readRefresh] reads
@@ -21,8 +21,7 @@ internal class RefreshSessionHandler(
     private val useCase: RefreshSessionUseCase,
     private val cookies: SessionCookies,
     private val problems: SessionProblems,
-    private val accessTtl: Duration,
-    private val refreshTtl: Duration,
+    private val tokenLifetimes: SessionTokenLifetimes,
 ) : AuthHandler {
     override fun install(route: Route) {
         route.post("/refresh") {
@@ -37,7 +36,12 @@ internal class RefreshSessionHandler(
                 is RefreshSessionOutcome.Issued -> {
                     cookies.attach(
                         call,
-                        IssuedTokens(outcome.tokens.access, accessTtl, outcome.tokens.refresh, refreshTtl),
+                        IssuedTokens(
+                            outcome.tokens.access,
+                            tokenLifetimes.access,
+                            outcome.tokens.refresh,
+                            tokenLifetimes.refresh,
+                        ),
                     )
                     call.respond(SignInResponseBody(status = "issued"))
                 }

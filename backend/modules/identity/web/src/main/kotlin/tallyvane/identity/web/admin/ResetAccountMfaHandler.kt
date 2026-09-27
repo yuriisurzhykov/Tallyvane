@@ -23,7 +23,7 @@ internal class ResetAccountMfaHandler(
     private val validationProblems: RequestValidationProblems,
 ) : AuthHandler {
     override fun install(route: Route) {
-        route.post("/admin/mfa/reset") {
+        route.post("/mfa/reset") {
             val principal = currentPrincipal.resolve(call) ?: return@post
             val body = call.receive<ResetMfaRequestBody>()
             val validation = FieldValidation.Accumulator()
@@ -33,7 +33,11 @@ internal class ResetAccountMfaHandler(
                 call.respond(Refused(RequestValidationFailure.FieldsInvalid(errors), validationProblems))
                 return@post
             }
-            when (useCase.reset(ResetAccountMfaUseCase.Request(principal.userId, email!!, body.confirmation))) {
+            when (
+                useCase.reset(
+                    ResetAccountMfaUseCase.Request(principal.userId, requireNotNull(email), body.confirmation),
+                )
+            ) {
                 ResetAccountMfaUseCase.Outcome.RESET -> call.respond(ResetMfaResponseBody("completed"))
                 ResetAccountMfaUseCase.Outcome.CONFIRMATION_REQUIRED -> call.respond(
                     Refused(AuthenticationPolicyFailure.Invalid, policyProblems),

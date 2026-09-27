@@ -21,7 +21,7 @@ internal interface CurrentPrincipal {
     suspend fun resolve(call: ApplicationCall): ResolvedIdentity?
     fun peek(call: ApplicationCall): ResolvedIdentity? = null
 
-    class Resolver(private val problems: SessionProblems) : CurrentPrincipal {
+    class Resolver(private val problems: SessionProblems, private val adminRealm: Boolean = false) : CurrentPrincipal {
         /**
          * @return [ResolvedIdentity], or `null` after already answering 401 — a caller checks for
          * `null` and returns rather than falling through to code that assumes a signed-in caller.
@@ -37,8 +37,11 @@ internal interface CurrentPrincipal {
 
         override fun peek(call: ApplicationCall): ResolvedIdentity? {
             val resolved = RequestPrincipal.of(call) as? ResolvedPrincipal ?: return null
-            val user = resolved.principal as Principal.User
-            return ResolvedIdentity(UserId(user.id.value), SessionId(resolved.sessionId.value))
+            val accountId = when (val principal = resolved.principal) {
+                is Principal.Admin -> if (adminRealm) principal.id.value else return null
+                is Principal.User -> if (!adminRealm) principal.id.value else return null
+            }
+            return ResolvedIdentity(UserId(accountId), SessionId(resolved.sessionId.value))
         }
     }
 }
