@@ -2,6 +2,7 @@ import { useState, type Dispatch, type SetStateAction } from "react";
 import type { AuthPageKind } from "../../../features/authentication/model/AuthPageKind";
 import type { AuthSession } from "../../../widgets/authentication-step/model/AuthStepProps";
 import type { AuthOperationsState } from "./authOperations";
+import type { PrimarySignInMethod } from "../../../features/authentication/api/client";
 
 export interface AuthPageState {
     readonly busy: AuthOperationsState["busy"];
@@ -20,8 +21,8 @@ export interface AuthPageState {
     readonly setShowPassword: (show: boolean) => void;
     readonly preview: AuthPageKind;
     readonly setPreview: (kind: AuthPageKind) => void;
-    readonly googleEnabled: boolean;
-    readonly setGoogleEnabled: (enabled: boolean) => void;
+    readonly primaryMethods: PrimarySignInMethod[];
+    readonly setPrimaryMethods: (methods: PrimarySignInMethod[]) => void;
     readonly availableMethods: string[];
     readonly setAvailableMethods: (methods: string[]) => void;
     readonly registration: AuthOperationsState["registration"];
@@ -34,8 +35,6 @@ export interface AuthPageState {
     readonly setEmailSignInChallengeId: AuthOperationsState["setEmailSignInChallengeId"];
     readonly otpPurpose: string;
     readonly setOtpPurpose: AuthOperationsState["setOtpPurpose"];
-    readonly passwordResetChallengeId: string;
-    readonly setPasswordResetChallengeId: AuthOperationsState["setPasswordResetChallengeId"];
     readonly emailMfaChallengeId: string;
     readonly setEmailMfaChallengeId: AuthOperationsState["setEmailMfaChallengeId"];
     readonly qrCode: string;
@@ -53,24 +52,23 @@ export function useAuthPageState(): AuthPageState {
     const [factor, setFactor] = useState("TOTP");
     const [showPassword, setShowPassword] = useState(false);
     const [preview, setPreview] = useState<AuthPageKind>("login");
-    const [googleEnabled, setGoogleEnabled] = useState(false);
+    const [primaryMethods, setPrimaryMethods] = useState<PrimarySignInMethod[]>([]);
     const [availableMethods, setAvailableMethods] = useState<string[]>([]);
     const [registration, setRegistration] = useState<AuthOperationsState["registration"]>(null);
     const [registrationResendSeconds, setRegistrationResendSeconds] = useState(60);
     const [email, setEmail] = useState("");
     const [emailSignInChallengeId, setEmailSignInChallengeId] = useState("");
     const [otpPurpose, setOtpPurpose] = useState("");
-    const [passwordResetChallengeId, setPasswordResetChallengeId] = useState("");
     const [emailMfaChallengeId, setEmailMfaChallengeId] = useState("");
     const [qrCode, setQrCode] = useState("");
     const [sessions, setSessions] = useState<AuthSession[]>([]);
 
     return {
         busy, setBusy, fieldErrors, setFieldErrors, notice, setNotice, payload, setPayload, code, setCode, factor, setFactor,
-        showPassword, setShowPassword, preview, setPreview, googleEnabled, setGoogleEnabled,
+        showPassword, setShowPassword, preview, setPreview, primaryMethods, setPrimaryMethods,
         availableMethods, setAvailableMethods, registration, setRegistration, registrationResendSeconds,
         setRegistrationResendSeconds, email, setEmail, emailSignInChallengeId, setEmailSignInChallengeId,
-        otpPurpose, setOtpPurpose, passwordResetChallengeId, setPasswordResetChallengeId,
+        otpPurpose, setOtpPurpose,
         emailMfaChallengeId, setEmailMfaChallengeId, qrCode, setQrCode,
         sessions, setSessions,
     };

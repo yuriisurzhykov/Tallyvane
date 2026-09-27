@@ -38,8 +38,6 @@ export interface AuthOperationsState {
     readonly setRegistration: Dispatch<SetStateAction<Registration | null>>;
     readonly registrationResendSeconds: number;
     readonly setRegistrationResendSeconds: Dispatch<SetStateAction<number>>;
-    readonly passwordResetChallengeId: string;
-    readonly setPasswordResetChallengeId: Dispatch<SetStateAction<string>>;
     readonly setNotice: Dispatch<SetStateAction<string>>;
     readonly setPayload: Dispatch<SetStateAction<string>>;
     readonly setSessions: Dispatch<SetStateAction<AuthSession[]>>;
@@ -67,33 +65,40 @@ function finishSignIn(state: AuthOperationsState) {
     window.location.replace(destination || appRoutes.authenticatedHome);
 }
 
+export function startGoogleSignIn(state: Pick<AuthOperationsState, "successPath">) {
+    sessionStorage.setItem(RETURN_TO_KEY, state.successPath);
+    window.location.href = "/api/v1/auth/google/oauth/start";
+}
+
 function continueSignIn(
-    result: { status: string; pendingId?: string; availableMethods?: string[] },
+    result: {
+        status: string;
+        pendingId?: string;
+        recommendedMethod?: string;
+        availableMethods?: string[];
+    },
     state: AuthOperationsState,
 ) {
     if (result.status === "issued") {
         finishSignIn(state);
         return;
     }
-    if (!result.pendingId) {
+    const methods = result.availableMethods?.filter(isSecondFactor) ?? [];
+    const recommended = result.recommendedMethod;
+    if (result.status !== "requires_second_factor" || !result.pendingId ||
+        !recommended || !methods.includes(recommended)) {
         announceUnexpectedStep(state);
         return;
     }
-    if (result.status === "requires_second_factor") {
-        sessionStorage.setItem(RETURN_TO_KEY, state.successPath);
-        sessionStorage.setItem("tallyvane.pendingId", result.pendingId);
-        sessionStorage.setItem("tallyvane.availableMethods", JSON.stringify(result.availableMethods ?? []));
-        state.navigate("/mfa");
-        return;
-    }
-    if (result.status === "requires_enrollment") {
-        sessionStorage.setItem(RETURN_TO_KEY, state.successPath);
-        sessionStorage.setItem("tallyvane.pendingEnrollmentId", result.pendingId);
-        sessionStorage.setItem("tallyvane.requiredMethods", JSON.stringify(result.availableMethods ?? []));
-        state.navigate(`/mfa/enroll?pending_id=${encodeURIComponent(result.pendingId)}`);
-        return;
-    }
-    announceUnexpectedStep(state);
+    sessionStorage.setItem(RETURN_TO_KEY, state.successPath);
+    sessionStorage.setItem("tallyvane.pendingId", result.pendingId);
+    sessionStorage.setItem("tallyvane.recommendedMethod", recommended);
+    sessionStorage.setItem("tallyvane.availableMethods", JSON.stringify(methods));
+    state.navigate("/mfa");
+}
+
+function isSecondFactor(value: string): boolean {
+    return value === "TOTP" || value === "EMAIL_OTP";
 }
 
 async function login(form: FormData, state: AuthOperationsState) {
@@ -101,6 +106,7 @@ async function login(form: FormData, state: AuthOperationsState) {
     const result = await authClient.post<{
         status: string;
         pendingId?: string;
+        recommendedMethod?: string;
         availableMethods?: string[];
     }>("/login/password", {
         email: formText(form, "email"),
@@ -151,34 +157,12 @@ async function verifyMfa(state: AuthOperationsState) {
 }
 
 async function enrollAuthenticator(state: AuthOperationsState) {
-    const pendingId = new URLSearchParams(window.location.search).get("pending_id") ??
-        sessionStorage.getItem("tallyvane.pendingEnrollmentId");
     if (!state.payload) {
-        const result = pendingId
-            ? await authClient.post<{ otpauthUri: string }>("/mfa/required/enroll", { pendingId, kind: "TOTP" })
-            : await authClient.post<{ otpauthUri: string }>("/mfa/enroll", { kind: "TOTP" });
+        const result = await authClient.post<{ otpauthUri: string }>("/mfa/enroll", { kind: "TOTP" });
         state.setPayload(result.otpauthUri);
         return;
     }
-    if (pendingId) {
-        const result = await authClient.post<AuthResult>("/mfa/required/confirm", {
-            pendingId,
-            kind: "TOTP",
-            code: state.code,
-        });
-        if (result.status !== "issued") throw new Error(state.t("signInContinuedError"));
-        sessionStorage.removeItem("tallyvane.pendingEnrollmentId");
-        sessionStorage.removeItem("tallyvane.requiredMethods");
-        state.notify(
-            state.t("authenticatorEnabled"),
-            state.t("requiredAuthenticatorEnabledDescription"),
-            "success",
-        );
-        finishSignIn(state);
-        return;
-    } else {
-        await authClient.post("/mfa/confirm", { kind: "TOTP", code: state.code });
-    }
+    await authClient.post("/mfa/confirm", { kind: "TOTP", code: state.code });
     state.notify(
         state.t("authenticatorEnabled"),
         state.t("authenticatorEnabledDescription"),
@@ -209,6 +193,7 @@ async function verifyEmailSignIn(state: AuthOperationsState) {
     const result = await authClient.post<{
         status: string;
         pendingId?: string;
+        recommendedMethod?: string;
         availableMethods?: string[];
     }>("/login/email/verify", {
         challengeId: state.emailSignInChallengeId,
@@ -235,22 +220,14 @@ async function verifyRegistration(state: AuthOperationsState) {
 }
 
 async function recoverPassword(form: FormData, state: AuthOperationsState) {
-    if (!state.passwordResetChallengeId) {
-        const result = await authClient.post<{ challengeId: string }>("/password/forgot", { email: state.email });
-        state.setPasswordResetChallengeId(result.challengeId);
-        state.setCode("");
-        state.notify(state.t("resetCodeSent"), state.t("checkInboxForCode", { email: state.email }), "success");
-        return;
-    }
-    await authClient.post("/password/reset", {
-        challengeId: state.passwordResetChallengeId,
-        email: state.email,
-        code: state.code,
+    const result = await authClient.post<AuthResult>("/recovery", {
+        email: formText(form, "email"),
+        recoveryCode: formText(form, "recoveryCode"),
         newPassword: formText(form, "newPassword"),
+        device: "Browser",
     });
-    state.setPasswordResetChallengeId("");
-    state.setNotice(state.t("passwordUpdatedNotice"));
-    state.notify(state.t("passwordUpdated"), state.t("passwordUpdatedDescription"), "success");
+    if (result.status !== "issued") throw new Error(state.t("signInContinuedError"));
+    window.location.replace("/account/security?recovered=1");
 }
 
 async function submitForKind(form: FormData, state: AuthOperationsState) {

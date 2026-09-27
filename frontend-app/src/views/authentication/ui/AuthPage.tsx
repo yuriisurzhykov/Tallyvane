@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { Link } from "frontend-shared/ui/link";
 import { useRouter } from "next/navigation";
 import { useCallback } from "react";
 import { AuthError } from "../../../features/authentication/api/client";
@@ -60,7 +60,7 @@ export function AuthPage({ kind, returnTo }: { kind: AuthPageKind; returnTo?: st
     return <AuthLayout security={kind === "security"}>
         <AuthPageHeading kind={ kind } preview={ pageState.preview } t={ t } />
         <AuthPageContent kind={ kind } state={ pageState } operations={ operations } t={ t } />
-        <AuthPageFooter kind={ kind } t={ t } />
+        <AuthPageFooter kind={ kind } primaryMethods={pageState.primaryMethods} t={ t } />
     </AuthLayout>;
 }
 
@@ -106,12 +106,13 @@ function createStepProps(
         availableMethods: state.availableMethods,
         emailMfaCodeRequested: Boolean(state.emailMfaChallengeId), showPassword: state.showPassword,
         setShowPassword: state.setShowPassword, email: state.email, setEmail: state.setEmail,
-        googleEnabled: state.googleEnabled, registrationPending: state.registration !== null,
+        primaryMethods: state.primaryMethods, registrationPending: state.registration !== null,
+        startGoogleSignIn: operations.startGoogleSignIn,
         registrationChallengeReady: Boolean(state.registration?.challengeId),
         registrationResendSeconds: state.registrationResendSeconds,
         resendRegistrationCode: operations.resendRegistrationCode,
         emailCodeRequested: Boolean(state.emailSignInChallengeId), otpPurpose: state.otpPurpose,
-        passwordResetRequested: Boolean(state.passwordResetChallengeId), fieldErrors: state.fieldErrors,
+        fieldErrors: state.fieldErrors,
         clearFieldErrors: () => { state.setFieldErrors({}); },
         sessions: state.sessions,
         revokeSession: operations.revokeSession, t,
@@ -134,11 +135,21 @@ function AuthPreviewSelector({ state, t }: { state: AuthPageState; t: Translate 
     </Stack>;
 }
 
-function AuthPageFooter({ kind, t }: { kind: AuthPageKind; t: Translate }) {
+function AuthPageFooter({
+    kind,
+    primaryMethods,
+    t,
+}: {
+    kind: AuthPageKind;
+    primaryMethods: AuthPageState["primaryMethods"];
+    t: Translate;
+}) {
     const links = kind === "login" ? [
         ["noAccountPrompt", "/register", "createAccountLink"],
         ["", "/forgot-password", "forgotPasswordLink"],
-        ["", "/otp?purpose=login", "signInEmailCodeLink"],
+        ...(primaryMethods.includes("EMAIL_SIGN_IN_CODE")
+            ? [["", "/otp?purpose=login", "signInEmailCodeLink"]]
+            : []),
     ] : kind === "register" ? [["hasAccountPrompt", "/login", "signInLink"]] : [];
     return <Stack as="footer" gap="inline" className={ styles.bottom ?? "" }>
         { links.map(([prompt, href, label]) => <Text key={ href } variant="body">

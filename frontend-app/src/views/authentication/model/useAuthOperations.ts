@@ -3,7 +3,7 @@ import type { AuthStringKey } from "../../../features/authentication/model/strin
 import type { AuthPageKind } from "../../../features/authentication/model/AuthPageKind";
 import type { useAuthStrings } from "../../../features/authentication/model/strings";
 import type { AuthOperationsState } from "./authOperations";
-import { submitAuthForm } from "./authOperations";
+import { startGoogleSignIn, submitAuthForm } from "./authOperations";
 import { resendRegistration, revokeAuthSession } from "./authAccountOperations";
 import type { AuthPageState } from "./useAuthPageState";
 
@@ -42,8 +42,6 @@ export function useAuthOperations(
         registration: state.registration, setRegistration: state.setRegistration,
         registrationResendSeconds: state.registrationResendSeconds,
         setRegistrationResendSeconds: state.setRegistrationResendSeconds,
-        passwordResetChallengeId: state.passwordResetChallengeId,
-        setPasswordResetChallengeId: state.setPasswordResetChallengeId,
         setNotice: state.setNotice,
         setPayload: state.setPayload, setSessions: state.setSessions,
         setBusy: state.setBusy, busy: state.busy,
@@ -62,6 +60,7 @@ export function useAuthOperations(
 
     return {
         submit: (event: SyntheticEvent<HTMLFormElement>) => { void submitAuthForm(event, operations); },
+        startGoogleSignIn: () => { startGoogleSignIn(operations); },
         resendRegistrationCode: () => { void resendRegistration(operations); },
         revokeSession: (sessionId: string) => { void revokeAuthSession(sessionId, operations); },
     };

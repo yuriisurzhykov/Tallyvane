@@ -1,5 +1,6 @@
 import type { SyntheticEvent } from "react";
 import type { AuthStringKey } from "../../../features/authentication/model/strings";
+import type { PrimarySignInMethod } from "../../../features/authentication/api/client";
 
 export type AuthSubmitEvent = SyntheticEvent<HTMLFormElement>;
 
@@ -26,14 +27,14 @@ export interface AuthStepProps {
     setShowPassword: (value: boolean) => void;
     email: string;
     setEmail: (value: string) => void;
-    googleEnabled: boolean;
+    primaryMethods: PrimarySignInMethod[];
+    startGoogleSignIn: () => void;
     registrationPending: boolean;
     registrationChallengeReady: boolean;
     registrationResendSeconds: number;
     resendRegistrationCode: () => void;
     emailCodeRequested: boolean;
     otpPurpose: string;
-    passwordResetRequested: boolean;
     fieldErrors: Record<string, string>;
     clearFieldErrors: () => void;
     sessions: AuthSession[];

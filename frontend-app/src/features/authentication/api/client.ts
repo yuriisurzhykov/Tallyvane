@@ -5,7 +5,6 @@ import {
     createAuthSessionTransport,
     fromWireJson,
     toWireJson,
-    type AccessDeniedProblem,
     type RefreshResult,
     type SessionProbeResult,
 } from "frontend-shared/api";
@@ -24,15 +23,16 @@ export class AuthError extends Error {
     }
 }
 
-export type Factor = "email" | "totp" | "backup";
-export interface AuthResult {
-    status: "issued" | "requires_second_factor" | "requires_email_verification" | "requires_enrollment";
-    pendingId?: string;
-    challengeId?: string;
-    availableMethods?: Factor[];
-    requiredMethods?: Factor[];
-    primaryMethod?: string;
-}
+export type Factor = "TOTP" | "EMAIL_OTP";
+export type PrimarySignInMethod = "PASSWORD" | "GOOGLE" | "EMAIL_SIGN_IN_CODE";
+export type AuthResult =
+    | { status: "issued" }
+    | {
+        status: "requires_second_factor";
+        pendingId: string;
+        recommendedMethod: Factor;
+        availableMethods: Factor[];
+    };
 export interface Enrollment { payload?: string; secret?: string; otpauthUri?: string; backupCodes?: string[] }
 export interface Session { id: string; createdAt?: string; lastSeenAt?: string; expiresAt?: string; device?: string | { name?: string }; current?: boolean }
 export interface Security { email: string; emailVerified: boolean; passwordEnabled: boolean; methods: { kind: Factor; enabled: boolean }[]; sessions?: Session[] }
@@ -110,7 +110,7 @@ const rawAuthClient = createAuthClient();
 
 async function checkCurrentSession(): Promise<SessionProbeResult> {
     try {
-        await rawAuthClient.get<void>("/session");
+        await rawAuthClient.get<unknown>("/session");
         return { status: "authenticated" };
     } catch (reason) {
         if (!(reason instanceof AuthError)) return { status: "unavailable" };
@@ -118,7 +118,7 @@ async function checkCurrentSession(): Promise<SessionProbeResult> {
             return { status: "unauthorized" };
         }
         if (reason.status === 403 && reason.problem?.type === AUTH_PROBLEM_TYPES.forbidden) {
-            return { status: "accessDenied", problem: reason.problem as AccessDeniedProblem };
+            return { status: "accessDenied", problem: reason.problem };
         }
         return { status: "unavailable" };
     }

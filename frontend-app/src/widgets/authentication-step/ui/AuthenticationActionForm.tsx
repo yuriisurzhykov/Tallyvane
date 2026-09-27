@@ -22,7 +22,6 @@ const tokenLabels: Record<ProofTokenKind, AuthStringKey> = {
     EMAIL_SIGN_IN_CODE: "emailCodeLabel",
     TOTP: "factorAuthenticator",
     EMAIL_FACTOR_CODE: "factorEmail",
-    BACKUP_CODE: "factorBackup",
 };
 
 const proofErrorLabels: Record<NonNullable<ActionProofState["error"]>, AuthStringKey> = {
@@ -109,7 +108,7 @@ export function AuthenticationActionForm({ action, t, submitLabel, onAuthorized,
     const [submitting, setSubmitting] = useState(false);
     const [operationError, setOperationError] = useState(false);
     const busy = proof.busy || submitting;
-    const needsEmailCode = proof.scheme?.requiredTokens.some(kind => isEmailCode(kind) && !proof.challenges[kind]) ?? false;
+    const needsEmailCode = isEmailChallengeNeeded(proof);
 
     async function submit(event: SubmitEvent<HTMLFormElement>) {
         event.preventDefault();
@@ -150,4 +149,8 @@ export function AuthenticationActionForm({ action, t, submitLabel, onAuthorized,
             {needsEmailCode ? t("actionProofSendEmailCodes") : submitLabel}
         </Button>
     </Form>;
+}
+
+function isEmailChallengeNeeded(proof: Pick<ActionProofState, "scheme" | "challenges">): boolean {
+    return proof.scheme?.requiredTokens.some(kind => isEmailCode(kind) && !proof.challenges[kind]) ?? false;
 }

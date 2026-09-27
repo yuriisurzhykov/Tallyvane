@@ -6,6 +6,7 @@ import { useToast } from "frontend-shared/ui/toast";
 import { Button } from "frontend-shared/ui/button";
 import { Form } from "frontend-shared/ui/form";
 import { Input } from "frontend-shared/ui/input";
+import { Row } from "frontend-shared/ui/row";
 import { Stack } from "frontend-shared/ui/stack";
 import { Text } from "frontend-shared/ui/text";
 import type { AuthSession, AuthStepProps } from "../model/AuthStepProps";
@@ -37,73 +38,112 @@ export function SecuritySettingsStep({ props }: { props: AuthStepProps }) {
         return () => { active = false; };
     }, []);
 
-    return <div className={styles.securityGrid}>
-        <div className={styles.securityOverview}>
-            <SecurityGroup title={t("methods")}>
-                <SecurityItem title={t("securityEmailSignIn")} description={t("securityEmailSignInHelp")}
-                    badge={t("securityAvailable")} badgeTone="good" />
-                <SecurityItem title={t("password")} description={t("securityPasswordHelp")}
-                    action={t("changePassword")} active={selected === "password"} onAction={() => { setSelected("password"); }} />
-                {googleAvailable && <SecurityItem title="Google" description={t("securityGoogleHelp")}
-                    badge={t(googleLinked ? "securityConnected" : "securityNotConnected")}
-                    badgeTone={googleLinked ? "good" : undefined}
-                    action={t(googleLinked ? "securityManage" : "linkGoogle")}
-                    active={selected === "google"} onAction={() => { setSelected("google"); }} />}
-            </SecurityGroup>
-            <SecurityGroup title={t("securityExtraProtection")} hint={t("securityOptional")}>
-                <SecurityItem title={t("factorAuthenticator")} description={t("securityAuthenticatorHelp")}
-                    badge={t(factors.enrolled.includes("TOTP") ? "securityConnected" : "securityNotConnected")}
-                    badgeTone={factors.enrolled.includes("TOTP") ? "good" : undefined}
-                    action={t(factors.enrolled.includes("TOTP") ? "securityManage" : "securityConnect")}
-                    active={selected === "totp"} onAction={() => { setSelected("totp"); }} />
-                <SecurityItem title={t("factorEmail")} description={t("securityEmailFactorHelp")}
-                    badge={t(factors.enrolled.includes("EMAIL_OTP") ? "securityConnected" : "securityNotConnected")}
-                    badgeTone={factors.enrolled.includes("EMAIL_OTP") ? "good" : undefined}
-                    action={t(factors.enrolled.includes("EMAIL_OTP") ? "securityManage" : "securityConnect")}
-                    active={selected === "email"} onAction={() => { setSelected("email"); }} />
-            </SecurityGroup>
-            <SecurityGroup title={t("securityRecoveryAndSessions")}>
-                <SecurityItem title={t("recoveryCodesTitle")} description={t("securityRecoveryHelp")}
-                    badge={t(factors.enrolled.includes("BACKUP_CODE") ? "securityCreated" : "securityNotCreated")}
-                    action={t("securityManage")} active={selected === "recovery"}
-                    onAction={() => { setSelected("recovery"); }} />
-                <SecurityItem title={t("sessions")} description={t("securitySessionCount", { count: activeSessions.length })}
-                    action={t("securityManage")} active={selected === "sessions"}
-                    onAction={() => { setSelected("sessions"); }} />
-            </SecurityGroup>
-        </div>
-        <aside className={styles.securityDetail} aria-label={t("securitySelectedAction")}>
-            {selected === "totp" && <FactorManagementSection t={t} enrolled={factors.enrolled.includes("TOTP")}
-                onFactorChanged={onFactorChanged} />}
-            {selected === "password" && <PasswordPanel props={props} />}
-            {selected === "google" && googleAvailable && <GoogleAccountSection t={t} linked={googleLinked} onLinkedChange={setGoogleLinked} />}
-            {selected === "email" && <EmailMfaPanel props={props} enrolled={factors.enrolled.includes("EMAIL_OTP")}
-                onFactorChanged={onFactorChanged} />}
-            {selected === "recovery" && <RecoveryCodesPanel props={props} onFactorChanged={onFactorChanged} />}
-            {selected === "sessions" && <SessionsPanel props={props} sessions={activeSessions} />}
-        </aside>
-    </div>;
+    return <Stack gap="stack" className={styles.securityGrid ?? ""}>
+        <SecurityOverview props={props} selected={selected} select={setSelected} factors={factors}
+            googleAvailable={googleAvailable} googleLinked={googleLinked} sessionCount={activeSessions.length} />
+        <SecurityDetail props={props} selected={selected} factors={factors} googleAvailable={googleAvailable}
+            googleLinked={googleLinked} setGoogleLinked={setGoogleLinked} sessions={activeSessions}
+            onFactorChanged={onFactorChanged} />
+    </Stack>;
+}
+
+interface SecurityPanelProps {
+    readonly props: AuthStepProps;
+    readonly selected: SecurityAction;
+    readonly factors: ReturnType<typeof useFactorStatus>;
+    readonly googleAvailable: boolean;
+    readonly googleLinked: boolean;
+}
+
+function SecurityOverview(options: SecurityPanelProps & {
+    readonly select: (action: SecurityAction) => void;
+    readonly sessionCount: number;
+}) {
+    const { props, selected, select, factors, googleAvailable, googleLinked, sessionCount } = options;
+    const { t } = props;
+    return <Stack gap="stack" className={styles.securityOverview ?? ""}>
+        <SecurityGroup title={t("methods")}>
+            <SecurityItem title={t("securityEmailSignIn")} description={t("securityEmailSignInHelp")}
+                badge={t("securityAvailable")} badgeTone="good" />
+            <SecurityItem title={t("password")} description={t("securityPasswordHelp")}
+                action={t("changePassword")} active={selected === "password"} onAction={() => { select("password"); }} />
+            {googleAvailable && <SecurityItem title="Google" description={t("securityGoogleHelp")}
+                badge={t(googleLinked ? "securityConnected" : "securityNotConnected")}
+                {...(googleLinked ? { badgeTone: "good" as const } : {})}
+                action={t(googleLinked ? "securityManage" : "linkGoogle")}
+                active={selected === "google"} onAction={() => { select("google"); }} />}
+        </SecurityGroup>
+        <SecurityGroup title={t("securityExtraProtection")} hint={t("securityOptional")}>
+            <FactorSecurityItem kind="TOTP" selected="totp" options={options} />
+            <FactorSecurityItem kind="EMAIL_OTP" selected="email" options={options} />
+        </SecurityGroup>
+        <SecurityGroup title={t("securityRecoveryAndSessions")}>
+            <SecurityItem title={t("recoveryCodesTitle")} description={t("securityRecoveryHelp")}
+                badge={t(factors.recoveryCodesIssued ? "securityCreated" : "securityNotCreated")}
+                action={t("securityManage")} active={selected === "recovery"} onAction={() => { select("recovery"); }} />
+            <SecurityItem title={t("sessions")} description={t("securitySessionCount", { count: sessionCount })}
+                action={t("securityManage")} active={selected === "sessions"} onAction={() => { select("sessions"); }} />
+        </SecurityGroup>
+    </Stack>;
+}
+
+function FactorSecurityItem({ kind, selected, options }: {
+    readonly kind: "TOTP" | "EMAIL_OTP";
+    readonly selected: Extract<SecurityAction, "totp" | "email">;
+    readonly options: SecurityPanelProps & { readonly select: (action: SecurityAction) => void };
+}) {
+    const enrolled = options.factors.enrolled.includes(kind);
+    const title = kind === "TOTP" ? "factorAuthenticator" : "factorEmail";
+    const description = kind === "TOTP" ? "securityAuthenticatorHelp" : "securityEmailFactorHelp";
+    return <SecurityItem title={options.props.t(title)} description={options.props.t(description)}
+        badge={options.props.t(enrolled ? "securityConnected" : "securityNotConnected")}
+        {...(enrolled ? { badgeTone: "good" as const } : {})}
+        action={options.props.t(enrolled ? "securityManage" : "securityConnect")}
+        active={options.selected === selected} onAction={() => { options.select(selected); }} />;
+}
+
+function SecurityDetail(options: SecurityPanelProps & {
+    readonly setGoogleLinked: (linked: boolean) => void;
+    readonly sessions: AuthSession[];
+    readonly onFactorChanged: () => Promise<void>;
+}) {
+    const { props, selected, factors, googleAvailable, googleLinked, setGoogleLinked, sessions, onFactorChanged } = options;
+    return <Stack gap="stack" as="aside" className={styles.securityDetail ?? ""} aria-label={props.t("securitySelectedAction")}>
+        {selected === "totp" && <FactorManagementSection t={props.t} enrolled={factors.enrolled.includes("TOTP")} onFactorChanged={onFactorChanged} />}
+        {selected === "password" && <PasswordPanel props={props} />}
+        {selected === "google" && googleAvailable && <GoogleAccountSection t={props.t} linked={googleLinked} onLinkedChange={setGoogleLinked} />}
+        {selected === "email" && <EmailMfaPanel props={props} enrolled={factors.enrolled.includes("EMAIL_OTP")} onFactorChanged={onFactorChanged} />}
+        {selected === "recovery" && <RecoveryCodesPanel props={props} onFactorChanged={onFactorChanged} />}
+        {selected === "sessions" && <SessionsPanel props={props} sessions={sessions} />}
+    </Stack>;
 }
 
 function SecurityGroup({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
-    return <section className={styles.securityCard}>
-        <div className={styles.securityGroupHeading}><h2>{title}</h2>{hint && <span>{hint}</span>}</div>
-        <div>{children}</div>
-    </section>;
+    return <Stack gap="stack-tight" as="section" className={styles.securityCard ?? ""}>
+        <Row gap="inline" className={styles.securityGroupHeading ?? ""}>
+            <Text as="h2" variant="title3">{title}</Text>
+            {hint && <Text variant="small" color="muted">{hint}</Text>}
+        </Row>
+        <Stack gap="inline-tight">{children}</Stack>
+    </Stack>;
 }
 
 function SecurityItem({ title, description, badge, badgeTone, action, active, onAction }: {
     title: string; description: string; badge?: string; badgeTone?: "good" | undefined;
     action?: string; active?: boolean; onAction?: () => void;
 }) {
-    return <div className={styles.securityItem}>
-        <div className={styles.securityItemCopy}><strong>{title}</strong><small>{description}</small></div>
-        <div className={styles.securityItemActions}>
-            {badge && <span className={badgeTone === "good" ? styles.securityBadgeGood : styles.securityBadge}>{badge}</span>}
-            {action && <button type="button" className={styles.securityAction} aria-pressed={active}
-                onClick={onAction}>{action}</button>}
-        </div>
-    </div>;
+    return <Row gap="inline" className={styles.securityItem ?? ""}>
+        <Stack gap="inline-tight" className={styles.securityItemCopy ?? ""}>
+            <Text as="strong" variant="bodyStrong">{title}</Text>
+            <Text variant="small" color="muted">{description}</Text>
+        </Stack>
+        <Row gap="inline-tight" className={styles.securityItemActions ?? ""}>
+            {badge && <Text variant="small" className={(badgeTone === "good" ? styles.securityBadgeGood : styles.securityBadge) ?? ""}>{badge}</Text>}
+            {action && <Button type="button" tone="ghost" size="sm" className={styles.securityAction ?? ""}
+                {...(active === undefined ? {} : { "aria-pressed": active })}
+                {...(onAction ? { onClick: onAction } : {})}>{action}</Button>}
+        </Row>
+    </Row>;
 }
 
 function PasswordPanel({ props }: { props: AuthStepProps }) {
@@ -114,7 +154,7 @@ function PasswordPanel({ props }: { props: AuthStepProps }) {
         <Text variant="body" color="muted">{t("securityPasswordChangeHelp")}</Text>
         <AuthenticationActionForm action="CHANGE_PRIMARY_CREDENTIAL" t={t} submitLabel={t("changePasswordAction")}
             onAuthorized={async (proof, form) => {
-                await authClient.postWithHeaders("/account/password", { newPassword: String(form.get("newPassword") ?? "") },
+                await authClient.postWithHeaders("/account/password", { newPassword: formText(form, "newPassword") },
                     { "X-Action-Proof": proof });
                 actions.add({ title: t("passwordChanged"), tone: "success" });
             }}>
@@ -138,7 +178,7 @@ function EmailMfaPanel({ props, enrolled, onFactorChanged }: {
         setConfirming(true);
         try {
             await authClient.post("/mfa/email/confirm", {
-                challengeId, code: String(new FormData(event.currentTarget).get("emailMfaCode") ?? ""),
+                challengeId, code: formText(new FormData(event.currentTarget), "emailMfaCode"),
             });
             setChallengeId("");
             await onFactorChanged();
@@ -200,7 +240,11 @@ function RecoveryCodesPanel({ props, onFactorChanged }: { props: AuthStepProps; 
                 actions.add({ title: t("recoveryCodesIssued"), description: t("recoveryCodesOneTime"), tone: "success" });
             }} /> : <Stack gap="stack-tight" role="status">
             <Text variant="small" color="muted">{t("recoveryCodesOneTime")}</Text>
-            <ul className={styles.securityCodes}>{codes.map(code => <li key={code}><code>{code}</code></li>)}</ul>
+            <Stack as="ul" gap="inline-tight" className={styles.securityCodes ?? ""}>
+                {codes.map(code => <Stack as="li" gap="inline-tight" key={code}>
+                    <Text as="code" variant="small">{code}</Text>
+                </Stack>)}
+            </Stack>
             <Button tone="ghost" size="sm" type="button" onClick={() => { setCodes([]); }}>
                 {t("backupCodesSaved")}
             </Button>
@@ -212,15 +256,23 @@ function SessionsPanel({ props, sessions }: { props: AuthStepProps; sessions: Au
     return <Stack gap="stack" as="section" aria-labelledby="sessions-panel-title">
         <Text as="h2" variant="title2" id="sessions-panel-title">{props.t("sessions")}</Text>
         {sessions.length === 0 ? <Text variant="body" color="muted">{props.t("noSessions")}</Text> :
-            <ul className={styles.securitySessions}>{sessions.map(session => <li key={session.id}>
-                <div><strong>{session.device}</strong><small>{props.t("lastUsed", { date: formatDate(session.lastUsedAt) })}</small></div>
+            <Stack as="ul" gap="inline-tight" className={styles.securitySessions ?? ""}>{sessions.map(session => <Row as="li" gap="inline" key={session.id}>
+                <Stack gap="inline-tight">
+                    <Text as="strong" variant="bodyStrong">{session.device}</Text>
+                    <Text variant="small" color="muted">{props.t("lastUsed", { date: formatDate(session.lastUsedAt) })}</Text>
+                </Stack>
                 <Button tone="ghost" size="sm" type="button" onClick={() => { props.revokeSession(session.id); }}>
                     {props.t("revoke")}
                 </Button>
-            </li>)}</ul>}
+            </Row>)}</Stack>}
     </Stack>;
 }
 
 function formatDate(value: string) {
     return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+}
+
+function formText(form: FormData, name: string): string {
+    const value = form.get(name);
+    return typeof value === "string" ? value : "";
 }

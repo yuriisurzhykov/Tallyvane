@@ -38,6 +38,10 @@ RUN pnpm --filter "./frontend-app" exec next build
 # symlinks in .next/standalone break across this stage boundary unless dereferenced here,
 # while the originals this app's own build produced are still reachable.
 RUN cp -rL frontend-app/.next/standalone /tmp/standalone
+RUN mkdir -p /tmp/standalone/frontend-app/node_modules/frontend-shared/src/shared/lib /tmp/standalone/frontend-app/node_modules/frontend-shared/node_modules \
+  && cp packages/frontend-shared/src/shared/lib/logger.cjs /tmp/standalone/frontend-app/node_modules/frontend-shared/src/shared/lib/logger.cjs \
+  && cp packages/frontend-shared/src/shared/lib/node-http-access-logging.cjs /tmp/standalone/frontend-app/node_modules/frontend-shared/src/shared/lib/node-http-access-logging.cjs \
+  && cp -rL packages/frontend-shared/node_modules/@opentelemetry /tmp/standalone/frontend-app/node_modules/frontend-shared/node_modules/
 
 # `sharp` cleanup, after `cp -rL` and not before, and matching both directory-naming
 # shapes `cp -rL`'s dereferencing produces: see frontend-web/Dockerfile's identical
@@ -61,8 +65,12 @@ RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 # equivalent line for why that COPY is absent rather than forgotten.
 COPY --from=builder --chown=nextjs:nodejs /tmp/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /workspace/frontend-app/.next/static ./frontend-app/.next/static
+COPY --from=builder --chown=nextjs:nodejs /tmp/standalone/frontend-app/node_modules/frontend-shared/src/shared/lib ./frontend-app/node_modules/frontend-shared/src/shared/lib
+COPY --from=builder --chown=nextjs:nodejs /tmp/standalone/frontend-app/node_modules/frontend-shared/node_modules/@opentelemetry ./frontend-app/node_modules/frontend-shared/node_modules/@opentelemetry
+
+RUN OTEL_LOGS_EXPORTER=otlp node --require /app/frontend-app/node_modules/frontend-shared/src/shared/lib/node-http-access-logging.cjs --eval "process.exit(0)"
 
 USER nextjs
 EXPOSE 3000
 
-CMD ["node", "frontend-app/server.js"]
+CMD ["node", "--require", "/app/frontend-app/node_modules/frontend-shared/src/shared/lib/node-http-access-logging.cjs", "frontend-app/server.js"]

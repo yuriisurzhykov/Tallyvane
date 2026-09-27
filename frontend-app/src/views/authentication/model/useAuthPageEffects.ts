@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import QRCode from "qrcode";
 import { authClient } from "../../../features/authentication/api/client";
+import type { PrimarySignInMethod } from "../../../features/authentication/api/client";
 import type { AuthPageKind } from "../../../features/authentication/model/AuthPageKind";
 import type { AuthStringKey } from "../../../features/authentication/model/strings";
 import type { AddToastOptions } from "frontend-shared/ui/toast";
@@ -20,29 +21,38 @@ export function useAuthPageEffects(options: {
     readonly getErrorMessage: ErrorMessage;
 }) {
     const { kind, state, t, toast, getErrorMessage } = options;
-    useProviderStatus(kind, state, t, toast);
+    useSignInOptions(kind, state, t, toast);
     useSecuritySessions({ kind, state, t, toast, getErrorMessage });
     useRouteState(kind, state);
+    useRecoveryNotice(kind, state, t);
     useRegistrationTimer(kind, state);
     useQrCode(state);
 }
 
-function useProviderStatus(
+function useSignInOptions(
     kind: AuthPageKind,
     state: AuthPageState,
     t: Translate,
     toast: ToastActions,
 ) {
-    const setGoogleEnabled = state.setGoogleEnabled;
+    const setPrimaryMethods = state.setPrimaryMethods;
     useEffect(() => {
         if (kind === "google") notifyGoogleResult(t, toast);
         if (["login", "register", "google"].includes(kind)) {
-            void fetch("/api/v1/auth/providers", { credentials: "same-origin", cache: "no-store" })
-                .then(response => response.ok ? response.json() as Promise<{ google?: boolean }> : null)
-                .then(providers => { setGoogleEnabled(providers?.google === true); })
-                .catch(() => { setGoogleEnabled(false); });
+            void authClient.get<{ primaryMethods: string[] }>("/sign-in-options")
+                .then(options => {
+                    setPrimaryMethods(options.primaryMethods.filter(isPrimarySignInMethod));
+                })
+                .catch(() => {
+                    setPrimaryMethods([]);
+                    toast.add({ title: t("signInOptionsUnavailable"), tone: "danger" });
+                });
         }
-    }, [kind, t, toast, setGoogleEnabled]);
+    }, [kind, t, toast, setPrimaryMethods]);
+}
+
+function isPrimarySignInMethod(value: string): value is PrimarySignInMethod {
+    return value === "PASSWORD" || value === "GOOGLE" || value === "EMAIL_SIGN_IN_CODE";
 }
 
 function notifyGoogleResult(t: Translate, toast: ToastActions) {
@@ -82,7 +92,6 @@ function useSecuritySessions(options: {
 }
 
 function useRouteState(kind: AuthPageKind, state: AuthPageState) {
-    const factor = state.factor;
     const setAvailableMethods = state.setAvailableMethods;
     const setFactor = state.setFactor;
     const setOtpPurpose = state.setOtpPurpose;
@@ -93,17 +102,17 @@ function useRouteState(kind: AuthPageKind, state: AuthPageState) {
         let active = true;
         queueMicrotask(() => {
             if (active) initializeRouteState(kind, {
-                factor, setAvailableMethods, setFactor, setOtpPurpose,
+                setAvailableMethods, setFactor, setOtpPurpose,
                 setEmailSignInChallengeId, setRegistration, setEmail,
             });
         });
         return () => { active = false; };
-    }, [kind, factor, setAvailableMethods, setFactor, setOtpPurpose,
+    }, [kind, setAvailableMethods, setFactor, setOtpPurpose,
         setEmailSignInChallengeId, setRegistration, setEmail]);
 }
 
 type RouteSetters = Pick<AuthPageState,
-    "factor" | "setAvailableMethods" | "setFactor" | "setOtpPurpose" | "setEmailSignInChallengeId" | "setRegistration" | "setEmail">;
+    "setAvailableMethods" | "setFactor" | "setOtpPurpose" | "setEmailSignInChallengeId" | "setRegistration" | "setEmail">;
 
 function initializeRouteState(kind: AuthPageKind, setters: RouteSetters) {
     if (kind === "mfa") initializeMfaState(setters);
@@ -116,15 +125,38 @@ function initializeRouteState(kind: AuthPageKind, setters: RouteSetters) {
     }
 }
 
-function initializeMfaState(state: Pick<AuthPageState, "factor" | "setAvailableMethods" | "setFactor">) {
+function initializeMfaState(state: Pick<AuthPageState, "setAvailableMethods" | "setFactor">) {
     const params = new URLSearchParams(window.location.search);
     const pendingId = params.get("pending_id");
     if (pendingId) sessionStorage.setItem("tallyvane.pendingId", pendingId);
     const queryMethods = params.get("methods");
-    const storedMethods = sessionStorage.getItem("tallyvane.availableMethods");
-    const methods = queryMethods?.split(",").filter(Boolean) ?? JSON.parse(storedMethods ?? "[]") as string[];
+    const methods = (queryMethods?.split(",") ?? readStoredMethods()).filter(isSecondFactor);
+    const recommended = params.get("recommended_method") ?? sessionStorage.getItem("tallyvane.recommendedMethod");
     state.setAvailableMethods(methods);
-    if (methods.length > 0 && !methods.includes(state.factor)) state.setFactor(methods[0] ?? "TOTP");
+    if (recommended && methods.includes(recommended)) state.setFactor(recommended);
+    else if (methods.length > 0) state.setFactor(methods[0] ?? "TOTP");
+}
+
+function readStoredMethods(): string[] {
+    try {
+        const value: unknown = JSON.parse(sessionStorage.getItem("tallyvane.availableMethods") ?? "[]");
+        return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+    } catch {
+        return [];
+    }
+}
+
+function isSecondFactor(value: string): boolean {
+    return value === "TOTP" || value === "EMAIL_OTP";
+}
+
+function useRecoveryNotice(kind: AuthPageKind, state: AuthPageState, t: Translate) {
+    const setNotice = state.setNotice;
+    useEffect(() => {
+        if (kind === "security" && new URLSearchParams(window.location.search).get("recovered") === "1") {
+            setNotice(t("recoveryCompletedNotice"));
+        }
+    }, [kind, setNotice, t]);
 }
 
 function initializeRegistrationState(state: Pick<AuthPageState, "setOtpPurpose" | "setRegistration" | "setEmail">) {

@@ -1,7 +1,6 @@
 import { Button } from "frontend-shared/ui/button";
 import { Form } from "frontend-shared/ui/form";
 import { Input } from "frontend-shared/ui/input";
-import { Stack } from "frontend-shared/ui/stack";
 import { Text } from "frontend-shared/ui/text";
 import type { AuthStepProps } from "../model/AuthStepProps";
 import { AuthField } from "./AuthField";
@@ -18,10 +17,12 @@ export function PasswordRecoveryStep({ props }: { props: AuthStepProps }) {
     const { t } = props;
     return (
         <Form className={styles.form ?? ""} onSubmit={props.submit} onChange={props.clearFieldErrors}>
-            <AuthField name="email" label={t("email")} control={<Input type="email" value={props.email} onChange={event => { props.setEmail(event.target.value); }} autoComplete="email" required disabled={props.passwordResetRequested} />} errors={props.fieldErrors} />
-            {props.passwordResetRequested && <ResetPasswordFields props={props} />}
+            <Text variant="body" color="muted">{t("recoveryFullResetHelp")}</Text>
+            <AuthField name="email" label={t("email")} control={<Input type="email" value={props.email} onChange={event => { props.setEmail(event.target.value); }} autoComplete="email" required />} errors={props.fieldErrors} />
+            <AuthField name="recoveryCode" label={t("recoveryCodeLabel")} control={<Input value={props.code} onChange={event => { props.setCode(event.target.value); }} autoComplete="one-time-code" required />} errors={props.fieldErrors} />
+            <AuthField name="newPassword" label={t("newPassword")} control={<Input type="password" autoComplete="new-password" minLength={15} maxLength={128} required />} errors={props.fieldErrors} help={t("passwordHelp")} />
             <Button tone="primary" className={styles.full ?? ""} type="submit" loading={props.busy}>
-                {props.passwordResetRequested ? t("resetPassword") : t("sendResetCode")}
+                {t("recoverAccount")}
             </Button>
         </Form>
     );
@@ -53,16 +54,5 @@ function EmailCodeSignInStep({ props }: { props: AuthStepProps }) {
             </Button>
             {props.emailCodeRequested && <Button tone="ghost" size="sm" type="button" onClick={() => { window.location.reload(); }}>{t("usePassword")}</Button>}
         </Form>
-    );
-}
-
-function ResetPasswordFields({ props }: { props: AuthStepProps }) {
-    const { t } = props;
-    return (
-        <Stack gap="stack">
-            <Text variant="body" color="muted">{t("resetCodeNeutral")}</Text>
-            <AuthField name="code" label={t("code")} control={<Input className={styles.codeInput ?? ""} value={props.code} onChange={event => { props.setCode(event.target.value); }} inputMode="numeric" autoComplete="one-time-code" maxLength={6} required />} errors={props.fieldErrors} />
-            <AuthField name="newPassword" label={t("newPassword")} control={<Input type="password" autoComplete="new-password" minLength={15} maxLength={128} required />} errors={props.fieldErrors} help={t("passwordHelp")} />
-        </Stack>
     );
 }

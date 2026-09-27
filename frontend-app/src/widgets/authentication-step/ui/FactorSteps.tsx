@@ -1,9 +1,9 @@
-import Link from "next/link";
+import { useState } from "react";
 import { Button } from "frontend-shared/ui/button";
 import { Form } from "frontend-shared/ui/form";
 import { Image } from "frontend-shared/ui/image";
 import { Input } from "frontend-shared/ui/input";
-import { Select } from "frontend-shared/ui/select";
+import { Row } from "frontend-shared/ui/row";
 import { Stack } from "frontend-shared/ui/stack";
 import { Surface } from "frontend-shared/ui/surface";
 import { Text } from "frontend-shared/ui/text";
@@ -14,32 +14,29 @@ import styles from "./auth-step.module.css";
 
 export function FactorVerificationStep({ props }: { props: AuthStepProps }) {
     const { t, factor, setFactor } = props;
-    const methods = props.availableMethods.length ? props.availableMethods : ["TOTP"];
+    const [showAlternatives, setShowAlternatives] = useState(false);
+    const alternatives = props.availableMethods.filter(method => method !== factor);
     return (
         <Form className={styles.form ?? ""} onSubmit={props.submit} onChange={props.clearFieldErrors}>
-            <Stack gap="inline-tight" className={styles.field ?? ""}>
-                <Select.Root value={factor} onValueChange={value => { if (typeof value === "string") setFactor(value); }}>
-                    <Select.Label className={styles.fieldLabel ?? ""}>{t("verificationMethod")}</Select.Label>
-                    <Select.Trigger id="auth-factor" name="factor" aria-invalid={Boolean(props.fieldErrors.factor)}
-                                    aria-describedby={props.fieldErrors.factor ? "auth-factor-error" : undefined}>
-                        <Select.Value>{factorLabel(factor, t)}</Select.Value>
-                        <Select.Icon />
-                    </Select.Trigger>
-                    <Select.Popup>
-                        {methods.map(method => <Select.Item key={method} value={method}>{factorLabel(method, t)}</Select.Item>)}
-                    </Select.Popup>
-                </Select.Root>
-                {props.fieldErrors.factor && <Text variant="caption" tone="danger" id="auth-factor-error">{props.fieldErrors.factor}</Text>}
-            </Stack>
+            <Text variant="bodyStrong">{factorLabel(factor, t)}</Text>
             {(factor !== "EMAIL_OTP" || props.emailMfaCodeRequested) && <AuthField
                 name="code"
-                label={factor === "TOTP" ? t("authenticatorCode") : factor === "EMAIL_OTP" ? t("code") : t("backupCodeLabel")}
+                label={factor === "TOTP" ? t("authenticatorCode") : t("code")}
                 control={<Input className={styles.codeInput ?? ""} value={props.code} onChange={event => { props.setCode(event.target.value); }} autoComplete="one-time-code" inputMode="numeric" required />}
                 errors={props.fieldErrors}
             />}
             <Button tone="primary" className={styles.full ?? ""} type="submit" loading={props.busy}>
                 {factor === "EMAIL_OTP" && !props.emailMfaCodeRequested ? t("sendEmailMfaCode") : t("verifyAndContinue")}
             </Button>
+            {alternatives.length > 0 && <Button type="button" tone="ghost" onClick={() => {
+                setShowAlternatives(current => !current);
+            }}>{t(showAlternatives ? "hideOtherMethods" : "signInAnotherWay")}</Button>}
+            {showAlternatives && <Row gap="inline" className="flex-wrap">
+                {alternatives.map(method => <Button key={method} type="button" tone="neutral" size="sm" onClick={() => {
+                    setFactor(method);
+                    setShowAlternatives(false);
+                }}>{factorLabel(method, t)}</Button>)}
+            </Row>}
         </Form>
     );
 }
@@ -80,8 +77,8 @@ function AuthenticatorSetup({ qrCode, secret, t }: { qrCode: string; secret: str
 }
 
 export function GoogleStep({ props }: { props: AuthStepProps }) {
-    return props.googleEnabled ? (
-        <Button tone="neutral" className={styles.provider ?? ""} render={<Link href="/api/v1/auth/google/oauth/start" />}>
+    return props.primaryMethods.includes("GOOGLE") ? (
+        <Button tone="neutral" className={styles.provider ?? ""} type="button" onClick={props.startGoogleSignIn}>
             {props.t("continueWithGoogle")}
         </Button>
     ) : <Text variant="body" color="muted">{props.t("googleNotConfigured")}</Text>;
@@ -98,6 +95,5 @@ export function PreviewStep({ props }: { props: AuthStepProps }) {
 
 function factorLabel(method: string, t: AuthStepProps["t"]) {
     if (method === "TOTP") return t("methodTotp");
-    if (method === "BACKUP_CODE") return t("backupCodeLabel");
     return t("emailCodeLabel");
 }

@@ -1,7 +1,7 @@
 import { authClient } from "./client";
 
 export type AccountAction = "CHANGE_PRIMARY_CREDENTIAL" | "MANAGE_SECOND_FACTORS";
-export type ProofTokenKind = "PASSWORD" | "GOOGLE" | "EMAIL_SIGN_IN_CODE" | "TOTP" | "EMAIL_FACTOR_CODE" | "BACKUP_CODE";
+export type ProofTokenKind = "PASSWORD" | "GOOGLE" | "EMAIL_SIGN_IN_CODE" | "TOTP" | "EMAIL_FACTOR_CODE";
 
 export interface ActionSchemeOption {
     id: string;

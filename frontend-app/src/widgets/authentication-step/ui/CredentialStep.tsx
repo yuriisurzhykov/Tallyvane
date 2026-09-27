@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { Button } from "frontend-shared/ui/button";
 import { Collapsible } from "frontend-shared/ui/collapsible";
 import { Form } from "frontend-shared/ui/form";
@@ -14,9 +13,14 @@ export function CredentialStep({ kind, props }: { kind: Extract<AuthPageKind, "l
     const { t } = props;
     return (
         <Stack gap="stack" className={styles.form ?? ""}>
-            <GoogleProviderAction props={props} />
-            {kind === "register" ? <RegistrationForm props={props} /> : <PasswordSignInForm props={props} />}
-            {kind === "login" && <Text variant="small" color="muted">{t("emailCodePreviewHelp")}</Text>}
+            {props.primaryMethods.includes("GOOGLE") && <GoogleProviderAction props={props} />}
+            {props.primaryMethods.includes("PASSWORD") && (
+                kind === "register" ? <RegistrationForm props={props} /> : <PasswordSignInForm props={props} />
+            )}
+            {kind === "login" && props.primaryMethods.includes("EMAIL_SIGN_IN_CODE") &&
+                <Text variant="small" color="muted">{t("emailCodeAvailableHelp")}</Text>}
+            {props.primaryMethods.length === 0 &&
+                <Text variant="body" tone="danger" role="alert">{t("signInOptionsUnavailable")}</Text>}
         </Stack>
     );
 }
@@ -62,13 +66,8 @@ function PasswordSignInForm({ props }: { props: AuthStepProps }) {
 function GoogleProviderAction({ props }: { props: AuthStepProps }) {
     const { t } = props;
     const content = <><Text variant="small" className={styles.methodIcon ?? ""} aria-hidden="true">G</Text>{t("continueWithGoogle")}</>;
-    return props.googleEnabled ? (
-        <Link className={styles.provider ?? ""} href="/api/v1/auth/google/oauth/start">{content}</Link>
-    ) : (
-        <Button tone="neutral" className={styles.provider ?? ""} type="button" disabled>
-            {content}<Text variant="small" color="muted">{t("notConfigured")}</Text>
-        </Button>
-    );
+    return <Button tone="neutral" className={styles.provider ?? ""} type="button"
+        onClick={props.startGoogleSignIn}>{content}</Button>;
 }
 
 function PasswordVisibility({ props }: { props: AuthStepProps }) {
