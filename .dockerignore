@@ -31,11 +31,11 @@ ops/
 **/.next
 
 # Test tooling output — never a build input, always safe to leave behind.
-coverage
-playwright-report
-test-results
-blob-report
-.playwright
+**/coverage
+**/playwright-report
+**/test-results
+**/blob-report
+**/.playwright
 
 .cursor/
 .idea/
