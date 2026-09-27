@@ -6,16 +6,15 @@ import io.kotest.matchers.shouldBe
 
 class AuthenticationPolicySpec :
     StringSpec({
-        "default email sign-in requires an independent enrolled factor" {
-            val rule = AuthenticationPolicy.defaults().rule(PrimaryMethod.EMAIL_CODE)
-            rule.available(setOf(SecondFactorKind.TOTP, SecondFactorKind.EMAIL_OTP)) shouldBe
-                setOf(SecondFactorKind.TOTP)
-        }
-        "required policy forces enrollment when no permitted factor exists" {
-            val rule =
-                AuthenticationRule(PrimaryMethod.PASSWORD, true, MfaRequirement.REQUIRED, setOf(SecondFactorKind.TOTP))
-            rule.requiresEnrollment(emptySet()) shouldBe true
-            rule.requiresEnrollment(setOf(SecondFactorKind.TOTP)) shouldBe false
+        "default email sign-in does not combine two proofs delivered to the same mailbox" {
+            val emailSchemes = AuthenticationPolicy.defaults().schemesFor(AuthenticationAction.SIGN_IN)
+                .filter { AuthenticationTokenKind.EMAIL_SIGN_IN_CODE in it.requiredTokens }
+                .map { it.requiredTokens }
+                .toSet()
+            emailSchemes shouldBe setOf(
+                setOf(AuthenticationTokenKind.EMAIL_SIGN_IN_CODE),
+                setOf(AuthenticationTokenKind.EMAIL_SIGN_IN_CODE, AuthenticationTokenKind.TOTP),
+            )
         }
         "email after email cannot be saved without explicit advanced acknowledgement" {
             val rule =

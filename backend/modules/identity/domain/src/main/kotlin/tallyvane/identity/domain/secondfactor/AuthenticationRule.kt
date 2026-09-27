@@ -12,7 +12,4 @@ public data class AuthenticationRule(
     ): Set<SecondFactorKind> = allowedMethods.intersect(enrolled).filterTo(mutableSetOf()) { method ->
         advancedAcknowledged || primary != PrimaryMethod.EMAIL_CODE || method != SecondFactorKind.EMAIL_OTP
     }
-
-    public fun requiresEnrollment(enrolled: Set<SecondFactorKind>, advancedAcknowledged: Boolean = false): Boolean =
-        enabled && requirement == MfaRequirement.REQUIRED && available(enrolled, advancedAcknowledged).isEmpty()
 }

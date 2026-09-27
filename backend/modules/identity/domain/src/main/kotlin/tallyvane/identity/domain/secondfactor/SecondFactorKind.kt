@@ -13,5 +13,4 @@ package tallyvane.identity.domain.secondfactor
 public enum class SecondFactorKind {
     TOTP,
     EMAIL_OTP,
-    BACKUP_CODE,
 }

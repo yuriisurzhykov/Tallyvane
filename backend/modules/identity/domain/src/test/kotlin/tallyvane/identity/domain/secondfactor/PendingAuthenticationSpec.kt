@@ -18,14 +18,30 @@ class PendingAuthenticationSpec :
 
         "one or more available methods construct normally" {
             val pending =
-                PendingAuthentication(id, userId, device, setOf(SecondFactorKind.TOTP), createdAt, expiresAt)
+                PendingAuthentication(
+                    id,
+                    userId,
+                    device,
+                    SecondFactorKind.TOTP,
+                    setOf(SecondFactorKind.TOTP),
+                    createdAt,
+                    expiresAt,
+                )
 
             pending.availableMethods shouldBe setOf(SecondFactorKind.TOTP)
         }
 
         "no available methods is refused — nothing could ever complete it" {
             shouldThrow<IllegalArgumentException> {
-                PendingAuthentication(id, userId, device, emptySet(), createdAt, expiresAt)
+                PendingAuthentication(
+                    id,
+                    userId,
+                    device,
+                    SecondFactorKind.TOTP,
+                    emptySet(),
+                    createdAt,
+                    expiresAt,
+                )
             }
         }
     })

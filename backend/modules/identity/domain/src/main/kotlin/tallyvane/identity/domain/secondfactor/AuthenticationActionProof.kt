@@ -5,7 +5,9 @@ import tallyvane.identity.domain.token.HashedToken
 import tallyvane.identity.domain.user.UserId
 import kotlin.time.Instant
 
-/** One-use authority to perform one security action in one active session. */
+/**
+ * One-use authority to perform one security action in one active session.
+ */
 public data class AuthenticationActionProof(
     public val token: HashedToken,
     public val userId: UserId,

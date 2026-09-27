@@ -12,9 +12,11 @@ public data class AuthenticationScheme(
     public val enabled: Boolean = true,
 ) {
     init {
-        require(id.isNotBlank() && id.length <= 80) { "Scheme id must contain 1 to 80 characters" }
+        require(id.isNotBlank() && id.length <= MAX_SCHEME_ID_LENGTH) {
+            "Scheme id must contain 1 to 80 characters"
+        }
         require(requiredTokens.isNotEmpty()) { "A scheme must require at least one token" }
-        require(assuranceRank > 0) { "Scheme assurance rank must be positive" }
+        require(assuranceRank > MINIMUM_ASSURANCE_RANK) { "Scheme assurance rank must be positive" }
         if (action == AuthenticationAction.SIGN_IN) {
             require(requiredTokens.count(AuthenticationTokenKind::isPrimary) == 1) {
                 "A sign-in scheme must contain exactly one primary token"
@@ -27,4 +29,9 @@ public data class AuthenticationScheme(
 
     public fun isSatisfiedBy(available: Set<AuthenticationTokenKind>): Boolean =
         enabled && requiredTokens.all(available::contains)
+
+    private companion object {
+        const val MAX_SCHEME_ID_LENGTH = 80
+        const val MINIMUM_ASSURANCE_RANK = 0
+    }
 }

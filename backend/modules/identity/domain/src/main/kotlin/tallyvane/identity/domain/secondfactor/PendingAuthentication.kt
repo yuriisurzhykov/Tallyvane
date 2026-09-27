@@ -21,21 +21,26 @@ import kotlin.time.Instant
  * it — `application/README.md`.
  *
  * ```
- * PendingAuthentication(id, userId, device, availableMethods = emptySet(), createdAt, expiresAt) // throws
+ * PendingAuthentication(
+ *     id, userId, device, SecondFactorKind.TOTP,
+ *     availableMethods = emptySet(), createdAt, expiresAt,
+ * ) // throws
  * ```
  */
 public data class PendingAuthentication(
     public val id: PendingAuthenticationId,
     public val userId: UserId,
     public val device: DeviceLabel,
+    public val recommendedMethod: SecondFactorKind,
     public val availableMethods: Set<SecondFactorKind>,
     public val createdAt: Instant,
     public val expiresAt: Instant,
-    public val requiresEnrollment: Boolean = false,
-    public val primaryMethod: PrimaryMethod? = null,
     public val policyVersion: Long = 1,
 ) {
     init {
         require(availableMethods.isNotEmpty()) { "PendingAuthentication needs at least one available method" }
+        require(recommendedMethod in availableMethods) {
+            "PendingAuthentication recommended method must be available"
+        }
     }
 }
