@@ -19,6 +19,9 @@ class ArchitectureRulesSpec :
                     rule.violations(fixtureScope(rule.id)).shouldNotBeEmpty()
                 }
             }
+            "own-schema-only ignores dotted request field names" {
+                ownSchemaOnly(fixtureScope("own-schema-only-clean")) shouldBe emptyList()
+            }
             "identity-web-behavior-is-interface — data contracts and one-word nested implementations are clean" {
                 identityWebBehaviorIsInterface(fixtureScope("identity-web-behavior-clean")) shouldBe emptyList()
             }

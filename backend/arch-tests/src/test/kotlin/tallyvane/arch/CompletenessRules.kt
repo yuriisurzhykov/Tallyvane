@@ -60,6 +60,10 @@ internal fun openapiCoversRoutes(scope: KoScope): List<String> {
         val basePath = BASE_PATH.find(source)?.groupValues?.get(1) ?: return@mapNotNull null
         packageName.substringBeforeLast('.') to basePath
     }
+    val sources = files.map { file -> file.codeText() }
+    val adminHandlersAreMounted = sources.any { source ->
+        ADMIN_ROUTE_GROUP.containsMatchIn(source) && ADMIN_HANDLER_INSTALL.containsMatchIn(source)
+    }
     val served = files.flatMap { file ->
         val source = file.codeText()
         val packageName = PACKAGE.find(source)?.groupValues?.get(1)
@@ -67,9 +71,43 @@ internal fun openapiCoversRoutes(scope: KoScope): List<String> {
             .filter { (root, _) -> packageName == root || packageName?.startsWith("$root.") == true }
             .maxByOrNull { (root, _) -> root.length }
             ?.second
-        servedBy(source, inheritedBase)
-    }.toSet()
+        val isAdminHandler = packageName?.let(ADMIN_PACKAGE::containsMatchIn) == true
+        val handlerBase = if (isAdminHandler) {
+            inheritedBase?.let { "$it/admin" }
+        } else {
+            inheritedBase
+        }
+        val registered = servedBy(source, handlerBase)
+        val sharedProofHandler = isAdminHandler &&
+            file.name in setOf(
+                "AuthenticationActionProofHandler",
+                "ReadAuthenticationActionSchemesHandler",
+                "RequestAuthenticationActionEmailCodeHandler",
+            )
+        if (sharedProofHandler && inheritedBase != null) {
+            registered + servedBy(source, inheritedBase)
+        } else {
+            registered
+        }
+    }.toMutableSet()
     val documented = documentedPaths()
+
+    // IdentityRoutesFactory reuses login, MFA, session, and logout handlers for both realms.
+    // Their route fragments are mounted under `/auth` and `/auth/admin` respectively; the latter
+    // is passed to AuthRoutes.Installation as `adminHandlers` and installed inside `/admin`.
+    // Add a documented admin path only when that group is mounted and its exact suffix is present
+    // among the literal fragments collected from those shared handlers.
+    val authBases = basePaths.map { it.second }.filter { it.endsWith("/auth") }.toSet()
+    if (adminHandlersAreMounted) {
+        for (authBase in authBases) {
+            val adminPrefix = "$authBase/admin"
+            documented.asSequence()
+                .filter { it.startsWith("$adminPrefix/") }
+                .map { it.removePrefix(adminPrefix) }
+                .filter { suffix -> "$authBase$suffix" in served }
+                .forEach { suffix -> served += "$adminPrefix$suffix" }
+        }
+    }
 
     val undocumented = (served - documented).map { path -> "$path is served and absent from docs/openapi.yaml" }
     val unserved = (documented - served).map { path -> "docs/openapi.yaml describes $path, which nothing serves" }
@@ -92,12 +130,13 @@ internal fun openapiCoversRoutes(scope: KoScope): List<String> {
  * run against a live server is still owed.
  */
 private fun servedBy(source: String, inheritedBase: String? = null): Set<String> {
-    val base = BASE_PATH.find(source)?.groupValues?.get(1) ?: inheritedBase ?: return emptySet()
+    val declaredBase = BASE_PATH.find(source)?.groupValues?.get(1)
+    val base = declaredBase ?: inheritedBase ?: return emptySet()
     val nested = ROUTE.findAll(source)
         .map { found -> found.groupValues[2] }
         .filter { sub -> sub.startsWith("/") }
         .map { sub -> base + sub }
-    return nested.toSet() + base
+    return nested.toSet() + listOfNotNull(declaredBase)
 }
 
 /**
@@ -118,6 +157,9 @@ private val BASE_PATH = Regex("""BasePath\("([^"]+)"\)""")
 private val PACKAGE = Regex("""(?m)^package\s+([A-Za-z0-9_.]+)""")
 
 private val ROUTE = Regex("""\b(get|post|put|patch|delete)\(\s*"([^"]*)"""")
+private val ADMIN_PACKAGE = Regex("""\.web\.admin(?:\.|$)""")
+private val ADMIN_ROUTE_GROUP = Regex("""route\.route\("/admin"\)""")
+private val ADMIN_HANDLER_INSTALL = Regex("""adminHandlers\.forEach\s*\{\s*it\.install\(this\)\s*}""")
 
 private val SPEC_PATH = Regex("""^ {2}(/[A-Za-z0-9\-_/{}]*):\s*$""", RegexOption.MULTILINE)
 

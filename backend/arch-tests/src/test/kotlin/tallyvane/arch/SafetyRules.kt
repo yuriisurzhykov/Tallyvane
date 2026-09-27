@@ -72,11 +72,15 @@ internal fun ownSchemaOnly(scope: KoScope): List<String> = scope.files
                 .findAll(code)
                 .map { it.groupValues[1] }
         val dotted =
-            Regex(""""([a-z][a-z0-9_]*)\.[^"]+"""")
+            QUALIFIED_TABLE
                 .findAll(code)
                 .map { it.groupValues[1] }
         if ((schemas + dotted).any { it != module }) file.where() else null
     }
+
+private val QUALIFIED_TABLE = Regex(
+    """(?i)(?:Table\s*\(\s*["']|\b(?:FROM|JOIN|UPDATE|INTO|REFERENCES)\s+["']?)([a-z][a-z0-9_]*)\.[a-z][a-z0-9_]*""",
+)
 
 /**
  * A `Counter` key belongs to the module that reads it, the same rule `own-schema-only` already
