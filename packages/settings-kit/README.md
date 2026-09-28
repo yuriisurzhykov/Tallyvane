@@ -49,19 +49,27 @@ function SettingsRoute({ activeSectionId, children, router }) {
 }
 ```
 
-The `view` prop can replace the standard desktop rail/mobile left drawer for a
-single workspace. A module can call `useSettingsNavigationGuard()` to route its
-own links through the same Stay/Leave confirmation, and
+The default workspace always shows its section rail, including when the host
+currently has one real section. On narrow screens it opens the same navigation
+in a left drawer. The `view` prop can replace this layout for a single
+workspace. A module can call `useSettingsNavigationGuard()` to route its own
+links through the same Stay/Leave confirmation, and
 `useSettingsUnsavedChanges()` to register unfinished multi-step progress.
-The provider also enables the browser's native warning on tab close or reload.
+While any module is dirty, same-origin links are intercepted and sent through
+the same confirmation; Back and Forward attempts are also held until the user
+chooses Stay or Leave. The provider enables the browser's native warning on
+tab close or reload. `useOptionalSettingsUnsavedChanges()` is for a reusable
+module that can also render outside a settings workspace.
 
 ## Building a section
 
 Compose the public design-system components around module-owned fields and
 mutations. `SettingsToggle` owns optimistic state, ordered saves, rollback, and
 retry feedback; `SettingsFormActions` supplies Save/Cancel actions and
-registers the form's dirty state. The field values and validation remain with
-the module.
+registers the form's dirty state. Set `canSave` when domain validation should
+disable Save. Pass `onSave` when the module needs a direct button; otherwise
+the Save action submits its surrounding form. The field values and validation
+remain with the module.
 
 ```tsx
 import { SettingsToggle } from "settings-kit/features/settings-toggle";
@@ -95,3 +103,7 @@ function PreferencesSection() {
 `SettingsItem` is available when a module needs a different control or action
 beside the same label/description row. All exported UI is assembled from
 public `frontend-shared` components.
+
+`SettingsGroup` renders an open, unframed section with a title and optional
+description. `SettingsItem` supplies the divided label/description/control row
+used by the desktop reference.

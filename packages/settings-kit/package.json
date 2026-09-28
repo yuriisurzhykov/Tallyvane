@@ -26,7 +26,8 @@
   "dependencies": {
     "frontend-shared": "workspace:*",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "react-dom": "^19.2.8",
+    "@react-buddy/ide-toolbox": "^2.5.0"
   },
   "devDependencies": {
     "@feature-sliced/steiger-plugin": "^0.7.0",

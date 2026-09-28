@@ -5,8 +5,8 @@ import type { SettingsSectionDefinition } from "settings-kit/entities/settings-s
 import { useSettingsNavigationGuard } from "settings-kit/features/settings-navigation";
 import { Button } from "frontend-shared/ui/button";
 import { Drawer } from "frontend-shared/ui/drawer";
-import { Link } from "frontend-shared/ui/link";
 import { Row } from "frontend-shared/ui/row";
+import { SidebarNav } from "frontend-shared/ui/sidebar-nav";
 import { Stack } from "frontend-shared/ui/stack";
 import { Text } from "frontend-shared/ui/text";
 
@@ -23,6 +23,7 @@ export interface SettingsWorkspaceViewProps {
     readonly activeSection: SettingsSectionDefinition;
     readonly labels: SettingsWorkspaceLabels;
     readonly navigate: SettingsWorkspaceNavigate;
+    readonly headingLevel?: "h1" | "h2";
     readonly children: ReactNode;
 }
 
@@ -31,6 +32,8 @@ export interface SettingsWorkspaceProps {
     readonly activeSectionId: string;
     readonly labels: SettingsWorkspaceLabels;
     readonly children: ReactNode;
+    /** Use h2 when the host shell already renders the route's h1. Defaults to h1. */
+    readonly headingLevel?: "h1" | "h2";
     /** Replace the default responsive layout while keeping section and guard contracts. */
     readonly view?: ComponentType<SettingsWorkspaceViewProps>;
 }
@@ -39,61 +42,44 @@ function isUnmodifiedPrimaryClick(event: MouseEvent<HTMLAnchorElement>): boolean
     return event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey;
 }
 
-function SectionLink({
-    section,
-    active,
-    navigate,
-    afterNavigation,
-}: {
-    readonly section: SettingsSectionDefinition;
-    readonly active: boolean;
-    readonly navigate: SettingsWorkspaceNavigate;
-    readonly afterNavigation?: () => void;
-}) {
-    return (
-        <Link
-            href={section.href}
-            className={[
-                "block rounded-control px-inline py-inline-tight no-underline transition-hover focus-visible:focus-ring",
-                active ? "bg-interactive-primary text-text-on-accent" : "text-text-secondary hover:bg-surface-row-hover hover:text-text-primary",
-            ].join(" ")}
-            {...(active ? { "aria-current": "page" as const } : {})}
-            onClick={(event) => {
-                if (!isUnmodifiedPrimaryClick(event)) return;
-                event.preventDefault();
-                navigate(section.href, afterNavigation);
-            }}
-        >
-            {section.label}
-        </Link>
-    );
-}
-
 /** Standard desktop rail and mobile left drawer; route resolution stays with the application. */
 export function SettingsWorkspaceDefaultView({
     sections,
     activeSection,
     labels,
     navigate,
+    headingLevel = "h1",
     children,
 }: SettingsWorkspaceViewProps) {
     const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false);
+    const navigationItems = sections.map(section => ({
+        label: section.label,
+        href: section.href,
+        isActive: section.id === activeSection.id,
+    }));
+    const onDesktopNavigate = (href: string, event: MouseEvent<HTMLAnchorElement>) => {
+        if (!isUnmodifiedPrimaryClick(event)) return;
+        event.preventDefault();
+        navigate(href);
+    };
+    const onMobileNavigate = (href: string, event: MouseEvent<HTMLAnchorElement>) => {
+        if (!isUnmodifiedPrimaryClick(event)) return;
+        event.preventDefault();
+        navigate(href, () => { setMobileNavigationOpen(false); });
+    };
 
     return (
-        <Row gap="section-gap" className="items-start">
-            <Stack as="aside" gap="stack" aria-label={labels.navigation} className="hidden w-(--layout-sidebar-expanded) shrink-0 lg:flex">
-                <Text variant="overline" color="muted">{labels.navigation}</Text>
-                <Stack as="nav" gap="stack-tight" aria-label={labels.navigation}>
-                    {sections.map((section) => (
-                        <SectionLink
-                            key={section.id}
-                            section={section}
-                            active={section.id === activeSection.id}
-                            navigate={navigate}
-                        />
-                    ))}
-                </Stack>
-            </Stack>
+        <Row gap="section-gap" className="items-stretch">
+            <SidebarNav
+                items={navigationItems}
+                ariaLabel={labels.navigation}
+                heading={labels.navigation}
+                layout="vertical"
+                activeAppearance="subtle"
+                surface="inset"
+                onNavigate={onDesktopNavigate}
+                className="hidden w-52 shrink-0 sm:flex"
+            />
 
             <Stack gap="section-gap" className="min-w-0 flex-1">
                 <Drawer.Root
@@ -101,7 +87,7 @@ export function SettingsWorkspaceDefaultView({
                     onOpenChange={setMobileNavigationOpen}
                     swipeDirection="left"
                 >
-                    <Row gap="inline" className="lg:hidden">
+                    <Row gap="inline" className="sm:hidden">
                         <Drawer.Trigger render={<Button tone="neutral" type="button">{labels.openNavigation}</Button>} />
                     </Row>
                     <Drawer.Popup placement="left">
@@ -109,23 +95,19 @@ export function SettingsWorkspaceDefaultView({
                             <Drawer.Title>{labels.navigation}</Drawer.Title>
                             <Drawer.Close label={labels.closeNavigation} />
                         </Row>
-                        <Stack as="nav" gap="stack-tight" aria-label={labels.navigation}>
-                            {sections.map((section) => (
-                                <SectionLink
-                                    key={section.id}
-                                    section={section}
-                                    active={section.id === activeSection.id}
-                                    navigate={navigate}
-                                    afterNavigation={() => setMobileNavigationOpen(false)}
-                                />
-                            ))}
-                        </Stack>
+                        <SidebarNav
+                            items={navigationItems}
+                            ariaLabel={labels.navigation}
+                            layout="vertical"
+                            activeAppearance="subtle"
+                            onNavigate={onMobileNavigate}
+                        />
                     </Drawer.Popup>
                 </Drawer.Root>
 
                 <Stack as="section" gap="section-gap" aria-label={activeSection.label}>
                     <Stack gap="inline-tight">
-                        <Text variant="title1" as="h1">{activeSection.label}</Text>
+                        <Text variant="title1" as={headingLevel}>{activeSection.label}</Text>
                         {activeSection.description
                             ? <Text variant="body" color="muted">{activeSection.description}</Text>
                             : null}
@@ -143,6 +125,7 @@ export function SettingsWorkspace({
     activeSectionId,
     labels,
     children,
+    headingLevel = "h1",
     view: View = SettingsWorkspaceDefaultView,
 }: SettingsWorkspaceProps) {
     const { requestNavigation } = useSettingsNavigationGuard();
@@ -155,6 +138,7 @@ export function SettingsWorkspace({
             activeSection={activeSection}
             labels={labels}
             navigate={requestNavigation}
+            headingLevel={headingLevel}
         >
             {children}
         </View>

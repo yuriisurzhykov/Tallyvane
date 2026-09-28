@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useId, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { AlertDialog } from "frontend-shared/ui/alert-dialog";
 import { Button } from "frontend-shared/ui/button";
 import { Stack } from "frontend-shared/ui/stack";
@@ -35,6 +35,54 @@ interface GuardContextValue extends SettingsNavigationGuard {
 
 const GuardContext = createContext<GuardContextValue | null>(null);
 
+function isModifiedClick(event: MouseEvent): boolean {
+    return event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey;
+}
+
+function internalDestination(event: MouseEvent): string | null {
+    if (event.defaultPrevented || isModifiedClick(event)) return null;
+    if (!(event.target instanceof Element)) return null;
+    const link = event.target.closest<HTMLAnchorElement>("a[href]");
+    if (!link || link.hasAttribute("data-settings-navigation") || link.hasAttribute("download")) return null;
+    if (link.target && link.target.toLowerCase() !== "_self") return null;
+    const destination = new URL(link.href, window.location.href);
+    const current = new URL(window.location.href);
+    if (destination.origin !== current.origin) return null;
+    if (destination.pathname === current.pathname && destination.search === current.search) return null;
+    return `${destination.pathname}${destination.search}${destination.hash}`;
+}
+
+function useBrowserNavigationGuard(isDirty: boolean, requestNavigation: (href: string) => void): void {
+    const requestRef = useRef(requestNavigation);
+    useEffect(() => { requestRef.current = requestNavigation; }, [requestNavigation]);
+    useEffect(() => {
+        if (!isDirty) return;
+        const currentHref = window.location.href;
+        const currentHistoryState: unknown = window.history.state;
+        const guardLink = (event: MouseEvent) => {
+            const href = internalDestination(event);
+            if (!href) return;
+            event.preventDefault();
+            requestRef.current(href);
+        };
+        const guardHistory = (event: PopStateEvent) => {
+            const destination = new URL(window.location.href);
+            window.history.pushState(currentHistoryState, "", currentHref);
+            event.stopImmediatePropagation();
+            requestRef.current(`${destination.pathname}${destination.search}${destination.hash}`);
+        };
+        const warnBeforeUnload = (event: BeforeUnloadEvent) => { event.preventDefault(); };
+        document.addEventListener("click", guardLink, true);
+        window.addEventListener("popstate", guardHistory, true);
+        window.addEventListener("beforeunload", warnBeforeUnload);
+        return () => {
+            document.removeEventListener("click", guardLink, true);
+            window.removeEventListener("popstate", guardHistory, true);
+            window.removeEventListener("beforeunload", warnBeforeUnload);
+        };
+    }, [isDirty]);
+}
+
 /** Shared by settings forms, multi-step modules, and application navigation. */
 export function SettingsNavigationGuardProvider({
     children,
@@ -47,6 +95,8 @@ export function SettingsNavigationGuardProvider({
 
     const setDirty = useCallback((id: string, dirty: boolean | null) => {
         setDirtySources((current) => {
+            if (dirty === null && !current.has(id)) return current;
+            if (dirty !== null && current.get(id) === dirty) return current;
             const next = new Map(current);
             if (dirty === null) next.delete(id);
             else next.set(id, dirty);
@@ -68,6 +118,8 @@ export function SettingsNavigationGuardProvider({
         afterNavigation?.();
     }, [dirtySources, navigate]);
 
+    useBrowserNavigationGuard(isDirty, requestNavigation);
+
     const completeNavigation = useCallback(() => {
         if (!pendingNavigation) return;
         if (navigate) navigate(pendingNavigation.href);
@@ -75,16 +127,6 @@ export function SettingsNavigationGuardProvider({
         pendingNavigation.afterNavigation?.();
         setPendingNavigation(null);
     }, [navigate, pendingNavigation]);
-
-    useEffect(() => {
-        if (!isDirty) return;
-        const warnBeforeUnload = (event: BeforeUnloadEvent) => {
-            event.preventDefault();
-            event.returnValue = "";
-        };
-        window.addEventListener("beforeunload", warnBeforeUnload);
-        return () => window.removeEventListener("beforeunload", warnBeforeUnload);
-    }, [isDirty]);
 
     const contextValue = useMemo<GuardContextValue>(
         () => ({ isDirty, requestNavigation, setDirty }),
@@ -134,6 +176,19 @@ export function useSettingsUnsavedChanges(isDirty: boolean): void {
 
     useEffect(() => {
         setDirty(id, isDirty);
-        return () => setDirty(id, null);
+        return () => { setDirty(id, null); };
     }, [id, isDirty, setDirty]);
+}
+
+/** Registers state when a reusable module may also render outside settings. */
+export function useOptionalSettingsUnsavedChanges(isDirty: boolean): void {
+    const context = useContext(GuardContext);
+    const id = useId();
+    const setDirty = context?.setDirty;
+
+    useEffect(() => {
+        if (!setDirty) return;
+        setDirty(id, isDirty);
+        return () => { setDirty(id, null); };
+    }, [setDirty, id, isDirty]);
 }

@@ -8,6 +8,9 @@ import { Text } from "frontend-shared/ui/text";
 export interface SettingsFormActionsProps {
     readonly isDirty: boolean;
     readonly isSaving: boolean;
+    readonly canSave?: boolean;
+    /** Use a direct action when the settings module is not wrapped in a form. */
+    readonly onSave?: () => void;
     readonly onCancel: () => void;
     readonly status?: {
         readonly tone: "danger" | "success";
@@ -21,7 +24,7 @@ export interface SettingsFormActionsProps {
 }
 
 /** Explicit-save actions for a module-owned form; form values and validation remain with that module. */
-export function SettingsFormActions({ isDirty, isSaving, onCancel, status, labels }: SettingsFormActionsProps) {
+export function SettingsFormActions({ isDirty, isSaving, canSave = true, onSave, onCancel, status, labels }: SettingsFormActionsProps) {
     useSettingsUnsavedChanges(isDirty);
 
     return (
@@ -31,7 +34,13 @@ export function SettingsFormActions({ isDirty, isSaving, onCancel, status, label
             <Button tone="neutral" type="button" disabled={!isDirty || isSaving} onClick={onCancel}>
                 {labels.cancel}
             </Button>
-            <Button tone="primary" type="submit" disabled={!isDirty} loading={isSaving}>
+            <Button
+                tone="primary"
+                type={onSave ? "button" : "submit"}
+                disabled={!isDirty || !canSave}
+                loading={isSaving}
+                {...(onSave ? { onClick: onSave } : {})}
+            >
                 {labels.save}
             </Button>
         </Row>

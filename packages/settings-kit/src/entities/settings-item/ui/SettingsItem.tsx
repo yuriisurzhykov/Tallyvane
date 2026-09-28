@@ -10,17 +10,20 @@ export interface SettingsItemProps {
     readonly status?: ReactNode;
 }
 
-/** A domain-neutral label, explanation, control, and optional save status. */
+/**
+ * A domain-neutral label, explanation, control, and optional save status.
+ * */
 export function SettingsItem({ label, description, control, status }: SettingsItemProps) {
     return (
-        <Row gap="group-gap" className="items-start justify-between border-b border-border-subtle py-stack last:border-0">
+        <Row gap="group-gap"
+             className="items-start justify-between border-b border-border-subtle py-stack last:border-0">
             <Stack gap="inline-tight" className="min-w-0 flex-1">
-                <Text variant="bodyStrong">{label}</Text>
-                {description ? <Text variant="small" color="muted">{description}</Text> : null}
+                <Text variant="bodyStrong">{ label }</Text>
+                { description ? <Text variant="small" color="muted">{ description }</Text> : null }
             </Stack>
             <Stack gap="inline-tight" className="shrink-0 items-end">
-                {control}
-                {status}
+                { control }
+                { status }
             </Stack>
         </Row>
     );

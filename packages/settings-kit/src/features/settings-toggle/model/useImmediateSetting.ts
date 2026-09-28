@@ -69,7 +69,7 @@ export function useImmediateSetting({ value, onSave, onError }: UseImmediateSett
         saving.current = false;
         setStatus("saved");
         if (savedTimer.current) clearTimeout(savedTimer.current);
-        savedTimer.current = setTimeout(() => setStatus("idle"), 1800);
+        savedTimer.current = setTimeout(() => { setStatus("idle"); }, 1800);
     }, []);
 
     const setValue = useCallback((nextValue: boolean) => {

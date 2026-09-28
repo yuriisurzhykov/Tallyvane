@@ -2,6 +2,7 @@ export {
     SettingsNavigationGuardProvider,
     useSettingsNavigationGuard,
     useSettingsUnsavedChanges,
+    useOptionalSettingsUnsavedChanges,
 } from "./model/SettingsNavigationGuard";
 export type {
     SettingsLeaveGuardLabels,
