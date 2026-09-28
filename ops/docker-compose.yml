@@ -59,11 +59,13 @@ x-server: &server-defaults
     TALLYVANE_GOOGLE_CLIENT_ID: ${TALLYVANE_GOOGLE_CLIENT_ID:-}
     TALLYVANE_GOOGLE_CLIENT_SECRET: ${TALLYVANE_GOOGLE_CLIENT_SECRET:-}
     TALLYVANE_GOOGLE_REDIRECT_URI: ${TALLYVANE_GOOGLE_REDIRECT_URI:-}
+    TALLYVANE_GOOGLE_ADMIN_REDIRECT_URI: ${TALLYVANE_GOOGLE_ADMIN_REDIRECT_URI:-}
     # -javaagent alongside -XX:MaxRAMPercentage in the same value, same reasoning as the
     # heap/mem_limit pairing this line already carries: two settings that only make sense read
     # together stay written together, not one here and one guessed at from a second file.
     JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=66 -javaagent:/opt/tallyvane/opentelemetry-javaagent.jar
     OTEL_SERVICE_NAME: tallyvane-server
+    OTEL_LOGS_EXPORTER: otlp
     OTEL_RESOURCE_ATTRIBUTES: *otel-namespace
     OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:?OTEL_EXPORTER_OTLP_ENDPOINT must be set}
     OTEL_EXPORTER_OTLP_HEADERS: ${OTEL_EXPORTER_OTLP_HEADERS:?OTEL_EXPORTER_OTLP_HEADERS must be set}
@@ -71,6 +73,8 @@ x-server: &server-defaults
     # trace_id/span_id (ADR-056) instead of coexisting with them.
     OTEL_INSTRUMENTATION_COMMON_LOGGING_TRACE_ID_KEY: otel_trace_id
     OTEL_INSTRUMENTATION_COMMON_LOGGING_SPAN_ID_KEY: otel_span_id
+    OTEL_INSTRUMENTATION_LOGBACK_APPENDER_EXPERIMENTAL_KEY_VALUE_PAIR_ATTRIBUTES_INCLUDED: http.*,url.path,service.name,otel.event.name
+    OTEL_INSTRUMENTATION_LOGBACK_APPENDER_EXPERIMENTAL_MDC_ATTRIBUTES_INCLUDED: trace_id,span_id
   mem_limit: 576m
   depends_on:
     db:
@@ -91,10 +95,11 @@ x-frontend-web: &frontend-web-defaults
   restart: unless-stopped
   profiles: [ blue-green ]
   # @vercel/otel (frontend-shared's registerTallyvaneOtel, called from each app's own
-  # instrumentation.ts) reads these three exactly as written — the same OTLP endpoint and
-  # token the backend agent uses (ADR-067), one Grafana Cloud project for all four services.
+  # instrumentation.ts) configures batched OTLP Logs from OTEL_LOGS_EXPORTER and reads the
+  # same endpoint and token the backend agent uses (ADR-067), one Grafana Cloud project.
   environment:
     OTEL_SERVICE_NAME: tallyvane-frontend-web
+    OTEL_LOGS_EXPORTER: otlp
     OTEL_RESOURCE_ATTRIBUTES: *otel-namespace
     OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:?OTEL_EXPORTER_OTLP_ENDPOINT must be set}
     OTEL_EXPORTER_OTLP_HEADERS: ${OTEL_EXPORTER_OTLP_HEADERS:?OTEL_EXPORTER_OTLP_HEADERS must be set}
@@ -114,6 +119,7 @@ x-frontend-app: &frontend-app-defaults
   profiles: [ blue-green ]
   environment:
     OTEL_SERVICE_NAME: tallyvane-frontend-app
+    OTEL_LOGS_EXPORTER: otlp
     OTEL_RESOURCE_ATTRIBUTES: *otel-namespace
     OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:?OTEL_EXPORTER_OTLP_ENDPOINT must be set}
     OTEL_EXPORTER_OTLP_HEADERS: ${OTEL_EXPORTER_OTLP_HEADERS:?OTEL_EXPORTER_OTLP_HEADERS must be set}
@@ -133,6 +139,7 @@ x-frontend-admin: &frontend-admin-defaults
   profiles: [ blue-green ]
   environment:
     OTEL_SERVICE_NAME: tallyvane-frontend-admin
+    OTEL_LOGS_EXPORTER: otlp
     OTEL_RESOURCE_ATTRIBUTES: *otel-namespace
     OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:?OTEL_EXPORTER_OTLP_ENDPOINT must be set}
     OTEL_EXPORTER_OTLP_HEADERS: ${OTEL_EXPORTER_OTLP_HEADERS:?OTEL_EXPORTER_OTLP_HEADERS must be set}

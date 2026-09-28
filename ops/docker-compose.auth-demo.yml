@@ -1,64 +1,132 @@
-# Standalone localhost demo, not an override of production. Never use production .env.
+# Standalone localhost auth test stack, not an override of production. Never use production .env.
 name: tallyvane-auth-demo
+x-log-bound: &local-log-bound
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
 services:
+  frontend-web:
+    image: ${DEMO_FRONTEND_WEB_IMAGE:-tallyvane-frontend-web:auth-local}
+    build:
+      context: ..
+      dockerfile: frontend-web/Dockerfile
+    environment:
+      OTEL_SDK_DISABLED: "true"
+      OTEL_LOGS_EXPORTER: none
+      OTEL_SERVICE_NAME: tallyvane-frontend-web
+    networks: [ demo ]
+    mem_limit: 256m
+    logging: *local-log-bound
+    healthcheck:
+      test: [ "CMD", "wget", "--quiet", "--tries=1", "--output-document=/dev/null", "http://127.0.0.1:3000/" ]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
   frontend-app:
-    image: ${DEMO_FRONTEND_APP_IMAGE:-tallyvane-frontend-app:auth-demo}
+    image: ${DEMO_FRONTEND_APP_IMAGE:-tallyvane-frontend-app:auth-local}
+    build:
+      context: ..
+      dockerfile: frontend-app/Dockerfile
     environment:
       OTEL_SDK_DISABLED: "true"
+      OTEL_LOGS_EXPORTER: none
+      OTEL_SERVICE_NAME: tallyvane-frontend-app
     networks: [ demo ]
+    mem_limit: 384m
+    logging: *local-log-bound
+    healthcheck:
+      test: [ "CMD", "wget", "--quiet", "--tries=1", "--output-document=/dev/null", "http://127.0.0.1:3000/today" ]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
   frontend-admin:
-    image: ${DEMO_FRONTEND_ADMIN_IMAGE:-tallyvane-frontend-admin:auth-demo}
+    image: ${DEMO_FRONTEND_ADMIN_IMAGE:-tallyvane-frontend-admin:auth-local}
+    build:
+      context: ..
+      dockerfile: frontend-admin/Dockerfile
     environment:
       OTEL_SDK_DISABLED: "true"
+      OTEL_LOGS_EXPORTER: none
+      OTEL_SERVICE_NAME: tallyvane-frontend-admin
     networks: [ demo ]
+    mem_limit: 192m
+    logging: *local-log-bound
+    healthcheck:
+      test: [ "CMD", "wget", "--quiet", "--tries=1", "--output-document=/dev/null", "http://127.0.0.1:3000/pages" ]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
   proxy:
     image: nginx:alpine
-    ports: [ "127.0.0.1:3080:80", "127.0.0.1:3081:81" ]
+    ports: [ "127.0.0.1:80:80", "127.0.0.1:3080:80", "127.0.0.1:3081:81" ]
     volumes: [ "./demo/nginx.conf:/etc/nginx/conf.d/default.conf:ro" ]
-    networks: [ demo ]
-    depends_on: [ server, frontend-app, frontend-admin ]
+    networks: [ demo, mail ]
+    mem_limit: 96m
+    logging: *local-log-bound
+    depends_on: [ server, frontend-web, frontend-app, frontend-admin, mailpit ]
   db:
     image: postgres:17-alpine
+    command: [ "postgres", "-c", "max_connections=20" ]
     environment:
       POSTGRES_DB: tallyvane
       POSTGRES_USER: tallyvane
       POSTGRES_PASSWORD: demo-local-only
     volumes:
       - demo-pgdata:/var/lib/postgresql/data
+    mem_limit: 384m
     networks: [ data ]
+    logging: *local-log-bound
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U tallyvane -d tallyvane" ]
       interval: 3s
       timeout: 3s
       retries: 20
   migrate:
-    image: ${DEMO_BACKEND_IMAGE:-tallyvane-backend:auth-demo}
+    image: ${DEMO_BACKEND_IMAGE:-tallyvane-backend:auth-local}
     command: [ "java", "-cp", "/opt/tallyvane/migrate/lib/*", "tallyvane.migrate.MigrateKt" ]
     environment: &database
       TALLYVANE_DB_URL: jdbc:postgresql://db:5432/tallyvane
       TALLYVANE_DB_USER: tallyvane
       TALLYVANE_DB_PASSWORD: demo-local-only
     networks: [ data ]
+    mem_limit: 576m
+    logging: *local-log-bound
     depends_on:
       db:
         condition: service_healthy
   server:
-    image: ${DEMO_BACKEND_IMAGE:-tallyvane-backend:auth-demo}
+    image: ${DEMO_BACKEND_IMAGE:-tallyvane-backend:auth-local}
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
     environment:
       <<: *database
+      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=66
       TALLYVANE_AUTH_ENABLED: "true"
       TALLYVANE_HEALTH_TOKEN: demo-health-token-isolated-localhost-0123456789
       TALLYVANE_TOKEN_PEPPER: demo-token-pepper-isolated-localhost-0123456789
       TALLYVANE_TOTP_KEYSET: ${DEMO_TOTP_KEYSET:?Generate an isolated demo keyset}
       TALLYVANE_COOKIE_SECURE: "false"
-      TALLYVANE_AUTH_ORIGINS: http://localhost:3080,http://localhost:3081
-      TALLYVANE_ADMIN_EMAILS: owner@example.test
+      TALLYVANE_AUTH_ORIGINS: http://app.localhost,http://admin.localhost,http://localhost:3080,http://localhost:3081
+      TALLYVANE_ADMIN_EMAILS: ${TALLYVANE_ADMIN_EMAILS:-yuriisurzhykov@gmail.com}
       TALLYVANE_SMTP_HOST: mailpit
       TALLYVANE_SMTP_PORT: "1025"
       TALLYVANE_SMTP_FROM: noreply@example.test
+      TALLYVANE_GOOGLE_CLIENT_ID: ${TALLYVANE_GOOGLE_CLIENT_ID:-}
+      TALLYVANE_GOOGLE_CLIENT_SECRET: ${TALLYVANE_GOOGLE_CLIENT_SECRET:-}
+      TALLYVANE_GOOGLE_REDIRECT_URI: ${TALLYVANE_GOOGLE_REDIRECT_URI:-}
+      TALLYVANE_GOOGLE_ADMIN_REDIRECT_URI: ${TALLYVANE_GOOGLE_ADMIN_REDIRECT_URI:-}
       OTEL_SDK_DISABLED: "true"
+      OTEL_LOGS_EXPORTER: none
+      OTEL_SERVICE_NAME: tallyvane-server
     ports: [ "127.0.0.1:8080:8080" ]
+    mem_limit: 576m
     networks: [ data, mail, demo ]
+    logging: *local-log-bound
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -72,10 +140,12 @@ services:
       MP_DISABLE_VERSION_CHECK: "true"
       MP_SMTP_DISABLE_RDNS: "true"
       MP_SMTP_RELAY_ALL: "false"
-      MP_ALLOWED_HOSTS: localhost,127.0.0.1
+      MP_ALLOWED_HOSTS: localhost,127.0.0.1,mail.localhost
     volumes: [ "demo-maildata:/data" ]
+    mem_limit: 128m
     ports: [ "127.0.0.1:8025:8025" ]
     networks: [ mail ]
+    logging: *local-log-bound
 networks:
   data:
     internal: true
