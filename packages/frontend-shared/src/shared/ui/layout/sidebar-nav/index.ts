@@ -1,2 +1,8 @@
 export { SidebarNav } from "./SidebarNav";
-export type { SidebarNavItem, SidebarNavProps } from "./SidebarNav";
+export type {
+    SidebarNavActiveAppearance,
+    SidebarNavItem,
+    SidebarNavLayout,
+    SidebarNavProps,
+    SidebarNavSurface,
+} from "./SidebarNav";

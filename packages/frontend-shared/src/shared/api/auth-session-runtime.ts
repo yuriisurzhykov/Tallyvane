@@ -268,7 +268,7 @@ export class AuthSessionRuntime {
             throw new Error(`Invalid auth session transition: ${this.state.status} -> ${next.status}`);
         }
         this.state = next;
-        this.listeners.forEach((listener) => listener());
+        this.listeners.forEach((listener) => { listener(); });
     }
 }
 
@@ -291,26 +291,32 @@ async function withStorageLock<T>(name: string, operation: () => Promise<T>): Pr
                 return operation();
             }
             if (readLease(storage, key)?.owner === owner) {
-                const heartbeat = setInterval(() => {
-                    if (readLease(storage, key)?.owner !== owner) return;
-                    try {
-                        storage.setItem(key, JSON.stringify({ owner, expiresAt: Date.now() + leaseMilliseconds }));
-                    } catch {
-                        // The lease remains bounded; the refresh result is still authoritative.
-                    }
-                }, Math.floor(leaseMilliseconds / 3));
-                try {
-                    return await operation();
-                } finally {
-                    clearInterval(heartbeat);
-                    if (readLease(storage, key)?.owner === owner) storage.removeItem(key);
-                }
+                return runWithLease({ storage, key, owner, leaseMilliseconds }, operation);
             }
         }
         await delay(30 + Math.floor(Math.random() * 40));
     }
 
     throw new Error("Could not acquire the cross-tab auth refresh lock");
+}
+
+async function runWithLease<T>({ storage, key, owner, leaseMilliseconds }: {
+    storage: Storage; key: string; owner: string; leaseMilliseconds: number;
+}, operation: () => Promise<T>): Promise<T> {
+    const heartbeat = setInterval(() => {
+        if (readLease(storage, key)?.owner !== owner) return;
+        try {
+            storage.setItem(key, JSON.stringify({ owner, expiresAt: Date.now() + leaseMilliseconds }));
+        } catch {
+            // The lease remains bounded; the refresh result is still authoritative.
+        }
+    }, Math.floor(leaseMilliseconds / 3));
+    try {
+        return await operation();
+    } finally {
+        clearInterval(heartbeat);
+        if (readLease(storage, key)?.owner === owner) storage.removeItem(key);
+    }
 }
 
 function readLease(storage: Storage, key: string): { owner: string; expiresAt: number } | undefined {
@@ -340,7 +346,7 @@ function createOwnerId(): string {
     try {
         return crypto.randomUUID();
     } catch {
-        return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        return `${String(Date.now())}-${Math.random().toString(36).slice(2)}`;
     }
 }
 

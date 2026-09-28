@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { SidebarNav, type SidebarNavItem } from "../sidebar-nav";
+import { SidebarNav, type SidebarNavActiveAppearance, type SidebarNavItem } from "../sidebar-nav";
 import { TopBar } from "../top-bar";
 import { SkipLink } from "../../skip-link";
 
@@ -13,6 +13,8 @@ export interface AppShellProps {
     readonly skipLinkLabel: string;
     /** Forwarded to `TopBar`. Omit for a bare title bar. */
     readonly actions?: ReactNode;
+    /** Active link treatment for screens that share the settings visual language. */
+    readonly navActiveAppearance?: SidebarNavActiveAppearance;
     /** The active screen. */
     readonly children: ReactNode;
     /** Layout and position only — see `COMPONENTS.md` §11. */
@@ -27,14 +29,25 @@ export interface AppShellProps {
  *
  * Stacks vertically below `lg` (`SidebarNav` becomes the horizontal row it
  * already is at that width) and sits side by side from `lg` up — one
- * breakpoint switch, not two layouts maintained separately.
+ * breakpoint switch, not two layouts maintained separately. A route can
+ * select the quieter active navigation treatment without changing the
+ * app-wide default.
  */
-export function AppShell({ navItems, title, skipLinkLabel, actions, children, className }: AppShellProps) {
+export function AppShell({
+    navItems,
+    title,
+    skipLinkLabel,
+    actions,
+    navActiveAppearance = "primary",
+    children,
+    className,
+}: AppShellProps) {
     return (
         <div className={["flex min-h-dvh flex-col lg:flex-row", className].filter(Boolean).join(" ")}>
             <SkipLink href={`#${MAIN_CONTENT_ID}`}>{skipLinkLabel}</SkipLink>
             <SidebarNav
                 items={navItems}
+                activeAppearance={navActiveAppearance}
                 className="border-b border-border-subtle p-inline-tight lg:border-r lg:border-b-0 lg:p-stack"
             />
             <div className="flex min-w-0 flex-1 flex-col">

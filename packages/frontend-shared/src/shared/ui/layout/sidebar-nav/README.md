@@ -16,9 +16,15 @@ nav item's visual shape.
 `SidebarNav` takes a flat list of `{ label, href, isActive }` and renders one
 `<a>` per item inside a labelled `<nav>`. `isActive` is computed by the
 caller, not this component: a router-aware `SidebarNav` would make this
-package depend on Next's `usePathname`, and `Link.tsx` already draws that
-same line — routing decisions live one layer up, this component only renders
-what it is told.
+package depend on Next's `usePathname`. Routing decisions live one layer up.
+An optional `onNavigate` callback lets a host intercept ordinary clicks while
+leaving modified clicks and the anchor's native fallback intact.
+
+The default `responsive` layout preserves the app-shell behavior. A `vertical`
+layout is available for nested workspaces such as settings, and
+`activeAppearance="subtle"` provides the quieter selected treatment used by
+the settings reference. Optional `heading` and `surface="inset"` compose the
+section label and inset rail without app-level style overrides.
 
 **Judgment call: text-only, not an icon rail, below `lg`.** The obvious
 version of "collapse the sidebar on a narrow screen" is `SidebarNav`'s own

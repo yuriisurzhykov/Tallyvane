@@ -24,7 +24,7 @@ module.exports = {
                 orphan: true,
                 pathNot: [
                     "(^|/)\\.[^/]+\\.(js|cjs|mjs|ts|json)$",
-                    "\\.d\\.ts$",
+                    "\\.d\\.(ts|cts)$",
                     "(^|/)(steiger|compiler)\\.config\\.ts$",
                     // Segment public APIs that are still empty. They exist so
                     // the boundary is declared before there is anything behind

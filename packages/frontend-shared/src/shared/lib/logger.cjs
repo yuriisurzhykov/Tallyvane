@@ -9,8 +9,8 @@ const SEVERITY_NUMBERS = {
     fatal: 21,
 };
 
-class StdoutLogSink {
-    emit(scope, service, record) {
+function createStdoutLogSink() {
+    return { emit(scope, service, record) {
         process.stdout.write(
             `${JSON.stringify({
                 timestamp: new Date().toISOString(),
@@ -25,7 +25,7 @@ class StdoutLogSink {
                 },
             })}\n`,
         );
-    }
+    } };
 }
 
 class OtlpLogSink {
@@ -64,7 +64,7 @@ function createLogger(scope, options = {}) {
     const useOtlp = env.OTEL_SDK_DISABLED?.toLowerCase() !== "true" && exporters.includes("otlp");
     const sink = useOtlp
         ? (options.sinks?.otlp ?? new OtlpLogSink())
-        : (options.sinks?.console ?? new StdoutLogSink());
+        : (options.sinks?.console ?? createStdoutLogSink());
 
     return Object.freeze({
         emit(record) {

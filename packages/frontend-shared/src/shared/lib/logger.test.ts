@@ -11,10 +11,14 @@ const record: LogRecord = {
     },
 };
 
-function sinks(): { console: LogSink; otlp: LogSink } {
+function sinks() {
+    const consoleEmit = vi.fn<LogSink["emit"]>();
+    const otlpEmit = vi.fn<LogSink["emit"]>();
     return {
-        console: { emit: vi.fn() },
-        otlp: { emit: vi.fn() },
+        console: { emit: consoleEmit },
+        otlp: { emit: otlpEmit },
+        consoleEmit,
+        otlpEmit,
     };
 }
 
@@ -32,8 +36,8 @@ describe("the shared logger contract", () => {
 
         logger.emit(record);
 
-        expect(outputs.console.emit).toHaveBeenCalledWith("http.server.access", "tallyvane-frontend-app", record);
-        expect(outputs.otlp.emit).not.toHaveBeenCalled();
+        expect(outputs.consoleEmit).toHaveBeenCalledWith("http.server.access", "tallyvane-frontend-app", record);
+        expect(outputs.otlpEmit).not.toHaveBeenCalled();
     });
 
     it("routes production records to the configured OTLP implementation", () => {
@@ -45,8 +49,8 @@ describe("the shared logger contract", () => {
 
         logger.emit(record);
 
-        expect(outputs.otlp.emit).toHaveBeenCalledWith("http.server.access", "tallyvane-frontend-admin", record);
-        expect(outputs.console.emit).not.toHaveBeenCalled();
+        expect(outputs.otlpEmit).toHaveBeenCalledWith("http.server.access", "tallyvane-frontend-admin", record);
+        expect(outputs.consoleEmit).not.toHaveBeenCalled();
     });
 
     it("uses stdout when no remote log exporter is configured", () => {
@@ -58,7 +62,7 @@ describe("the shared logger contract", () => {
 
         logger.emit(record);
 
-        expect(outputs.console.emit).toHaveBeenCalledWith("http.server.access", "tallyvane-frontend-web", record);
-        expect(outputs.otlp.emit).not.toHaveBeenCalled();
+        expect(outputs.consoleEmit).toHaveBeenCalledWith("http.server.access", "tallyvane-frontend-web", record);
+        expect(outputs.otlpEmit).not.toHaveBeenCalled();
     });
 });

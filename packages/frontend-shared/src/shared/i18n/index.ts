@@ -12,7 +12,8 @@ export type KeyOf<TNamespace extends Record<string, string>> = keyof TNamespace 
 export function createUseStrings<TDict extends Record<string, Record<string, string>>>(dictionary: TDict) {
     const translators = new Map<string, (key: string, vars?: Record<string, string | number>) => string>();
     for (const ns of Object.keys(dictionary)) {
-        const namespace = dictionary[ns] as Record<string, string>;
+        const namespace = dictionary[ns];
+        if (namespace === undefined) continue;
         translators.set(ns, (key, vars) => {
             const raw = namespace[key];
             if (raw === undefined) {

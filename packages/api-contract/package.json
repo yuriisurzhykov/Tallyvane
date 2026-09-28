@@ -12,6 +12,7 @@
     "api:check": "node ../../scripts/check-openapi-snake-case.mjs && node ../../scripts/check-problem-catalog.mjs && openapi-typescript ../../docs/openapi.yaml --output src/api.generated.d.ts --check"
   },
   "devDependencies": {
-    "openapi-typescript": "^7.13.0"
+    "openapi-typescript": "^7.13.0",
+    "typescript": "^5"
   }
 }

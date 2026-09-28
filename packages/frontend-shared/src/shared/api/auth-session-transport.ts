@@ -37,18 +37,7 @@ export function createAuthSessionTransport(
         const retryInput = cloneForRetry(input);
         const path = requestPath(input);
         const method = requestMethod(input, init);
-        const suppliedHeaders = new Headers(init?.headers ?? (typeof Request !== "undefined" && input instanceof Request ? input.headers : undefined));
-        const action = path ? resolveAction(path, method) : undefined;
-        const stepUpProof = action && path && !suppliedHeaders.has("X-Action-Proof")
-            ? runtime.takeStepUpProof(action, method, path)
-            : undefined;
-        let requestInit = init;
-        if (stepUpProof) {
-            const headers = new Headers(suppliedHeaders);
-            headers.set("X-Action-Proof", stepUpProof);
-            requestInit = { ...init, headers };
-        }
-        const response = await fetcher(input, requestInit);
+        const response = await fetcher(input, withActionProof({ input, init, path, method, runtime, resolveAction }));
         if (response.ok && (path === `${API_PREFIX}/logout` || path === `${API_PREFIX}/logout-all`)) {
             runtime.markAnonymous();
             return response;
@@ -56,33 +45,52 @@ export function createAuthSessionTransport(
         const problem = await readProblem(response);
         if (!problem) return response;
 
-        if (!path || !matchesProtectedRequest(path)) return response;
-
-        if (response.status === 403 && problem.type === AUTH_PROBLEM_TYPES.stepUpRequired) {
-            runtime.requireStepUp(problem as StepUpProblem, { method, path: path! });
-            return response;
-        }
-        if (response.status === 403 && problem.type === AUTH_PROBLEM_TYPES.forbidden) {
-            runtime.denyAccess(problem as AccessDeniedProblem, { method, path: path! });
-            return response;
-        }
-        if (response.status !== 401 || problem.type !== AUTH_PROBLEM_TYPES.unauthorized) return response;
-
+        if (!path || !matchesProtectedRequest(path) || handleForbidden(runtime, response, problem, { method, path })) return response;
+        if (!isUnauthorized(response, problem)) return response;
         if (!await runtime.recoverUnauthorized()) return response;
 
         const retriedResponse = await fetcher(retryInput, init);
         const retriedProblem = await readProblem(retriedResponse);
-        if (!retriedProblem) return retriedResponse;
-
-        if (retriedResponse.status === 401 && retriedProblem.type === AUTH_PROBLEM_TYPES.unauthorized) {
-            runtime.markAnonymous();
-        } else if (retriedResponse.status === 403 && retriedProblem.type === AUTH_PROBLEM_TYPES.stepUpRequired) {
-            runtime.requireStepUp(retriedProblem as StepUpProblem, { method, path: path! });
-        } else if (retriedResponse.status === 403 && retriedProblem.type === AUTH_PROBLEM_TYPES.forbidden) {
-            runtime.denyAccess(retriedProblem as AccessDeniedProblem, { method, path: path! });
-        }
+        if (retriedProblem && isUnauthorized(retriedResponse, retriedProblem)) runtime.markAnonymous();
+        else if (retriedProblem) handleForbidden(runtime, retriedResponse, retriedProblem, { method, path });
         return retriedResponse;
     };
+}
+
+function withActionProof({ input, init, path, method, runtime, resolveAction }: {
+    input: RequestInfo | URL;
+    init: RequestInit | undefined;
+    path: string | undefined;
+    method: string;
+    runtime: AuthSessionRuntime;
+    resolveAction: (path: string, method: string) => string | undefined;
+}): RequestInit | undefined {
+    const suppliedHeaders = new Headers(init?.headers ?? (typeof Request !== "undefined" && input instanceof Request ? input.headers : undefined));
+    const action = path ? resolveAction(path, method) : undefined;
+    const stepUpProof = action && path && !suppliedHeaders.has("X-Action-Proof")
+        ? runtime.takeStepUpProof(action, method, path)
+        : undefined;
+    if (!stepUpProof) return init;
+    suppliedHeaders.set("X-Action-Proof", stepUpProof);
+    return { ...init, headers: suppliedHeaders };
+}
+
+function isUnauthorized(response: Response, problem: { readonly type: string }): boolean {
+    return response.status === 401 && problem.type === AUTH_PROBLEM_TYPES.unauthorized;
+}
+
+function handleForbidden(runtime: AuthSessionRuntime, response: Response, problem: { readonly type: string },
+    request: { method: string; path: string }): boolean {
+    if (response.status !== 403) return false;
+    if (problem.type === AUTH_PROBLEM_TYPES.stepUpRequired) {
+        runtime.requireStepUp(problem as StepUpProblem, request);
+        return true;
+    }
+    if (problem.type === AUTH_PROBLEM_TYPES.forbidden) {
+        runtime.denyAccess(problem as AccessDeniedProblem, request);
+        return true;
+    }
+    return false;
 }
 
 function requestMethod(input: RequestInfo | URL, init?: RequestInit): string {

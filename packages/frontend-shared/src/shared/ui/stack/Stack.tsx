@@ -23,6 +23,9 @@ export interface StackProps {
     readonly as?: "article" | "aside" | "div" | "footer" | "header" | "li" | "main" | "nav" | "section" | "ul";
     readonly id?: string;
     readonly role?: string;
+    readonly inert?: boolean;
+    readonly "aria-hidden"?: boolean;
+    readonly "aria-live"?: "off" | "polite" | "assertive";
     readonly "aria-label"?: string;
     readonly "aria-labelledby"?: string;
     readonly "aria-current"?: "page" | "step" | "location" | "date" | "time" | true | false;
