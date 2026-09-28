@@ -54,7 +54,7 @@ export async function submitAdminPassword(
     try {
         const outcome = await adminAuthClient.signIn(state.email.trim(), state.password);
         patch(dispatch, { password: "" });
-        await handleSignInOutcome(outcome, context);
+        handleSignInOutcome(outcome, context);
     } catch (reason) {
         const message = reason instanceof AdminLoginFlowError ? reason.message : errorMessage(reason, t, "password");
         patch(dispatch, { error: message });
@@ -81,7 +81,7 @@ export async function submitAdminEmailCode(
             state.email.trim(),
             state.code,
         );
-        await handleSignInOutcome(outcome, context);
+        handleSignInOutcome(outcome, context);
     } catch (reason) {
         const message = reason instanceof AdminLoginFlowError ? reason.message : errorMessage(reason, t, "verification");
         patch(dispatch, { error: message });
@@ -90,10 +90,10 @@ export async function submitAdminEmailCode(
     }
 }
 
-async function handleSignInOutcome(
+function handleSignInOutcome(
     outcome: SignInOutcome,
     context: FlowContext,
-) {
+): void {
     const { dispatch, t } = context;
     switch (outcome.status) {
         case "issued":

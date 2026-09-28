@@ -40,6 +40,10 @@ export class AdminAuthError extends Error {
     }
 }
 
+function adminAuthEndpoint(path: string): string {
+    return path === "/csrf" ? `/api/v1/auth${path}` : `/api/v1/auth/admin${path}`;
+}
+
 export function createAdminAuthClient(fetcher: typeof fetch = fetch) {
     async function request<T>(path: string, method = "GET", body?: unknown): Promise<T> {
         const headers = new Headers({ Accept: "application/json" });
@@ -60,10 +64,7 @@ export function createAdminAuthClient(fetcher: typeof fetch = fetch) {
 
     async function send(path: string, method: string, headers?: Headers, body?: unknown): Promise<Response> {
         try {
-            const endpoint = path === "/csrf"
-                ? `/api/v1/auth${path}`
-                : `/api/v1/auth/admin${path}`;
-            return await fetcher(endpoint, {
+            return await fetcher(adminAuthEndpoint(path), {
                 method,
                 headers: headers ?? { Accept: "application/json" },
                 credentials: "same-origin",
@@ -86,11 +87,7 @@ export function createAdminAuthClient(fetcher: typeof fetch = fetch) {
             const result = await request<{ schemes: { id: string; requiredTokens: AdminProofTokenKind[]; assuranceRank: number }[] }>(
                 `/account/action-proof/options?action=${encodeURIComponent(action)}`,
             );
-            return result.schemes.map(scheme => ({
-                id: scheme.id,
-                requiredTokens: scheme.requiredTokens,
-                assuranceRank: scheme.assuranceRank,
-            } satisfies AdminProofScheme));
+            return result.schemes;
         },
         requestActionEmailCode: async (action: AdminAccountAction, kind: "EMAIL_SIGN_IN_CODE" | "EMAIL_FACTOR_CODE") => {
             const result = await request<{ challengeId: string }>("/account/action-proof/email-code", "POST", { action, kind });

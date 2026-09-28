@@ -16,7 +16,7 @@ import type { NextConfig } from "next";
 const workspaceRoot = fileURLToPath(new URL("..", import.meta.url));
 
 const config: NextConfig = {
-    transpilePackages: ["design-token-engine", "frontend-shared", "content-kit"],
+    transpilePackages: ["design-token-engine", "frontend-shared", "content-kit", "settings-kit"],
     output: "standalone",
     outputFileTracingRoot: workspaceRoot,
     turbopack: { root: workspaceRoot },

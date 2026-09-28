@@ -26,10 +26,65 @@ const emailKinds: readonly AdminProofTokenKind[] = ["EMAIL_SIGN_IN_CODE", "EMAIL
 interface GoogleProof { readonly value: string; readonly codeVerifier: string; readonly redirectUri: string }
 type GoogleProofMessage = { readonly type: "tallyvane-google-action-proof"; readonly state: string; readonly error: boolean } & GoogleProof;
 
+async function requestGoogleProof(action: AdminAccountAction): Promise<GoogleProof> {
+    const popup = window.open("", "tallyvane-google-proof", "width=520,height=680");
+    if (!popup) throw new Error("Google popup unavailable");
+    try {
+        const start = await adminAuthClient.startGoogleActionProof(action);
+        const expectedState = new URL(start.url).searchParams.get("state");
+        if (!expectedState) throw new Error("Google state missing");
+        const verification = new Promise<GoogleProof>((resolve, reject) => {
+            function cleanup() {
+                window.clearTimeout(timeout);
+                window.clearInterval(closedCheck);
+                window.removeEventListener("message", receive);
+            }
+            const timeout = window.setTimeout(() => { cleanup(); reject(new Error("Google verification expired")); }, 300_000);
+            const closedCheck = window.setInterval(() => {
+                if (popup.closed) { cleanup(); reject(new Error("Google verification cancelled")); }
+            }, 500);
+            function receive(event: MessageEvent<GoogleProofMessage>) {
+                if (event.origin !== window.location.origin || event.source !== popup || event.data.state !== expectedState) return;
+                cleanup();
+                if (event.data.error || !event.data.value || !event.data.codeVerifier || !event.data.redirectUri) {
+                    reject(new Error("Google verification failed"));
+                    return;
+                }
+                resolve({ value: event.data.value, codeVerifier: event.data.codeVerifier, redirectUri: event.data.redirectUri });
+            }
+            window.addEventListener("message", receive);
+        });
+        popup.location.assign(start.url);
+        return await verification;
+    } catch (reason) {
+        popup.close();
+        throw reason;
+    }
+}
+
+function buildProofTokens(
+    scheme: AdminProofScheme,
+    values: Partial<Record<AdminProofTokenKind, string>>,
+    challenges: Partial<Record<AdminProofTokenKind, string>>,
+    googleProof: GoogleProof | null,
+): AdminPresentedProofToken[] | null {
+    const tokens: AdminPresentedProofToken[] = [];
+    for (const kind of scheme.requiredTokens) {
+        if (kind === "GOOGLE") {
+            if (!googleProof) return null;
+            tokens.push({ kind, ...googleProof });
+            continue;
+        }
+        const value = values[kind]?.trim();
+        if (!value || (emailKinds.includes(kind) && !challenges[kind])) return null;
+        tokens.push({ kind, value, ...(challenges[kind] ? { challengeId: challenges[kind] } : {}) });
+    }
+    return tokens;
+}
+
 export function AdminStepUpDialog({ problem }: { readonly problem: StepUpProblem }) {
     const t = useAdminLoginStrings("adminLogin");
-    const action = supportedActions.find(value => value === problem.action);
-    const [schemes, setSchemes] = useState<AdminProofScheme[]>([]);
+    const action = supportedActions.find(value => value === problem.action); const [schemes, setSchemes] = useState<AdminProofScheme[]>([]);
     const [schemeId, setSchemeId] = useState("");
     const [values, setValues] = useState<Partial<Record<AdminProofTokenKind, string>>>({});
     const [challenges, setChallenges] = useState<Partial<Record<AdminProofTokenKind, string>>>({});
@@ -56,40 +111,11 @@ export function AdminStepUpDialog({ problem }: { readonly problem: StepUpProblem
 
     async function verifyWithGoogle() {
         if (!action) return;
-        const popup = window.open("", "tallyvane-google-proof", "width=520,height=680");
-        if (!popup) { setError(t("stepUpGoogleFailed")); return; }
         setBusy(true);
         setError("");
         try {
-            const start = await adminAuthClient.startGoogleActionProof(action);
-            const expectedState = new URL(start.url).searchParams.get("state");
-            if (!expectedState) throw new Error("Google state missing");
-            const verification = new Promise<GoogleProof>((resolve, reject) => {
-                function cleanup() {
-                    window.clearTimeout(timeout);
-                    window.clearInterval(closedCheck);
-                    window.removeEventListener("message", receive);
-                }
-                const timeout = window.setTimeout(() => { cleanup(); reject(new Error("Google verification expired")); }, 300_000);
-                const closedCheck = window.setInterval(() => {
-                    if (popup.closed) { cleanup(); reject(new Error("Google verification cancelled")); }
-                }, 500);
-                function receive(event: MessageEvent<GoogleProofMessage>) {
-                    if (event.origin !== window.location.origin || event.source !== popup ||
-                        event.data.state !== expectedState) return;
-                    cleanup();
-                    if (event.data.error || !event.data.value || !event.data.codeVerifier || !event.data.redirectUri) {
-                        reject(new Error("Google verification failed"));
-                        return;
-                    }
-                    resolve({ value: event.data.value, codeVerifier: event.data.codeVerifier, redirectUri: event.data.redirectUri });
-                }
-                window.addEventListener("message", receive);
-            });
-            popup.location.assign(start.url);
-            setGoogleProof(await verification);
+            setGoogleProof(await requestGoogleProof(action));
         } catch {
-            popup.close();
             setError(t("stepUpGoogleFailed"));
         } finally {
             setBusy(false);
@@ -117,20 +143,8 @@ export function AdminStepUpDialog({ problem }: { readonly problem: StepUpProblem
     async function submit(event: SyntheticEvent<HTMLFormElement>) {
         event.preventDefault();
         if (!action || !scheme || busy) return;
-        const tokens: AdminPresentedProofToken[] = [];
-        for (const kind of scheme.requiredTokens) {
-            if (kind === "GOOGLE") {
-                if (!googleProof) { setError(t("stepUpUnavailable")); return; }
-                tokens.push({ kind, ...googleProof });
-                continue;
-            }
-            const value = values[kind]?.trim();
-            if (!value || (emailKinds.includes(kind) && !challenges[kind])) {
-                setError(t("stepUpUnavailable"));
-                return;
-            }
-            tokens.push({ kind, value, ...(challenges[kind] ? { challengeId: challenges[kind] } : {}) });
-        }
+        const tokens = buildProofTokens(scheme, values, challenges, googleProof);
+        if (!tokens) { setError(t("stepUpUnavailable")); return; }
         setBusy(true);
         setError("");
         try {
@@ -143,6 +157,40 @@ export function AdminStepUpDialog({ problem }: { readonly problem: StepUpProblem
         }
     }
 
+    return <StepUpContent t={ t } schemes={ schemes } scheme={ scheme } schemeId={ schemeId } busy={ busy }
+        values={ values } challenges={ challenges } googleProof={ googleProof } error={ error } notice={ notice }
+        onSelectScheme={ value => {
+            setSchemeId(value ?? ""); setValues({}); setChallenges({});
+            setGoogleProof(null); setError(""); setNotice("");
+        } }
+        onValueChange={ (kind, value) => { setValues(current => ({ ...current, [kind]: value })); } }
+        onVerifyGoogle={ () => { void verifyWithGoogle(); } }
+        onSendEmailCodes={ () => { void sendEmailCodes(); } }
+        onSubmit={ event => { void submit(event); } } />;
+}
+
+interface StepUpContentProps {
+    readonly t: ReturnType<typeof useAdminLoginStrings>;
+    readonly schemes: AdminProofScheme[];
+    readonly scheme: AdminProofScheme | undefined;
+    readonly schemeId: string;
+    readonly busy: boolean;
+    readonly values: Partial<Record<AdminProofTokenKind, string>>;
+    readonly challenges: Partial<Record<AdminProofTokenKind, string>>;
+    readonly googleProof: GoogleProof | null;
+    readonly error: string;
+    readonly notice: string;
+    readonly onSelectScheme: (value: string | null) => void;
+    readonly onValueChange: (kind: AdminProofTokenKind, value: string) => void;
+    readonly onVerifyGoogle: () => void;
+    readonly onSendEmailCodes: () => void;
+    readonly onSubmit: (event: SyntheticEvent<HTMLFormElement>) => void;
+}
+
+function StepUpContent({
+    t, schemes, scheme, schemeId, busy, values, challenges, googleProof, error, notice,
+    onSelectScheme, onValueChange, onVerifyGoogle, onSendEmailCodes, onSubmit,
+}: StepUpContentProps) {
     const tokenLabel = (kind: AdminProofTokenKind) => {
         if (kind === "PASSWORD") return t("password");
         if (kind === "TOTP") return t("methodTotp");
@@ -156,38 +204,31 @@ export function AdminStepUpDialog({ problem }: { readonly problem: StepUpProblem
             <Drawer.Title>{t("stepUpTitle")}</Drawer.Title>
             <Drawer.Description>{t("stepUpDescription")}</Drawer.Description>
             {schemes.length > 1 && <Field label={t("verificationTitle")}>
-                <Select.Root value={schemeId} disabled={busy} onValueChange={value => {
-                    setSchemeId(value ?? "");
-                    setValues({});
-                    setChallenges({});
-                    setGoogleProof(null);
-                    setError("");
-                    setNotice("");
-                }}>
+                <Select.Root value={schemeId} disabled={busy} onValueChange={onSelectScheme}>
                     <Select.Trigger><Select.Value /><Select.Icon /></Select.Trigger>
                     <Select.Popup>{schemes.map(value => <Select.Item key={value.id} value={value.id}>
                         {value.requiredTokens.map(tokenLabel).join(" + ")} · {t("stepUpRank", { rank: value.assuranceRank })}
                     </Select.Item>)}</Select.Popup>
                 </Select.Root>
             </Field>}
-            {scheme && <Form onSubmit={event => { void submit(event); }}>
+            {scheme && <Form onSubmit={onSubmit}>
                 <Stack gap="inline-tight">
                     {scheme.requiredTokens.map(kind => <Field key={kind} label={tokenLabel(kind)}>
                         {kind === "GOOGLE" ? <Stack gap="inline-tight">
-                            <Button type="button" tone="neutral" disabled={busy} onClick={() => { void verifyWithGoogle(); }}>{t("stepUpGoogle")}</Button>
+                            <Button type="button" tone="neutral" disabled={busy} onClick={onVerifyGoogle}>{t("stepUpGoogle")}</Button>
                             {googleProof && <Text role="status" variant="small">{t("stepUpGoogleReady")}</Text>}
                         </Stack> : emailKinds.includes(kind) && !challenges[kind] ?
                             <Text variant="small" color="muted">{t("stepUpSendCode")}</Text> :
                             <Input required type={kind === "PASSWORD" ? "password" : "text"}
                                 autoComplete={kind === "PASSWORD" ? "current-password" : "one-time-code"}
                                 value={values[kind] ?? ""} disabled={busy}
-                                onChange={event => { setValues(current => ({ ...current, [kind]: event.target.value })); }} />}
+                                onChange={event => { onValueChange(kind, event.target.value); }} />}
                     </Field>)}
                     {notice && <Text role="status" variant="small">{notice}</Text>}
                     {error && <Text role="alert" variant="small">{error}</Text>}
                     <Stack gap="inline-tight">
                         {scheme.requiredTokens.some(kind => emailKinds.includes(kind) && !challenges[kind]) &&
-                            <Button type="button" tone="neutral" disabled={busy} onClick={() => { void sendEmailCodes(); }}>{t("stepUpSendCode")}</Button>}
+                            <Button type="button" tone="neutral" disabled={busy} onClick={onSendEmailCodes}>{t("stepUpSendCode")}</Button>}
                         <Button type="submit" tone="primary" loading={busy}>{t("stepUpSubmit")}</Button>
                     </Stack>
                 </Stack>
