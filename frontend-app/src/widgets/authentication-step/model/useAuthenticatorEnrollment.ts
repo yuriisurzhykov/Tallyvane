@@ -9,13 +9,17 @@ import { useToast } from "frontend-shared/ui/toast";
 
 type Translate = (key: AuthStringKey, vars?: Record<string, string | number>) => string;
 
-export function useAuthenticatorEnrollment(
-    t: Translate,
-    refreshStatus: () => Promise<void>,
-    getActionProof: () => string,
-    clearActionProof: () => void,
-    onFactorChanged: () => void,
-) {
+interface EnrollmentOptions {
+    readonly t: Translate;
+    readonly refreshStatus: () => Promise<void>;
+    readonly getActionProof: () => string;
+    readonly clearActionProof: () => void;
+    readonly onFactorChanged: () => void;
+}
+
+export function useAuthenticatorEnrollment({
+    t, refreshStatus, getActionProof, clearActionProof, onFactorChanged,
+}: EnrollmentOptions) {
     const [totpUri, setTotpUri] = useState("");
     const [qrCode, setQrCode] = useState("");
     const [code, setCode] = useState("");

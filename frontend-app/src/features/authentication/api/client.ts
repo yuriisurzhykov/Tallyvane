@@ -97,6 +97,7 @@ export function createAuthClient(fetcher: typeof fetch = fetch) {
     }
     return {
         get: <T>(path: string) => request<T>(path, "GET"),
+        put: <T>(path: string, body: unknown) => request<T>(path, "PUT", body),
         post: <T>(...args: PostArguments) => request<T>(args[0], "POST", args[1]),
         postWithHeaders: <T>(path: string, body: unknown, headers: Readonly<Record<string, string>>) =>
             request<T>(path, "POST", body, headers),

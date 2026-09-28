@@ -10,10 +10,12 @@ import { Field } from "frontend-shared/ui/field";
 import { Form } from "frontend-shared/ui/form";
 import { Image } from "frontend-shared/ui/image";
 import { Input } from "frontend-shared/ui/input";
+import { Progress } from "frontend-shared/ui/progress";
 import { Stack } from "frontend-shared/ui/stack";
 import { Text } from "frontend-shared/ui/text";
 import { useToast } from "frontend-shared/ui/toast";
 import styles from "./auth-step.module.css";
+import { useOptionalSettingsUnsavedChanges } from "settings-kit/features/settings-navigation";
 
 export function FactorManagementSection({ t, enrolled, onFactorChanged }: {
     t: AuthStepProps["t"]; enrolled: boolean; onFactorChanged: () => Promise<void>;
@@ -24,6 +26,7 @@ export function FactorManagementSection({ t, enrolled, onFactorChanged }: {
     const [confirming, setConfirming] = useState(false);
     const { actions } = useToast();
     const secret = totpUri ? new URL(totpUri).searchParams.get("secret") ?? "" : "";
+    useOptionalSettingsUnsavedChanges(Boolean(totpUri));
 
     async function start(proof: string) {
         const result = await authClient.postWithHeaders<{ otpauthUri: string }>("/mfa/enroll", { kind: "TOTP" },
@@ -36,8 +39,9 @@ export function FactorManagementSection({ t, enrolled, onFactorChanged }: {
         event.preventDefault();
         setConfirming(true);
         try {
+            const code = new FormData(event.currentTarget).get("totpCode");
             await authClient.post("/mfa/confirm", {
-                kind: "TOTP", code: String(new FormData(event.currentTarget).get("totpCode") ?? ""),
+                kind: "TOTP", code: typeof code === "string" ? code : "",
             });
             setTotpUri("");
             setQrCode("");
@@ -71,7 +75,7 @@ export function FactorManagementSection({ t, enrolled, onFactorChanged }: {
                 <Button tone="ghost" type="button" onClick={() => { setRemoveRequested(false); }}>{t("cancel")}</Button>
             </>}
         </> : totpUri ? <>
-            <div className={styles.securityProgress} aria-label={t("securityStepTwo")}><span/><span/></div>
+            <Progress label={t("securityStepTwo")} value={2} max={2} />
             {qrCode ? <Image className={styles.qr ?? ""} src={qrCode} alt={t("authenticatorQr")} /> :
                 <Text variant="body" role="status">{t("qrUnavailable")}</Text>}
             <Text variant="small" color="muted">{t("manualSetupKey")}</Text>
@@ -88,7 +92,7 @@ export function FactorManagementSection({ t, enrolled, onFactorChanged }: {
                 <Button tone="primary" type="submit" loading={confirming}>{t("confirmAuthenticator")}</Button>
             </Form>
         </> : <>
-            <div className={styles.securityProgress} aria-label={t("securityStepOne")}><span/></div>
+            <Progress label={t("securityStepOne")} value={1} max={2} />
             <Text variant="small" color="muted">{t("securityVerifyFirst")}</Text>
             <AuthenticationActionForm action="MANAGE_SECOND_FACTORS" t={t}
                 submitLabel={t("enrollStart")} onAuthorized={start} />

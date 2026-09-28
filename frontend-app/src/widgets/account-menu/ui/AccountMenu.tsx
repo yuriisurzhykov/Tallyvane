@@ -29,7 +29,7 @@ export function AccountMenu() {
     }
 
     const items: readonly AccountMenuItem[] = [
-        { id: "account-settings", kind: "link", label: t("accountSettings"), href: "/account/security" },
+        { id: "account-settings", kind: "link", label: t("accountSettings"), href: "/account/profile" },
         { id: "sign-out", kind: "action", label: t("logout"), onSelect: () => { void signOut(); }, disabled: signingOut },
     ];
 
@@ -40,7 +40,6 @@ export function AccountMenu() {
                     type="button"
                     tone="ghost"
                     aria-label={t("accountMenu")}
-                    trailingIcon={<span aria-hidden="true">⌄</span>}
                 >
                     {t("accountMenu")}
                 </Button>

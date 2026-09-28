@@ -1,10 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { AuthSessionBoundary } from "frontend-shared/auth-session";
 import { isSafeRelativePath } from "frontend-shared/lib";
 import { Button } from "frontend-shared/ui/button";
+import { AlertDialog } from "frontend-shared/ui/alert-dialog";
+import { Stack } from "frontend-shared/ui/stack";
 import { Text } from "frontend-shared/ui/text";
 import { authSessionRuntime } from "@/features/authentication/api/client";
 import { useAuthStrings } from "@/features/authentication/model/strings";
@@ -66,13 +68,13 @@ export function AuthSessionGate({ children }: { readonly children: React.ReactNo
         if (state.status === "accessDenied" && state.target) return <ActionDeniedDialog t={ t }/>;
         const title = state.status === "accessDenied" ? t("accessDenied") :
             state.status === "unavailable" ? t("networkError") : t("checkingSession");
-        return <main className={ styles.statusPage } role="status" aria-live="polite">
-            <section className={ styles.statusPanel }>
+        return <Stack as="main" gap="stack" className={ styles.statusPage ?? "" } role="status" aria-live="polite">
+            <Stack as="section" gap="stack" className={ styles.statusPanel ?? "" }>
                 <Text as="h1" variant="title2">{ title }</Text>
                 { state.status === "unavailable" &&
                     <Button type="button" tone="neutral" onClick={ retry }>{ t("retry") }</Button> }
-            </section>
-        </main>;
+            </Stack>
+        </Stack>;
     }, [t]);
 
     return <AuthSessionBoundary
@@ -88,54 +90,33 @@ export function AuthSessionGate({ children }: { readonly children: React.ReactNo
 }
 
 function ActionDeniedDialog({ t }: { readonly t: ReturnType<typeof useAuthStrings> }) {
-    const dialog = useRef<HTMLDialogElement>(null);
-    useEffect(() => {
-        const element = dialog.current;
-        if (!element) return;
-        if (!element.open) element.showModal();
-        return () => {
-            if (element.open) element.close();
-        };
-    }, []);
-    return <dialog ref={ dialog } className={ styles.stepUpDialog } aria-labelledby="action-denied-title"
-                   onCancel={ event => event.preventDefault() }>
-        <section className={ styles.stepUpPanel }>
-            <Text as="h1" variant="title2" id="action-denied-title">{ t("accessDenied") }</Text>
+    return <AlertDialog.Root open>
+        <AlertDialog.Popup className={styles.stepUpPanel ?? ""}>
+            <AlertDialog.Title id="action-denied-title">{ t("accessDenied") }</AlertDialog.Title>
             <Text as="p" variant="body">{ t("actionAccessDeniedDescription") }</Text>
             <Button type="button" tone="neutral"
-                    onClick={ () => authSessionRuntime.completeAccessDenied() }>{ t("dismiss") }</Button>
-        </section>
-    </dialog>;
+                    onClick={ () => { authSessionRuntime.completeAccessDenied(); } }>{ t("dismiss") }</Button>
+        </AlertDialog.Popup>
+    </AlertDialog.Root>;
 }
 
 function StepUpDialog({ state, t }: {
     readonly state: Extract<AuthSessionState, { status: "stepUpRequired" }>;
     readonly t: ReturnType<typeof useAuthStrings>;
 }) {
-    const dialog = useRef<HTMLDialogElement>(null);
     const action: AccountAction | null = state.problem.action === "CHANGE_PRIMARY_CREDENTIAL" ||
     state.problem.action === "MANAGE_SECOND_FACTORS" ? state.problem.action : null;
 
-    useEffect(() => {
-        const element = dialog.current;
-        if (!element) return;
-        if (!element.open) element.showModal();
-        return () => {
-            if (element.open) element.close();
-        };
-    }, []);
-
-    return <dialog ref={ dialog } className={ styles.stepUpDialog } aria-labelledby="step-up-title"
-                   onCancel={ event => event.preventDefault() }>
-        <section className={ styles.stepUpPanel }>
-            <Text as="h1" variant="title2" id="step-up-title">{ t("stepUpDialogTitle") }</Text>
+    return <AlertDialog.Root open>
+        <AlertDialog.Popup className={styles.stepUpPanel ?? ""}>
+            <AlertDialog.Title id="step-up-title">{ t("stepUpDialogTitle") }</AlertDialog.Title>
             <Text as="p" variant="body">{ t("stepUpDialogDescription") }</Text>
             { action ? <AuthenticationActionForm
                 action={ action }
                 t={ t }
                 submitLabel={ t("continue") }
-                onAuthorized={ proof => authSessionRuntime.completeStepUp(proof) }
+                onAuthorized={ proof => { authSessionRuntime.completeStepUp(proof); } }
             /> : <Text as="p" variant="body" role="alert">{ t("reauthFailed") }</Text> }
-        </section>
-    </dialog>;
+        </AlertDialog.Popup>
+    </AlertDialog.Root>;
 }

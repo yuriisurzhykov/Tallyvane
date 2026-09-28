@@ -1,7 +1,7 @@
 import type { Dispatch, SetStateAction, SyntheticEvent } from "react";
 import type { AuthPageKind } from "../../../features/authentication/model/AuthPageKind";
-import { authClient, AuthError } from "../../../features/authentication/api/client";
 import type { AuthResult } from "../../../features/authentication/api/client";
+import { authClient, AuthError } from "../../../features/authentication/api/client";
 import type { AuthStringKey } from "../../../features/authentication/model/strings";
 import type { AuthSession } from "../../../widgets/authentication-step/model/AuthStepProps";
 import { appRoutes } from "../../../shared/config";
@@ -11,6 +11,7 @@ type Translate = (key: AuthStringKey, vars?: Record<string, string | number>) =>
 type Tone = "attention" | "danger" | "success";
 type Notify = (title: string, description: string | undefined, tone: Tone) => void;
 type SubmitEvent = SyntheticEvent<HTMLFormElement>;
+
 export interface Registration {
     challengeId?: string | null;
     email: string;
@@ -232,16 +233,30 @@ async function recoverPassword(form: FormData, state: AuthOperationsState) {
 
 async function submitForKind(form: FormData, state: AuthOperationsState) {
     switch (state.kind) {
-        case "login": await login(form, state); return;
-        case "register": await register(form, state); return;
-        case "mfa": await verifyMfa(state); return;
-        case "enrollment": await enrollAuthenticator(state); return;
-        case "otp": await verifyOtp(state); return;
-        case "forgot": await recoverPassword(form, state); return;
-        case "security": return;
+        case "login":
+            await login(form, state);
+            return;
+        case "register":
+            await register(form, state);
+            return;
+        case "mfa":
+            await verifyMfa(state);
+            return;
+        case "enrollment":
+            await enrollAuthenticator(state);
+            return;
+        case "otp":
+            await verifyOtp(state);
+            return;
+        case "forgot":
+            await recoverPassword(form, state);
+            return;
+        case "security":
+            return;
         case "google":
         case "callback":
-        case "preview": state.setNotice(state.t("previewActionNotice"));
+        case "preview":
+            state.setNotice(state.t("previewActionNotice"));
     }
 }
 

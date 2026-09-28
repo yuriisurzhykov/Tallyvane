@@ -20,33 +20,19 @@
 
 .securityGrid {
     display: grid;
-    grid-template-columns: minmax(0, 1.35fr) minmax(18rem, .8fr);
+    grid-template-columns: minmax(0, 1fr);
     align-items: start;
     gap: 1.5rem;
 }
 
 .securityOverview { display: grid; gap: .9rem; min-width: 0; }
-.securityCard, .securityDetail {
+.securityDetail {
     background: var(--ds-color-surface-elevated);
     border: 1px solid var(--ds-color-border-default);
     border-radius: .85rem;
     padding: 1.1rem 1.25rem;
     min-width: 0;
 }
-.securityGroupHeading { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; padding-bottom: .45rem; }
-.securityGroupHeading h2 { font-size: 1.08rem; line-height: 1.35; margin: 0; }
-.securityGroupHeading span { color: var(--ds-color-text-muted); font-size: .77rem; }
-.securityItem {
-    border-top: 1px solid var(--ds-color-border-default);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    padding: .8rem 0;
-}
-.securityItemCopy { display: grid; gap: .15rem; min-width: 0; }
-.securityItemCopy strong { font-size: .92rem; font-weight: 600; }
-.securityItemCopy small { color: var(--ds-color-text-muted); font-size: .78rem; line-height: 1.4; }
 .securityItemActions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: .5rem; flex-shrink: 0; }
 .securityBadge, .securityBadgeGood { display: inline-flex; align-items: center; white-space: nowrap; border-radius: 999px; padding: .2rem .5rem; font-size: .72rem; }
 .securityBadge { background: var(--ds-color-surface-inset); color: var(--ds-color-text-muted); }
@@ -63,7 +49,7 @@
 }
 .securityAction:hover, .securityAction[aria-pressed="true"] { background: var(--ds-color-surface-row-hover); }
 .securityAction:focus-visible { outline: 2px solid var(--ds-color-border-focus); outline-offset: 2px; }
-.securityDetail { padding: 1.4rem; position: sticky; top: 1rem; }
+.securityDetail { padding: 1.4rem; position: static; }
 .securityDetail h2 { font-size: 1.3rem; }
 .securityDetail form { display: grid; gap: 1rem; }
 .securityDetail form button[type="submit"] { width: 100%; }
@@ -428,6 +414,5 @@
 }
 
 @media (max-width: 520px) {
-    .securityItem { align-items: flex-start; }
     .securityItemActions { max-width: 45%; }
 }

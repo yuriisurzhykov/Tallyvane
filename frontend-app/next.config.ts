@@ -11,7 +11,8 @@ import type { NextConfig } from "next";
  *
  * `content-kit` is deliberately not listed: this app does not depend on it
  * yet (ARCHITECTURE.md §12.5's open question). Add it here in the same
- * change that adds it to `package.json`, not before.
+ * change that adds it to `package.json`, not before. `settings-kit` is listed
+ * here alongside its runtime dependency in this app.
  *
  * `fileURLToPath`, not `new URL(...).pathname` directly — see
  * `frontend-web/next.config.ts`'s identical comment for the Windows
@@ -20,7 +21,7 @@ import type { NextConfig } from "next";
 const workspaceRoot = fileURLToPath(new URL("..", import.meta.url));
 
 const config: NextConfig = {
-    transpilePackages: ["design-token-engine", "frontend-shared"],
+    transpilePackages: ["design-token-engine", "frontend-shared", "settings-kit"],
     output: "standalone",
     outputFileTracingRoot: workspaceRoot,
     turbopack: { root: workspaceRoot },

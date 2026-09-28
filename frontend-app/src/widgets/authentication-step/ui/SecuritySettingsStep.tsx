@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode, type SubmitEvent } from "react";
+import { useEffect, useState, type SubmitEvent } from "react";
 import { authClient } from "../../../features/authentication/api/client";
 import { useToast } from "frontend-shared/ui/toast";
 import { Button } from "frontend-shared/ui/button";
@@ -9,6 +9,9 @@ import { Input } from "frontend-shared/ui/input";
 import { Row } from "frontend-shared/ui/row";
 import { Stack } from "frontend-shared/ui/stack";
 import { Text } from "frontend-shared/ui/text";
+import { SettingsItem } from "settings-kit/entities/settings-item";
+import { useOptionalSettingsUnsavedChanges } from "settings-kit/features/settings-navigation";
+import { SettingsGroup } from "settings-kit/widgets/settings-group";
 import type { AuthSession, AuthStepProps } from "../model/AuthStepProps";
 import { useFactorStatus } from "../model/useFactorStatus";
 import { FactorManagementSection } from "./FactorManagementSection";
@@ -62,7 +65,7 @@ function SecurityOverview(options: SecurityPanelProps & {
     const { props, selected, select, factors, googleAvailable, googleLinked, sessionCount } = options;
     const { t } = props;
     return <Stack gap="stack" className={styles.securityOverview ?? ""}>
-        <SecurityGroup title={t("methods")}>
+        <SettingsGroup title={t("methods")}>
             <SecurityItem title={t("securityEmailSignIn")} description={t("securityEmailSignInHelp")}
                 badge={t("securityAvailable")} badgeTone="good" />
             <SecurityItem title={t("password")} description={t("securityPasswordHelp")}
@@ -72,18 +75,18 @@ function SecurityOverview(options: SecurityPanelProps & {
                 {...(googleLinked ? { badgeTone: "good" as const } : {})}
                 action={t(googleLinked ? "securityManage" : "linkGoogle")}
                 active={selected === "google"} onAction={() => { select("google"); }} />}
-        </SecurityGroup>
-        <SecurityGroup title={t("securityExtraProtection")} hint={t("securityOptional")}>
+        </SettingsGroup>
+        <SettingsGroup title={t("securityExtraProtection")} description={t("securityOptional")}>
             <FactorSecurityItem kind="TOTP" selected="totp" options={options} />
             <FactorSecurityItem kind="EMAIL_OTP" selected="email" options={options} />
-        </SecurityGroup>
-        <SecurityGroup title={t("securityRecoveryAndSessions")}>
+        </SettingsGroup>
+        <SettingsGroup title={t("securityRecoveryAndSessions")}>
             <SecurityItem title={t("recoveryCodesTitle")} description={t("securityRecoveryHelp")}
                 badge={t(factors.recoveryCodesIssued ? "securityCreated" : "securityNotCreated")}
                 action={t("securityManage")} active={selected === "recovery"} onAction={() => { select("recovery"); }} />
             <SecurityItem title={t("sessions")} description={t("securitySessionCount", { count: sessionCount })}
                 action={t("securityManage")} active={selected === "sessions"} onAction={() => { select("sessions"); }} />
-        </SecurityGroup>
+        </SettingsGroup>
     </Stack>;
 }
 
@@ -118,32 +121,18 @@ function SecurityDetail(options: SecurityPanelProps & {
     </Stack>;
 }
 
-function SecurityGroup({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
-    return <Stack gap="stack-tight" as="section" className={styles.securityCard ?? ""}>
-        <Row gap="inline" className={styles.securityGroupHeading ?? ""}>
-            <Text as="h2" variant="title3">{title}</Text>
-            {hint && <Text variant="small" color="muted">{hint}</Text>}
-        </Row>
-        <Stack gap="inline-tight">{children}</Stack>
-    </Stack>;
-}
-
 function SecurityItem({ title, description, badge, badgeTone, action, active, onAction }: {
     title: string; description: string; badge?: string; badgeTone?: "good" | undefined;
     action?: string; active?: boolean; onAction?: () => void;
 }) {
-    return <Row gap="inline" className={styles.securityItem ?? ""}>
-        <Stack gap="inline-tight" className={styles.securityItemCopy ?? ""}>
-            <Text as="strong" variant="bodyStrong">{title}</Text>
-            <Text variant="small" color="muted">{description}</Text>
-        </Stack>
+    return <SettingsItem label={title} description={description} control={
         <Row gap="inline-tight" className={styles.securityItemActions ?? ""}>
             {badge && <Text variant="small" className={(badgeTone === "good" ? styles.securityBadgeGood : styles.securityBadge) ?? ""}>{badge}</Text>}
             {action && <Button type="button" tone="ghost" size="sm" className={styles.securityAction ?? ""}
                 {...(active === undefined ? {} : { "aria-pressed": active })}
                 {...(onAction ? { onClick: onAction } : {})}>{action}</Button>}
         </Row>
-    </Row>;
+    } />;
 }
 
 function PasswordPanel({ props }: { props: AuthStepProps }) {
@@ -173,6 +162,7 @@ function EmailMfaPanel({ props, enrolled, onFactorChanged }: {
     const [removeRequested, setRemoveRequested] = useState(false);
     const [confirming, setConfirming] = useState(false);
     const { actions } = useToast();
+    useOptionalSettingsUnsavedChanges(Boolean(challengeId));
     async function confirmEmail(event: SubmitEvent<HTMLFormElement>) {
         event.preventDefault();
         setConfirming(true);

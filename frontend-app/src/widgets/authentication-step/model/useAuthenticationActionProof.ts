@@ -1,29 +1,22 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } from "react";
 import {
     issueActionProof, readActionSchemes, requestActionEmailCode,
     type AccountAction, type ActionSchemeOption, type PresentedProofToken, type ProofTokenKind,
 } from "../../../features/authentication/api/actionProof";
 import { authClient } from "../../../features/authentication/api/client";
 
-type GoogleProof = { value: string; codeVerifier: string; redirectUri: string };
+interface GoogleProof { value: string; codeVerifier: string; redirectUri: string }
 type GoogleProofMessage = { type: "tallyvane-google-action-proof"; state: string; error: boolean } & GoogleProof;
 const EMAIL_KINDS = ["EMAIL_SIGN_IN_CODE", "EMAIL_FACTOR_CODE"] as const;
+type ProofError = "load" | "required" | "invalid" | "google" | null;
 
-export function useAuthenticationActionProof(action: AccountAction) {
+function useAvailableSchemes(action: AccountAction, setError: Dispatch<SetStateAction<ProofError>>) {
     const [schemes, setSchemes] = useState<ActionSchemeOption[]>([]);
     const [schemeId, setSchemeId] = useState("");
-    const [values, setValues] = useState<Partial<Record<ProofTokenKind, string>>>({});
-    const [challenges, setChallenges] = useState<Partial<Record<ProofTokenKind, string>>>({});
-    const [googleProof, setGoogleProof] = useState<GoogleProof | null>(null);
     const [loading, setLoading] = useState(true);
-    const [busy, setBusy] = useState(false);
-    const [error, setError] = useState<"load" | "required" | "invalid" | "google" | null>(null);
-
     const refresh = useCallback(async () => {
-        setLoading(true);
-        setError(null);
         try {
             const available = await readActionSchemes(action);
             setSchemes(available);
@@ -35,11 +28,88 @@ export function useAuthenticationActionProof(action: AccountAction) {
         } finally {
             setLoading(false);
         }
-    }, [action]);
+    }, [action, setError]);
+    useEffect(() => {
+        const scheduled = window.setTimeout(() => { void refresh(); }, 0);
+        return () => { window.clearTimeout(scheduled); };
+    }, [refresh]);
+    return { schemes, scheme: schemes.find(option => option.id === schemeId) ?? null, setSchemeId, refresh, loading };
+}
 
-    useEffect(() => { void refresh(); }, [refresh]);
+function isGoogleProofMessage(value: unknown): value is GoogleProofMessage {
+    if (!value || typeof value !== "object") return false;
+    const message = value as Record<string, unknown>;
+    return message.type === "tallyvane-google-action-proof" && typeof message.state === "string" &&
+        typeof message.error === "boolean" && typeof message.value === "string" &&
+        typeof message.codeVerifier === "string" && typeof message.redirectUri === "string";
+}
 
-    const scheme = schemes.find(option => option.id === schemeId) ?? null;
+function awaitGoogleProof(popup: Window, expectedState: string): Promise<GoogleProof> {
+    return new Promise((resolve, reject) => {
+        function cleanup() {
+            window.clearTimeout(timeout);
+            window.clearInterval(closedCheck);
+            window.removeEventListener("message", receive);
+        }
+        const timeout = window.setTimeout(() => {
+            cleanup();
+            reject(new Error("Google verification expired"));
+        }, 300_000);
+        const closedCheck = window.setInterval(() => {
+            if (!popup.closed) return;
+            cleanup();
+            reject(new Error("Google verification cancelled"));
+        }, 500);
+        function receive(event: MessageEvent<unknown>) {
+            if (event.origin !== window.location.origin || event.source !== popup ||
+                !isGoogleProofMessage(event.data) || event.data.state !== expectedState) return;
+            cleanup();
+            if (event.data.error || !event.data.value || !event.data.codeVerifier || !event.data.redirectUri) {
+                reject(new Error("Google verification failed"));
+                return;
+            }
+            resolve({ value: event.data.value, codeVerifier: event.data.codeVerifier, redirectUri: event.data.redirectUri });
+        }
+        window.addEventListener("message", receive);
+    });
+}
+
+function proofToken(kind: ProofTokenKind, values: Partial<Record<ProofTokenKind, string>>,
+    challenges: Partial<Record<ProofTokenKind, string>>, googleProof: GoogleProof | null): PresentedProofToken {
+    if (kind === "GOOGLE") {
+        if (!googleProof) throw new Error("Google proof required");
+        return { kind, ...googleProof };
+    }
+    const value = values[kind];
+    if (!value) throw new Error("Proof value required");
+    return { kind, value: value.trim(), ...(challenges[kind] ? { challengeId: challenges[kind] } : {}) };
+}
+
+function selectedTokens(scheme: ActionSchemeOption, values: Partial<Record<ProofTokenKind, string>>,
+    challenges: Partial<Record<ProofTokenKind, string>>, googleProof: GoogleProof | null): PresentedProofToken[] | null {
+    if (scheme.requiredTokens.some(kind => EMAIL_KINDS.some(emailKind => emailKind === kind) && !challenges[kind])) return null;
+    if (scheme.requiredTokens.some(kind => kind === "GOOGLE" ? !googleProof : !values[kind]?.trim())) return null;
+    return scheme.requiredTokens.map(kind => proofToken(kind, values, challenges, googleProof));
+}
+
+async function requestMissingEmailCodes(action: AccountAction, scheme: ActionSchemeOption,
+    challenges: Partial<Record<ProofTokenKind, string>>): Promise<Partial<Record<ProofTokenKind, string>>> {
+    const result = { ...challenges };
+    for (const kind of scheme.requiredTokens) {
+        if (!EMAIL_KINDS.some(emailKind => emailKind === kind) || result[kind]) continue;
+        const issued = await requestActionEmailCode(action, kind as typeof EMAIL_KINDS[number]);
+        result[kind] = issued.challengeId;
+    }
+    return result;
+}
+
+export function useAuthenticationActionProof(action: AccountAction) {
+    const [error, setError] = useState<ProofError>(null);
+    const { schemes, scheme, setSchemeId, refresh, loading } = useAvailableSchemes(action, setError);
+    const [values, setValues] = useState<Partial<Record<ProofTokenKind, string>>>({});
+    const [challenges, setChallenges] = useState<Partial<Record<ProofTokenKind, string>>>({});
+    const [googleProof, setGoogleProof] = useState<GoogleProof | null>(null);
+    const [busy, setBusy] = useState(false);
 
     function selectScheme(id: string) {
         if (!schemes.some(option => option.id === id)) return;
@@ -64,34 +134,7 @@ export function useAuthenticationActionProof(action: AccountAction) {
             const start = await authClient.post<{ url: string }>("/google/proof/start", { action });
             const expectedState = new URL(start.url).searchParams.get("state");
             if (!expectedState) throw new Error("Google state missing");
-            const verification = new Promise<GoogleProof>((resolve, reject) => {
-                function cleanup() {
-                    window.clearTimeout(timeout);
-                    window.clearInterval(closedCheck);
-                    window.removeEventListener("message", receive);
-                }
-                const timeout = window.setTimeout(() => {
-                    cleanup();
-                    reject(new Error("Google verification expired"));
-                }, 300_000);
-                const closedCheck = window.setInterval(() => {
-                    if (popup.closed) {
-                        cleanup();
-                        reject(new Error("Google verification cancelled"));
-                    }
-                }, 500);
-                function receive(event: MessageEvent<GoogleProofMessage>) {
-                    if (event.origin !== window.location.origin || event.source !== popup ||
-                        event.data?.type !== "tallyvane-google-action-proof" || event.data.state !== expectedState) return;
-                    cleanup();
-                    if (event.data.error || !event.data.value || !event.data.codeVerifier || !event.data.redirectUri) {
-                        reject(new Error("Google verification failed"));
-                        return;
-                    }
-                    resolve({ value: event.data.value, codeVerifier: event.data.codeVerifier, redirectUri: event.data.redirectUri });
-                }
-                window.addEventListener("message", receive);
-            });
+            const verification = awaitGoogleProof(popup, expectedState);
             popup.location.assign(start.url);
             setGoogleProof(await verification);
         } catch {
@@ -107,14 +150,7 @@ export function useAuthenticationActionProof(action: AccountAction) {
         setBusy(true);
         setError(null);
         try {
-            const emailKinds = scheme.requiredTokens.filter(
-                (kind): kind is typeof EMAIL_KINDS[number] => EMAIL_KINDS.some(emailKind => emailKind === kind),
-            );
-            const missingChallenges = emailKinds.filter(kind => !challenges[kind]);
-            for (const kind of missingChallenges) {
-                const issued = await requestActionEmailCode(action, kind);
-                setChallenges(current => ({ ...current, [kind]: issued.challengeId }));
-            }
+            setChallenges(await requestMissingEmailCodes(action, scheme, challenges));
         } catch {
             setError("invalid");
         } finally {
@@ -127,17 +163,11 @@ export function useAuthenticationActionProof(action: AccountAction) {
         setBusy(true);
         setError(null);
         try {
-            if (scheme.requiredTokens.some(kind => EMAIL_KINDS.some(emailKind => emailKind === kind) && !challenges[kind])) {
+            const tokens = selectedTokens(scheme, values, challenges, googleProof);
+            if (!tokens) {
                 setError("required");
                 return null;
             }
-            if (scheme.requiredTokens.some(kind => kind === "GOOGLE" ? !googleProof : !values[kind]?.trim())) {
-                setError("required");
-                return null;
-            }
-            const tokens: PresentedProofToken[] = scheme.requiredTokens.map(kind => kind === "GOOGLE"
-                ? { kind, ...googleProof! }
-                : { kind, value: values[kind]!.trim(), ...(challenges[kind] ? { challengeId: challenges[kind] } : {}) });
             const result = await issueActionProof(action, tokens);
             setValues({});
             setChallenges({});

@@ -3,22 +3,31 @@
 import { Link } from "frontend-shared/ui/link";
 import { useRouter } from "next/navigation";
 import { useCallback } from "react";
-import { AuthError } from "../../../features/authentication/api/client";
+import { AuthError } from "@/features/authentication";
 import { useToast } from "frontend-shared/ui/toast";
 import { AuthLayout } from "./AuthLayout";
 import styles from "../../../widgets/authentication-step/ui/auth-step.module.css";
-import type { AuthStringKey } from "../../../features/authentication/model/strings";
-import { useAuthStrings } from "../../../features/authentication/model/strings";
-import type { AuthPageKind } from "../../../features/authentication/model/AuthPageKind";
-import { renderAuthenticationStep } from "../../../widgets/authentication-step";
+import type { AuthStringKey } from "@/features/authentication/model/strings";
+import { useAuthStrings } from "@/features/authentication/model/strings";
+import type { AuthPageKind } from "@/features/authentication/model/AuthPageKind";
+import { renderAuthenticationStep } from "@/widgets/authentication-step";
 import { Stack } from "frontend-shared/ui/stack";
 import { Select } from "frontend-shared/ui/select";
 import { Text } from "frontend-shared/ui/text";
-import { useAuthPageState } from "../model/useAuthPageState";
 import type { AuthPageState } from "../model/useAuthPageState";
+import { useAuthPageState } from "../model/useAuthPageState";
 import { useAuthPageEffects } from "../model/useAuthPageEffects";
 import { useAuthOperations } from "../model/useAuthOperations";
-import { appRoutes } from "../../../shared/config";
+import { appRoutes } from "@/shared/config";
+import { defineSettingsSections } from "settings-kit/entities/settings-section";
+import { SettingsNavigationGuardProvider } from "settings-kit/features/settings-navigation";
+import { SettingsWorkspace } from "settings-kit/widgets/settings-workspace";
+import { AppShell } from "frontend-shared/ui/app-shell";
+import { AccountMenu } from "@/widgets/account-menu";
+import { appNavItems } from "@/app/navigation";
+import { AccountProfileSection } from "./AccountProfileSection";
+import { AccountNotificationsSection } from "./AccountNotificationsSection";
+
 const headings = {
     login: ["loginTitle", "loginDescription"], register: ["registerTitle", "registerDescription"],
     mfa: ["mfaTitle", "mfaTitleHelp"], enrollment: ["enrollTitle", "enrollmentDescription"],
@@ -37,7 +46,11 @@ function message(error: unknown, t: (key: AuthStringKey) => string): string {
     return t("requestFailed");
 }
 
-export function AuthPage({ kind, returnTo }: { kind: AuthPageKind; returnTo?: string | undefined }) {
+export function AuthPage({ kind, returnTo, settingsSection = "security" }: {
+    kind: AuthPageKind;
+    returnTo?: string | undefined;
+    settingsSection?: "profile" | "notifications" | "security";
+}) {
     const router = useRouter();
     const t = useAuthStrings("auth");
     const { actions: toast } = useToast();
@@ -57,11 +70,58 @@ export function AuthPage({ kind, returnTo }: { kind: AuthPageKind; returnTo?: st
         state: pageState,
         successPath: returnTo ?? appRoutes.authenticatedHome,
     });
-    return <AuthLayout security={kind === "security"}>
-        <AuthPageHeading kind={ kind } preview={ pageState.preview } t={ t } />
-        <AuthPageContent kind={ kind } state={ pageState } operations={ operations } t={ t } />
-        <AuthPageFooter kind={ kind } primaryMethods={pageState.primaryMethods} t={ t } />
-    </AuthLayout>;
+    const settingsSections = defineSettingsSections([
+        {
+            id: "profile",
+            href: "/account/profile",
+            label: t("settingsProfile"),
+            description: t("settingsProfileDescription")
+        },
+        {
+            id: "notifications",
+            href: "/account/notifications",
+            label: t("settingsNotifications"),
+            description: t("settingsNotificationsDescription")
+        },
+        { id: "security", href: "/account/security", label: t("security"), description: t("securityDescription") },
+    ]);
+
+    if (kind !== "security") {
+        return <AuthLayout>
+            <AuthPageHeading kind={ kind } preview={ pageState.preview } t={ t }/>
+            <AuthPageContent kind={ kind } state={ pageState } operations={ operations } t={ t }/>
+            <AuthPageFooter kind={ kind } primaryMethods={ pageState.primaryMethods } t={ t }/>
+        </AuthLayout>;
+    }
+
+    return <SettingsNavigationGuardProvider
+        labels={ {
+            title: t("unsavedSettingsTitle"),
+            description: t("unsavedSettingsDescription"),
+            stay: t("stayOnSettings"),
+            leave: t("leaveSettings"),
+        } }
+        navigate={ path => {
+            router.push(path);
+        } }
+    >
+        <AppShell navItems={ appNavItems("settings") } title={ t("settingsNavigation") }
+                  skipLinkLabel={ t("settingsSkipLink") } actions={ <AccountMenu/> }>
+            <SettingsWorkspace
+                sections={ settingsSections }
+                activeSectionId={ settingsSection }
+                labels={ {
+                    navigation: t("settingsNavigation"),
+                    openNavigation: t("openSettingsNavigation"),
+                    closeNavigation: t("closeSettingsNavigation"),
+                } }
+            >
+                { settingsSection === "profile" ? <AccountProfileSection t={ t }/> :
+                    settingsSection === "notifications" ? <AccountNotificationsSection t={ t }/> :
+                        <AuthPageContent kind={ kind } state={ pageState } operations={ operations } t={ t }/> }
+            </SettingsWorkspace>
+        </AppShell>
+    </SettingsNavigationGuardProvider>;
 }
 
 type Translate = ReturnType<typeof useAuthStrings>;
@@ -77,15 +137,16 @@ function AuthPageHeading({ kind, preview, t }: { kind: AuthPageKind; preview: Au
 }
 
 function AuthPageContent({
-    kind, state, operations, t,
-}: { kind: AuthPageKind; state: AuthPageState; operations: PageOperations; t: Translate }) {
+                             kind, state, operations, t,
+                         }: { kind: AuthPageKind; state: AuthPageState; operations: PageOperations; t: Translate }) {
     const previewOnly = kind === "preview";
     const displayedKind = previewOnly ? state.preview : kind;
     const stepProps = createStepProps(state, operations, t);
     const previewCallback = previewOnly && displayedKind === "callback";
     return <>
-        { previewOnly && <AuthPreviewSelector state={ state } t={ t } /> }
-        { state.notice && <Text as="p" variant="body" role="status" className={ styles.notice ?? "" }>{ state.notice }</Text> }
+        { previewOnly && <AuthPreviewSelector state={ state } t={ t }/> }
+        { state.notice &&
+            <Text as="p" variant="body" role="status" className={ styles.notice ?? "" }>{ state.notice }</Text> }
         { previewCallback ? <Text variant="body">{ t("previewActionNotice") }</Text> :
             renderAuthenticationStep(displayedKind, stepProps) }
     </>;
@@ -113,7 +174,9 @@ function createStepProps(
         resendRegistrationCode: operations.resendRegistrationCode,
         emailCodeRequested: Boolean(state.emailSignInChallengeId), otpPurpose: state.otpPurpose,
         fieldErrors: state.fieldErrors,
-        clearFieldErrors: () => { state.setFieldErrors({}); },
+        clearFieldErrors: () => {
+            state.setFieldErrors({});
+        },
         sessions: state.sessions,
         revokeSession: operations.revokeSession, t,
     };
@@ -136,10 +199,10 @@ function AuthPreviewSelector({ state, t }: { state: AuthPageState; t: Translate 
 }
 
 function AuthPageFooter({
-    kind,
-    primaryMethods,
-    t,
-}: {
+                            kind,
+                            primaryMethods,
+                            t,
+                        }: {
     kind: AuthPageKind;
     primaryMethods: AuthPageState["primaryMethods"];
     t: Translate;

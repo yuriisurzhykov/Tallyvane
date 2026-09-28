@@ -30,11 +30,12 @@ void test("session refresh sends a CSRF-protected POST without a request body", 
     await client.refreshSession();
 
     const refresh = requests.at(-1);
-    assert.equal(refresh?.url, "/api/v1/auth/refresh");
-    assert.equal(refresh?.init?.method, "POST");
-    assert.equal(refresh?.init?.credentials, "same-origin");
-    assert.equal(new Headers(refresh?.init?.headers).get("X-CSRF-Token"), "csrf-refresh");
-    assert.equal(refresh?.init?.body, undefined);
+    assert.ok(refresh?.init);
+    assert.equal(refresh.url, "/api/v1/auth/refresh");
+    assert.equal(refresh.init.method, "POST");
+    assert.equal(refresh.init.credentials, "same-origin");
+    assert.equal(new Headers(refresh.init.headers).get("X-CSRF-Token"), "csrf-refresh");
+    assert.equal(refresh.init.body, undefined);
 });
 
 void test("translates auth API JSON between camelCase UI models and snake_case wire fields", async () => {

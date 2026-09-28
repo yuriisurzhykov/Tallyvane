@@ -12,6 +12,7 @@ import { PasswordField } from "frontend-shared/ui/password-field";
 import { Select } from "frontend-shared/ui/select";
 import { Stack } from "frontend-shared/ui/stack";
 import { Text } from "frontend-shared/ui/text";
+import { useOptionalSettingsUnsavedChanges } from "settings-kit/features/settings-navigation";
 
 type Translate = (key: AuthStringKey, vars?: Record<string, string | number>) => string;
 type ActionProofState = ReturnType<typeof useAuthenticationActionProof>;
@@ -107,8 +108,12 @@ export function AuthenticationActionForm({ action, t, submitLabel, onAuthorized,
     const proof = useAuthenticationActionProof(action);
     const [submitting, setSubmitting] = useState(false);
     const [operationError, setOperationError] = useState(false);
+    const [formDirty, setFormDirty] = useState(false);
     const busy = proof.busy || submitting;
     const needsEmailCode = isEmailChallengeNeeded(proof);
+    const hasProofInput = Object.values(proof.values).some(Boolean) ||
+        Object.values(proof.challenges).some(Boolean) || proof.googleReady;
+    useOptionalSettingsUnsavedChanges(formDirty || hasProofInput);
 
     async function submit(event: SubmitEvent<HTMLFormElement>) {
         event.preventDefault();
@@ -122,6 +127,7 @@ export function AuthenticationActionForm({ action, t, submitLabel, onAuthorized,
             if (!granted) return;
             await onAuthorized(granted, form);
             target.reset();
+            setFormDirty(false);
             await proof.refresh();
         } catch (reason) {
             setOperationError(true);
@@ -132,23 +138,43 @@ export function AuthenticationActionForm({ action, t, submitLabel, onAuthorized,
         }
     }
 
-    return <Form onSubmit={event => { void submit(event); }}>
-        {proof.loading && <Text variant="small" color="muted" role="status">{t("preparingVerification")}</Text>}
-        {!proof.loading && proof.schemes.length === 0 && !proof.error &&
-            <Text variant="small" color="muted" role="status">{t("actionProofNoSchemes")}</Text>}
+    return <Form
+        onSubmit={event => { void submit(event); }}
+        onChange={event => {
+            setFormDirty(hasFormValue(new FormData(event.currentTarget)));
+        }}
+    >
+        <ActionProofStatus proof={proof} operationError={operationError} t={t} />
         {proof.schemes.length > 1 && <ActionProofSchemeField proof={proof} busy={busy} t={t} />}
         {proof.scheme && <Stack gap="inline-tight">
             {proof.scheme.requiredTokens.map(kind => <ActionProofToken key={kind} kind={kind} proof={proof} busy={busy} t={t} />)}
         </Stack>}
         {children}
-        <ActionProofError error={proof.error} t={t} />
-        {operationError && <Text variant="small" tone="danger" role="alert">{t("requestFailed")}</Text>}
         <Button tone={tone} type={needsEmailCode ? "button" : "submit"} loading={busy}
             disabled={proof.loading || !proof.scheme}
             onClick={needsEmailCode ? () => { void proof.sendEmailCodes(); } : undefined}>
             {needsEmailCode ? t("actionProofSendEmailCodes") : submitLabel}
         </Button>
     </Form>;
+}
+
+function ActionProofStatus({ proof, operationError, t }: {
+    proof: ActionProofState; operationError: boolean; t: Translate;
+}) {
+    return <>
+        {proof.loading && <Text variant="small" color="muted" role="status">{t("preparingVerification")}</Text>}
+        {!proof.loading && proof.schemes.length === 0 && !proof.error &&
+            <Text variant="small" color="muted" role="status">{t("actionProofNoSchemes")}</Text>}
+        <ActionProofError error={proof.error} t={t} />
+        {operationError && <Text variant="small" tone="danger" role="alert">{t("requestFailed")}</Text>}
+    </>;
+}
+
+function hasFormValue(form: FormData): boolean {
+    for (const value of form.values()) {
+        if (typeof value === "string" ? value.length > 0 : value.size > 0) return true;
+    }
+    return false;
 }
 
 function isEmailChallengeNeeded(proof: Pick<ActionProofState, "scheme" | "challenges">): boolean {

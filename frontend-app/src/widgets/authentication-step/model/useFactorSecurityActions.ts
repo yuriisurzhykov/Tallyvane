@@ -42,6 +42,6 @@ export function useFactorSecurityActions(t: Translate, refreshStatus: () => Prom
         }
     }
 
-    return { actionProof, acceptActionProof, clearActionProof: () => setActionProof(""),
+    return { actionProof, acceptActionProof, clearActionProof: () => { setActionProof(""); },
         disableKind, setDisableKind, busy, disableFactor };
 }
