@@ -36,6 +36,7 @@ internal val ARCH_RULES: List<ArchRule> =
         ArchRule("problem-has-no-public-source", violations = ::problemHasNoPublicSource),
         ArchRule("openapi-covers-routes", violations = ::openapiCoversRoutes),
         ArchRule("own-schema-only", violations = ::ownSchemaOnly),
+        ArchRule("cache-key-is-module-prefixed", violations = ::cacheKeyIsModulePrefixed),
         ArchRule("no-cross-schema-join", violations = ::noCrossSchemaJoin),
         ArchRule("no-llm-with-personal-data", violations = ::noLlmWithPersonalData),
         ArchRule("port-has-conformance-suite", scope = { codeScope() }, violations = ::portHasConformanceSuite),

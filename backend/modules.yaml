@@ -17,6 +17,8 @@ layers:
 platform:
   kernel:        { depends: [] }
   events:        { depends: [platform:kernel] }
+  # kernel only: a counter needs nothing but Clock to decide whether a window has closed.
+  cache:         { depends: [platform:kernel] }
   # observability: persistence supplies the health checks over its own access to the
   # database, so it needs the HealthCheck port. The edge runs this way and not the
   # other because a check about Postgres belongs where Postgres is known.
@@ -35,17 +37,17 @@ platform:
   health:        { depends: [platform:kernel, platform:observability, platform:http] }
 
 # Modules that exist in the build today.
-modules: {}
+modules:
+  identity:
+    layers: [contract, domain, application, infrastructure, web]
+    reads: []
+    publishes: []
 
 # Modules that are designed but not yet created. Listed here so the intended
 # shape is reviewable before any code exists, and so `reads` conflicts surface
 # on paper rather than after the fact. Moving an entry from `planned` to
 # `modules` is what makes it real.
 planned:
-  identity:
-    layers: [contract, domain, application, infrastructure, web]
-    reads: []
-    publishes: []
   jobs:
     layers: [contract, domain, application, infrastructure, web]
     reads: [identity]

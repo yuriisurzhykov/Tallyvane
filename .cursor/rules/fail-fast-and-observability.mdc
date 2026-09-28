@@ -1,0 +1,12 @@
+---
+description: Points to the fail-fast-and-observability skill before finishing any function or method in Kotlin backend or TypeScript frontend/package code.
+globs: backend/**/*.kt,frontend-web/src/**/*.ts,frontend-web/src/**/*.tsx,frontend-admin/src/**/*.ts,frontend-admin/src/**/*.tsx,packages/*/src/**/*.ts,packages/*/src/**/*.tsx
+alwaysApply: false
+---
+
+# Fail-fast and observability
+
+Before considering a function or method finished, read and follow
+[.cursor/skills/fail-fast-and-observability/SKILL.md](../skills/fail-fast-and-observability/SKILL.md).
+
+Do not duplicate that guidance here — this rule only points to it.

@@ -33,6 +33,18 @@ FROM eclipse-temurin:21-jre
 # deleting the file removes the surface rather than a component this image has any use for.
 RUN rm -f /usr/bin/pebble
 
+# `identity`'s password hashing (Argon2id, via argon2-jvm-nolibs) needs the native Argon2
+# library present on the system rather than bundled by the Gradle dependency — the maintainer's
+# own recommendation, and the one that keeps this image free of a JNA-loaded binary nobody in
+# this repository built or reviewed. `eclipse-temurin:21-jre` is Ubuntu-based (confirmed above,
+# the Pebble leftover is Canonical's own tooling), so `apt` is the right tool, and
+# `libargon2-1` — the runtime library, not `libargon2-dev` — is enough: JNA's `matchLibrary`
+# fallback finds a versioned `libargon2.so.1` on its own, without the unversioned symlink only
+# the `-dev` package would add.
+RUN apt-get update \
+    && apt-get install --no-install-recommends --yes libargon2-1 \
+    && rm -rf /var/lib/apt/lists/*
+
 # Two trees, deliberately not merged into one lib/. Measured 2026-08-27: the two dependency
 # graphs resolve kotlin-reflect to 2.3.21 for the server and 2.3.20 for migrations, so a single
 # classpath would carry both and which one won would depend on ordering.

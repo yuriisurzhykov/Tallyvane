@@ -100,7 +100,9 @@ runs in steady state; the other exists only in the compose file, behind
 nginx over to it, and `apply.sh --retire <service>` is the only thing that stops the
 one being replaced — see the two dated entries below for why nginx's own upstream
 declarations, not `apply.sh`'s choice of which colour to start, turned out to be the
-binding constraint on that shape.
+binding constraint on that shape. `apply.sh --rollback <service>` cuts back to
+whichever colour `--rollout` last left running, without a tag typed by hand — the
+2026-08-31 entry below has the reasoning.
 
 ## No inbound ports
 
@@ -153,15 +155,15 @@ A 2 GB swap file backs all of it, with `vm.swappiness` at 20 — insurance again
 spike becoming a kill, not a routine tier of memory. The `swap` step in `provision/`
 has the reasoning, including why no container is forbidden to swap.
 
-| Component | Budget |
-| --- | --- |
-| PostgreSQL | 384 MB |
-| JVM | 576 MB (heap 384) |
-| Node — `frontend-web` | 256 MB (ADR-065: public pages only, cache-friendly) |
-| Node — `frontend-app` | 384 MB (ADR-065: partial SSR plus held-open SSE connections) |
-| Node — `frontend-admin` | 192 MB (estimate — single owner, low concurrency, smaller route tree; replace with a measured number once it's real) |
-| cloudflared | 48 MB |
-| typst / cwebp at peak | 64 MB |
+| Component                     | Budget                                                                                                                     |
+|-------------------------------|----------------------------------------------------------------------------------------------------------------------------|
+| PostgreSQL                    | 384 MB                                                                                                                     |
+| JVM                           | 576 MB (heap 384)                                                                                                          |
+| Node — `frontend-web`         | 256 MB (ADR-065: public pages only, cache-friendly)                                                                        |
+| Node — `frontend-app`         | 384 MB (ADR-065: partial SSR plus held-open SSE connections)                                                               |
+| Node — `frontend-admin`       | 192 MB (estimate — single owner, low concurrency, smaller route tree; replace with a measured number once it's real)       |
+| cloudflared                   | 48 MB                                                                                                                      |
+| typst / cwebp at peak         | 64 MB                                                                                                                      |
 | Left to the OS and page cache | shrinks further with each frontend split; this table has not been recalculated against the real 3.768 GiB machine below it |
 
 All three Node numbers are estimates of the same kind ADR-032 already gave
@@ -202,10 +204,10 @@ time `apply.sh` starts. Only once both check out does it update `.env` and call 
 
 Three secrets the workflow needs, none of them the administrator's own credentials:
 
-| Secret | Holds |
-| --- | --- |
-| `TALLYVANE_DEPLOY_KEY` | The private half of the keypair `25-ci-key.sh` asks for — generated for this purpose only. |
-| `TALLYVANE_DEPLOY_HOST` | `deploy@<host>`, the same form `deploy.sh`'s own `TALLYVANE_SSH` takes. |
+| Secret                      | Holds                                                                                                                                                                                      |
+|-----------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `TALLYVANE_DEPLOY_KEY`      | The private half of the keypair `25-ci-key.sh` asks for — generated for this purpose only.                                                                                                 |
+| `TALLYVANE_DEPLOY_HOST`     | `deploy@<host>`, the same form `deploy.sh`'s own `TALLYVANE_SSH` takes.                                                                                                                    |
 | `TALLYVANE_SSH_KNOWN_HOSTS` | The server's host key, from `ssh-keyscan <host>` — pinned rather than accepted on first connect from a GitHub-hosted runner, which has no prior relationship with this server to trust on. |
 
 ## What this tree deliberately does not do yet
@@ -364,8 +366,9 @@ internet full authority inside its container in order to read one file.
 The first request to the apex through the finished tunnel answered
 `HTTP/2 522`. The status is the diagnosis: 522 means Cloudflare tried an origin
 **address** and could not connect, where a tunnel that nobody answers gives 1033 or
+
 502. Cloudflare was going straight to port 443 of the machine, which the firewall
-correctly refuses.
+     correctly refuses.
 
 The cause was an `A` record for the apex that Cloudflare imported when the zone was
 added, pointing at the server, proxied. `cloudflared tunnel route dns` refused to
@@ -525,7 +528,8 @@ traffic ever reaches it — despite genuinely solving the keepalive question in 
 literal upstream name and runs the existing `nginx -t` validation before `nginx -s reload`, the same
 two-step deploy.sh/apply.sh already uses for every other nginx change.
 
-## 2026-08-28 — declaring both colours permanently would double every memory budget in this file, so the rollout adds and removes a `server` line instead
+## 2026-08-28 — declaring both colours permanently would double every memory budget in this file, so the rollout adds and removes a
+`server` line instead
 
 Naming `app_blue`/`app_green` as two permanently-declared `upstream` blocks (the shape this
 document's own §2 draft assumed at first) turned out to have a consequence the earlier finding
@@ -579,3 +583,56 @@ Left alone, on purpose: the public hostname `app.<domain>` still names `frontend
 this rename, and the two dated entries above this one keep the names (`app_blue`, `upstream app`)
 that were actually typed during those spikes — a dated entry records what was measured at the time,
 not what a later rename would have called it.
+
+## 2026-08-31 — `--rollback` reads the tag from Docker itself, not from whoever is on call
+
+Before this, undoing a bad rollout meant finding the previous release's tag by hand — in git tags
+or the GHCR package page — and editing `.env`'s `*_IMAGE` before running `--rollout` again. That
+is not just tedious under pressure; it is a live footgun: `server-blue` and `server-green` share
+one `${BACKEND_IMAGE}` (`docker-compose.yml`'s own anchor), so forgetting to change the tag first
+means the rollback's own `docker compose up -d` recreates the still-good colour with the still-bad
+image, destroying the one thing that was supposed to save you.
+
+The fix does not ask anyone to remember a tag at all. The colour a rollout demoted, if it has not
+been retired yet, is still running the exact image it needs — `docker inspect --format
+'{{.Config.Image}}'` on that container is ground truth, not a value that can drift out of sync
+with reality the way a copy written into `.env` at deploy time could. `--rollback` reads it from
+there, writes it into the same `.env` key `--rollout` would, and reuses `--rollout`'s own cutover
+— extracted into `cutover_to_idle()` so the two commands cannot drift into two slightly different
+cutovers over time.
+
+**First draft was wrong, and worth recording why.** The first version of `do_rollback` called the
+existing `do_rollout` unchanged, which for `server` unconditionally runs the old migrate image
+first. That is not merely redundant — it is trusting an unverified thing: whether this project's
+Flyway configuration tolerates a migrate run against a schema history that already carries
+versions newer than anything on that older image's classpath ("future migrations") is not
+something to assert from memory (`FlywayMigrations.kt` sets none of `ignoreFutureMigrations` /
+`validateOnMigrate`, so it is whatever Flyway's own default happens to be). Rather than verify
+that, the reasoning moved one level up: a rollback needs no migration at all, in either direction.
+ADR-066 already requires every migration in a blue-green release to be additive-only precisely so
+the demoted colour keeps working against the schema left behind — the same guarantee a rollback
+leans on. `cutover_to_idle()` was pulled out of `do_rollout` with no migrate call in it, and
+`do_rollback` calls only that.
+
+**What happens once the idle colour is actually gone.** `--retire` now takes one extra,
+best-effort step before it stops a colour: `docker inspect` its image and write it to
+`*_IMAGE_PREVIOUS` in `.env` — the only moment that tag is still knowable at all, since Docker
+drops it the instant the container is removed. `--rollback` falls back to that key when the idle
+container no longer exists, at the honestly-stated cost of starting a fresh container instead of
+cutting over to an already-warm one. If neither the container nor `*_IMAGE_PREVIOUS` has an
+answer — nothing has ever been retired for this service yet, or `.env` was rebuilt from scratch —
+`--rollback` says so and points at `git tag`/GHCR by name, rather than guessing.
+
+**Not yet built, on purpose.** No automatic retire exists — nothing calls `--retire` on any
+schedule, so both colours stay up until a human decides to free the memory. A timer-based
+auto-retire was designed and compared against real precedent (AWS CodeDeploy's
+`terminationWaitTimeInMinutes`, Argo Rollouts' `scaleDownDelaySeconds`, Netflix's own deliberately
+manual Red/Black destroy) but not implemented — it needs a per-service, cancellable timer (not an
+independent `sleep &` per rollout, which can let a stale timer from an earlier release destroy a
+newer rollback window purely by outliving it), and that is its own, separate piece of work.
+
+**Not verified live.** No Docker daemon was reachable while writing this (`apply.sh` runs only on
+the server), so none of `--rollback`'s two paths — inspecting a still-running idle container,
+falling back to `*_IMAGE_PREVIOUS` after a retire — has been exercised against real containers
+yet. Treat this entry as a design record, not a confirmed one, until someone runs the same
+rollout → rollback → retire → rollback sequence for real and reports back here.

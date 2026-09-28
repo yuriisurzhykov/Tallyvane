@@ -78,6 +78,26 @@ internal fun ownSchemaOnly(scope: KoScope): List<String> = scope.files
         if ((schemas + dotted).any { it != module }) file.where() else null
     }
 
+/**
+ * A `Counter` key belongs to the module that reads it, the same rule `own-schema-only` already
+ * applies to a Postgres schema — a key with no owner-prefix convention is a channel two modules
+ * could read and write without either showing up as an edge in the build graph.
+ *
+ * Matched the same way `own-schema-only` matches a schema name: a string literal read out of the
+ * file's own source text, not a resolved call, because a `Counter` is a `platform:cache`
+ * interface with no way to know at this layer which module is calling it.
+ */
+internal fun cacheKeyIsModulePrefixed(scope: KoScope): List<String> = scope.files
+    .withoutException("cache-key-is-module-prefixed")
+    .mapNotNull { file ->
+        val module = moduleNameFromPath(unixPath(file)) ?: return@mapNotNull null
+        val keys =
+            Regex("""\.(?:increment|count)\(\s*"([^"]+)"""")
+                .findAll(file.codeText())
+                .map { it.groupValues[1] }
+        if (keys.any { key -> !key.startsWith("$module:") }) file.where() else null
+    }
+
 internal fun noCrossSchemaJoin(scope: KoScope): List<String> = scope.files
     .withoutException("no-cross-schema-join")
     .mapNotNull { file ->

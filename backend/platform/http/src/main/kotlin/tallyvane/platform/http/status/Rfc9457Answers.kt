@@ -31,6 +31,13 @@ internal class Rfc9457Answers : Answers {
         errors = errors,
     )
 
+    override fun unauthorized(detail: String?): Problem = Problem(
+        type = uri("unauthorized"),
+        title = "Unauthorized",
+        status = UNAUTHORIZED,
+        detail = detail,
+    )
+
     override fun forbidden(detail: String?): Problem = Problem(
         type = uri("forbidden"),
         title = "Forbidden",
@@ -65,12 +72,21 @@ internal class Rfc9457Answers : Answers {
         status = INTERNAL,
     )
 
+    override fun tooManyRequests(detail: String?): Problem = Problem(
+        type = uri("too-many-requests"),
+        title = "Too many requests",
+        status = TOO_MANY_REQUESTS,
+        detail = detail,
+    )
+
     private fun uri(kind: String): String = "$PREFIX$kind"
 
     private companion object {
         const val PREFIX = "https://tallyvane.com/errors/"
 
         const val MALFORMED = 400
+
+        const val UNAUTHORIZED = 401
 
         const val FORBIDDEN = 403
 
@@ -79,6 +95,8 @@ internal class Rfc9457Answers : Answers {
         const val CONFLICT = 409
 
         const val UNPROCESSABLE = 422
+
+        const val TOO_MANY_REQUESTS = 429
 
         const val INTERNAL = 500
 

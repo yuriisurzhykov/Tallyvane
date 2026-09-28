@@ -24,6 +24,7 @@ import java.util.concurrent.CountDownLatch
  */
 public class Application(private val configuration: Configuration) : AutoCloseable {
     private val platform = PlatformWiring(configuration)
+    private val identityWiring = IdentityWiring(platform, configuration)
 
     private val wiring = Wiring(platform, configuration)
 
@@ -44,6 +45,7 @@ public class Application(private val configuration: Configuration) : AutoCloseab
             factory = CIO,
             port = configuration.port,
         ) {
+            wiring.requestPrincipal.install(this)
             wiring.api.install(this)
         }.also { server ->
             server.start(wait = false)

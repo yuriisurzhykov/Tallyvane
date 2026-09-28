@@ -103,3 +103,108 @@ it exists, how to use it, common misuse, examples, limitations.
 
 Applies to comments in any language in this repo (`//`, `#`, `/* */`, etc.),
 not just TypeScript.
+
+### When a doc comment needs a worked example
+
+A worked example — a fenced code block showing a call and its result —
+earns its place only when the type has real behaviour to demonstrate: a
+function or `init` block that validates, computes, branches on its input,
+or produces a result that depends on when or how many times it is called.
+A type whose only members are stored properties, nothing computed and
+nothing validated, gets no example — one sentence naming each property's
+role already says everything an example would repeat in a different form.
+
+The test is mechanical, not a judgment call: **would removing the example
+delete a fact about behaviour that the prose above it does not already
+state?** If every value the example produces is already named in that
+prose, the example is decoration, not documentation, and it is deleted.
+
+Every value used in an example must be one that would actually compile and
+pass the type's own runtime checks if pasted verbatim. A placeholder
+standing in for a value the type would reject (an ellipsis, a made-up
+string that does not match a documented shape) is worse than no example —
+it reads as verified when it was never run.
+
+#### Wrong — repeats prose already covered, and the value is invalid
+
+```kotlin
+/**
+ * The two tokens issued together at sign-in or refresh.
+ *
+ * ```
+ * val pair = TokenPair(access = TokenValue("access_..."), refresh = TokenValue("refresh_..."))
+ * pair.access   // short-lived, presented on every request
+ * pair.refresh  // long-lived, presented only to mint the next pair
+ * ```
+ */
+data class TokenPair(val access: TokenValue, val refresh: TokenValue)
+```
+
+Both facts the example demonstrates (`access` is short-lived, `refresh` is
+long-lived) are already stated in one sentence, so the example adds
+nothing. `"access_..."` also fails `TokenValue`'s own shape check (43
+base64url characters after the prefix) — this snippet would throw if
+anyone actually ran it.
+
+#### Right — the same fact, stated once, no invented example
+
+```kotlin
+/**
+ * The two tokens issued together at sign-in or refresh: the short-lived
+ * [access] token presented on every request, and the long-lived [refresh]
+ * token presented only to mint the next pair.
+ */
+data class TokenPair(val access: TokenValue, val refresh: TokenValue)
+```
+
+#### Right — an example that earns its place
+
+Prose alone leaves this method's window ambiguous — does it count from
+now, or from when each failure was recorded? An example removes the
+ambiguity a single sentence leaves open, using values the type actually
+accepts:
+
+```kotlin
+/**
+ * Failures recorded against [key] within the trailing [window] ending now.
+ *
+ * ```
+ * attempts.recordFailure(key, 15.minutes)
+ * attempts.failuresWithin(key, 15.minutes) // -> 1
+ * // 16 minutes later:
+ * attempts.failuresWithin(key, 15.minutes) // -> 0, window elapsed
+ * ```
+ */
+suspend fun failuresWithin(key: String, window: Duration): Long
+```
+
+### Method-level doc comments on a multi-method type
+
+When a type declares more than one method, each with its own contract,
+each method gets its own short doc comment: one sentence naming what it
+does, followed by `@param`/`@return`/`@throws` for anything a parameter
+name alone does not already make obvious. A single-method interface does
+not repeat itself here — the type-level doc's own example already
+documents that one method; a second copy of the same fact on the method
+itself is noise.
+
+```kotlin
+interface LoginAttempts {
+    /**
+     * Failures recorded against [key] within the trailing [window] ending now.
+     *
+     * @param key Identifies what is being rate-limited (an email, a pending-auth id).
+     * @param window How far back from now to count.
+     * @return Number of failures recorded against [key] inside [window].
+     */
+    suspend fun failuresWithin(key: String, window: Duration): Long
+
+    /**
+     * Marks one more failure against [key], counted starting now, expiring after [window].
+     *
+     * @param key Identifies what is being rate-limited.
+     * @param window How long this one failure counts toward a future [failuresWithin] call.
+     */
+    suspend fun recordFailure(key: String, window: Duration)
+}
+```
