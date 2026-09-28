@@ -536,6 +536,69 @@ paths:
         default:
           $ref: "#/components/responses/Problem"
 
+  /auth/account/profile:
+    get:
+      tags: [auth]
+      operationId: readAccountProfile
+      summary: Read the signed-in user's display name
+      security: [{ sessionCookie: [] }]
+      responses:
+        "200":
+          description: Current profile.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AccountProfile" }
+        default: { $ref: "#/components/responses/Problem" }
+    put:
+      tags: [auth]
+      operationId: updateAccountProfile
+      summary: Update the signed-in user's display name
+      security: [{ sessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AccountProfile" }
+      responses:
+        "200":
+          description: Saved profile.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AccountProfile" }
+        "422": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /auth/account/notifications:
+    get:
+      tags: [auth]
+      operationId: readAccountNotifications
+      summary: Read the signed-in user's security email preference
+      security: [{ sessionCookie: [] }]
+      responses:
+        "200":
+          description: Current notification preference.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AccountNotifications" }
+        default: { $ref: "#/components/responses/Problem" }
+    put:
+      tags: [auth]
+      operationId: updateAccountNotifications
+      summary: Update the signed-in user's security email preference
+      security: [{ sessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AccountNotifications" }
+      responses:
+        "200":
+          description: Saved notification preference.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AccountNotifications" }
+        default: { $ref: "#/components/responses/Problem" }
+
   /auth/account/password:
     post:
       tags: [auth]
@@ -1400,6 +1463,16 @@ components:
             $ref: "#/components/schemas/Problem"
 
   schemas:
+    AccountProfile:
+      type: object
+      required: [display_name]
+      properties:
+        display_name: { type: [string, "null"], maxLength: 80 }
+    AccountNotifications:
+      type: object
+      required: [security_emails_enabled]
+      properties:
+        security_emails_enabled: { type: boolean }
     AuthenticationAction:
       type: string
       enum: [SIGN_IN, CHANGE_PRIMARY_CREDENTIAL, MANAGE_SECOND_FACTORS]
