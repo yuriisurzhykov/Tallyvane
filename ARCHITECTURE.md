@@ -3814,8 +3814,10 @@ Focus — **не Full с меньшим числом полей, а отдель
 и откатом. Библиотека медиа с альтернативным текстом и местами использования. Редактируемые строки, сгруппированные по
 пространствам имён, с показом значения по умолчанию рядом.
 
-**Взаимодействие.** Никаких модальных окон: редактирование на месте, создание — выдвижная панель. Автосохранение через
-400 мс после последнего нажатия клавиши, оптимистично, с откатом при ошибке. Тёмная тема по умолчанию. Базовая
+**Взаимодействие основных рабочих экранов.** На основной рабочей поверхности не используют модальные окна:
+редактирование происходит на месте, создание открывает выдвижную панель. Специализированные подтверждения, например о
+потере несохранённого ввода в настройках, могут использовать `AlertDialog`. Автосохранение через 400 мс после последнего
+нажатия клавиши, оптимистично, с откатом при ошибке. Тёмная тема по умолчанию. Базовая
 типографика 16 пикселей, вертикальный ритм кратен восьми, не более трёх смысловых блоков на экране. Командная палитра и
 переходы с клавиатуры.
 
@@ -5460,6 +5462,14 @@ measured conditions arrives: surviving a restart, or more than one instance of t
 running at once. Whether a future network-backed implementation should fail open or fail closed
 when unavailable is recorded as a decision for whoever builds `identity`'s rate limiting, not
 guessed at here. Full record — [ADR-074](docs/adr/ADR-074-cache-counter-only-in-memory.md).
+
+**ADR-076. One structured logging contract, with the sink selected by environment.** Backend and
+frontend application events use the same fields (severity, stable event name, readable body and
+scalar attributes) behind runtime-specific `Logger` interfaces. Local Compose selects JSON stdout,
+which Docker Desktop retains with bounded rotation; production selects OTLP for Grafana Cloud.
+Ktor and all three standalone Next.js services emit access events through that contract, without
+logging request bodies or headers. Full record —
+[ADR-076](docs/adr/ADR-076-common-logging-contract-and-environment-sinks.md).
 
 ### Зафиксированные противоречия и их разрешение
 

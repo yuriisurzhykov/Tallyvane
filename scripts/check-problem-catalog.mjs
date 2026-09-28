@@ -19,7 +19,7 @@ function component(name) {
     if (start === -1) throw new Error(`OpenAPI component schema ${name} is missing`);
 
     let end = start + 1;
-    while (end < lines.length && !/^    [A-Za-z][A-Za-z0-9]*:\s*$/u.test(lines[end])) end++;
+    while (end < lines.length && !/^ {4}[A-Za-z][A-Za-z0-9]*:\s*$/u.test(lines[end])) end++;
     return lines.slice(start, end).join("\n");
 }
 
