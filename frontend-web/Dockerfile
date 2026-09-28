@@ -36,6 +36,7 @@ COPY packages/frontend-shared/package.json packages/frontend-shared/
 COPY packages/content-kit/package.json packages/content-kit/
 COPY packages/test-kit/package.json packages/test-kit/
 COPY packages/storybook/package.json packages/storybook/
+COPY packages/settings-kit/package.json packages/settings-kit/
 COPY .npmrc ./
 RUN --mount=type=cache,id=tallyvane-pnpm-store,target=/pnpm/store,sharing=locked \
     pnpm install --frozen-lockfile --store-dir=/pnpm/store
