@@ -87,7 +87,7 @@ private fun connectionsTo(access: DatabaseAccess): Int = awaited(REQUESTED_POOL)
                 .prepareStatement(
                     "select count(*) from pg_stat_activity where datname = ? and pid <> pg_backend_pid()",
                 ).use { statement ->
-                    statement.setString(1, access.url.substringAfterLast('/'))
+                    statement.setString(1, access.url.substringAfterLast('/').substringBefore('?'))
                     statement.executeQuery().use { rows ->
                         rows.next()
                         rows.getInt(1)

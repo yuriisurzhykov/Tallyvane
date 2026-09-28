@@ -1,5 +1,6 @@
 package tallyvane.identity.application
 
+import tallyvane.identity.application.account.AccountSettings
 import tallyvane.identity.application.email.BackupCodes
 import tallyvane.identity.application.email.EmailChallenges
 import tallyvane.identity.application.email.RequestEmailSignInCodeUseCase
@@ -27,6 +28,7 @@ import tallyvane.identity.application.port.CredentialRepository
 import tallyvane.identity.application.port.EmailMfaEnrollmentStore
 import tallyvane.identity.application.port.GoogleOAuthGateway
 import tallyvane.identity.application.port.LoginAttempts
+import tallyvane.identity.application.port.NewSignInAlertDelivery
 import tallyvane.identity.application.port.PasswordHasher
 import tallyvane.identity.application.port.PendingAuthenticationStore
 import tallyvane.identity.application.port.RefreshTokenStore
@@ -100,8 +102,10 @@ public class IdentityUseCases(
     private val authenticationActionProofStore: AuthenticationActionProofStore? = null,
     private val resetAccountMfaTarget: ResetAccountMfaUseCase.TargetStores? = null,
     loggerFactory: LoggerFactory = LoggerFactory(clock = clock),
+    public val securityEmailDelivery: NewSignInAlertDelivery? = null,
 ) {
     private val registry = SecondFactorMethodRegistry.Default(factors)
+    public val accountSettings: AccountSettings = AccountSettings(users, transactions)
     private val issuer = SessionIssuer.Default(
         sessions,
         refreshTokens,

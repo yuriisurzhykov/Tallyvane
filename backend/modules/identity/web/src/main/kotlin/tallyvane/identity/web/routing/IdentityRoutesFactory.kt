@@ -3,6 +3,8 @@ package tallyvane.identity.web.routing
 import tallyvane.identity.application.IdentityUseCases
 import tallyvane.identity.application.admin.BootstrapAdminAccountsUseCase
 import tallyvane.identity.application.login.ReadSignInOptionsUseCase
+import tallyvane.identity.domain.session.Session
+import tallyvane.identity.web.account.AccountSettingsHandler
 import tallyvane.identity.web.admin.AuthenticationActionProofHandler
 import tallyvane.identity.web.admin.AuthenticationPolicyProblems
 import tallyvane.identity.web.admin.ReadAuthenticationActionSchemesHandler
@@ -80,8 +82,13 @@ interface IdentityRoutesFactory {
             adminCases: IdentityUseCases?,
             adminBootstrap: BootstrapAdminAccountsUseCase?,
         ): RouteModule {
-            val services = services(configuration.secureCookies, configuration.tokenLifetimes)
-            val adminServices = services(configuration.secureCookies, configuration.tokenLifetimes, adminRealm = true)
+            val services = services(configuration.secureCookies, configuration.tokenLifetimes, cases)
+            val adminServices = services(
+                configuration.secureCookies,
+                configuration.tokenLifetimes,
+                adminCases,
+                adminRealm = true,
+            )
             val googleOAuth = googleOAuth(
                 cases,
                 configuration.googleClientId,
@@ -112,24 +119,25 @@ interface IdentityRoutesFactory {
             )
         }
 
-        private data class Services(
-            val cookies: SessionCookies.CookieJar,
-            val sessions: SessionProblems,
-            val current: CurrentPrincipal.Resolver,
-            val validation: RequestValidationProblems,
-            val factors: SecondFactorProblems,
-            val authentication: AuthenticationProblems,
-            val responses: SignInResponses.Writer,
-            val tokenLifetimes: SessionTokenLifetimes,
-        )
-
         private fun services(
             secure: Boolean,
             tokenLifetimes: SessionTokenLifetimes,
+            cases: IdentityUseCases?,
             adminRealm: Boolean = false,
         ): Services {
             val cookies = SessionCookies.CookieJar(secure, adminRealm)
             val sessions = SessionProblems()
+            val delivery = cases?.securityEmailDelivery
+            val notifySignIn: suspend (Session) -> Unit = if (adminRealm || cases == null || delivery == null) {
+                {}
+            } else {
+                { session ->
+                    val user = cases.accountSettings.read(session.userId)
+                    if (user?.securityEmailsEnabled == true) {
+                        delivery.sendNewSignInAlert(user.email, session.device.value)
+                    }
+                }
+            }
             return Services(
                 cookies,
                 sessions,
@@ -137,8 +145,9 @@ interface IdentityRoutesFactory {
                 RequestValidationProblems(),
                 SecondFactorProblems(),
                 AuthenticationProblems(),
-                SignInResponses.Writer(cookies, tokenLifetimes),
+                SignInResponses.Writer(cookies, tokenLifetimes, notifySignIn),
                 tokenLifetimes,
+                notifySignIn,
             )
         }
 
@@ -196,6 +205,7 @@ interface IdentityRoutesFactory {
                 ),
             )
             if (!adminRealm) {
+                add(AccountSettingsHandler(cases.accountSettings, services.current, services.validation))
                 add(
                     RegisterWithPasswordHandler(
                         cases.register,
@@ -211,29 +221,7 @@ interface IdentityRoutesFactory {
             addAll(baseHandlers(cases, services))
             addOptionalFactorHandlers(cases, services)
             addPasswordResetHandlers(cases, services)
-            if (cases.authorizeAuthenticationAction != null) {
-                add(
-                    ReadAuthenticationActionSchemesHandler(
-                        requireNotNull(cases.readAuthenticationActionSchemes),
-                        services.current,
-                        services.validation,
-                    ),
-                )
-                add(
-                    RequestAuthenticationActionEmailCodeHandler(
-                        requireNotNull(cases.requestAuthenticationActionEmailCode),
-                        services.current,
-                        services.validation,
-                    ),
-                )
-                add(
-                    AuthenticationActionProofHandler(
-                        requireNotNull(cases.authorizeAuthenticationAction),
-                        services.current,
-                        services.validation,
-                    ),
-                )
-            }
+            addAll(ActionProofHandlerFactory.create(cases, services))
             if (adminRealm) {
                 addPolicyHandlers(cases, services)
             }
@@ -260,6 +248,7 @@ interface IdentityRoutesFactory {
                 services.factors,
                 services.validation,
                 services.tokenLifetimes,
+                services.notifySignIn,
             ),
             EnrollSecondFactorHandler(
                 cases.enroll,
@@ -351,6 +340,37 @@ interface IdentityRoutesFactory {
                     ),
                 )
             }
+        }
+
+        private data class Services(
+            val cookies: SessionCookies.CookieJar,
+            val sessions: SessionProblems,
+            val current: CurrentPrincipal.Resolver,
+            val validation: RequestValidationProblems,
+            val factors: SecondFactorProblems,
+            val authentication: AuthenticationProblems,
+            val responses: SignInResponses.Writer,
+            val tokenLifetimes: SessionTokenLifetimes,
+            val notifySignIn: suspend (Session) -> Unit,
+        )
+
+        private companion object ActionProofHandlerFactory {
+            fun create(cases: IdentityUseCases, services: Services): List<AuthHandler> =
+                cases.authorizeAuthenticationAction?.let { authorize ->
+                    listOf(
+                        ReadAuthenticationActionSchemesHandler(
+                            requireNotNull(cases.readAuthenticationActionSchemes),
+                            services.current,
+                            services.validation,
+                        ),
+                        RequestAuthenticationActionEmailCodeHandler(
+                            requireNotNull(cases.requestAuthenticationActionEmailCode),
+                            services.current,
+                            services.validation,
+                        ),
+                        AuthenticationActionProofHandler(authorize, services.current, services.validation),
+                    )
+                } ?: emptyList()
         }
 
         override fun csrf(origins: Set<String>): CsrfGuard = CsrfGuard.Composite(

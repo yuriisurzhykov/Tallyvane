@@ -43,7 +43,7 @@ internal fun ambientRandomMarkersIn(source: String): List<String> {
 
 internal fun noAmbientTime(scope: KoScope): List<String> = scope.files
     .withoutException("no-ambient-time")
-    .filterNot { it.implementsSimpleName("Clock") }
+    .filterNot { it.implementsSimpleName("Clock") || it.implementsSimpleName("MonotonicClock") }
     .filter { file -> ambientTimeMarkers.any { marker -> file.codeText().contains(marker) } }
     .map { it.where() }
 

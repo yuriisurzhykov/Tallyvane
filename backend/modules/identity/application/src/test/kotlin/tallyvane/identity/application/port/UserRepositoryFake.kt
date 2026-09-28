@@ -17,6 +17,18 @@ internal class UserRepositoryFake : UserRepository {
         return true
     }
 
+    override suspend fun updateDisplayName(id: UserId, displayName: String?): Boolean {
+        val user = users[id] ?: return false
+        users[id] = user.copy(displayName = displayName)
+        return true
+    }
+
+    override suspend fun updateSecurityEmails(id: UserId, enabled: Boolean): Boolean {
+        val user = users[id] ?: return false
+        users[id] = user.copy(securityEmailsEnabled = enabled)
+        return true
+    }
+
     override suspend fun insert(user: User): UserRepository.InsertOutcome {
         if (users.values.any { it.email == user.email }) {
             return UserRepository.InsertOutcome.EMAIL_TAKEN

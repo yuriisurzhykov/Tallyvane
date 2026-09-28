@@ -25,13 +25,14 @@ public class AuthenticationActionProofRequirement internal constructor(
         userId: UserId,
         sessionId: SessionId,
         action: AuthenticationAction,
-    ): Boolean {
-        if (rawProof.isNullOrBlank()) return false
-        val token = runCatching { TokenValue(rawProof) }.getOrNull() ?: return false
-        if (!rawProof.startsWith("actionproof_")) return false
-        val session = sessions.find(sessionId)
-        if (session?.userId != userId || session.revokedAt != null) return false
-        val policy = policies.current() ?: return false
-        return proofs.consume(hasher.hash(token), userId, sessionId, action, policy.version, clock.now())
-    }
+    ): Boolean = parse(rawProof)?.let { token ->
+        val activeSession = sessions.find(sessionId)?.let { it.userId == userId && it.revokedAt == null } == true
+        val policyVersion = if (activeSession) policies.current()?.version else null
+        policyVersion != null &&
+            proofs.consume(hasher.hash(token), userId, sessionId, action, policyVersion, clock.now())
+    } == true
+
+    private fun parse(rawProof: String?): TokenValue? = rawProof
+        ?.takeIf { it.isNotBlank() && it.startsWith("actionproof_") }
+        ?.let { runCatching { TokenValue(it) }.getOrNull() }
 }

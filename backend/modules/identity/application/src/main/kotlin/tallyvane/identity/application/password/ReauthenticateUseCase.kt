@@ -63,12 +63,11 @@ public interface ReauthenticateUseCase : UseCase {
             }
         }
 
-        private suspend fun google(request: Request.Google): Outcome {
-            val gateway = google ?: return Outcome.PROVIDER_UNAVAILABLE
-            val identity = gateway.exchangeCode(request.code, request.codeVerifier, request.redirectUri)
-                ?: return Outcome.INVALID_CREDENTIAL
-            return recordGoogleProof(request.userId, request.sessionId, identity)
-        }
+        private suspend fun google(request: Request.Google): Outcome = google?.let { gateway ->
+            gateway.exchangeCode(request.code, request.codeVerifier, request.redirectUri)
+                ?.let { identity -> recordGoogleProof(request.userId, request.sessionId, identity) }
+                ?: Outcome.INVALID_CREDENTIAL
+        } ?: Outcome.PROVIDER_UNAVAILABLE
 
         private suspend fun recordGoogleProof(
             userId: UserId,

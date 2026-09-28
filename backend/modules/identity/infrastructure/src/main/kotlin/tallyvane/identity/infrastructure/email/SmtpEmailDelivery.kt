@@ -5,6 +5,7 @@ import jakarta.mail.Session
 import jakarta.mail.internet.InternetAddress
 import jakarta.mail.internet.MimeMessage
 import tallyvane.identity.application.port.EmailDelivery
+import tallyvane.identity.application.port.NewSignInAlertDelivery
 import tallyvane.identity.domain.email.EmailChallengePurpose
 import tallyvane.identity.domain.user.Email
 import tallyvane.platform.kernel.Secret
@@ -13,8 +14,28 @@ import java.util.Properties
 /**
  * SMTP acceptance is synchronous. Protocol debugging is disabled to keep codes out of logs.
  */
-internal class SmtpEmailDelivery(private val settings: SmtpSettings) : EmailDelivery {
+internal class SmtpEmailDelivery(private val settings: SmtpSettings) :
+    EmailDelivery,
+    NewSignInAlertDelivery {
     override suspend fun sendCode(email: Email, purpose: EmailChallengePurpose, code: Secret) {
+        send(
+            email,
+            "Verification code",
+            "Your code for ${purpose.name.lowercase().replace('_', ' ')} is ${code.revealed()}.\n\n" +
+                "If you did not request this code, ignore this email.",
+        )
+    }
+
+    override suspend fun sendNewSignInAlert(email: Email, device: String) {
+        send(
+            email,
+            "New sign-in to your account",
+            "A new sign-in to your account was completed from: $device.\n\n" +
+                "If this was not you, review your account security and active sessions.",
+        )
+    }
+
+    private fun send(email: Email, subjectText: String, body: String) {
         val properties = Properties().apply {
             setProperty(smtp("host"), settings.host)
             setProperty(smtp("port"), settings.port.toString())
@@ -31,14 +52,8 @@ internal class SmtpEmailDelivery(private val settings: SmtpSettings) : EmailDeli
         val message = MimeMessage(session).apply {
             setFrom(InternetAddress(settings.from, true))
             setRecipient(Message.RecipientType.TO, InternetAddress(email.value, true))
-            subject = "Verification code"
-            setText(
-                "Your code for ${purpose.name.lowercase().replace(
-                    '_',
-                    ' ',
-                )} is ${code.revealed()}.\n\nIf you did not request this code, ignore this email.",
-                "UTF-8",
-            )
+            subject = subjectText
+            setText(body, "UTF-8")
         }
         session.getTransport("smtp").use { transport ->
             transport.connect(settings.host, settings.port, settings.username, settings.password?.revealed())

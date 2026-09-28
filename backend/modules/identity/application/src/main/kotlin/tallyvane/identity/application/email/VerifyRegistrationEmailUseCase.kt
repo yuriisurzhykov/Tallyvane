@@ -19,26 +19,39 @@ public interface VerifyRegistrationEmailUseCase : UseCase {
         private val challenges: EmailChallenges,
         private val transactions: TransactionRunner,
     ) : VerifyRegistrationEmailUseCase {
-        override suspend fun verify(challengeId: Uuid, email: Email, code: Secret): Boolean {
-            val challenge = challenges.challenge(challengeId) ?: return false
-            if (challenge.purpose != EmailChallengePurpose.REGISTRATION ||
-                !userMatches(challenge.email, email)
-            ) {
-                return false
-            }
-            val userId = runCatching { UserId(Uuid.parse(challenge.binding)) }.getOrNull() ?: return false
-            val user = transactions.inTransaction { Verdict.Commit(users.findById(userId)) } ?: return false
-            return user.disabledAt == null &&
-                !user.emailVerified &&
-                userMatches(user.email, email) &&
-                challenges.verify(challengeId, email, EmailChallengePurpose.REGISTRATION, code, challenge.binding) &&
-                markVerified(userId)
-        }
+        override suspend fun verify(challengeId: Uuid, email: Email, code: Secret): Boolean =
+            registration(challengeId, email)?.let { pending ->
+                challenges.verify(
+                    challengeId,
+                    email,
+                    EmailChallengePurpose.REGISTRATION,
+                    code,
+                    pending.binding,
+                ) &&
+                    markVerified(pending.userId)
+            } ?: false
+
+        private suspend fun registration(challengeId: Uuid, email: Email): PendingRegistration? =
+            challenges.challenge(challengeId)
+                ?.takeIf { it.purpose == EmailChallengePurpose.REGISTRATION && userMatches(it.email, email) }
+                ?.let { challenge ->
+                    runCatching { UserId(Uuid.parse(challenge.binding)) }.getOrNull()?.let { userId ->
+                        transactions.inTransaction { Verdict.Commit(users.findById(userId)) }
+                            ?.takeIf { user ->
+                                user.disabledAt == null &&
+                                    !user.emailVerified &&
+                                    userMatches(user.email, email)
+                            }
+                            ?.let { PendingRegistration(userId, challenge.binding) }
+                    }
+                }
 
         private fun userMatches(accountEmail: Email, requestedEmail: Email): Boolean =
             accountEmail.value.equals(requestedEmail.value, ignoreCase = true)
 
         private suspend fun markVerified(userId: UserId): Boolean =
             transactions.inTransaction { Verdict.Commit(users.markEmailVerified(userId)) }
+
+        private data class PendingRegistration(val userId: UserId, val binding: String)
     }
 }

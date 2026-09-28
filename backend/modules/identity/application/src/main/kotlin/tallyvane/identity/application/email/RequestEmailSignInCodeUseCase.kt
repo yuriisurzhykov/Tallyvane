@@ -23,10 +23,12 @@ public interface RequestEmailSignInCodeUseCase : UseCase {
         private val challenges: EmailChallenges,
         private val signInOptions: ReadSignInOptionsUseCase,
     ) : RequestEmailSignInCodeUseCase {
-        override suspend fun request(email: Email): Result {
-            if (AuthenticationTokenKind.EMAIL_SIGN_IN_CODE !in signInOptions.read()) return Result.Refused
-            val challenge = challenges.issue(email, EmailChallengePurpose.EMAIL_LOGIN) ?: return Result.RateLimited
-            return Result.Issued(challenge)
-        }
+        override suspend fun request(email: Email): Result =
+            if (AuthenticationTokenKind.EMAIL_SIGN_IN_CODE !in signInOptions.read()) {
+                Result.Refused
+            } else {
+                challenges.issue(email, EmailChallengePurpose.EMAIL_LOGIN)?.let(Result::Issued)
+                    ?: Result.RateLimited
+            }
     }
 }

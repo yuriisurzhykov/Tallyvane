@@ -5,6 +5,7 @@ import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
+import tallyvane.identity.application.IdentityRealm
 import tallyvane.identity.application.port.TokenFactory
 import tallyvane.identity.application.port.TokenHasher
 import tallyvane.identity.contract.Principal
@@ -43,6 +44,7 @@ class PrincipalResolverOverSessionStoreSpec :
             tokenHasher = hasher,
             clock = ClockFake(clockAt),
             transactions = persistence.transactions,
+            realm = IdentityRealm.USER,
         )
 
         "an access token attached to a real session resolves to that session's own user" {

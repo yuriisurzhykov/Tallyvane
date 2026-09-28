@@ -42,23 +42,37 @@ public interface BootstrapAdminAccountsUseCase : UseCase {
         override suspend fun provisionConfiguredAdmins(): Int = transactions.inTransaction {
             var provisioned = 0
             for (configuredEmail in configuredEmails) {
-                val email = runCatching { Email(configuredEmail) }.getOrNull() ?: continue
-                val source = users.findByEmail(email)?.takeIf { it.disabledAt == null && it.emailVerified } ?: continue
-                if (admins.findByEmail(email) != null) continue
-
-                val adminId = UserId(ids.next())
-                val admin = source.copy(id = adminId, createdAt = clock.now())
-                if (admins.insert(admin) != UserRepository.InsertOutcome.INSERTED) continue
-
-                userCredentials.findPasswordFor(source.id)?.let { adminCredentials.save(adminId, it) }
-                userCredentials.findGoogleFor(source.id)?.let { credential ->
-                    adminCredentials.saveGoogleIfUnclaimed(adminId, credential.subject)
-                }
-                userTotp.find(source.id)?.let { enrollment -> adminTotp.save(enrollment.copy(userId = adminId)) }
-                if (userEmailMfa.isEnrolled(source.id)) adminEmailMfa.enroll(adminId)
-                provisioned += 1
+                val email = runCatching { Email(configuredEmail) }.getOrNull()
+                if (email != null && provision(email)) provisioned += 1
             }
             Verdict.Commit(provisioned)
+        }
+
+        private suspend fun provision(email: Email): Boolean = users.findByEmail(email)
+            ?.takeIf { it.disabledAt == null && it.emailVerified }
+            ?.takeIf { admins.findByEmail(email) == null }
+            ?.let { source ->
+                val adminId = UserId(ids.next())
+                val admin = source.copy(id = adminId, createdAt = clock.now())
+                if (admins.insert(admin) != UserRepository.InsertOutcome.INSERTED) {
+                    false
+                } else {
+                    copyCredentials(source.id, adminId)
+                    copyFactors(source.id, adminId)
+                    true
+                }
+            } ?: false
+
+        private suspend fun copyCredentials(sourceId: UserId, adminId: UserId) {
+            userCredentials.findPasswordFor(sourceId)?.let { adminCredentials.save(adminId, it) }
+            userCredentials.findGoogleFor(sourceId)?.let { credential ->
+                adminCredentials.saveGoogleIfUnclaimed(adminId, credential.subject)
+            }
+        }
+
+        private suspend fun copyFactors(sourceId: UserId, adminId: UserId) {
+            userTotp.find(sourceId)?.let { enrollment -> adminTotp.save(enrollment.copy(userId = adminId)) }
+            if (userEmailMfa.isEnrolled(sourceId)) adminEmailMfa.enroll(adminId)
         }
     }
 }

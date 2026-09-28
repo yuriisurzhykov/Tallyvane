@@ -53,18 +53,26 @@ internal fun usecaseHasTest(scope: KoScope): List<String> {
  * schema. That is slice 14's conformance run, which needs `app`. This is the half that works today.
  */
 internal fun openapiCoversRoutes(scope: KoScope): List<String> {
-    val files = scope.files.withoutException("openapi-covers-routes")
-    val basePaths = files.mapNotNull { file ->
+    val basePaths = routeBasePaths(scope)
+    val served = servedPaths(scope, basePaths)
+    val documented = documentedPaths()
+    addAdminAliases(scope, basePaths, served, documented)
+
+    val undocumented = (served - documented).map { path -> "$path is served and absent from docs/openapi.yaml" }
+    val unserved = (documented - served).map { path -> "docs/openapi.yaml describes $path, which nothing serves" }
+    return undocumented + unserved
+}
+
+private fun routeBasePaths(scope: KoScope): List<Pair<String, String>> =
+    scope.files.withoutException("openapi-covers-routes").mapNotNull { file ->
         val source = file.codeText()
         val packageName = PACKAGE.find(source)?.groupValues?.get(1) ?: return@mapNotNull null
         val basePath = BASE_PATH.find(source)?.groupValues?.get(1) ?: return@mapNotNull null
         packageName.substringBeforeLast('.') to basePath
     }
-    val sources = files.map { file -> file.codeText() }
-    val adminHandlersAreMounted = sources.any { source ->
-        ADMIN_ROUTE_GROUP.containsMatchIn(source) && ADMIN_HANDLER_INSTALL.containsMatchIn(source)
-    }
-    val served = files.flatMap { file ->
+
+private fun servedPaths(scope: KoScope, basePaths: List<Pair<String, String>>): MutableSet<String> =
+    scope.files.withoutException("openapi-covers-routes").flatMap { file ->
         val source = file.codeText()
         val packageName = PACKAGE.find(source)?.groupValues?.get(1)
         val inheritedBase = basePaths
@@ -90,30 +98,37 @@ internal fun openapiCoversRoutes(scope: KoScope): List<String> {
             registered
         }
     }.toMutableSet()
-    val documented = documentedPaths()
 
+private fun addAdminAliases(
+    scope: KoScope,
+    basePaths: List<Pair<String, String>>,
+    served: MutableSet<String>,
+    documented: Set<String>,
+) {
     // IdentityRoutesFactory reuses login, MFA, session, and logout handlers for both realms.
     // Their route fragments are mounted under `/auth` and `/auth/admin` respectively; the latter
     // is passed to AuthRoutes.Installation as `adminHandlers` and installed inside `/admin`.
     // Add a documented admin path only when that group is mounted and its exact suffix is present
     // among the literal fragments collected from those shared handlers.
     val authBases = basePaths.map { it.second }.filter { it.endsWith("/auth") }.toSet()
-    if (adminHandlersAreMounted) {
-        for (authBase in authBases) {
+    if (adminHandlersAreMounted(scope)) {
+        authBases.forEach { authBase ->
             val adminPrefix = "$authBase/admin"
-            documented.asSequence()
+            val aliases = documented.asSequence()
                 .filter { it.startsWith("$adminPrefix/") }
                 .map { it.removePrefix(adminPrefix) }
                 .filter { suffix -> "$authBase$suffix" in served }
-                .forEach { suffix -> served += "$adminPrefix$suffix" }
+                .toList()
+            aliases.forEach { suffix -> served += "$adminPrefix$suffix" }
         }
     }
-
-    val undocumented = (served - documented).map { path -> "$path is served and absent from docs/openapi.yaml" }
-    val unserved = (documented - served).map { path -> "docs/openapi.yaml describes $path, which nothing serves" }
-
-    return undocumented + unserved
 }
+
+private fun adminHandlersAreMounted(scope: KoScope): Boolean =
+    scope.files.withoutException("openapi-covers-routes").any { file ->
+        val source = file.codeText()
+        ADMIN_ROUTE_GROUP.containsMatchIn(source) && ADMIN_HANDLER_INSTALL.containsMatchIn(source)
+    }
 
 /**
  * Every full path one file registers: its base, plus the base joined with each literal sub-path.

@@ -47,8 +47,7 @@ internal interface AuthenticationCompleter {
             userId: UserId,
             device: DeviceLabel,
             primaryMethod: PrimaryMethod,
-        ): SignInOutcome {
-            val policy = policies.current() ?: return invalidCredential()
+        ): SignInOutcome = policies.current()?.let { policy ->
             val enrolled = registry.enrolledFor(userId)
             val primaryToken = primaryMethod.toAuthenticationToken()
             val availableTokens = enrolled.mapTo(mutableSetOf()) { it.toAuthenticationToken() }.apply {
@@ -57,29 +56,33 @@ internal interface AuthenticationCompleter {
             val candidates = policy.schemesFor(AuthenticationAction.SIGN_IN).filter { scheme ->
                 primaryToken in scheme.requiredTokens && scheme.isSatisfiedBy(availableTokens)
             }
-            if (candidates.isEmpty()) return invalidCredential()
-
-            val maximumRank = candidates.maxOf { it.assuranceRank }
-            val recommendedScheme = candidates.filter { it.assuranceRank == maximumRank }.minBy { it.id }
-            val recommendedFactor = recommendedScheme.requiredTokens
-                .singleOrNull(AuthenticationTokenKind::isSecondFactor)
-            val availableFactors = candidates.flatMapTo(linkedSetOf()) { scheme ->
-                scheme.requiredTokens.filter(AuthenticationTokenKind::isSecondFactor).map { it.toSecondFactorKind() }
-            }
-            return if (recommendedFactor == null) {
-                issueSession(userId, device)
+            if (candidates.isEmpty()) {
+                invalidCredential()
             } else {
-                SignInOutcome.NotIssued(
-                    requireSecondFactor(
-                        userId,
-                        device,
-                        recommendedFactor.toSecondFactorKind(),
-                        availableFactors,
-                        policy.version,
-                    ),
-                )
+                val maximumRank = candidates.maxOf { it.assuranceRank }
+                val recommendedScheme = candidates.filter { it.assuranceRank == maximumRank }.minBy { it.id }
+                val recommendedFactor = recommendedScheme.requiredTokens
+                    .singleOrNull(AuthenticationTokenKind::isSecondFactor)
+                val availableFactors = candidates.flatMapTo(linkedSetOf()) { scheme ->
+                    scheme.requiredTokens.filter(AuthenticationTokenKind::isSecondFactor).map {
+                        it.toSecondFactorKind()
+                    }
+                }
+                if (recommendedFactor == null) {
+                    issueSession(userId, device)
+                } else {
+                    SignInOutcome.NotIssued(
+                        requireSecondFactor(
+                            userId,
+                            device,
+                            recommendedFactor.toSecondFactorKind(),
+                            availableFactors,
+                            policy.version,
+                        ),
+                    )
+                }
             }
-        }
+        } ?: invalidCredential()
 
         private fun invalidCredential() = SignInOutcome.NotIssued(AuthenticationOutcome.InvalidCredential)
 

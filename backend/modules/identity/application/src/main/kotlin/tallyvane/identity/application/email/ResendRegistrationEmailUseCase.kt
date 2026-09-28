@@ -19,16 +19,15 @@ public interface ResendRegistrationEmailUseCase : UseCase {
         private val challenges: EmailChallenges,
         private val transactions: TransactionRunner,
     ) : ResendRegistrationEmailUseCase {
-        override suspend fun resend(email: Email): Uuid? {
-            val user = transactions.inTransaction { Verdict.Commit(users.findByEmail(email)) } ?: return null
-            if (
-                user.emailVerified ||
-                user.disabledAt != null ||
-                !user.email.value.equals(email.value, ignoreCase = true)
-            ) {
-                return null
-            }
-            return challenges.issue(email, EmailChallengePurpose.REGISTRATION, user.id.value.toString())?.id
-        }
+        override suspend fun resend(email: Email): Uuid? =
+            transactions.inTransaction { Verdict.Commit(users.findByEmail(email)) }
+                ?.takeUnless { user ->
+                    user.emailVerified ||
+                        user.disabledAt != null ||
+                        !user.email.value.equals(email.value, ignoreCase = true)
+                }
+                ?.let { user ->
+                    challenges.issue(email, EmailChallengePurpose.REGISTRATION, user.id.value.toString())?.id
+                }
     }
 }

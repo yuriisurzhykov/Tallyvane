@@ -127,10 +127,8 @@ public class IdentityWiring(
      * place both shapes are visible, so it is the one place that bridges them.
      */
     private class Adapted(private val resolvers: List<PrincipalResolver>) : RequestPrincipalResolver {
-        override suspend fun resolve(rawSessionCookie: String?): Any? {
-            val raw = rawSessionCookie ?: return null
-            for (resolver in resolvers) resolver.resolve(raw)?.let { return it }
-            return null
+        override suspend fun resolve(rawSessionCookie: String?): Any? = rawSessionCookie?.let { raw ->
+            resolvers.firstNotNullOfOrNull { resolver -> resolver.resolve(raw) }
         }
     }
 }

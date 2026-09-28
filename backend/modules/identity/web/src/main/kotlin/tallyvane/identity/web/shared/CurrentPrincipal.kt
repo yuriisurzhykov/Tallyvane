@@ -36,12 +36,20 @@ internal interface CurrentPrincipal {
         }
 
         override fun peek(call: ApplicationCall): ResolvedIdentity? {
-            val resolved = RequestPrincipal.of(call) as? ResolvedPrincipal ?: return null
-            val accountId = when (val principal = resolved.principal) {
-                is Principal.Admin -> if (adminRealm) principal.id.value else return null
-                is Principal.User -> if (!adminRealm) principal.id.value else return null
+            val resolved = RequestPrincipal.of(call) as? ResolvedPrincipal
+            return resolved?.takeIf { it.principal.belongsToCurrentRealm() }?.let {
+                ResolvedIdentity(UserId(it.principal.accountId()), SessionId(it.sessionId.value))
             }
-            return ResolvedIdentity(UserId(accountId), SessionId(resolved.sessionId.value))
+        }
+
+        private fun Principal.belongsToCurrentRealm(): Boolean = when (this) {
+            is Principal.Admin -> adminRealm
+            is Principal.User -> !adminRealm
+        }
+
+        private fun Principal.accountId() = when (this) {
+            is Principal.Admin -> id.value
+            is Principal.User -> id.value
         }
     }
 }

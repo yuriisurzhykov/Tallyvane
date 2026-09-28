@@ -16,9 +16,13 @@ class EnvironmentProcessSpec :
             // Deliberately arranged from the environment *map*, which is a different call than the
             // single-key lookup under test. It is the closest to an independent observation a
             // wrapper this thin allows, and what it really pins is that the port reads the
-            // environment and not, say, system properties — the plausible mistake here.
+            // environment and not, say, system properties — the plausible mistake here. Windows
+            // exposes PATH and Path case-insensitively but can give the map and single-key lookup
+            // different normalized values, so this comparison uses another process variable.
             "reads a variable the process really has" {
-                val (name, value) = System.getenv().entries.first()
+                val (name, value) = System.getenv().entries.first { (key, _) ->
+                    !key.equals("PATH", ignoreCase = true)
+                }
 
                 Environment.Process().read(name) shouldBe value
             }

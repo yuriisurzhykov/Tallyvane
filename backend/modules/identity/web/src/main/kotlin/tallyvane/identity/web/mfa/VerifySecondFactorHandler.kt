@@ -11,6 +11,7 @@ import tallyvane.identity.application.secondfactor.VerifySecondFactorUseCase
 import tallyvane.identity.domain.outcome.SecondFactorOutcome
 import tallyvane.identity.domain.secondfactor.PendingAuthenticationId
 import tallyvane.identity.domain.secondfactor.SecondFactorKind
+import tallyvane.identity.domain.session.Session
 import tallyvane.identity.web.login.SignInResponseBody
 import tallyvane.identity.web.routing.AuthHandler
 import tallyvane.identity.web.shared.FieldValidation
@@ -35,6 +36,7 @@ internal class VerifySecondFactorHandler(
     private val secondFactorProblems: SecondFactorProblems,
     private val validationProblems: RequestValidationProblems,
     private val tokenLifetimes: SessionTokenLifetimes,
+    private val notifySignIn: suspend (Session) -> Unit = {},
 ) : AuthHandler {
     override fun install(route: Route) {
         route.post("/mfa/verify") {
@@ -62,6 +64,8 @@ internal class VerifySecondFactorHandler(
                         call,
                         IssuedTokens(tokens.access, tokenLifetimes.access, tokens.refresh, tokenLifetimes.refresh),
                     )
+                    runCatching { notifySignIn(outcome.session.session) }
+                        .onFailure { call.application.environment.log.warn("Could not send sign-in alert", it) }
                     call.respond(SignInResponseBody(status = "issued"))
                 }
 

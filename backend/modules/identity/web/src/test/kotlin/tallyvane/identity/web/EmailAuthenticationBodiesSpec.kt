@@ -126,7 +126,10 @@ private fun installAuthRoutes(
 }
 
 private object NoContentSignInResponses : SignInResponses {
-    override fun attachIssued(call: io.ktor.server.application.ApplicationCall, outcome: SignInOutcome.Issued) = Unit
+    override suspend fun attachIssued(
+        call: io.ktor.server.application.ApplicationCall,
+        outcome: SignInOutcome.Issued,
+    ) = Unit
 
     override suspend fun respond(
         call: io.ktor.server.application.ApplicationCall,

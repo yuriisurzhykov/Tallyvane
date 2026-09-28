@@ -27,11 +27,14 @@ public sealed interface Principal {
     )
     public data class User(public val id: UserId) : Principal
 
-    /** A separately provisioned administrator identity. */
+    /**
+     * A separately provisioned administrator identity.
+     */
     @ArchitectureException(
         rule = "contract-no-logic",
         reason = "A sealed-interface case holding one immutable field is not logic; the check's " +
             "nested-name allow-list was never widened to recognise this shape.",
         adr = "ADR-075",
-    )public data class Admin(public val id: AdminId) : Principal
+    )
+    public data class Admin(public val id: AdminId) : Principal
 }

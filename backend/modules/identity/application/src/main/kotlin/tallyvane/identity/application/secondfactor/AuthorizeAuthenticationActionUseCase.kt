@@ -6,7 +6,6 @@ import tallyvane.identity.application.port.AuthenticationPolicyStore
 import tallyvane.identity.application.port.CredentialRepository
 import tallyvane.identity.application.port.GoogleOAuthGateway
 import tallyvane.identity.application.port.PasswordHasher
-import tallyvane.identity.application.port.SecondFactorMethod
 import tallyvane.identity.application.port.SessionStore
 import tallyvane.identity.application.port.TokenFactory
 import tallyvane.identity.application.port.TokenHasher
@@ -24,7 +23,6 @@ import tallyvane.identity.domain.token.TokenValue
 import tallyvane.identity.domain.user.Email
 import tallyvane.identity.domain.user.UserId
 import tallyvane.platform.kernel.Clock
-import tallyvane.platform.kernel.Secret
 import tallyvane.platform.kernel.TransactionRunner
 import tallyvane.platform.kernel.UseCase
 import tallyvane.platform.kernel.Verdict
@@ -81,6 +79,9 @@ public interface AuthorizeAuthenticationActionUseCase : UseCase {
     ) : AuthorizeAuthenticationActionUseCase,
         ReadAuthenticationActionSchemesUseCase,
         RequestAuthenticationActionEmailCodeUseCase {
+        private val tokenVerifier =
+            ActionTokenVerifier(credentials, passwords, google, emailChallenges, factors, transactions)
+
         override suspend fun read(
             userId: UserId,
             sessionId: SessionId,
@@ -101,39 +102,57 @@ public interface AuthorizeAuthenticationActionUseCase : UseCase {
             action: AuthenticationAction,
             kind: AuthenticationTokenKind,
         ): Uuid? {
-            if (action == AuthenticationAction.SIGN_IN ||
+            val target = if (
+                action == AuthenticationAction.SIGN_IN ||
                 kind !in setOf(AuthenticationTokenKind.EMAIL_SIGN_IN_CODE, AuthenticationTokenKind.EMAIL_FACTOR_CODE)
             ) {
-                return null
-            }
-            val target = transactions.inTransaction {
-                val user = users.findById(userId)?.takeIf { it.disabledAt == null && it.emailVerified }
-                    ?: return@inTransaction Verdict.Rollback(null)
-                val session = sessions.find(sessionId)?.takeIf { it.userId == userId && it.revokedAt == null }
-                    ?: return@inTransaction Verdict.Rollback(null)
-                val policy = policies.current() ?: return@inTransaction Verdict.Rollback(null)
-                val available = availableTokens(userId, action, policy)
-                if (policy.strongest(action, available).none { kind in it.requiredTokens }) {
-                    return@inTransaction Verdict.Rollback(null)
-                }
-                Verdict.Commit(user.email to "action-proof:$action:${session.id.value}:${policy.version}")
-            } ?: return null
-            val purpose = if (kind == AuthenticationTokenKind.EMAIL_SIGN_IN_CODE) {
-                EmailChallengePurpose.EMAIL_LOGIN
+                null
             } else {
-                EmailChallengePurpose.MFA
+                transactions.inTransaction {
+                    val user = users.findById(userId)?.takeIf { it.disabledAt == null && it.emailVerified }
+                        ?: return@inTransaction Verdict.Rollback(null)
+                    val session = sessions.find(sessionId)?.takeIf { it.userId == userId && it.revokedAt == null }
+                        ?: return@inTransaction Verdict.Rollback(null)
+                    val policy = policies.current() ?: return@inTransaction Verdict.Rollback(null)
+                    val available = availableTokens(userId, action, policy)
+                    if (policy.strongest(action, available).none { kind in it.requiredTokens }) {
+                        return@inTransaction Verdict.Rollback(null)
+                    }
+                    Verdict.Commit(user.email to "action-proof:$action:${session.id.value}:${policy.version}")
+                }
             }
-            return emailChallenges?.issue(target.first, purpose, target.second)?.id
+            return target?.let { (email, binding) ->
+                val purpose = if (kind == AuthenticationTokenKind.EMAIL_SIGN_IN_CODE) {
+                    EmailChallengePurpose.EMAIL_LOGIN
+                } else {
+                    EmailChallengePurpose.MFA
+                }
+                emailChallenges?.issue(email, purpose, binding)?.id
+            }
         }
 
         override suspend fun authorize(request: Request): Result {
+            val presented = request.tokens.associateBy { it.kind }
+            val result = initialContext(request, presented)?.let { initial ->
+                if (verifyPrimaryTokens(request, presented, initial)) {
+                    finishAuthorization(request, presented, initial)
+                } else {
+                    Result.Refused
+                }
+            } ?: Result.Refused
+            return result
+        }
+
+        private suspend fun initialContext(
+            request: Request,
+            presented: Map<AuthenticationTokenKind, PresentedToken>,
+        ): InitialContext? {
             if (request.action == AuthenticationAction.SIGN_IN ||
                 request.tokens.map { it.kind }.toSet().size != request.tokens.size
             ) {
-                return Result.Refused
+                return null
             }
-            val presented = request.tokens.associateBy { it.kind }
-            val initial = transactions.inTransaction {
+            return transactions.inTransaction {
                 val session = sessions.find(request.sessionId)
                 if (session?.userId != request.userId || session.revokedAt != null) {
                     return@inTransaction Verdict.Rollback(null)
@@ -146,114 +165,86 @@ public interface AuthorizeAuthenticationActionUseCase : UseCase {
                     .firstOrNull { candidate -> candidate.requiredTokens.all(presented::containsKey) }
                     ?: return@inTransaction Verdict.Rollback(null)
                 Verdict.Commit(InitialContext(user.email, policy, scheme))
-            } ?: return Result.Refused
-            val (email, policy, scheme) = initial
-            for (kind in listOf(AuthenticationTokenKind.PASSWORD, AuthenticationTokenKind.GOOGLE)) {
-                if (kind in scheme.requiredTokens &&
-                    !verify(request, email, presented.getValue(kind), policy.version)
-                ) {
-                    return Result.Refused
-                }
-            }
-            return transactions.inTransaction {
-                val active =
-                    sessions.find(request.sessionId)?.let { it.userId == request.userId && it.revokedAt == null } ==
-                        true
-                val currentUser = users.findById(request.userId)?.takeIf { it.disabledAt == null && it.emailVerified }
-                val currentPolicy = policies.current()
-                    ?: return@inTransaction Verdict.Rollback(Result.Refused)
-                val stillStrongest = currentPolicy.version == policy.version &&
-                    scheme in currentPolicy.strongest(
-                        request.action,
-                        availableTokens(request.userId, request.action, currentPolicy),
-                    )
-                if (!active ||
-                    currentUser == null ||
-                    !stillStrongest
-                ) {
-                    return@inTransaction Verdict.Rollback(Result.Refused)
-                }
-
-                for (kind in listOf(
-                    AuthenticationTokenKind.TOTP,
-                    AuthenticationTokenKind.EMAIL_SIGN_IN_CODE,
-                    AuthenticationTokenKind.EMAIL_FACTOR_CODE,
-                )) {
-                    if (kind in scheme.requiredTokens &&
-                        !verify(request, currentUser.email, presented.getValue(kind), currentPolicy.version)
-                    ) {
-                        // Keep challenge attempt counters while no unrelated recovery code has been consumed.
-                        return@inTransaction Verdict.Commit(Result.Refused)
-                    }
-                }
-                val rawProof = tokenFactory.mint(TokenKind.ACTION_PROOF)
-                val expiresAt = clock.now() + ttl
-                val record = AuthenticationActionProof(
-                    token = tokenHasher.hash(rawProof),
-                    userId = request.userId,
-                    sessionId = request.sessionId,
-                    action = request.action,
-                    policyVersion = currentPolicy.version,
-                    schemeId = scheme.id,
-                    assuranceRank = scheme.assuranceRank,
-                    expiresAt = expiresAt,
-                )
-                proofs.save(record)
-                Verdict.Commit(Result.Authorized(rawProof, scheme.id, scheme.assuranceRank, expiresAt))
             }
         }
 
-        private suspend fun verify(
+        private suspend fun verifyPrimaryTokens(
             request: Request,
-            email: tallyvane.identity.domain.user.Email,
-            token: PresentedToken,
-            policyVersion: Long,
+            presented: Map<AuthenticationTokenKind, PresentedToken>,
+            initial: InitialContext,
         ): Boolean {
-            return when (token.kind) {
-                AuthenticationTokenKind.PASSWORD -> {
-                    val password = transactions.inTransaction {
-                        Verdict.Commit(credentials.findPasswordFor(request.userId))
-                    }
-                    password != null && passwords.verify(Secret(token.value), password.hash)
-                }
-                AuthenticationTokenKind.GOOGLE -> {
-                    val gateway = google ?: return false
-                    val verifier = token.codeVerifier ?: return false
-                    val redirect = token.redirectUri ?: return false
-                    val identity = gateway.exchangeCode(token.value, verifier, redirect) ?: return false
-                    transactions.inTransaction {
-                        Verdict.Commit(credentials.findGoogleFor(request.userId)?.subject == identity.subject)
-                    }
-                }
-                AuthenticationTokenKind.EMAIL_SIGN_IN_CODE -> {
-                    val challengeId = token.challengeId ?: return false
-                    emailChallenges?.verifyInCurrentTransaction(
-                        challengeId,
-                        email,
-                        EmailChallengePurpose.EMAIL_LOGIN,
-                        Secret(token.value),
-                        "action-proof:${request.action}:${request.sessionId.value}:$policyVersion",
-                    ) == true
-                }
-                AuthenticationTokenKind.TOTP,
-                AuthenticationTokenKind.EMAIL_FACTOR_CODE,
-                -> {
-                    val kind = token.kind.toFactorKind()
-                    val method: SecondFactorMethod = factors.find(kind) ?: return false
-                    method.verify(
-                        request.userId,
-                        SecondFactorProof(
-                            code = token.value,
-                            challengeId = token.challengeId,
-                            binding = if (kind == SecondFactorKind.EMAIL_OTP) {
-                                "action-proof:${request.action}:${request.sessionId.value}:$policyVersion"
-                            } else {
-                                null
-                            },
-                        ),
-                    )
+            var verified = true
+            for (kind in listOf(AuthenticationTokenKind.PASSWORD, AuthenticationTokenKind.GOOGLE)) {
+                if (verified && kind in initial.scheme.requiredTokens) {
+                    verified =
+                        tokenVerifier.verify(request, initial.email, presented.getValue(kind), initial.policy.version)
                 }
             }
+            return verified
+        }
+
+        private suspend fun finishAuthorization(
+            request: Request,
+            presented: Map<AuthenticationTokenKind, PresentedToken>,
+            initial: InitialContext,
+        ): Result = transactions.inTransaction {
+            val active = sessions.find(request.sessionId)
+                ?.let { it.userId == request.userId && it.revokedAt == null } == true
+            val currentUser = users.findById(request.userId)?.takeIf { it.disabledAt == null && it.emailVerified }
+            val currentPolicy = policies.current()
+            if (currentPolicy == null) return@inTransaction Verdict.Rollback(Result.Refused)
+            val stillStrongest = currentPolicy.let { policy ->
+                policy.version == initial.policy.version &&
+                    initial.scheme in policy.strongest(
+                        request.action,
+                        availableTokens(request.userId, request.action, policy),
+                    )
+            }
+            if (!active || currentUser == null || !stillStrongest) {
+                return@inTransaction Verdict.Rollback(Result.Refused)
+            }
+
+            if (!verifyFactorTokens(request, presented, initial.scheme, currentUser.email, currentPolicy.version)) {
+                // Keep challenge attempt counters while no unrelated recovery code has been consumed.
+                return@inTransaction Verdict.Commit(Result.Refused)
+            }
+
+            val rawProof = tokenFactory.mint(TokenKind.ACTION_PROOF)
+            val expiresAt = clock.now() + ttl
+            val record = AuthenticationActionProof(
+                token = tokenHasher.hash(rawProof),
+                userId = request.userId,
+                sessionId = request.sessionId,
+                action = request.action,
+                policyVersion = currentPolicy.version,
+                schemeId = initial.scheme.id,
+                assuranceRank = initial.scheme.assuranceRank,
+                expiresAt = expiresAt,
+            )
+            proofs.save(record)
+            Verdict.Commit(
+                Result.Authorized(rawProof, initial.scheme.id, initial.scheme.assuranceRank, expiresAt),
+            )
+        }
+
+        private suspend fun verifyFactorTokens(
+            request: Request,
+            presented: Map<AuthenticationTokenKind, PresentedToken>,
+            scheme: AuthenticationScheme,
+            email: Email,
+            policyVersion: Long,
+        ): Boolean {
+            var verified = true
+            for (kind in listOf(
+                AuthenticationTokenKind.TOTP,
+                AuthenticationTokenKind.EMAIL_SIGN_IN_CODE,
+                AuthenticationTokenKind.EMAIL_FACTOR_CODE,
+            )) {
+                if (verified && kind in scheme.requiredTokens) {
+                    verified = tokenVerifier.verify(request, email, presented.getValue(kind), policyVersion)
+                }
+            }
+            return verified
         }
 
         private suspend fun availableTokens(
@@ -284,12 +275,6 @@ public interface AuthorizeAuthenticationActionUseCase : UseCase {
         private fun SecondFactorKind.toToken(): AuthenticationTokenKind = when (this) {
             SecondFactorKind.TOTP -> AuthenticationTokenKind.TOTP
             SecondFactorKind.EMAIL_OTP -> AuthenticationTokenKind.EMAIL_FACTOR_CODE
-        }
-
-        private fun AuthenticationTokenKind.toFactorKind(): SecondFactorKind = when (this) {
-            AuthenticationTokenKind.TOTP -> SecondFactorKind.TOTP
-            AuthenticationTokenKind.EMAIL_FACTOR_CODE -> SecondFactorKind.EMAIL_OTP
-            else -> error("$this is not a second-factor token")
         }
     }
 }

@@ -45,6 +45,22 @@ internal class UserRepositoryOverExposed(
             1
     }
 
+    override suspend fun updateDisplayName(id: UserId, displayName: String?): Boolean = when (realm) {
+        IdentityRealm.USER -> UsersTable.update({ UsersTable.id eq id.value }) {
+            it[UsersTable.displayName] = displayName
+        } == 1
+        IdentityRealm.ADMIN -> AdminsTable.update({ AdminsTable.id eq id.value }) {
+            it[AdminsTable.displayName] = displayName
+        } == 1
+    }
+
+    override suspend fun updateSecurityEmails(id: UserId, enabled: Boolean): Boolean = when (realm) {
+        IdentityRealm.USER -> UsersTable.update({ UsersTable.id eq id.value }) {
+            it[securityEmailsEnabled] = enabled
+        } == 1
+        IdentityRealm.ADMIN -> false
+    }
+
     /**
      * Guarded by a savepoint, not a preceding [findByEmail] — that check-then-act would race
      * under `READ COMMITTED`, which is exactly [UserRepository.insert]'s own KDoc. Without the
@@ -69,6 +85,7 @@ internal class UserRepositoryOverExposed(
                     it[id] = user.id.value
                     it[email] = user.email.value
                     it[displayName] = user.displayName
+                    it[securityEmailsEnabled] = user.securityEmailsEnabled
                     it[createdAt] = instant.toColumn(user.createdAt)
                     it[disabledAt] = user.disabledAt?.let(instant::toColumn)
                     it[UsersTable.emailVerified] = user.emailVerified
@@ -98,6 +115,7 @@ internal class UserRepositoryOverExposed(
         id = UserId(this[UsersTable.id]),
         email = Email(this[UsersTable.email]),
         displayName = this[UsersTable.displayName],
+        securityEmailsEnabled = this[UsersTable.securityEmailsEnabled],
         createdAt = instant.toDomain(this[UsersTable.createdAt]),
         disabledAt = this[UsersTable.disabledAt]?.let(instant::toDomain),
         emailVerified = this[UsersTable.emailVerified],

@@ -43,40 +43,55 @@ public interface DisableSecondFactorUseCase : UseCase {
         private val actionProofs: AuthenticationActionProofRequirement? = null,
     ) : DisableSecondFactorUseCase {
         override suspend fun disable(request: Request): Outcome = transactions.inTransaction {
-            val activeSession = sessions.find(request.sessionId)?.let {
-                it.userId == request.userId && it.revokedAt == null
-            } == true
-            val authorized = activeSession &&
+            when (val refusal = refusal(request)) {
+                null -> {
+                    removeEnrollment(request)
+                    Verdict.Commit(Outcome.DISABLED)
+                }
+                else -> Verdict.Rollback(refusal)
+            }
+        }
+
+        private suspend fun refusal(request: Request): Outcome? = when {
+            !authorized(request) -> Outcome.REAUTHENTICATION_REQUIRED
+            !request.confirmed -> Outcome.CONFIRMATION_REQUIRED
+            else -> policyRefusal(request)
+        }
+
+        private suspend fun authorized(request: Request): Boolean =
+            sessions.find(request.sessionId)?.let { it.userId == request.userId && it.revokedAt == null } == true &&
                 actionProofs?.consume(
                     request.actionProof,
                     request.userId,
                     request.sessionId,
                     AuthenticationAction.MANAGE_SECOND_FACTORS,
                 ) == true
-            if (!authorized) {
-                return@inTransaction Verdict.Rollback(Outcome.REAUTHENTICATION_REQUIRED)
-            }
-            if (!request.confirmed) return@inTransaction Verdict.Rollback(Outcome.CONFIRMATION_REQUIRED)
 
+        private suspend fun policyRefusal(request: Request): Outcome? {
             val enrolled = enrolled(request.userId)
-            if (request.kind !in enrolled) return@inTransaction Verdict.Rollback(Outcome.NOT_ENROLLED)
-            val policy = policies.current()
-                ?: return@inTransaction Verdict.Rollback(Outcome.REQUIRED_BY_POLICY)
+            if (request.kind !in enrolled) return Outcome.NOT_ENROLLED
             val remaining = enrolled - request.kind
-            if (remaining.isNotEmpty()) {
-                val remainingTokens = remaining.mapTo(mutableSetOf(), ::toToken)
-                val canCompleteSignIn = policy.schemesFor(AuthenticationAction.SIGN_IN).any { scheme ->
-                    scheme.requiredTokens.any(AuthenticationTokenKind::isSecondFactor) &&
-                        scheme.requiredTokens.any(remainingTokens::contains)
-                }
-                if (!canCompleteSignIn) return@inTransaction Verdict.Rollback(Outcome.REQUIRED_BY_POLICY)
-            }
+            val allowed = policies.current()?.let { policy -> canCompleteSignIn(policy, remaining) } == true
+            return if (allowed) null else Outcome.REQUIRED_BY_POLICY
+        }
 
+        private fun canCompleteSignIn(
+            policy: tallyvane.identity.domain.secondfactor.AuthenticationPolicy,
+            remaining: Set<SecondFactorKind>,
+        ): Boolean {
+            if (remaining.isEmpty()) return true
+            val remainingTokens = remaining.mapTo(mutableSetOf(), ::toToken)
+            return policy.schemesFor(AuthenticationAction.SIGN_IN).any { scheme ->
+                scheme.requiredTokens.any(AuthenticationTokenKind::isSecondFactor) &&
+                    scheme.requiredTokens.any(remainingTokens::contains)
+            }
+        }
+
+        private suspend fun removeEnrollment(request: Request) {
             when (request.kind) {
                 SecondFactorKind.TOTP -> totp.delete(request.userId)
                 SecondFactorKind.EMAIL_OTP -> emailMfa.unenroll(request.userId)
             }
-            Verdict.Commit(Outcome.DISABLED)
         }
 
         private suspend fun enrolled(userId: UserId): Set<SecondFactorKind> = buildSet {

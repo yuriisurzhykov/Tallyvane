@@ -22,6 +22,9 @@ class ArchitectureRulesSpec :
             "own-schema-only ignores dotted request field names" {
                 ownSchemaOnly(fixtureScope("own-schema-only-clean")) shouldBe emptyList()
             }
+            "no-ambient-time allows its monotonic clock adapter" {
+                noAmbientTime(fixtureScope("no-ambient-time-monotonic-clean")) shouldBe emptyList()
+            }
             "identity-web-behavior-is-interface — data contracts and one-word nested implementations are clean" {
                 identityWebBehaviorIsInterface(fixtureScope("identity-web-behavior-clean")) shouldBe emptyList()
             }

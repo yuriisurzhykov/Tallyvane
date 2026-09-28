@@ -10,11 +10,14 @@ import tallyvane.identity.application.email.EmailChallenges
 import tallyvane.identity.application.port.AuthenticationCodes
 import tallyvane.identity.application.port.BackupCodeStore
 import tallyvane.identity.application.port.EmailDelivery
+import tallyvane.identity.application.port.EmailMfaEnrollmentStore
 import tallyvane.identity.application.port.GoogleOAuthGateway
+import tallyvane.identity.application.port.NewSignInAlertDelivery
 import tallyvane.identity.application.port.SecondFactorMethod
 import tallyvane.identity.application.port.TokenFactory
 import tallyvane.identity.application.port.TokenHasher
 import tallyvane.identity.application.port.TotpEnrollmentStore
+import tallyvane.identity.application.port.UserRepository
 import tallyvane.identity.application.secondfactor.ResetAccountMfaUseCase
 import tallyvane.identity.infrastructure.email.SmtpEmailDelivery
 import tallyvane.identity.infrastructure.email.SmtpSettings
@@ -118,27 +121,13 @@ public class IdentityInfrastructureFactory {
         }
         val authenticationPolicyStore = AuthenticationPolicyStoreOverExposed()
         val authenticationPolicyAuditStore = AuthenticationPolicyAuditStoreOverExposed(realm)
-        val resetAccountMfaTarget = if (realm == IdentityRealm.ADMIN) {
-            ResetAccountMfaUseCase.TargetStores(
-                users = UserRepositoryOverExposed(IdentityRealm.USER),
-                sessions = SessionStoreOverExposed(IdentityRealm.USER),
-                refreshTokens = RefreshTokenStoreOverExposed(IdentityRealm.USER),
-                pending = PendingAuthenticationStoreOverExposed(IdentityRealm.USER),
-                totp = TotpEnrollmentStoreOverExposed(IdentityRealm.USER),
-                emailMfa = EmailMfaEnrollmentStoreOverExposed(IdentityRealm.USER),
-                backupCodes = BackupCodeStoreOverExposed(IdentityRealm.USER),
-            )
-        } else {
-            null
-        }
-        val factors = buildList {
-            add(factor)
-            if (emailChallenges !=
-                null
-            ) {
-                add(SecondFactorMethod.EmailOtp(users, emailMfaEnrollmentStore, emailChallenges))
-            }
-        }
+        val resetAccountMfaTarget = if (realm == IdentityRealm.ADMIN) userMfaResetTarget() else null
+        val factors = secondFactorMethods(
+            users,
+            factor,
+            emailMfaEnrollmentStore,
+            emailChallenges,
+        )
         return IdentityUseCases(
             users, CredentialRepositoryOverExposed(realm, adminEmails),
             Argon2PasswordHasher(
@@ -158,7 +147,30 @@ public class IdentityInfrastructureFactory {
             AuthenticationActionProofStoreOverExposed(realm),
             resetAccountMfaTarget = resetAccountMfaTarget,
             loggerFactory = loggerFactory,
+            securityEmailDelivery = emailDelivery as? NewSignInAlertDelivery,
         )
+    }
+
+    private fun userMfaResetTarget(): ResetAccountMfaUseCase.TargetStores = ResetAccountMfaUseCase.TargetStores(
+        users = UserRepositoryOverExposed(IdentityRealm.USER),
+        sessions = SessionStoreOverExposed(IdentityRealm.USER),
+        refreshTokens = RefreshTokenStoreOverExposed(IdentityRealm.USER),
+        pending = PendingAuthenticationStoreOverExposed(IdentityRealm.USER),
+        totp = TotpEnrollmentStoreOverExposed(IdentityRealm.USER),
+        emailMfa = EmailMfaEnrollmentStoreOverExposed(IdentityRealm.USER),
+        backupCodes = BackupCodeStoreOverExposed(IdentityRealm.USER),
+    )
+
+    private fun secondFactorMethods(
+        users: UserRepository,
+        totp: SecondFactorMethod,
+        emailEnrollment: EmailMfaEnrollmentStore,
+        emailChallenges: EmailChallenges?,
+    ): List<SecondFactorMethod> = buildList {
+        add(totp)
+        emailChallenges?.let { challenges ->
+            add(SecondFactorMethod.EmailOtp(users, emailEnrollment, challenges))
+        }
     }
 
     private companion object {

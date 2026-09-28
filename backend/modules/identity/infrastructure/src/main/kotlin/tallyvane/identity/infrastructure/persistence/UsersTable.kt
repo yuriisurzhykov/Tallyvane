@@ -12,6 +12,7 @@ internal object UsersTable : Table("identity.users") {
     val id = uuid("id")
     val email = text("email")
     val displayName = text("display_name").nullable()
+    val securityEmailsEnabled = bool("security_emails_enabled")
     val createdAt = timestampWithTimeZone("created_at")
     val disabledAt = timestampWithTimeZone("disabled_at").nullable()
     val emailVerified = bool("email_verified")

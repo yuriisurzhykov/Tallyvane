@@ -67,15 +67,21 @@ internal interface GoogleSignInCompleter {
                 Verdict.Commit(outcome)
             }
 
-        private suspend fun findOrCreateUser(identity: GoogleIdentity): UserId? {
-            credentials.findUserIdByGoogleSubject(identity.subject)?.let { return it }
+        private suspend fun findOrCreateUser(identity: GoogleIdentity): UserId? =
+            credentials.findUserIdByGoogleSubject(identity.subject)
+                ?: findExistingUser(identity)
+                ?: createOrClaimUser(identity)
+
+        private suspend fun findExistingUser(identity: GoogleIdentity): UserId? =
             users.findByEmail(identity.email)?.let { user ->
-                return if (credentials.saveGoogleIfUnclaimed(user.id, identity.subject)) {
+                if (credentials.saveGoogleIfUnclaimed(user.id, identity.subject)) {
                     user.id
                 } else {
                     credentials.findUserIdByGoogleSubject(identity.subject)
                 }
             }
+
+        private suspend fun createOrClaimUser(identity: GoogleIdentity): UserId? {
             val userId = UserId(ids.next())
             val user = User(
                 id = userId,
@@ -85,13 +91,7 @@ internal interface GoogleSignInCompleter {
                 disabledAt = null,
             )
             return when (users.insert(user)) {
-                UserRepository.InsertOutcome.EMAIL_TAKEN -> users.findByEmail(identity.email)?.let { existing ->
-                    if (credentials.saveGoogleIfUnclaimed(existing.id, identity.subject)) {
-                        existing.id
-                    } else {
-                        credentials.findUserIdByGoogleSubject(identity.subject)
-                    }
-                }
+                UserRepository.InsertOutcome.EMAIL_TAKEN -> findExistingUser(identity)
                 UserRepository.InsertOutcome.INSERTED -> {
                     credentials.save(userId, Credential.GoogleRecord(identity.subject))
                     userId

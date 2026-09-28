@@ -5,6 +5,7 @@ import io.ktor.server.application.ApplicationCall
 import io.ktor.server.response.respond
 import tallyvane.identity.application.SignInOutcome
 import tallyvane.identity.domain.outcome.AuthenticationOutcome
+import tallyvane.identity.domain.session.Session
 import tallyvane.identity.web.shared.IssuedTokens
 import tallyvane.identity.web.shared.SessionCookies
 import tallyvane.identity.web.shared.SessionTokenLifetimes
@@ -17,12 +18,15 @@ import tallyvane.platform.http.problems.Problems
  * of them should re-derive this mapping on its own.
  */
 internal interface SignInResponses {
-    fun attachIssued(call: ApplicationCall, outcome: SignInOutcome.Issued)
+    suspend fun attachIssued(call: ApplicationCall, outcome: SignInOutcome.Issued)
     suspend fun respond(call: ApplicationCall, outcome: SignInOutcome, problems: Problems<AuthenticationFailure>)
 
-    class Writer(private val cookies: SessionCookies, private val tokenLifetimes: SessionTokenLifetimes) :
-        SignInResponses {
-        override fun attachIssued(call: ApplicationCall, outcome: SignInOutcome.Issued) {
+    class Writer(
+        private val cookies: SessionCookies,
+        private val tokenLifetimes: SessionTokenLifetimes,
+        private val notifySignIn: suspend (Session) -> Unit = {},
+    ) : SignInResponses {
+        override suspend fun attachIssued(call: ApplicationCall, outcome: SignInOutcome.Issued) {
             cookies.attach(
                 call,
                 IssuedTokens(
@@ -32,6 +36,8 @@ internal interface SignInResponses {
                     tokenLifetimes.refresh,
                 ),
             )
+            runCatching { notifySignIn(outcome.session.session) }
+                .onFailure { call.application.environment.log.warn("Could not send sign-in alert", it) }
         }
 
         override suspend fun respond(
