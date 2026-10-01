@@ -53,6 +53,11 @@ example, idle lifetime between 15 minutes and 30 days, absolute lifetime at most
 administrator's mistake, or a captured admin API, cannot set a session to live ten years or remove
 the second factor from `admin_login`.
 
+Bounds for a sign-in attempt, agreed with the owner on 2026-10-01 (initial value in brackets):
+attempt lifetime 1 to 15 minutes (5), wrong answers before the attempt ends 3 to 10 (5), first
+pause after a wrong answer 1 to 10 seconds (1), doubling after each further one (ADR-082). The
+bounds of session lifetimes are those above.
+
 **A user can only raise their own bar.** The active policy is the floor. A factor the user enabled
 becomes required for that user. Nobody can go below the floor.
 
