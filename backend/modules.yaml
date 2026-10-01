@@ -37,8 +37,11 @@ platform:
 # Modules that exist in the build today.
 modules:
   authentication:
-    layers: [domain]
-    reads: [identity]
+    layers: [domain, application, infrastructure]
+    # Reads `identity` (ADR-076), but `:modules:identity:contract` does not exist yet, and an
+    # `any:contract` edge the build cannot draw is an error. The line comes back with the
+    # identity module, which is where the account id it will read is defined.
+    reads: []
     publishes: []
 
 # Modules that are designed but not yet created. Listed here so the intended

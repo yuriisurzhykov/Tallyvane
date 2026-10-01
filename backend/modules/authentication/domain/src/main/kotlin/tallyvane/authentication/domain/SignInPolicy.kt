@@ -14,6 +14,8 @@ import kotlin.time.Instant
  * that exists is one whose bounds were checked. The `require` below is not that check; it guards the
  * one assumption [progressOf] cannot work without, in case a later change inside this module forgets.
  *
+ * @param purpose What the policy is for. The policy does not read it to judge an attempt; it is here
+ * so that a policy kept in storage still says which purpose it answers for.
  * @param steps Every step that applies must be satisfied, in this order.
  * @param attemptLifetime How long an attempt stays open from the moment it started.
  * @param maxFailures Wrong answers after which the attempt is over.
@@ -21,6 +23,7 @@ import kotlin.time.Instant
  */
 @ConsistentCopyVisibility
 public data class SignInPolicy internal constructor(
+    private val purpose: Purpose,
     private val steps: List<Step>,
     private val attemptLifetime: Duration,
     private val maxFailures: Int,
@@ -46,6 +49,18 @@ public data class SignInPolicy internal constructor(
         else -> openProgressOf(attempt, enrollment, now)
     }
 
+    /**
+     * Tells [record] what this policy is: its purpose, each step in order, then its limits.
+     *
+     * How storage keeps a policy it has been handed to make the next version of its purpose
+     * (ADR-085); nothing here is for deciding anything, which is what [progressOf] is for.
+     */
+    public fun writeTo(record: Record) {
+        record.purpose(purpose)
+        steps.forEach { it.writeTo(record) }
+        record.limits(attemptLifetime, maxFailures, firstDelay)
+    }
+
     private fun openProgressOf(attempt: Attempt, enrollment: Enrollment, now: Instant): Progress {
         val (reachable, unreachable) =
             steps
@@ -58,5 +73,22 @@ public data class SignInPolicy internal constructor(
             unreachable.isEmpty() -> attempt.complete()
             else -> unreachable.first().restrict(attempt)
         }
+    }
+
+    /**
+     * What a policy tells whoever keeps it: the purpose it is for, each step in the order they
+     * apply, then the numbers.
+     */
+    public interface Record : Step.Record {
+        /**
+         * The policy answers for [purpose]. Always the first thing said.
+         */
+        public fun purpose(purpose: Purpose)
+
+        /**
+         * The attempt lives [attemptLifetime], ends after [maxFailures] wrong answers, and pauses
+         * [firstDelay] after the first of them (ADR-082). Always the last thing said.
+         */
+        public fun limits(attemptLifetime: Duration, maxFailures: Int, firstDelay: Duration)
     }
 }

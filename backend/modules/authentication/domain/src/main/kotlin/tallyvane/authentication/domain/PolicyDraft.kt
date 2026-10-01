@@ -48,7 +48,9 @@ public class PolicyDraft(
     public fun check(): DraftCheck {
         val violations = boundViolations() + shapeViolations()
         return if (violations.isEmpty()) {
-            DraftCheck.Passed(SignInPolicy(steps.map { it.detached() }, attemptLifetime, maxFailures, firstDelay))
+            DraftCheck.Passed(
+                SignInPolicy(purpose, steps.map { it.detached() }, attemptLifetime, maxFailures, firstDelay),
+            )
         } else {
             DraftCheck.Rejected(violations)
         }
