@@ -33,11 +33,23 @@ public data class Step(private val accepts: Set<FactorKind>, private val necessi
     internal fun isEmpty(): Boolean = accepts.isEmpty()
 
     /**
-     * Whether every account must pass this step with a factor it set up itself: the shape of a
-     * mandatory second factor.
+     * Whether every account that set up one of this step's kinds must pass it with one: only
+     * factors that need setting up are accepted, so Google cannot stand in for them.
+     */
+    internal fun demandsSecondFactorFromTheEnrolled(): Boolean =
+        accepts.isNotEmpty() && accepts.none { it.isAvailableTo(Enrollment.Unknown) }
+
+    /**
+     * Whether every account, set up or not, must pass this step with a factor it set up itself:
+     * the shape of a mandatory second factor.
      */
     internal fun demandsSecondFactorFromEveryone(): Boolean =
-        necessity == Necessity.Always && accepts.isNotEmpty() && accepts.none { it.isAvailableTo(Enrollment.Unknown) }
+        necessity == Necessity.Always && demandsSecondFactorFromTheEnrolled()
+
+    /**
+     * This step with a set of its own, detached from whatever set the caller built it from.
+     */
+    internal fun detached(): Step = Step(accepts.toSet(), necessity)
 
     internal fun isSatisfiedBy(attempt: Attempt): Boolean = attempt.hasVerifiedOneOf(accepts)
 

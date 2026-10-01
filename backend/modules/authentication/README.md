@@ -105,9 +105,22 @@ one pass. The violations are not kernel `Failure`s: they are what the domain
 found, and the use case that saves a policy version will wrap them in its own
 outcome, which is where `Failure` and its `Problems` mapping belong.
 
-`Purpose.AdminLogin` sets a floor: some step must demand, from every account,
-a factor that needs setting up. "TOTP or Google" does not count, since Google
-alone would pass it.
+Each `Purpose` sets a floor no policy for it may go below:
+
+| Purpose | Floor |
+|---------|-------|
+| `Registration` | none beyond identifying the account |
+| `Login`, `StepUp` | a second factor from every account that set one up |
+| `AdminLogin` | a second factor from every account |
+
+The middle row is ADR-078's "a user can only raise their own bar" made into a
+check: an administrator cannot save a sign-in or step-up policy that lets
+someone with TOTP through on Google alone. "TOTP or Google" does not count as
+a second factor, since Google alone would pass it. Added 2026-10-01 after a
+review found that step-up had no floor at all.
+
+The policy `check()` returns owns copies of the steps and their sets, so a
+form model reused after saving cannot reach into a policy that passed.
 
 ### Confirming a dangerous action asks as much as signing in
 

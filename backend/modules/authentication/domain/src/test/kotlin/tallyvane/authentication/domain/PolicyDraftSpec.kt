@@ -11,6 +11,7 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.Instant
 
 private val GOOGLE = Step(setOf(Google), Always)
 private val SECOND_FACTOR_IF_ENABLED = Step(setOf(Totp, RecoveryCode), WhenEnrolled)
@@ -86,13 +87,14 @@ class PolicyDraftSpec :
             }
 
             "an empty step is named by its position, counted from one" {
-                draft(steps = listOf(GOOGLE, Step(emptySet(), WhenEnrolled))).verdicts() shouldBe
+                draft(Purpose.Registration, listOf(GOOGLE, Step(emptySet(), WhenEnrolled))).verdicts() shouldBe
                     listOf("step 2 is empty")
             }
 
             "a policy with no step every account can pass without setup is refused" {
-                draft(steps = listOf(SECOND_FACTOR_ALWAYS)).verdicts() shouldBe listOf("nothing identifies the account")
-                draft(steps = listOf(Step(setOf(Google), WhenEnrolled))).verdicts() shouldBe
+                draft(Purpose.Registration, listOf(SECOND_FACTOR_ALWAYS)).verdicts() shouldBe
+                    listOf("nothing identifies the account")
+                draft(Purpose.Registration, listOf(Step(setOf(Google), WhenEnrolled))).verdicts() shouldBe
                     listOf("nothing identifies the account")
             }
 
@@ -105,8 +107,33 @@ class PolicyDraftSpec :
                     listOf("AdminLogin below the floor")
             }
 
-            "the same steps are fine where no floor demands a second factor" {
-                draft(Purpose.Login, listOf(GOOGLE)).verdicts() shouldBe listOf("passed")
+            "registration has no factor to demand beyond Google" {
+                draft(Purpose.Registration, listOf(GOOGLE)).verdicts() shouldBe listOf("passed")
+            }
+
+            // A user can only raise their own bar (ADR-078): whoever set up TOTP is asked for it,
+            // both to sign in and to confirm a dangerous action, whatever an administrator saves.
+            "sign-in and step-up always demand the second factor from those who set one up" {
+                listOf(Purpose.Login, Purpose.StepUp).forEach { purpose ->
+                    draft(purpose, listOf(GOOGLE)).verdicts() shouldBe listOf("$purpose below the floor")
+                    draft(purpose, listOf(GOOGLE, Step(setOf(Totp, Google), WhenEnrolled))).verdicts() shouldBe
+                        listOf("$purpose below the floor")
+                    draft(purpose, listOf(GOOGLE, SECOND_FACTOR_IF_ENABLED)).verdicts() shouldBe listOf("passed")
+                }
+            }
+
+            // A form model reused after saving must not reach into the policy that passed.
+            "the policy that passed does not change when the submitted collections do" {
+                val factors = mutableSetOf(Totp, RecoveryCode)
+                val steps = mutableListOf(GOOGLE, Step(factors, WhenEnrolled))
+                val policy = draft(steps = steps).check().reportTo(PassedPolicy)
+                factors.clear()
+                steps.removeAt(1)
+                val start = Instant.parse("2026-10-01T09:00:00Z")
+                val google = Attempt(start).withVerified(VerifiedFactor(Google, start))
+
+                policy.progressOf(google, Enrollment(setOf(Totp)), now = start) shouldBe
+                    Progress.Awaiting(setOf(Totp, RecoveryCode))
             }
 
             "every violation is reported at once, not only the first" {

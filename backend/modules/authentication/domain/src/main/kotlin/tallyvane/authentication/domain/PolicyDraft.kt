@@ -12,6 +12,10 @@ import kotlin.time.Duration.Companion.seconds
  * a [SignInPolicy], so a policy outside the bounds is not merely refused at the door; it cannot be
  * built at all.
  *
+ * The policy [check] returns owns copies of the steps and their sets. A caller that keeps the list
+ * it submitted, say a form model, and changes it afterwards changes its draft, never the policy
+ * that passed.
+ *
  * ```
  * PolicyDraft(
  *     purpose = Purpose.Login,
@@ -44,7 +48,7 @@ public class PolicyDraft(
     public fun check(): DraftCheck {
         val violations = boundViolations() + shapeViolations()
         return if (violations.isEmpty()) {
-            DraftCheck.Passed(SignInPolicy(steps, attemptLifetime, maxFailures, firstDelay))
+            DraftCheck.Passed(SignInPolicy(steps.map { it.detached() }, attemptLifetime, maxFailures, firstDelay))
         } else {
             DraftCheck.Rejected(violations)
         }
