@@ -71,3 +71,4 @@ include(":playground:http")
 //   include(":modules:identity:infrastructure")
 //   include(":modules:identity:web")
 // ---------------------------------------------------------------------------
+include(":modules:authentication:domain")

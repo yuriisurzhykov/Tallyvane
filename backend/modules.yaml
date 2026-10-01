@@ -35,16 +35,26 @@ platform:
   health:        { depends: [platform:kernel, platform:observability, platform:http] }
 
 # Modules that exist in the build today.
-modules: {}
+modules:
+  authentication:
+    layers: [domain]
+    reads: [identity]
+    publishes: []
 
 # Modules that are designed but not yet created. Listed here so the intended
 # shape is reviewable before any code exists, and so `reads` conflicts surface
 # on paper rather than after the fact. Moving an entry from `planned` to
 # `modules` is what makes it real.
 planned:
+  # Authentication is three modules, one per question (ADR-076): who the person is,
+  # how they proved it, what they were given. Reads run one way only.
   identity:
     layers: [contract, domain, application, infrastructure, web]
     reads: []
+    publishes: []
+  sessions:
+    layers: [contract, domain, application, infrastructure, web]
+    reads: [authentication]
     publishes: []
   jobs:
     layers: [contract, domain, application, infrastructure, web]
