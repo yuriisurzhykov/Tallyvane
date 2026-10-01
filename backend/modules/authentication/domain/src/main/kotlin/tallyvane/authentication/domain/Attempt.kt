@@ -6,7 +6,8 @@ import kotlin.time.Instant
 /**
  * One sign-in in progress: the owner's "sign-in token" (ADR-078).
  *
- * It records what happened — which factors were verified and when the wrong answers came — and
+ * It records why the person is signing in and what happened — which factors were verified and when
+ * the wrong answers came — and
  * answers questions about that record. It does not decide whether the record is enough;
  * [SignInPolicy] does, against whichever policy version is active at the moment of asking. So a
  * policy tightened while someone is half-way through applies to their next step.
@@ -17,26 +18,43 @@ import kotlin.time.Instant
  * Not a `data class`, on purpose: its generated `copy()` would be public, and
  * `attempt.copy(failures = emptyList())` would wipe the record that limits guessing. The only ways
  * to change an attempt are [withVerified] and [withFailure], and both only add.
+ *
+ * Its state leaves through [writeTo] and comes back through [restore] (ADR-085), and through nothing
+ * else: no list is ever handed out, even to the storage that has to keep it.
  */
 public class Attempt private constructor(
+    private val purpose: Purpose,
     private val startedAt: Instant,
     private val verified: List<VerifiedFactor>,
     private val failures: List<Instant>,
 ) {
     /**
-     * A new attempt with nothing verified and no wrong answers.
+     * A new attempt for [purpose] with nothing verified and no wrong answers.
      */
-    public constructor(startedAt: Instant) : this(startedAt, emptyList(), emptyList())
+    public constructor(purpose: Purpose, startedAt: Instant) : this(purpose, startedAt, emptyList(), emptyList())
 
     /**
      * This attempt with [factor] recorded as verified.
      */
-    public fun withVerified(factor: VerifiedFactor): Attempt = Attempt(startedAt, verified + factor, failures)
+    public fun withVerified(factor: VerifiedFactor): Attempt = Attempt(purpose, startedAt, verified + factor, failures)
 
     /**
      * This attempt with one more wrong answer, given [at].
      */
-    public fun withFailure(at: Instant): Attempt = Attempt(startedAt, verified, failures + at)
+    public fun withFailure(at: Instant): Attempt = Attempt(purpose, startedAt, verified, failures + at)
+
+    /**
+     * Tells [record] everything this attempt holds: how it started, then each verified factor in the
+     * order they came, then each wrong answer in the order they came.
+     *
+     * The attempt decides what to say and in which order; the [record] only listens. That is how
+     * storage keeps an attempt without being able to read one.
+     */
+    public fun writeTo(record: Record) {
+        record.started(purpose, startedAt)
+        verified.forEach { record.verified(it.kind, it.at) }
+        failures.forEach { record.failed(it) }
+    }
 
     internal fun hasOutlived(lifetime: Duration, now: Instant): Boolean = now >= startedAt + lifetime
 
@@ -58,21 +76,107 @@ public class Attempt private constructor(
     /**
      * Everything the policy asks for is verified.
      */
-    internal fun complete(): Progress = Progress.Complete(verifiedKinds(), authenticatedAt())
+    internal fun complete(): Progress = verifiedAs { kinds, at -> Progress.Complete(kinds, at) }
 
     /**
      * Everything reachable is verified; the person may only set up one of [toSetUp].
      */
     internal fun restrictedTo(toSetUp: Set<FactorKind>): Progress =
-        Progress.Restricted(verifiedKinds(), authenticatedAt(), toSetUp)
-
-    private fun verifiedKinds(): Set<FactorKind> = verified.mapTo(mutableSetOf()) { it.kind }
+        verifiedAs { kinds, at -> Progress.Restricted(kinds, at, toSetUp) }
 
     /**
+     * The kinds verified so far and the time of the last of them, which an outcome built from them
+     * carries.
+     *
      * Never called before a factor is verified: a policy only reaches Complete or Restricted after
      * the step that identifies the account, so [verified] is not empty here.
      */
-    private fun authenticatedAt(): Instant = verified.maxOf { it.at }
+    private fun verifiedAs(outcome: (Set<FactorKind>, Instant) -> Progress): Progress =
+        outcome(verified.mapTo(mutableSetOf()) { it.kind }, verified.maxOf { it.at })
 
-    override fun toString(): String = "Attempt(startedAt=$startedAt, verified=$verified, failures=${failures.size})"
+    override fun toString(): String =
+        "Attempt(purpose=$purpose, startedAt=$startedAt, verified=$verified, failures=${failures.size})"
+
+    /**
+     * What an attempt tells whoever keeps it, and what that keeper tells [restore] to bring it back.
+     *
+     * The same three words both ways, so that what can be written is exactly what can be restored.
+     */
+    public interface Record {
+        /**
+         * The attempt began for [purpose] at [at]. Always the first thing said.
+         */
+        public fun started(purpose: Purpose, at: Instant)
+
+        /**
+         * A factor of this [kind] was verified at [at].
+         */
+        public fun verified(kind: FactorKind, at: Instant)
+
+        /**
+         * A wrong answer was given at [at].
+         */
+        public fun failed(at: Instant)
+    }
+
+    public companion object {
+        /**
+         * The attempt a keeper [replay]s into the [Record] it is handed, in the order [writeTo] says
+         * things.
+         *
+         * Refuses a replay that no attempt could have produced: nothing before the start, a start
+         * twice, a factor or a wrong answer from before the attempt began, answers out of order. Such
+         * a replay is a row edited by hand or written by something other than [writeTo], and
+         * continuing with it would let someone's sign-in be judged on a history that never happened.
+         *
+         * @throws IllegalStateException for a replay no attempt could have told.
+         */
+        public fun restore(replay: (Record) -> Unit): Attempt = Restoration().also(replay).attempt()
+    }
+
+    /**
+     * Collects a replay and checks that it is a history an attempt could have.
+     *
+     * Builds the attempt as the words arrive, through the same [withVerified] and [withFailure] any
+     * attempt grows by, so a restored attempt is one that could have been lived. The list holds at
+     * most one attempt and is the only mutable thing here: a `var` would do the same, but
+     * `domain` has none.
+     */
+    private class Restoration : Record {
+        private val growing = mutableListOf<Attempt>()
+
+        override fun started(purpose: Purpose, at: Instant) {
+            check(growing.isEmpty()) { refused("it starts twice") }
+            growing += Attempt(purpose, at)
+        }
+
+        override fun verified(kind: FactorKind, at: Instant) {
+            val so = current("a factor is verified before it starts")
+            check(at >= so.startedAt && at >= so.verified.lastOrNull()?.at.orEarliest()) {
+                refused("a factor is verified before the attempt started or before an earlier one")
+            }
+            growing[0] = so.withVerified(VerifiedFactor(kind, at))
+        }
+
+        override fun failed(at: Instant) {
+            val so = current("a wrong answer comes before it starts")
+            check(at >= so.startedAt && at >= so.failures.lastOrNull().orEarliest()) {
+                refused("a wrong answer comes before the attempt started or before an earlier one")
+            }
+            growing[0] = so.withFailure(at)
+        }
+
+        fun attempt(): Attempt = current("it never starts")
+
+        private fun current(unlessBecause: String): Attempt = checkNotNull(growing.singleOrNull()) {
+            refused(unlessBecause)
+        }
+
+        private fun Instant?.orEarliest(): Instant = this ?: Instant.DISTANT_PAST
+
+        private fun refused(reason: String): String =
+            "A stored attempt cannot be restored: $reason. Attempt.writeTo never says that, so the " +
+                "stored rows were changed by something else. Do not repair them by hand; the " +
+                "attempt is short-lived, so delete it and let the person sign in again."
+    }
 }

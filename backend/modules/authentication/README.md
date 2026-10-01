@@ -5,7 +5,10 @@ policy that decides when an attempt is enough. It does not know who the person
 is beyond an account id (`identity`), and it never issues access: a complete
 attempt is redeemed for a session by `sessions`.
 
-Only `domain` exists so far.
+Three layers exist: `domain`, `application` (the ports) and `infrastructure`
+(Postgres, schema `authentication`, ARCHITECTURE.md 8.3.1). Storing a sign-in
+attempt and the numbered versions of a policy is slice 2; the use cases that
+start an attempt and redeem it arrive with slice 3.
 
 ## domain
 
@@ -23,7 +26,8 @@ each rule is checked by a test that names the exact second it is about.
 | `DraftCheck` | What the check found: the policy, or every `Violation` at once |
 | `Violation` | One broken bound, with the value given and the range allowed |
 | `SignInPolicy` | The steps of one purpose, plus attempt lifetime, failure limit, first delay |
-| `Attempt` | What happened so far in one sign-in; records, never decides |
+| `PolicyVersion` | One numbered, checked policy of a purpose; the unit that is stored, activated and rolled back |
+| `Attempt` | What happened so far in one sign-in, for one purpose; records, never decides |
 | `Progress` | Where the attempt stands: complete, restricted, awaiting, paused, exhausted, expired; read only through `Progress.Report` |
 
 ### Encapsulation: no field leaves an object
@@ -52,6 +56,22 @@ module can produce a `Complete` that no policy granted. `Exhausted` and
 `Expired` are classes, not `object`s, because the architecture rules keep
 functions off objects; they define equality so every instance is the same
 value.
+
+### Storing an aggregate that has no getters
+
+2026-10-01, ADR-085. `Attempt`, `SignInPolicy` and `PolicyVersion` keep every
+field private and still have to be stored, in another Gradle module. Each
+publishes a nested `Record` interface and a `writeTo(record)` that says all of
+its facts in a fixed order; the adapter implements `Record` and writes rows.
+`Attempt.restore` and `PolicyVersion.restore` take the replay the adapter makes
+from the rows, hand it the aggregate's own `Record`, and re-check the history
+on the way in, so a hand-edited row cannot produce a state the domain refuses.
+`Progress` is computed from an attempt and a policy and is never stored.
+
+`PolicyVersion.restore` checks the policy against the bounds in the code
+*today*. Narrow a bound in a release and a stored version outside it stops
+loading, with a message that says to activate another version, instead of
+being judged under numbers the code no longer allows.
 
 ### Why `Attempt` is not a `data class`
 
@@ -132,8 +152,14 @@ confirm with the code alone. Two steps cover it with the model as it is.
 
 ### What is deliberately not here yet
 
-- **Policy versions** (number, author, comment, activation, rollback) need
-  storage and an account id from `identity`; they arrive with slice 2.
+- **Who wrote a policy version, and why.** A version stores its number,
+  purpose, steps and limits, and is activated by a row in
+  `policy_activations`. The author (an account id from `identity`) and the
+  comment arrive with the administrator use cases of slice 7.
+- **An unguessable attempt id.** `Attempts` stores whatever id it is given. The
+  id is a UUIDv7 today, which is not a secret; if the attempt id becomes the
+  bearer of a sign-in, slice 3 turns it into a random value and stores only
+  its hash.
 - **Session lifetimes** (idle 15 minutes to 30 days, absolute at most 90
   days) are bounds of the same kind and arrive with session management.
   Step-up freshness is a comparison on the session's authentication time and
@@ -155,6 +181,34 @@ the identification check dropped, the admin floor removed, Google counted as
 a second factor, an optional step counted as a mandatory one, and only the
 first group of violations reported. Every one turned the suite red.
 
+2026-10-01, storage. Twelve more against the Postgres adapters: the row lock
+on an attempt taken out; the advisory lock on `add` taken out; the check that
+the kept failures are a prefix of the new ones dropped, and the same for
+verified factors; the start of an attempt not compared; instants not cut to the
+microsecond; the earliest activation winning instead of the latest; each of the
+two limits stored as whole seconds; steps stored in reverse order; the trigger
+that refuses to change an activation removed. Every one turned the suite red,
+but not at first: two survived (a stale save that would drop a verified factor,
+and limits with milliseconds, which a test comparing the stored version with the
+one `add` had just returned could not see, since both passed through the same
+bug). Each got a case of its own.
+
+## application
+
+The ports only, so far. `Attempts` keeps attempts and answers `Saved` or
+`Superseded` (an attempt only grows, so a save that does not contain what is
+already kept loses to it, which is what stops two parallel guesses from both
+counting as the first). `PolicyVersions` adds a checked policy as the next
+version of its purpose, activates a version, and finds the one in force.
+
+## infrastructure
+
+Postgres adapters over six tables (ARCHITECTURE.md 8.3.1). The history is
+append-only and the database says so: triggers refuse every `UPDATE` and
+`DELETE` on versions, steps and activations. The initial policies of ADR-078
+are rows of the second migration, read back through the domain by a test, so
+a fresh database can sign someone in before any administrator has acted.
+
 ## SOLID
 
 **Single responsibility.** `Attempt` records and states outcomes from its
@@ -173,5 +227,7 @@ exactly one `Report` method, the one named after it. `ProgressSpec` pins that.
 reader of a sign-in must handle every case; splitting it would let a reader
 silently ignore one.
 
-**Dependency inversion** starts in `application`,
-where the ports for storing attempts and policy versions will live.
+**Dependency inversion.** `application` owns the ports (`Attempts`,
+`PolicyVersions`); `infrastructure` implements them with Postgres and the
+test source set implements them with fakes. One conformance suite per port runs
+against both, so a fake cannot drift from the real thing.

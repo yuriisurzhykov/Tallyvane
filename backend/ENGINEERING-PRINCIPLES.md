@@ -233,6 +233,36 @@ a real caller needs a different value, not because a future one might: an
 option added early has to be honoured forever, and every option is a branch
 somebody has to test.
 
+### State leaves an object only through a record it is told to write
+
+An object that protects an invariant does not hand out its fields, not even to
+the code that stores it. A stored aggregate publishes a nested `Record`
+interface (one method per fact it can state) and a `writeTo(record)` that says
+all of them; storage implements `Record` and turns each fact into rows. It is
+brought back by a factory that takes a replay (`restore { record -> ... }`),
+and the record it hands to the replay is the aggregate's own: it re-checks
+that the history could have happened and throws `IllegalStateException`
+otherwise (ADR-085).
+
+```kotlin
+class Attempt private constructor(...) {
+    fun writeTo(record: Record) {
+        record.started(purpose, startedAt)
+        // ...every verified factor, every failure, in order
+    }
+
+    interface Record {
+        fun started(purpose: Purpose, at: Instant)
+        fun verified(kind: FactorKind, at: Instant)
+        fun failed(at: Instant)
+    }
+}
+```
+
+What is computed from the state is not stored, so it has no `writeTo`. A test
+compares two aggregates by what they say to a record, never by a getter added
+"for the test".
+
 ### A name is verified, not assumed
 
 A parameter is named for what it is, not for what the surrounding code

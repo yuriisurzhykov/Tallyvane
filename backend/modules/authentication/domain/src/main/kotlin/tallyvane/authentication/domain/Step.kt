@@ -47,6 +47,13 @@ public data class Step(private val accepts: Set<FactorKind>, private val necessi
         necessity == Necessity.Always && demandsSecondFactorFromTheEnrolled()
 
     /**
+     * Tells [record] which kinds satisfy this step and to whom it applies.
+     */
+    internal fun writeTo(record: Record) {
+        record.step(accepts, necessity)
+    }
+
+    /**
      * This step with a set of its own, detached from whatever set the caller built it from.
      */
     internal fun detached(): Step = Step(accepts.toSet(), necessity)
@@ -89,5 +96,17 @@ public data class Step(private val accepts: Set<FactorKind>, private val necessi
          * Only to an account that enabled one of the step's factors: the user raising their own bar.
          */
         WhenEnrolled,
+    }
+
+    /**
+     * What a step tells whoever keeps the policy it belongs to. A step is rebuilt from the same two
+     * values by its public constructor, so nothing here needs a matching `restore`.
+     */
+    public interface Record {
+        /**
+         * The next step, in the order they apply, is satisfied by any of [accepts] and applies as
+         * [necessity] says.
+         */
+        public fun step(accepts: Set<FactorKind>, necessity: Necessity)
     }
 }
