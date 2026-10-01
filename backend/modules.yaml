@@ -35,7 +35,11 @@ platform:
   health:        { depends: [platform:kernel, platform:observability, platform:http] }
 
 # Modules that exist in the build today.
-modules: {}
+modules:
+  authentication:
+    layers: [domain]
+    reads: [identity]
+    publishes: []
 
 # Modules that are designed but not yet created. Listed here so the intended
 # shape is reviewable before any code exists, and so `reads` conflicts surface
@@ -47,10 +51,6 @@ planned:
   identity:
     layers: [contract, domain, application, infrastructure, web]
     reads: []
-    publishes: []
-  authentication:
-    layers: [contract, domain, application, infrastructure, web]
-    reads: [identity]
     publishes: []
   sessions:
     layers: [contract, domain, application, infrastructure, web]
