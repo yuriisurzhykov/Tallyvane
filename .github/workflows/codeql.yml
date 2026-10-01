@@ -61,6 +61,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
 
+      # The Gradle build logic requires JVM 21; the runner default is 17, which
+      # makes the `none` build mode's dependency resolution fail and CodeQL
+      # then finds no Kotlin to analyze.
+      - name: Setup Java
+        if: matrix.language == 'java-kotlin'
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
       # Add any setup steps before running the `github/codeql-action/init` action.
       # This includes steps like installing compilers or runtimes (`actions/setup-node`
       # or others). This is typically only required for manual builds.
