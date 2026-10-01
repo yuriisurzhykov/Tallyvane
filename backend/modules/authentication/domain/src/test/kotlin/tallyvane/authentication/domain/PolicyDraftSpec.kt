@@ -57,6 +57,7 @@ class PolicyDraftSpec :
                 draft(Purpose.Registration, listOf(GOOGLE)).verdicts() shouldBe listOf("passed")
                 draft(Purpose.Login, listOf(GOOGLE, SECOND_FACTOR_IF_ENABLED)).verdicts() shouldBe listOf("passed")
                 draft(Purpose.AdminLogin, listOf(GOOGLE, SECOND_FACTOR_ALWAYS)).verdicts() shouldBe listOf("passed")
+                draft(Purpose.StepUp, listOf(GOOGLE, SECOND_FACTOR_IF_ENABLED)).verdicts() shouldBe listOf("passed")
             }
 
             // Both ends are allowed, and one unit past either end is not.

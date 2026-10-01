@@ -59,6 +59,10 @@ becomes required for that user. Nobody can go below the floor.
 **Tightening applies immediately**, including to sessions already issued: sessions store when they
 were authenticated and last used, not a precomputed expiry (ADR-079).
 
+**Confirming a dangerous action never asks for less than signing in.** `step_up` has the same
+shape as `login`: someone with TOTP confirms with Google and a code, not with either alone.
+Otherwise a person who took over the Google account could switch TOTP off with Google alone.
+
 **A policy that would lock people out is handled, not forbidden.** When a policy requires a factor
 an account does not have, sign-in completes into a restricted state, "signed in, must set up the
 factor", which allows only the setup.
@@ -70,7 +74,7 @@ Initial policy values:
 | `registration` | `google`                                                 |
 | `login`        | `google`, plus `totp` or `recovery_code` if TOTP is on   |
 | `admin_login`  | `google` and (`totp` or `recovery_code`), always         |
-| `step_up`      | `totp` if enabled, otherwise `google`; not older than 5 min |
+| `step_up`      | `google`, plus `totp` or `recovery_code` if TOTP is on; not older than 5 min |
 
 ## Alternatives considered
 

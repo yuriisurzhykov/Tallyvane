@@ -30,6 +30,7 @@ private fun policyOf(purpose: Purpose, vararg steps: Step) =
 private val REGISTRATION = policyOf(Purpose.Registration, GOOGLE)
 private val LOGIN = policyOf(Purpose.Login, GOOGLE, SECOND_FACTOR_IF_ENABLED)
 private val ADMIN_LOGIN = policyOf(Purpose.AdminLogin, GOOGLE, SECOND_FACTOR_ALWAYS)
+private val STEP_UP = policyOf(Purpose.StepUp, GOOGLE, SECOND_FACTOR_IF_ENABLED)
 
 private fun Attempt.verifying(kind: FactorKind, secondsIn: Int) =
     withVerified(VerifiedFactor(kind, START + secondsIn.seconds))
@@ -136,6 +137,27 @@ class SignInPolicySpec :
                     LOGIN.progressOf(attempt, TOTP_SET_UP, now = START + 20.seconds + pause.seconds) shouldBe
                         Progress.Awaiting(SECOND_FACTOR)
                 }
+            }
+
+            // Otherwise whoever took over the Google account could switch TOTP off with Google alone.
+            "confirming a dangerous action with TOTP on takes Google and the code, not Google alone" {
+                val google = Attempt(START).verifying(Google, secondsIn = 10)
+
+                STEP_UP.progressOf(google, TOTP_SET_UP, now = START + 11.seconds) shouldBe
+                    Progress.Awaiting(SECOND_FACTOR)
+                STEP_UP.progressOf(
+                    google.verifying(Totp, secondsIn = 20),
+                    TOTP_SET_UP,
+                    now = START + 21.seconds,
+                ) shouldBe
+                    Progress.Complete(setOf(Google, Totp), START + 20.seconds)
+            }
+
+            "confirming a dangerous action without TOTP takes Google alone" {
+                val google = Attempt(START).verifying(Google, secondsIn = 10)
+
+                STEP_UP.progressOf(google, NOTHING_SET_UP, now = START + 11.seconds) shouldBe
+                    Progress.Complete(setOf(Google), START + 10.seconds)
             }
 
             // Tightening applies mid-sign-in (ADR-078): the attempt stores what happened, never

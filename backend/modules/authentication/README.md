@@ -109,12 +109,16 @@ outcome, which is where `Failure` and its `Problems` mapping belong.
 a factor that needs setting up. "TOTP or Google" does not count, since Google
 alone would pass it.
 
+### Confirming a dangerous action asks as much as signing in
+
+2026-10-01, the owner's decision. `step_up` has the same steps as `login`:
+Google, and the code too if TOTP is on. An earlier draft of ADR-078 said
+"TOTP if enabled, otherwise Google", which would have let someone who took
+over the Google account switch TOTP off with Google alone, or skip Google and
+confirm with the code alone. Two steps cover it with the model as it is.
+
 ### What is deliberately not here yet
 
-- **Step-up.** ADR-078 says "TOTP if enabled, otherwise Google", which the
-  "any of these kinds" step cannot express without letting a TOTP user
-  confirm with Google alone. The model change waits for the owner's decision
-  (`auth-design/13-step-up-question.md`).
 - **Policy versions** (number, author, comment, activation, rollback) need
   storage and an account id from `identity`; they arrive with slice 2.
 - **Session lifetimes** (idle 15 minutes to 30 days, absolute at most 90
