@@ -20,11 +20,14 @@ name: Visual & Accessibility Tests
 # `frontend-admin` joins this matrix the same way once it has a visual suite
 # of its own; nothing else here changes.
 
+# Automatic runs are switched off for now (manual only) to avoid spending CI
+# on every pull request and push. To re-enable, restore the two triggers:
+#   pull_request:
+#     types: [ opened, synchronize, reopened ]
+#   push:
+#     branches: [ master ]
 on:
-  pull_request:
-    types: [ opened, synchronize, reopened ]
-  push:
-    branches: [ master ]
+  workflow_dispatch:
 
 permissions:
   contents: read
