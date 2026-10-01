@@ -64,8 +64,18 @@ of them.
   locks the attempt's row, reads what is kept at that moment, and compares. Two guesses of a code sent
   together cannot both be recorded as "the first wrong answer", so the failure limit cannot be beaten
   by parallel requests. The primary keys on `(attempt_id, position)` are the last line behind the lock.
+  Time only moves forward in an attempt: `withVerified` and `withFailure` refuse a time earlier than the
+  start or than one already held, the same rule `restore` applies. Without it a request that lost the
+  race and reapplied its own, older time would append a history that `restore` then refuses, and the
+  attempt could not be read again. The reapplying caller reads the clock again.
+- **Putting a version in force names the version kept, not one built to look like it.** `activate`
+  compares what the given version tells with what is kept under its number and refuses a difference,
+  so a `PolicyVersion` made by hand cannot put a stored policy in force under a false description.
 - **Policy history is append-only, enforced by the database.** Versions, their steps and their
-  activations are refused every `UPDATE` and `DELETE` by triggers. Rollback is activating an earlier
+  activations are refused every `UPDATE` and `DELETE` by triggers, and the steps of a version (and the
+  kinds of each step) can only be inserted by the transaction that inserted the version, which the
+  database records in `made_in_transaction`. A row added to a version already kept would change what it
+  demands without a new version or an activation to show for it. Rollback is activating an earlier
   version, which adds a row to `policy_activations`; the version in force is the latest row.
 - **The initial policies are data in a migration**, the table of ADR-078 as version 1 of each purpose,
   so there is no moment after a deploy when signing in has no policy. A spec reads them back through

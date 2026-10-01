@@ -35,7 +35,9 @@ public interface PolicyVersions {
      * Makes [version] the one in force for its purpose, from [at]. Activating an earlier version is
      * a rollback; activating the one already in force is kept as an activation too.
      *
-     * @throws IllegalStateException if [version] was not obtained from [add] or [active].
+     * @throws IllegalStateException if no version is kept that says what [version] says: one that
+     * was never kept, or one built to look like a kept version. A version put in force is one that
+     * [add] or [active] handed out.
      */
     public fun activate(version: PolicyVersion, at: Instant)
 }

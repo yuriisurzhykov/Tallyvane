@@ -47,6 +47,9 @@ create table authentication.policy_versions
     max_failures            integer     not null check (max_failures > 0),
     first_delay_millis      bigint      not null check (first_delay_millis > 0),
     created_at              timestamptz not null,
+    -- The transaction that made the version, which is the only one allowed to give it steps (see
+    -- refuse_late_step below). It is filled in by the database and never by the code.
+    made_in_transaction     bigint      not null default txid_current(),
     primary key (purpose, number)
 );
 
@@ -97,6 +100,26 @@ begin
 end
 $$;
 
+-- The steps of a version, and the kinds that satisfy each, are part of it. They are written together
+-- with the version, in the one transaction that makes it. A row added to a version that was already
+-- committed would change what that version demands, with no new version and no activation to show
+-- for it, and the history would no longer say what was asked of whom.
+create function authentication.refuse_late_step() returns trigger
+    language plpgsql as
+$$
+begin
+    if not exists (select 1
+                   from authentication.policy_versions v
+                   where v.purpose = new.purpose
+                     and v.number = new.number
+                     and v.made_in_transaction = txid_current()) then
+        raise exception 'INSERT on authentication.% is refused: the steps of version % of % are written together with the version. Add a new version instead.',
+            tg_table_name, new.number, new.purpose;
+    end if;
+    return new;
+end
+$$;
+
 create trigger policy_versions_are_never_changed
     before update or delete
     on authentication.policy_versions
@@ -120,3 +143,15 @@ create trigger policy_activations_are_never_changed
     on authentication.policy_activations
     for each row
 execute function authentication.refuse_change();
+
+create trigger policy_version_steps_are_written_with_their_version
+    before insert
+    on authentication.policy_version_steps
+    for each row
+execute function authentication.refuse_late_step();
+
+create trigger policy_version_step_kinds_are_written_with_their_version
+    before insert
+    on authentication.policy_version_step_kinds
+    for each row
+execute function authentication.refuse_late_step();

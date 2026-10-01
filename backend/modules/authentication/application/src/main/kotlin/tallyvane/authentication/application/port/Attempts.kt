@@ -21,7 +21,8 @@ import kotlin.uuid.Uuid
  * vanish and the failure limit would be a number a client can beat by sending requests in parallel.
  * So [save] keeps an attempt only when it contains everything already kept, and answers
  * [AttemptSaveOutcome.Superseded] otherwise; the caller loads again and applies its change to what
- * is there.
+ * is there, with the time read from the clock again: an attempt refuses a time earlier than one it
+ * already holds, so the time of the request that lost the race cannot be reused.
  *
  * ### A wrong answer must survive a refusal
  *

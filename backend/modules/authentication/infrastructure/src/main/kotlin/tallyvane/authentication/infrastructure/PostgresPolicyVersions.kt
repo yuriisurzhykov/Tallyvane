@@ -61,7 +61,7 @@ internal class PostgresPolicyVersions : PolicyVersions {
     }
 
     override fun activate(version: PolicyVersion, at: Instant) {
-        val heard = PurposeAndNumberHeard().also { version.writeTo(it) }
+        val heard = VersionHeard().also { version.writeTo(it) }
         val purposeWord = words.of(heard.purpose())
         val kept = PolicyVersionsTable.selectAll()
             .where { (PolicyVersionsTable.purpose eq purposeWord) and (PolicyVersionsTable.number eq heard.number()) }
@@ -69,6 +69,12 @@ internal class PostgresPolicyVersions : PolicyVersions {
         check(kept == 1L) {
             "Version ${heard.number()} of $purposeWord is not kept, so it cannot be put in force. " +
                 "Only a version obtained from PolicyVersions.add or active can be activated."
+        }
+        val keptHeard = VersionHeard().also { versionOf(purposeWord, heard.number()).writeTo(it) }
+        check(keptHeard.told() == heard.told()) {
+            "Version ${heard.number()} of $purposeWord is kept, but the version given says something else " +
+                "than the one kept. A version put in force must be the one that PolicyVersions.add or " +
+                "active handed out, not one built to look like it."
         }
         PolicyActivationsTable.insert {
             it[purpose] = purposeWord
@@ -200,26 +206,36 @@ internal class PostgresPolicyVersions : PolicyVersions {
     }
 
     /**
-     * Hears which purpose and number a version is, the only two things activating needs.
+     * Hears everything a version tells, so that activating can name it (purpose and number) and can
+     * tell whether it is the one that is kept: two versions are the same when they say the same words.
      */
-    private class PurposeAndNumberHeard : PolicyVersion.Record {
+    private class VersionHeard : PolicyVersion.Record {
         private val purposes = mutableListOf<Purpose>()
         private val numbers = mutableListOf<Int>()
+        private val lines = mutableListOf<String>()
 
         fun purpose(): Purpose = purposes.single()
 
         fun number(): Int = numbers.single()
 
+        fun told(): List<String> = lines.toList()
+
         override fun number(number: Int) {
             numbers += number
+            lines += "number $number"
         }
 
         override fun purpose(purpose: Purpose) {
             purposes += purpose
+            lines += "purpose $purpose"
         }
 
-        override fun step(accepts: Set<FactorKind>, necessity: Step.Necessity) = Unit
+        override fun step(accepts: Set<FactorKind>, necessity: Step.Necessity) {
+            lines += "step ${accepts.sortedBy { it.ordinal }} $necessity"
+        }
 
-        override fun limits(attemptLifetime: Duration, maxFailures: Int, firstDelay: Duration) = Unit
+        override fun limits(attemptLifetime: Duration, maxFailures: Int, firstDelay: Duration) {
+            lines += "limits $attemptLifetime $maxFailures $firstDelay"
+        }
     }
 }

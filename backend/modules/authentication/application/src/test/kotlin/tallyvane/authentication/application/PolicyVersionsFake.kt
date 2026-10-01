@@ -25,8 +25,8 @@ class PolicyVersionsFake : PolicyVersions {
 
     override fun activate(version: PolicyVersion, at: Instant) {
         val purpose = PurposeOf(version).purpose()
-        check(version in versions[purpose].orEmpty()) {
-            "Version was not obtained from this fake's add or active, so it cannot be activated."
+        check(versions[purpose].orEmpty().any { VersionStory(it) == VersionStory(version) }) {
+            "No version kept by this fake says what the version given says, so it cannot be activated."
         }
         activations.getOrPut(purpose) { mutableListOf() } += version
     }

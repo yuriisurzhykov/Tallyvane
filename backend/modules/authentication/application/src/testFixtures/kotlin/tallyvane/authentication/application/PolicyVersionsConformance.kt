@@ -1,5 +1,6 @@
 package tallyvane.authentication.application
 
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.shouldBe
 import tallyvane.authentication.application.port.PolicyVersions
@@ -133,6 +134,26 @@ abstract class PolicyVersionsConformance : StringSpec() {
             subject.inOwnTransaction { activate(version, NOW) }
 
             subject.inForce(Purpose.Registration) shouldBe VersionStory(PolicyVersion(1, policy.policy()))
+        }
+
+        "refuses to put in force a version that was never kept" {
+            val subject = fresh()
+            val neverKept = PolicyVersion(1, CheckedPolicy(Purpose.Login).policy())
+
+            shouldThrow<IllegalStateException> { subject.inOwnTransaction { activate(neverKept, NOW) } }
+
+            subject.inForce(Purpose.Login) shouldBe null
+        }
+
+        "refuses to put in force a version built to look like a kept one, with another policy under its number" {
+            val subject = fresh()
+            val kept = subject.added(CheckedPolicy(Purpose.Login, attemptLifetime = 5.minutes))
+            subject.inOwnTransaction { activate(kept, NOW) }
+            val lookalike = PolicyVersion(1, CheckedPolicy(Purpose.Login, attemptLifetime = 4.minutes).policy())
+
+            shouldThrow<IllegalStateException> { subject.inOwnTransaction { activate(lookalike, NOW + 1.minutes) } }
+
+            subject.inForce(Purpose.Login) shouldBe VersionStory(kept)
         }
 
         "rolls back by activating an earlier version, and forward again by activating a later one" {

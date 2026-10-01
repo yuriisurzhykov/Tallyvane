@@ -38,12 +38,62 @@ class PolicyHistoryIntegrationSpec :
                     refusal.message shouldContain "only ever added to"
                 }
             }
+
+            val lateRows = mapOf(
+                "a step to a version already kept" to
+                    "insert into authentication.policy_version_steps (purpose, number, position, necessity) " +
+                    "values ('admin_login', 1, 3, 'always')",
+                "a kind to a step of a version already kept" to
+                    "insert into authentication.policy_version_step_kinds (purpose, number, position, kind) " +
+                    "values ('admin_login', 1, 1, 'totp')",
+            )
+
+            lateRows.forEach { (what, statement) ->
+                "refuses to add $what, which would change what it demands" {
+                    val access = PostgresFixture.migrated()
+
+                    val refusal = shouldThrow<SQLException> { run(access, statement) }
+
+                    refusal.message shouldContain "written together with the version"
+                }
+            }
+
+            "accepts a version with its steps and kinds written in the one transaction that makes it" {
+                val access = PostgresFixture.migrated()
+
+                inOneTransaction(
+                    access,
+                    "insert into authentication.policy_versions " +
+                        "(purpose, number, attempt_lifetime_millis, max_failures, first_delay_millis, created_at) " +
+                        "values ('login', 2, 300000, 5, 1000, now())",
+                    "insert into authentication.policy_version_steps (purpose, number, position, necessity) " +
+                        "values ('login', 2, 1, 'always')",
+                    "insert into authentication.policy_version_step_kinds (purpose, number, position, kind) " +
+                        "values ('login', 2, 1, 'google')",
+                )
+
+                shouldThrow<SQLException> {
+                    run(
+                        access,
+                        "insert into authentication.policy_version_steps (purpose, number, position, necessity) " +
+                            "values ('login', 2, 2, 'always')",
+                    )
+                }.message shouldContain "written together with the version"
+            }
         },
     ) {
     private companion object {
         fun run(access: DatabaseAccess, statement: String) {
             DriverManager.getConnection(access.url, access.user, access.password.revealed()).use { connection ->
                 connection.createStatement().use { it.execute(statement) }
+            }
+        }
+
+        fun inOneTransaction(access: DatabaseAccess, vararg statements: String) {
+            DriverManager.getConnection(access.url, access.user, access.password.revealed()).use { connection ->
+                connection.autoCommit = false
+                connection.createStatement().use { statement -> statements.forEach { statement.execute(it) } }
+                connection.commit()
             }
         }
     }

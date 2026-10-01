@@ -35,13 +35,34 @@ public class Attempt private constructor(
 
     /**
      * This attempt with [factor] recorded as verified.
+     *
+     * @throws IllegalArgumentException for a factor verified before the attempt began or before one
+     * already recorded. Time only moves forward in an attempt, which is what lets whatever keeps it
+     * bring it back; a change applied to a reloaded attempt takes its time from the clock again.
      */
-    public fun withVerified(factor: VerifiedFactor): Attempt = Attempt(purpose, startedAt, verified + factor, failures)
+    public fun withVerified(factor: VerifiedFactor): Attempt {
+        require(factor.at >= startedAt && verified.all { it.at <= factor.at }) {
+            "A factor verified at ${factor.at} comes before the attempt began at $startedAt or before a " +
+                "factor already verified. Read the clock again when applying a change to a reloaded " +
+                "attempt; the time of the request that lost the race is already behind it."
+        }
+        return Attempt(purpose, startedAt, verified + factor, failures)
+    }
 
     /**
      * This attempt with one more wrong answer, given [at].
+     *
+     * @throws IllegalArgumentException for an answer given before the attempt began or before an
+     * earlier wrong answer, for the reason [withVerified] gives.
      */
-    public fun withFailure(at: Instant): Attempt = Attempt(purpose, startedAt, verified, failures + at)
+    public fun withFailure(at: Instant): Attempt {
+        require(at >= startedAt && failures.all { it <= at }) {
+            "A wrong answer at $at comes before the attempt began at $startedAt or before an " +
+                "earlier answer. Read the clock again when applying a change to a reloaded attempt; " +
+                "the time of the request that lost the race is already behind it."
+        }
+        return Attempt(purpose, startedAt, verified, failures + at)
+    }
 
     /**
      * Tells [record] everything this attempt holds: how it started, then each verified factor in the
@@ -138,7 +159,8 @@ public class Attempt private constructor(
      * Collects a replay and checks that it is a history an attempt could have.
      *
      * Builds the attempt as the words arrive, through the same [withVerified] and [withFailure] any
-     * attempt grows by, so a restored attempt is one that could have been lived. The list holds at
+     * attempt grows by, so a restored attempt is one that could have been lived and no attempt can
+     * grow into a history that this refuses. The list holds at
      * most one attempt and is the only mutable thing here: a `var` would do the same, but
      * `domain` has none.
      */
@@ -152,18 +174,16 @@ public class Attempt private constructor(
 
         override fun verified(kind: FactorKind, at: Instant) {
             val so = current("a factor is verified before it starts")
-            check(at >= so.startedAt && at >= so.verified.lastOrNull()?.at.orEarliest()) {
-                refused("a factor is verified before the attempt started or before an earlier one")
+            growing[0] = so.grownBy("a factor is verified before the attempt started or before an earlier one") {
+                withVerified(VerifiedFactor(kind, at))
             }
-            growing[0] = so.withVerified(VerifiedFactor(kind, at))
         }
 
         override fun failed(at: Instant) {
             val so = current("a wrong answer comes before it starts")
-            check(at >= so.startedAt && at >= so.failures.lastOrNull().orEarliest()) {
-                refused("a wrong answer comes before the attempt started or before an earlier one")
+            growing[0] = so.grownBy("a wrong answer comes before the attempt started or before an earlier one") {
+                withFailure(at)
             }
-            growing[0] = so.withFailure(at)
         }
 
         fun attempt(): Attempt = current("it never starts")
@@ -172,7 +192,11 @@ public class Attempt private constructor(
             refused(unlessBecause)
         }
 
-        private fun Instant?.orEarliest(): Instant = this ?: Instant.DISTANT_PAST
+        private fun Attempt.grownBy(because: String, growth: Attempt.() -> Attempt): Attempt = try {
+            growth()
+        } catch (refusal: IllegalArgumentException) {
+            throw IllegalStateException(refused(because), refusal)
+        }
 
         private fun refused(reason: String): String =
             "A stored attempt cannot be restored: $reason. Attempt.writeTo never says that, so the " +

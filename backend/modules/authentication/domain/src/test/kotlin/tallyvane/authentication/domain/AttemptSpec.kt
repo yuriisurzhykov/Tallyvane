@@ -163,5 +163,40 @@ class AttemptSpec :
                     }
                 }.message shouldContain "before an earlier one"
             }
+
+            "refuses to grow into a history that could not be restored: a wrong answer from before an earlier one" {
+                val attempt = Attempt(Purpose.Login, START).withFailure(at(20))
+
+                shouldThrow<IllegalArgumentException> { attempt.withFailure(at(19)) }
+                    .message shouldContain "Read the clock again"
+            }
+
+            "refuses to grow into a history that could not be restored: a wrong answer from before the start" {
+                shouldThrow<IllegalArgumentException> { Attempt(Purpose.Login, START).withFailure(START - 1.seconds) }
+                    .message shouldContain "before the attempt began"
+            }
+
+            "refuses to grow into a history that could not be restored: a factor from before an earlier one" {
+                val attempt = Attempt(Purpose.Login, START).withVerified(VerifiedFactor(Google, at(20)))
+
+                shouldThrow<IllegalArgumentException> { attempt.withVerified(VerifiedFactor(Totp, at(19))) }
+                    .message shouldContain "Read the clock again"
+            }
+
+            "refuses to grow into a history that could not be restored: a factor from before the start" {
+                shouldThrow<IllegalArgumentException> {
+                    Attempt(Purpose.Login, START).withVerified(VerifiedFactor(Google, START - 1.seconds))
+                }.message shouldContain "before the attempt began"
+            }
+
+            "an attempt that grew without refusal always comes back through restore" {
+                val attempt = Attempt(Purpose.Login, START)
+                    .withVerified(VerifiedFactor(Google, at(10)))
+                    .withFailure(at(20))
+                    .withFailure(at(20))
+                    .withVerified(VerifiedFactor(Totp, at(15)))
+
+                Attempt.restore { record -> attempt.writeTo(record) }.transcript() shouldBe attempt.transcript()
+            }
         },
     )
