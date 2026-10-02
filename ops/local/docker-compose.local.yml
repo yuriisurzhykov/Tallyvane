@@ -16,6 +16,11 @@ services:
   server-blue:
     build:
       context: ../backend
+  # Same image as server-blue. Without a build of its own, compose tries to pull it from a registry
+  # (where `tallyvane-server:local` does not exist) before server-blue has built it.
+  migrate:
+    build:
+      context: ../backend
   frontend-web-blue:
     build:
       context: ..
