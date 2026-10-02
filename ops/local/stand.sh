@@ -27,7 +27,7 @@ case "${1:-up}" in
       :server:installDist :migrate:installDist)
     # One image at a time: four Next.js builds (each a full pnpm install) next to Gradle can exhaust the
     # memory Docker Desktop gives its VM, and a daemon out of memory stops answering.
-    COMPOSE_PARALLEL_LIMIT=1 "${compose[@]}" build server-blue frontend-web-blue frontend-app-blue frontend-admin-blue
+    COMPOSE_PARALLEL_LIMIT=1 "${compose[@]}" build --progress=plain server-blue frontend-web-blue frontend-app-blue frontend-admin-blue
     "${compose[@]}" up -d --no-build "${services[@]}"
     echo "Ready: http://localhost:8080  (logs: ./stand.sh logs)"
     ;;
