@@ -8,6 +8,7 @@ import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager
 import tallyvane.identity.application.AccountAdded
+import tallyvane.identity.application.Profile
 import tallyvane.identity.application.port.KeptAccounts
 import tallyvane.identity.domain.Account
 import kotlin.time.Instant
@@ -37,6 +38,11 @@ internal class PostgresKeptAccounts : KeptAccounts {
         .where { (ExternalIdentitiesTable.provider eq GOOGLE) and (ExternalIdentitiesTable.subject eq subject) }
         .singleOrNull()
         ?.get(ExternalIdentitiesTable.accountId)
+
+    override fun profileOf(id: Uuid): Profile? = AccountsTable.selectAll()
+        .where { AccountsTable.id eq id }
+        .singleOrNull()
+        ?.let { Profile(id, it[AccountsTable.displayName]) }
 
     override fun add(account: Account): AccountAdded {
         val outcomes = mutableListOf<AccountAdded>()

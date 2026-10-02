@@ -163,5 +163,5 @@ its repeat simply runs again, which is correct since it wrote nothing.
 
 ## Not decided here
 
-Where the owner comes from once there are sessions: `Owners` takes the call and answers an `Owner`, and
-the session slice supplies the implementation.
+Where the owner comes from once there are sessions: settled by ADR-088. The edge asks a `Callers` port once per
+request and the person is the owner; `Owners` no longer exists.

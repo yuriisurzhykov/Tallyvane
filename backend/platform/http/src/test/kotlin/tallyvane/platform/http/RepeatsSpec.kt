@@ -214,9 +214,24 @@ class RepeatsSpec :
                     served(rig)
 
                     for ((index, send) in listOf<suspend (String) -> HttpResponse>(
-                        { key -> client.put("/api/v1/works/do") { fromApp(); header("Idempotency-Key", key) } },
-                        { key -> client.patch("/api/v1/works/do") { fromApp(); header("Idempotency-Key", key) } },
-                        { key -> client.delete("/api/v1/works/do") { fromApp(); header("Idempotency-Key", key) } },
+                        { key ->
+                            client.put("/api/v1/works/do") {
+                                fromApp()
+                                header("Idempotency-Key", key)
+                            }
+                        },
+                        { key ->
+                            client.patch("/api/v1/works/do") {
+                                fromApp()
+                                header("Idempotency-Key", key)
+                            }
+                        },
+                        { key ->
+                            client.delete("/api/v1/works/do") {
+                                fromApp()
+                                header("Idempotency-Key", key)
+                            }
+                        },
                     ).withIndex()) {
                         val key = "00000000-0000-0000-0000-00000000010$index"
                         val first = send(key).bodyAsText()
@@ -337,8 +352,14 @@ class RepeatsSpec :
                 testApplication {
                     served(rig)
 
-                    val first = client.post("/api/v1/works/refuse") { fromApp(); header("Idempotency-Key", KEY_1) }
-                    val repeat = client.post("/api/v1/works/refuse") { fromApp(); header("Idempotency-Key", KEY_1) }
+                    val first = client.post("/api/v1/works/refuse") {
+                        fromApp()
+                        header("Idempotency-Key", KEY_1)
+                    }
+                    val repeat = client.post("/api/v1/works/refuse") {
+                        fromApp()
+                        header("Idempotency-Key", KEY_1)
+                    }
 
                     first.status shouldBe HttpStatusCode.UnprocessableEntity
                     repeat.status shouldBe HttpStatusCode.UnprocessableEntity
@@ -351,9 +372,15 @@ class RepeatsSpec :
                 val rig = Rig()
                 testApplication {
                     served(rig)
-                    client.post("/api/v1/works/cookie") { fromApp(); header("Idempotency-Key", KEY_1) }
+                    client.post("/api/v1/works/cookie") {
+                        fromApp()
+                        header("Idempotency-Key", KEY_1)
+                    }
 
-                    val repeat = client.post("/api/v1/works/cookie") { fromApp(); header("Idempotency-Key", KEY_1) }
+                    val repeat = client.post("/api/v1/works/cookie") {
+                        fromApp()
+                        header("Idempotency-Key", KEY_1)
+                    }
 
                     repeat.status shouldBe HttpStatusCode.Conflict
                     repeat.bodyAsText() shouldContain "cannot be given again"
@@ -367,9 +394,15 @@ class RepeatsSpec :
                 val rig = Rig()
                 testApplication {
                     served(rig)
-                    client.post("/api/v1/works/token") { fromApp(); header("Idempotency-Key", KEY_1) }
+                    client.post("/api/v1/works/token") {
+                        fromApp()
+                        header("Idempotency-Key", KEY_1)
+                    }
 
-                    val repeat = client.post("/api/v1/works/token") { fromApp(); header("Idempotency-Key", KEY_1) }
+                    val repeat = client.post("/api/v1/works/token") {
+                        fromApp()
+                        header("Idempotency-Key", KEY_1)
+                    }
 
                     repeat.status shouldBe HttpStatusCode.Conflict
                     repeat.bodyAsText() shouldNotContain "secret"
@@ -381,10 +414,16 @@ class RepeatsSpec :
                 val rig = Rig()
                 testApplication {
                     served(rig)
-                    val first = client.post("/api/v1/works/breaks-after-commit") { fromApp(); header("Idempotency-Key", KEY_1) }
+                    val first = client.post("/api/v1/works/breaks-after-commit") {
+                        fromApp()
+                        header("Idempotency-Key", KEY_1)
+                    }
                     first.status shouldBe HttpStatusCode.InternalServerError
 
-                    val repeat = client.post("/api/v1/works/breaks-after-commit") { fromApp(); header("Idempotency-Key", KEY_1) }
+                    val repeat = client.post("/api/v1/works/breaks-after-commit") {
+                        fromApp()
+                        header("Idempotency-Key", KEY_1)
+                    }
 
                     repeat.status shouldBe HttpStatusCode.Conflict
                     rig.runner.survivingWrites() shouldBe 1

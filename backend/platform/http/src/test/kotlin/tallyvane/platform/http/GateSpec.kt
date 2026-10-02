@@ -57,7 +57,7 @@ private class Vault : RouteModule {
 
     override fun install(route: Route) {
         route.get("/who") {
-            call.respondText(call.caller().reportTo(Naming()))
+            call.respondText(Requester(call).caller().reportTo(Naming()))
         }
         route.post("/open") { call.respondText("opened") }
     }
@@ -131,6 +131,18 @@ class GateSpec :
                 }
             }
 
+            "an origin that merely begins with ours is another origin" {
+                val ran = AtomicInteger()
+                testApplication {
+                    application { gated(ran).install(this) }
+
+                    val answer = client.enter { header(HttpHeaders.Origin, "$APP_ORIGIN.evil.example") }
+
+                    answer.status shouldBe HttpStatusCode.Forbidden
+                    ran.get() shouldBe 0
+                }
+            }
+
             "with no Origin, Sec-Fetch-Site same-origin is enough" {
                 testApplication {
                     application { gated().install(this) }
@@ -163,7 +175,9 @@ class GateSpec :
                 testApplication {
                     application { gated().install(this) }
 
-                    val answer = client.get("/api/v1/lobby/hello") { header(HttpHeaders.Origin, "https://evil.example") }
+                    val answer = client.get("/api/v1/lobby/hello") {
+                        header(HttpHeaders.Origin, "https://evil.example")
+                    }
 
                     answer.status shouldBe HttpStatusCode.OK
                 }
@@ -173,7 +187,9 @@ class GateSpec :
                 testApplication {
                     application { gated().install(this) }
 
-                    val answer = client.post("/api/v1/lobby/enter") { header(HttpHeaders.Origin, "https://evil.example") }
+                    val answer = client.post("/api/v1/lobby/enter") {
+                        header(HttpHeaders.Origin, "https://evil.example")
+                    }
 
                     answer.status shouldBe HttpStatusCode.Forbidden
                 }

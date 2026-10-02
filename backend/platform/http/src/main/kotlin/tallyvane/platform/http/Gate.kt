@@ -3,7 +3,6 @@ package tallyvane.platform.http
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
-
 import io.ktor.server.application.Application
 import io.ktor.server.application.ApplicationCallPipeline
 import io.ktor.server.application.PipelineCall
@@ -34,11 +33,7 @@ import io.ktor.util.pipeline.PipelineContext
  * empty segment, no percent-encoding and no backslash. Anything odd falls on the closed side, whatever
  * the router would have made of it.
  */
-internal class Gate(
-    routes: List<RouteModule>,
-    private val callers: Callers,
-    private val appOrigin: String,
-) {
+internal class Gate(routes: List<RouteModule>, private val callers: Callers, private val appOrigin: String) {
     private val problems = AccessProblems()
 
     private val openPrefixes = routes.filter { it.access == Access.Public }.map { "$VERSIONED${it.basePath.value}" }
@@ -78,7 +73,8 @@ internal class Gate(
         return if (declared != null) {
             call.request.contentType().match(ContentType.Application.Json)
         } else {
-            call.request.contentLength() in setOf(null, 0L) && call.request.headers[HttpHeaders.TransferEncoding] == null
+            call.request.contentLength() in setOf(null, 0L) &&
+                call.request.headers[HttpHeaders.TransferEncoding] == null
         }
     }
 

@@ -7,6 +7,8 @@ plugins {
 dependencies {
     // `api`: the composition root builds the routes from the use cases they call.
     api(projects.modules.authentication.application)
+    // Not used yet; `modules.yaml` requires the edge on every web layer.
+    implementation(projects.modules.authentication.contract)
     // `api`: every route here is a `RouteModule`, and whoever mounts one needs the type.
     api(projects.platform.http)
     implementation(libs.ktor.server.core)

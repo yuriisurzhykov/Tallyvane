@@ -278,7 +278,10 @@ class ApiSpec :
                     application { api().install(this) }
 
                     // POST to a route that only accepts GET. Nothing in `Api` mentions 405.
-                    val answer = client.post("/api/v1/probes/fine") { fromApp(); header("Idempotency-Key", KEY) }
+                    val answer = client.post("/api/v1/probes/fine") {
+                        fromApp()
+                        header("Idempotency-Key", KEY)
+                    }
 
                     answer.status shouldBe HttpStatusCode.MethodNotAllowed
                     answer.headers["Content-Type"]!! shouldContain "application/problem+json"

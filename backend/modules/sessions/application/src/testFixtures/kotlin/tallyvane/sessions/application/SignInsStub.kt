@@ -1,0 +1,30 @@
+package tallyvane.sessions.application
+
+import tallyvane.authentication.contract.NothingToRedeem
+import tallyvane.authentication.contract.Proof
+import tallyvane.authentication.contract.Redeemed
+import tallyvane.authentication.contract.Redemption
+import tallyvane.authentication.contract.SignIns
+import tallyvane.identity.contract.AccountId
+import tallyvane.platform.kernel.Secret
+import kotlin.time.Instant
+
+/**
+ * [SignIns] that has been told which secrets are completed sign-ins, and who they belong to.
+ *
+ * Single use, as the contract says: redeeming a sign-in takes it away.
+ */
+class SignInsStub : SignIns {
+    private val completed = mutableMapOf<Secret, Redemption>()
+
+    /**
+     * Makes [secret] a completed sign-in of [account], who proved who they are by [proofs] at [at].
+     */
+    fun complete(secret: Secret, account: AccountId, proofs: Set<Proof>, at: Instant) {
+        completed[secret] = Redeemed(account, proofs, at)
+    }
+
+    override fun redeem(secret: Secret): Redemption = completed.remove(secret) ?: NothingToRedeem()
+
+    override fun toString(): String = "SignInsStub(completed=${completed.size})"
+}

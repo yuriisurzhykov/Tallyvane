@@ -9,6 +9,8 @@ dependencies {
     // The domain comes with the application as `api`, which is the only way `modules.yaml` lets
     // infrastructure see it.
     implementation(projects.modules.authentication.application)
+    // Not used yet; `modules.yaml` requires the edge on every infrastructure layer.
+    implementation(projects.modules.authentication.contract)
     implementation(libs.exposed.core)
     implementation(libs.exposed.jdbc)
     implementation(libs.exposed.kotlin.datetime)

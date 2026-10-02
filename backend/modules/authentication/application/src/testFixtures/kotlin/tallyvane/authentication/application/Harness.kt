@@ -1,5 +1,6 @@
 package tallyvane.authentication.application
 
+import tallyvane.authentication.contract.SignIns
 import tallyvane.authentication.domain.Purpose
 import tallyvane.platform.kernel.Clock
 import tallyvane.platform.kernel.Digests
@@ -43,6 +44,8 @@ class Harness {
 
     val register: RegisterUseCase =
         RegisterUseCase.Register(store, store, policies, accounts, transactions, clock, keys)
+
+    val redemptions: SignIns = Redemptions(store, policies, accounts, clock, keys)
 
     private fun trips() = GoogleTrips(store, store, store, accounts, transactions)
 

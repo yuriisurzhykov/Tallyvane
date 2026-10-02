@@ -4,10 +4,12 @@ import tallyvane.authentication.application.ActivePolicies
 import tallyvane.authentication.application.BeginSignInUseCase
 import tallyvane.authentication.application.ContinueWithGoogleUseCase
 import tallyvane.authentication.application.GoogleTrips
+import tallyvane.authentication.application.Redemptions
 import tallyvane.authentication.application.RegisterUseCase
 import tallyvane.authentication.application.ShowRegistrationUseCase
 import tallyvane.authentication.application.SignInKeys
 import tallyvane.authentication.application.port.Google
+import tallyvane.authentication.contract.SignIns
 import tallyvane.authentication.infrastructure.AuthenticationStorageFactory
 import tallyvane.authentication.infrastructure.GoogleAccessFactory
 import tallyvane.authentication.web.AuthenticationRoutesFactory
@@ -74,6 +76,13 @@ public class AuthenticationWiring(
             clock,
             keys,
         )
+    }
+
+    /**
+     * Completed sign-ins, as `sessions` takes them.
+     */
+    public val signIns: SignIns by lazy {
+        Redemptions(storage.attempts(), policies, identity.accounts, clock, keys)
     }
 
     /**

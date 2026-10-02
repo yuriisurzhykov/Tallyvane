@@ -177,8 +177,10 @@ a second configuration path. `RepeatedRequestsIntegrationSpec` is the other serv
 over the real database with one route that writes, hit by six identical requests at once, and by a repeat
 sent to a server that started after the first one stopped.
 
-`Wiring.api` hands `Owners.Anonymous()` to the edge: every request is anonymous until sessions exist, and
-the session slice replaces that one argument.
+`Wiring.api` hands the edge the `Callers` of `sessions`, which reads the `__Host-session` cookie, so the person
+who owns an `Idempotency-Key` is whoever the session says (ADR-088). `SessionsIntegrationSpec` is the
+server-level case for it: a request with no cookie, one with a cookie nobody issued, a session planted through the
+adapters the process reads with, and a sign-out, over a real socket and a real database.
 
 ## Not here
 

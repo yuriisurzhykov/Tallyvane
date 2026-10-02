@@ -1,0 +1,46 @@
+package tallyvane.sessions.application.port
+
+import tallyvane.platform.kernel.Digest
+import tallyvane.sessions.domain.Session
+import kotlin.time.Instant
+
+/**
+ * Where sessions are kept, each under the [Digest] of the secret its browser holds (ADR-079).
+ *
+ * The database holds only the keyed hash, so whoever reads the table cannot present anyone's session,
+ * and one lookup by that hash is all a request costs.
+ *
+ * All methods run inside the caller's transaction and block on the database (ADR-058).
+ */
+public interface Sessions {
+    /**
+     * The session kept under [key], or null if none is.
+     *
+     * @throws IllegalStateException if what is kept could not have been written by [Session.writeTo].
+     */
+    public fun find(key: Digest): Session?
+
+    /**
+     * Keeps a new [session] under [key].
+     *
+     * @throws IllegalStateException if one is already kept under [key]: two 256-bit secrets do not
+     * collide, so a generator that repeats itself is what to look for.
+     */
+    public fun add(key: Digest, session: Session)
+
+    /**
+     * Forgets the session kept under [key], which ends it at once. Forgetting one that is not kept
+     * changes nothing.
+     */
+    public fun forget(key: Digest)
+
+    /**
+     * Notes that the session under [key] was in use at [at].
+     *
+     * Last use is kept only to [Session.USE_GRAIN]: a note less than that after the one kept changes
+     * nothing, so a person who clicks around does not make the database write on every request. A
+     * note earlier than the one kept changes nothing either. Noting a session that is not kept changes
+     * nothing.
+     */
+    public fun saw(key: Digest, at: Instant)
+}

@@ -11,17 +11,21 @@ import kotlin.uuid.Uuid
  */
 class KeptAccountsFake : KeptAccounts {
     private val bySubject = mutableMapOf<String, Uuid>()
+    private val profiles = mutableMapOf<Uuid, Profile>()
 
     override fun withGoogle(subject: String): Uuid? = bySubject[subject]
 
+    override fun profileOf(id: Uuid): Profile? = profiles[id]
+
     override fun add(account: Account): AccountAdded {
-        val told = mutableListOf<Pair<String, Uuid>>()
-        account.writeTo { id, subject, _, _, _ -> told += subject to id }
-        val (subject, id) = told.single()
+        val told = mutableListOf<Triple<String, Uuid, String>>()
+        account.writeTo { id, subject, name, _, _ -> told += Triple(subject, id, name) }
+        val (subject, id, name) = told.single()
         return if (subject in bySubject) {
             AccountAdded.SubjectTaken
         } else {
             bySubject[subject] = id
+            profiles[id] = Profile(id, name)
             AccountAdded.Added
         }
     }

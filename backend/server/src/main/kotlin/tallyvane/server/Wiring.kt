@@ -3,7 +3,6 @@ package tallyvane.server
 import tallyvane.platform.health.HealthRoutes
 import tallyvane.platform.health.ServiceToken
 import tallyvane.platform.http.Api
-import tallyvane.platform.http.Callers
 import tallyvane.platform.http.TraceHeader
 import tallyvane.platform.http.problems.FailureTranslator
 import tallyvane.platform.observability.health.HealthCheck
@@ -37,14 +36,16 @@ public class Wiring(private val platform: PlatformWiring, private val configurat
 
     private val authentication = AuthenticationWiring(platform, identity, configuration.signIn)
 
+    private val sessions = SessionsWiring(platform, authentication.signIns, configuration.signIn)
+
     /**
      * Everything mounted, in the shape `platform:http` guarantees.
      *
      * The translator chain carries only what capability modules contribute — currently nothing.
      * `Api` supplies both ends itself, so neither can be forgotten here.
      *
-     * Everyone is anonymous until sessions exist (ADR-086); the session slice replaces `Owners` here
-     * with one that reads the subject.
+     * Every route is closed to anyone who is not signed in unless it says otherwise (ADR-088), and who
+     * is signed in is read from the session cookie by `sessions`.
      */
     public val api: Api by lazy {
         Api(
@@ -53,11 +54,11 @@ public class Wiring(private val platform: PlatformWiring, private val configurat
                     reporter = HealthReporter.OverChecks(checks),
                     token = ServiceToken(configuration.healthToken.revealed()),
                 ),
-            ) + authentication.routes,
+            ) + authentication.routes + sessions.routes + identity.routes,
             failures = FailureTranslator.Chained(emptyList()),
             trace = TraceHeader(platform.ids),
             ledger = platform.persistence.ledger,
-            callers = Callers.Anonymous(),
+            callers = sessions.callers,
             appOrigin = configuration.signIn.appOrigin,
         )
     }

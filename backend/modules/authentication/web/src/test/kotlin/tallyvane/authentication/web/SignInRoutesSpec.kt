@@ -9,8 +9,8 @@ import io.ktor.client.request.post
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
-import tallyvane.platform.http.fromApp
 import io.ktor.server.testing.testApplication
+import tallyvane.platform.http.fromApp
 
 class SignInRoutesSpec :
     StringSpec(

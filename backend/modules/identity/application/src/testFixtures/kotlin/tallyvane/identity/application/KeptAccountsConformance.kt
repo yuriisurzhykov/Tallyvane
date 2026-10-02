@@ -57,6 +57,20 @@ abstract class KeptAccountsConformance : StringSpec() {
             subject.inOwnTransaction { withGoogle("google-1") } shouldBe FIRST
         }
 
+        "says who an account is, by the name it was registered with" {
+            val subject = fresh()
+            subject.inOwnTransaction { add(account(FIRST, "google-1")) }
+
+            val told = mutableListOf<Pair<Uuid, String>>()
+            subject.inOwnTransaction { profileOf(FIRST) }?.writeTo { id, name -> told += id to name }
+
+            told shouldBe listOf(FIRST to "Ada Lovelace")
+        }
+
+        "says nothing of an account nobody registered" {
+            fresh().inOwnTransaction { profileOf(FIRST) } shouldBe null
+        }
+
         "tells two people apart by their subjects" {
             val subject = fresh()
             subject.inOwnTransaction { add(account(FIRST, "google-1")) }

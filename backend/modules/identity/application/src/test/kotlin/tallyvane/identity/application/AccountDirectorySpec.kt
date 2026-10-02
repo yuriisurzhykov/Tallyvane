@@ -65,5 +65,7 @@ private class RacedAccounts(private val winner: Uuid) : tallyvane.identity.appli
 
     override fun withGoogle(subject: String): Uuid? = winner.takeIf { asked++ > 0 }
 
+    override fun profileOf(id: Uuid): Profile? = null
+
     override fun add(account: tallyvane.identity.domain.Account): AccountAdded = AccountAdded.SubjectTaken
 }

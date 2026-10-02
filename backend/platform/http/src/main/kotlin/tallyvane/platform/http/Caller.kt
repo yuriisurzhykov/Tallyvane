@@ -19,6 +19,11 @@ public sealed interface Caller {
     public fun <T> reportTo(report: Report<T>): T
 
     /**
+     * Whose `Idempotency-Key` a request's is: the person, and nobody otherwise (ADR-086).
+     */
+    public fun owner(): Owner
+
+    /**
      * What a [Caller] says about itself, one method per case.
      */
     public interface Report<out T> {
@@ -35,6 +40,8 @@ public sealed interface Caller {
     public class Signed(private val account: Uuid) : Caller {
         override fun <T> reportTo(report: Report<T>): T = report.signedIn(account)
 
+        override fun owner(): Owner = Owner.subject(account)
+
         override fun equals(other: Any?): Boolean = other is Signed && other.account == account
 
         override fun hashCode(): Int = account.hashCode()
@@ -49,6 +56,8 @@ public sealed interface Caller {
     public class Lapsed : Caller {
         override fun <T> reportTo(report: Report<T>): T = report.lapsed()
 
+        override fun owner(): Owner = Owner.anonymous()
+
         override fun equals(other: Any?): Boolean = other is Lapsed
 
         override fun hashCode(): Int = Lapsed::class.hashCode()
@@ -62,23 +71,12 @@ public sealed interface Caller {
     public class Anonymous : Caller {
         override fun <T> reportTo(report: Report<T>): T = report.anonymous()
 
+        override fun owner(): Owner = Owner.anonymous()
+
         override fun equals(other: Any?): Boolean = other is Anonymous
 
         override fun hashCode(): Int = Anonymous::class.hashCode()
 
         override fun toString(): String = "Anonymous"
     }
-}
-
-/**
- * Whose `Idempotency-Key` a request's is: the person, and nobody otherwise (ADR-086).
- */
-internal fun Caller.owner(): Owner = reportTo(Owning())
-
-private class Owning : Caller.Report<Owner> {
-    override fun signedIn(account: Uuid): Owner = Owner.subject(account)
-
-    override fun lapsed(): Owner = Owner.anonymous()
-
-    override fun anonymous(): Owner = Owner.anonymous()
 }

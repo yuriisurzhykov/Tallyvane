@@ -88,7 +88,11 @@ internal class Repeats(private val ledger: Ledger) {
             key == null -> Intake.Turned(IdempotencyFailure.Malformed)
             body == null -> Intake.Turned(IdempotencyFailure.TooLarge)
             else -> Intake.Admitted(
-                Claim(call.caller().owner(), key, Fingerprint.of(call.request.httpMethod.value, call.request.uri, body)),
+                Claim(
+                    Requester(call).caller().owner(),
+                    key,
+                    Fingerprint.of(call.request.httpMethod.value, call.request.uri, body),
+                ),
                 body,
             )
         }
