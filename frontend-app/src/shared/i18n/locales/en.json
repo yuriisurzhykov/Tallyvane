@@ -1,0 +1,58 @@
+{
+    "auth": {
+        "productName": "tallyvane",
+        "mark": "T",
+        "continueWithGoogle": "Continue with Google",
+        "privacy": "Privacy",
+        "terms": "Terms",
+        "help": "Help"
+    },
+    "login": {
+        "title": "Sign in to Tallyvane",
+        "lead": "Your job search, on the record. New here? The same button creates your account.",
+        "fineprint": "We only use Google to confirm who you are. Tallyvane never sees your Google password.",
+        "failed": "We couldn't reach Google just now. Try again in a moment.",
+        "problemRestart": "That sign-in took a wrong turn. Start again, please.",
+        "problemExpired": "That sign-in took too long and timed out. Start again, please.",
+        "problemCancelled": "Sign-in was cancelled. Nothing was changed.",
+        "problemRefused": "Google didn't let us confirm who you are. Try again, or use another Google account.",
+        "problemEmailUnverified": "Google hasn't verified that email address, so we can't use it. Verify it with Google, or use another account.",
+        "problemUnavailable": "Sign-in is unavailable right now. Try again in a moment."
+    },
+    "continue": {
+        "title": "Signing you in",
+        "working": "Finishing sign-in…",
+        "failed": "We couldn't finish signing you in.",
+        "back": "Back to sign in",
+        "closeTab": "You're signed in. You can close this tab."
+    },
+    "welcome": {
+        "title": "Welcome to Tallyvane",
+        "signedInAs": "Signed in with Google as {email}. One more step.",
+        "name": "Your name",
+        "nameHint": "Shown only to you.",
+        "consentLead": "I agree to the ",
+        "consentAnd": " and ",
+        "consentTail": ", including how Tallyvane stores information about people I add, such as recruiters and contacts.",
+        "privacyPolicy": "Privacy Policy",
+        "terms": "Terms",
+        "submit": "Create account",
+        "otherAccount": "Use a different Google account",
+        "consentRequired": "Please agree to continue.",
+        "nameInvalid": "Enter the name you'd like us to use.",
+        "failed": "We couldn't create your account. Try again in a moment."
+    },
+    "reauth": {
+        "title": "Your session expired",
+        "lead": "Sign in again to continue. Your unsaved work is still here, and we'll finish saving it right after.",
+        "blocked": "Pop-up blocked?",
+        "openLink": "Open Google sign-in",
+        "different": "Signing in as a different person will discard these changes.",
+        "preparing": "Getting Google ready…",
+        "failed": "We couldn't reach Google just now."
+    },
+    "account": {
+        "menu": "Account menu",
+        "signOut": "Sign out"
+    }
+}

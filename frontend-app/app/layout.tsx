@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { ThemeInitScript, ThemeProvider } from "frontend-shared/ui/theme";
+import { AppProviders } from "@/app/config";
 import { ibmPlexMono, ibmPlexSans } from "./fonts";
 import "./globals.css";
 
@@ -32,7 +33,9 @@ export default function RootLayout({ children }: { readonly children: React.Reac
                 <ThemeInitScript />
             </head>
             <body className="bg-surface-primary text-text-primary">
-                <ThemeProvider>{children}</ThemeProvider>
+                <ThemeProvider>
+                    <AppProviders>{children}</AppProviders>
+                </ThemeProvider>
             </body>
         </html>
     );

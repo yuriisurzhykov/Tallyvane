@@ -29,7 +29,18 @@ src/     FSD layers — everything else
 No `Host`-based `proxy.ts` here, unlike what ADR-011 originally specified:
 nginx already resolves which container a hostname reaches before the request
 gets this far (ADR-065), so there is nothing left for an in-app proxy to
-decide.
+decide. The `proxy.ts` that does exist does one other thing: it tells the
+console gate which page was asked for, so a signed-out visitor can be sent to
+sign in and then brought back (ADR-089).
+
+## Signing in
+
+`/login` (Google), `/login/continue` (opens the session once Google has sent
+the person back), `/welcome` (name and consent for a new account) and the
+console gate in front of everything else. The whole flow, the transport chain
+under it and the "session ended" dialog are ADR-089. To see it running against
+the real server and database, use the stand in `ops/local/` (see `ops/README.md`);
+the server component that asks who is visiting needs `TALLYVANE_API_INTERNAL_URL`.
 
 ## What's shared with the sibling apps, and how
 

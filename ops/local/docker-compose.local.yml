@@ -1,0 +1,30 @@
+# What differs on a laptop, and only that. Used on top of ../docker-compose.yml, which is the very
+# file the server runs: same services, same networks, same nginx templates, same health checks.
+# Start it through ./stand.sh. Relative paths here resolve against ops/ (the first file), not this directory.
+#
+#   - images are built from this checkout instead of pulled from the registry;
+#   - nginx publishes port 8080 and gets one extra server block for `localhost`;
+#   - nothing here touches the services' own settings: those come from ./.env, same names as on the
+#     server, other values.
+services:
+  nginx:
+    ports:
+      - "8080:80"
+    volumes:
+      - ./local/nginx-localhost.conf:/etc/nginx/conf.d/99-localhost.conf:ro
+
+  server-blue:
+    build:
+      context: ../backend
+  frontend-web-blue:
+    build:
+      context: ..
+      dockerfile: frontend-web/Dockerfile
+  frontend-app-blue:
+    build:
+      context: ..
+      dockerfile: frontend-app/Dockerfile
+  frontend-admin-blue:
+    build:
+      context: ..
+      dockerfile: frontend-admin/Dockerfile
