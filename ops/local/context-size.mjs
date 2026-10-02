@@ -1,6 +1,7 @@
 // Prints what is left in the frontend build context after the root .dockerignore, and which
-// directories weigh the most. Not Docker's own matcher — it prunes by directory name only —
-// but it never follows junctions, so pnpm's links are not counted twice.
+// directories weigh the most. Not Docker's own matcher: it understands plain paths and the
+// "**/name" form only, and skips masks such as "*.log". A bare "name" matches at the root
+// alone, exactly as in Docker. It never follows junctions, so pnpm's links are not counted twice.
 //
 //   node ops/local/context-size.mjs
 
@@ -12,7 +13,7 @@ const ignored = readFileSync(join(root, ".dockerignore"), "utf8")
   .split(/\r?\n/)
   .map((line) => line.trim())
   .filter((line) => line && !line.startsWith("#") && !/[*!]/.test(line.replace(/^\*\*\//, "")))
-  .map((line) => line.replace(/^\*\*\//, "").replace(/\/$/, ""));
+  .map((line) => line.replace(/\/$/, ""));
 
 const sizes = new Map();
 
@@ -20,7 +21,7 @@ const walk = (dir) => {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const path = join(dir, entry.name);
     const rel = relative(root, path).split(sep).join("/");
-    if (ignored.includes(entry.name) || ignored.includes(rel)) continue;
+    if (ignored.includes(rel) || ignored.includes(`**/${entry.name}`)) continue;
     if (entry.isDirectory()) {
       walk(path);
     } else if (entry.isFile()) {
