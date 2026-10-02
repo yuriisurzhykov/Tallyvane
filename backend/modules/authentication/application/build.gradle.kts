@@ -9,6 +9,8 @@ dependencies {
     // `api`: the ports speak in `Attempt` and `PolicyVersion`, so whoever implements or calls them
     // needs the domain on its own compile classpath.
     api(projects.modules.authentication.domain)
+    // `Accounts` is how a Google subject becomes an account (slice 3).
+    api(projects.modules.identity.contract)
 
     // Not used yet. `modules.yaml` requires every application layer to name `platform:events` (a
     // declared edge that goes unused is an error, ARCHITECTURE.md 15.2), and the security journal of
@@ -17,6 +19,9 @@ dependencies {
 
     testFixturesApi(projects.platform.kernel)
     testFixturesImplementation(testFixtures(projects.platform.kernel))
+    // The fakes of the ports are fixtures, not test code: the web layer's tests drive the use cases
+    // with them, and `src/test` is not visible across a project boundary (ADR-046).
+    testFixturesApi(projects.modules.identity.contract)
     testFixturesImplementation(libs.kotest.runner.junit5)
     testFixturesImplementation(libs.kotest.assertions.core)
     testFixturesImplementation(libs.kotlinx.coroutines.core)

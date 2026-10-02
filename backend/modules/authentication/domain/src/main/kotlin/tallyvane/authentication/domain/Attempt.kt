@@ -36,30 +36,47 @@ public class Attempt private constructor(
     /**
      * This attempt with [factor] recorded as verified.
      *
-     * @throws IllegalArgumentException for a factor verified before the attempt began or before one
-     * already recorded. Time only moves forward in an attempt, which is what lets whatever keeps it
-     * bring it back; a change applied to a reloaded attempt takes its time from the clock again.
+     * Time only moves forward in an attempt, which is what lets whatever keeps it bring it back. A
+     * factor stamped earlier than the start or than a factor already recorded is recorded at that
+     * later moment instead (slice 3, fork 5): the clocks of two servers, or one clock stepping back,
+     * may disagree by milliseconds, and a person must not be refused because of it. A pause shifts by
+     * the same milliseconds, which changes nothing anyone can notice.
+     *
+     * @throws IllegalArgumentException for a factor that names a different person than one already
+     * recorded: one attempt is one person's sign-in, and a second Google account half-way through is
+     * not a step of it.
      */
-    public fun withVerified(factor: VerifiedFactor): Attempt {
+    public fun withVerified(factor: VerifiedFactor): Attempt =
+        recording(factor.notBefore(maxOf(startedAt, verified.maxOfOrNull { it.at } ?: startedAt)))
+
+    /**
+     * This attempt with one more wrong answer, given [at], moved forward like a factor in
+     * [withVerified] when the clock that stamped it was behind.
+     */
+    public fun withFailure(at: Instant): Attempt = failing(maxOf(at, startedAt, failures.lastOrNull() ?: startedAt))
+
+    /**
+     * [factor] recorded exactly when it says, which only a restore may ask for: a stored history out
+     * of order was not written by this class, and moving it forward would hide that.
+     */
+    private fun recording(factor: VerifiedFactor): Attempt {
         require(factor.at >= startedAt && verified.all { it.at <= factor.at }) {
             "A factor verified at ${factor.at} comes before the attempt began at $startedAt or before a " +
-                "factor already verified. Read the clock again when applying a change to a reloaded " +
-                "attempt; the time of the request that lost the race is already behind it."
+                "factor already verified."
+        }
+        require(verified.none { it.disagreesWith(factor) }) {
+            "This attempt already belongs to one person and cannot record a factor naming another. " +
+                "Start a new attempt for the second account."
         }
         return Attempt(purpose, startedAt, verified + factor, failures)
     }
 
     /**
-     * This attempt with one more wrong answer, given [at].
-     *
-     * @throws IllegalArgumentException for an answer given before the attempt began or before an
-     * earlier wrong answer, for the reason [withVerified] gives.
+     * A wrong answer recorded exactly at [at], for the reason [recording] gives.
      */
-    public fun withFailure(at: Instant): Attempt {
+    private fun failing(at: Instant): Attempt {
         require(at >= startedAt && failures.all { it <= at }) {
-            "A wrong answer at $at comes before the attempt began at $startedAt or before an " +
-                "earlier answer. Read the clock again when applying a change to a reloaded attempt; " +
-                "the time of the request that lost the race is already behind it."
+            "A wrong answer at $at comes before the attempt began at $startedAt or before an earlier answer."
         }
         return Attempt(purpose, startedAt, verified, failures + at)
     }
@@ -73,13 +90,26 @@ public class Attempt private constructor(
      */
     public fun writeTo(record: Record) {
         record.started(purpose, startedAt)
-        verified.forEach { record.verified(it.kind, it.at) }
+        verified.forEach { it.writeTo(record) }
         failures.forEach { record.failed(it) }
     }
 
-    internal fun hasOutlived(lifetime: Duration, now: Instant): Boolean = now >= startedAt + lifetime
+    /**
+     * Whether this attempt was started for [purpose]. A registration that finds a sign-in attempt
+     * under its cookie, or the other way round, is not the step it thinks it is.
+     */
+    public fun isFor(purpose: Purpose): Boolean = this.purpose == purpose
 
-    internal fun hasFailedAtLeast(times: Int): Boolean = failures.size >= times
+    /**
+     * Whether this attempt is over, and how: past its [lifetime] at [now], or after [maxFailures] wrong
+     * answers. Null while it is still open. The lifetime is asked first, so an attempt past both is
+     * expired, whatever its factors say.
+     */
+    internal fun endedBy(lifetime: Duration, maxFailures: Int, now: Instant): Progress? = when {
+        now >= startedAt + lifetime -> Progress.Expired()
+        failures.size >= maxFailures -> Progress.Exhausted()
+        else -> null
+    }
 
     internal fun hasVerifiedOneOf(kinds: Set<FactorKind>): Boolean = verified.any { it.kind in kinds }
 
@@ -95,25 +125,26 @@ public class Attempt private constructor(
     }
 
     /**
-     * Everything the policy asks for is verified.
-     */
-    internal fun complete(): Progress = verifiedAs { kinds, at -> Progress.Complete(kinds, at) }
-
-    /**
-     * Everything reachable is verified; the person may only set up one of [toSetUp].
-     */
-    internal fun restrictedTo(toSetUp: Set<FactorKind>): Progress =
-        verifiedAs { kinds, at -> Progress.Restricted(kinds, at, toSetUp) }
-
-    /**
-     * The kinds verified so far and the time of the last of them, which an outcome built from them
-     * carries.
+     * Everything reachable is verified: complete when nothing is left to set up, restricted to setting up
+     * one of [toSetUp] otherwise.
      *
-     * Never called before a factor is verified: a policy only reaches Complete or Restricted after
-     * the step that identifies the account, so [verified] is not empty here.
+     * The outcome carries the kinds verified so far, the time of the last of them and whose account they
+     * proved. Never called before the account is identified: a policy only reaches either after the step
+     * that identifies it, so [verified] holds a factor that names somebody.
      */
-    private fun verifiedAs(outcome: (Set<FactorKind>, Instant) -> Progress): Progress =
-        outcome(verified.mapTo(mutableSetOf()) { it.kind }, verified.maxOf { it.at })
+    internal fun concluded(toSetUp: Set<FactorKind>?): Progress {
+        val kinds = verified.mapTo(mutableSetOf()) { it.kind }
+        val at = verified.maxOf { it.at }
+        val subject = checkNotNull(verified.firstNotNullOfOrNull { it.subject }) {
+            "A policy let an attempt through before any factor named whose it is; " +
+                "SignInPolicy requires a step that identifies the account."
+        }
+        return if (toSetUp == null) {
+            Progress.Complete(kinds, at, subject)
+        } else {
+            Progress.Restricted(kinds, at, subject, toSetUp)
+        }
+    }
 
     override fun toString(): String =
         "Attempt(purpose=$purpose, startedAt=$startedAt, verified=$verified, failures=${failures.size})"
@@ -130,7 +161,13 @@ public class Attempt private constructor(
         public fun started(purpose: Purpose, at: Instant)
 
         /**
-         * A factor of this [kind] was verified at [at].
+         * A factor of this [kind], one that identifies the account, vouched at [at] for [subject].
+         */
+        public fun identified(kind: FactorKind, subject: String, at: Instant)
+
+        /**
+         * A factor of this [kind], one that confirms an account already identified, was verified at
+         * [at].
          */
         public fun verified(kind: FactorKind, at: Instant)
 
@@ -158,9 +195,10 @@ public class Attempt private constructor(
     /**
      * Collects a replay and checks that it is a history an attempt could have.
      *
-     * Builds the attempt as the words arrive, through the same [withVerified] and [withFailure] any
-     * attempt grows by, so a restored attempt is one that could have been lived and no attempt can
-     * grow into a history that this refuses. The list holds at
+     * Builds the attempt as the words arrive, through the same checks [withVerified] and
+     * [withFailure] apply after moving a late stamp forward, so a restored attempt is one that could
+     * have been lived and no attempt can grow into a history that this refuses. Unlike those two, it
+     * moves nothing: a stored history out of order was written by something else. The list holds at
      * most one attempt and is the only mutable thing here: a `var` would do the same, but
      * `domain` has none.
      */
@@ -172,17 +210,24 @@ public class Attempt private constructor(
             growing += Attempt(purpose, at)
         }
 
+        override fun identified(kind: FactorKind, subject: String, at: Instant) {
+            val so = current("a factor is verified before it starts")
+            growing[0] = so.grownBy("a factor is out of order, of the wrong kind, or names a second person") {
+                recording(VerifiedFactor.identifying(kind, subject, at))
+            }
+        }
+
         override fun verified(kind: FactorKind, at: Instant) {
             val so = current("a factor is verified before it starts")
-            growing[0] = so.grownBy("a factor is verified before the attempt started or before an earlier one") {
-                withVerified(VerifiedFactor(kind, at))
+            growing[0] = so.grownBy("a factor is out of order or of a kind that must say whose it is") {
+                recording(VerifiedFactor.confirming(kind, at))
             }
         }
 
         override fun failed(at: Instant) {
             val so = current("a wrong answer comes before it starts")
             growing[0] = so.grownBy("a wrong answer comes before the attempt started or before an earlier one") {
-                withFailure(at)
+                failing(at)
             }
         }
 

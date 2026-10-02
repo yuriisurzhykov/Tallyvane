@@ -64,14 +64,12 @@ include(":playground:http")
 // The authoritative dependency manifest is modules.yaml; the shape to copy is
 // modules/_template, which is deliberately NOT included here so Gradle ignores
 // it.
-//
-// Milestone 1 will add, in this order:
-//   include(":modules:identity:contract")
-//   include(":modules:identity:domain")
-//   include(":modules:identity:application")
-//   include(":modules:identity:infrastructure")
-//   include(":modules:identity:web")
 // ---------------------------------------------------------------------------
+include(":modules:identity:contract")
+include(":modules:identity:domain")
+include(":modules:identity:application")
+include(":modules:identity:infrastructure")
 include(":modules:authentication:domain")
 include(":modules:authentication:application")
 include(":modules:authentication:infrastructure")
+include(":modules:authentication:web")

@@ -25,6 +25,10 @@ exposed = "1.4.0"
 hikari = "7.1.0"
 flyway = "13.3.0"
 
+# JOSE/JWT verification of the ID token Google signs. Hand-rolled signature checking is a real
+# vulnerability surface (algorithm confusion among others); this is the audited choice for the JVM.
+nimbusJoseJwt = "10.9.1"
+
 # YAML
 snakeyaml = "2.4"
 
@@ -59,6 +63,10 @@ ktor-server-content-negotiation = { group = "io.ktor", name = "ktor-server-conte
 ktor-serialization-kotlinx-json = { group = "io.ktor", name = "ktor-serialization-kotlinx-json", version.ref = "ktor" }
 ktor-server-status-pages = { group = "io.ktor", name = "ktor-server-status-pages", version.ref = "ktor" }
 ktor-server-call-logging = { group = "io.ktor", name = "ktor-server-call-logging", version.ref = "ktor" }
+# -client-core / -client-cio: the one outbound call there is, to Google's token endpoint. The same
+# engine as the server side, so there is no second HTTP stack in the tree.
+ktor-client-core = { group = "io.ktor", name = "ktor-client-core", version.ref = "ktor" }
+ktor-client-cio = { group = "io.ktor", name = "ktor-client-cio", version.ref = "ktor" }
 ktor-server-test-host = { group = "io.ktor", name = "ktor-server-test-host", version.ref = "ktor" }
 
 # Kotest
@@ -94,6 +102,9 @@ flyway-database-postgresql = { group = "org.flywaydb", name = "flyway-database-p
 ktlint-cli-ruleset-core = { group = "com.pinterest.ktlint", name = "ktlint-cli-ruleset-core", version.ref = "ktlintEngine" }
 ktlint-rule-engine-core = { group = "com.pinterest.ktlint", name = "ktlint-rule-engine-core", version.ref = "ktlintEngine" }
 ktlint-test = { group = "com.pinterest.ktlint", name = "ktlint-test", version.ref = "ktlintEngine" }
+
+# JOSE/JWT. See the `nimbusJoseJwt` version comment above.
+nimbus-jose-jwt = { group = "com.nimbusds", name = "nimbus-jose-jwt", version.ref = "nimbusJoseJwt" }
 
 # SnakeYAML
 snakeyaml = { group = "org.yaml", name = "snakeyaml", version.ref = "snakeyaml" }

@@ -33,6 +33,10 @@ public class Wiring(private val platform: PlatformWiring, private val configurat
         )
     }
 
+    private val identity = IdentityWiring(platform)
+
+    private val authentication = AuthenticationWiring(platform, identity, configuration.signIn)
+
     /**
      * Everything mounted, in the shape `platform:http` guarantees.
      *
@@ -49,7 +53,7 @@ public class Wiring(private val platform: PlatformWiring, private val configurat
                     reporter = HealthReporter.OverChecks(checks),
                     token = ServiceToken(configuration.healthToken.revealed()),
                 ),
-            ),
+            ) + authentication.routes,
             failures = FailureTranslator.Chained(emptyList()),
             trace = TraceHeader(platform.ids),
             ledger = platform.persistence.ledger,

@@ -79,12 +79,12 @@ internal val DI_IMPORT_PREFIXES =
         "jakarta.inject",
     )
 
-// `Wall`, `Uuid7` and `Process` are production implementations of a kernel port
-// that read ambient state but touch no technology, so nesting drags no driver into
+// `Wall`, `Uuid7`, `Process`, `Csprng` and `Hmac` are production implementations of a
+// kernel port that read ambient state or the JDK's own crypto but touch no technology, so nesting drags no driver into
 // the port's module. Naming them here is what puts them under `nested-impl-is-pure`:
 // the rule skips every nested class whose name it does not know, so an addition here
 // widens the check rather than relaxing it.
-internal val NESTED_IMPL_ALLOW = setOf("Cached", "Retrying", "Abstract", "Wall", "Uuid7", "Process")
+internal val NESTED_IMPL_ALLOW = setOf("Cached", "Retrying", "Abstract", "Wall", "Uuid7", "Process", "Csprng", "Hmac")
 
 internal const val PRODUCT_NAME = "Tallyvane"
 

@@ -1,7 +1,9 @@
 package tallyvane.authentication.infrastructure
 
 import org.jetbrains.exposed.v1.core.SortOrder
+import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager
@@ -10,12 +12,15 @@ import tallyvane.authentication.application.port.Attempts
 import tallyvane.authentication.domain.Attempt
 import tallyvane.authentication.domain.FactorKind
 import tallyvane.authentication.domain.Purpose
+import tallyvane.platform.kernel.Digest
+import tallyvane.platform.kernel.IdGenerator
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
 private const val CLAIM_ATTEMPT = """
-    insert into authentication.attempts (id, purpose, started_at) values (?, ?, ?)
-    on conflict (id) do nothing
+    insert into authentication.attempts (id, purpose, started_at, secret_digest, pepper_version)
+    values (?, ?, ?, ?, ?)
+    on conflict (secret_digest) do nothing
 """
 
 /**
@@ -37,33 +42,40 @@ private const val CLAIM_ATTEMPT = """
  * The primary keys on `(attempt_id, position)` are the last line behind that lock: were two writers
  * ever to append the same position, the second would fail rather than overwrite.
  */
-internal class PostgresAttempts : Attempts {
+internal class PostgresAttempts(private val rows: AttemptRows, private val ids: IdGenerator) : Attempts {
     private val words = StoredWords()
 
-    override fun find(id: Uuid): Attempt? = rowsOf(id, locking = false)?.let { rows ->
-        Attempt.restore { record -> rows.replayInto(record) }
+    override fun find(key: Digest): Attempt? = rowsOf(key, locking = false)?.let { found ->
+        Attempt.restore { record -> found.replayInto(record) }
     }
 
-    override fun save(id: Uuid, attempt: Attempt): AttemptSaveOutcome {
+    override fun save(key: Digest, attempt: Attempt): AttemptSaveOutcome {
         val told = Rows(attempt)
-        told.replayInto(Claiming(id))
-        val kept = checkNotNull(rowsOf(id, locking = true)) {
-            "The attempt $id vanished between being claimed and being locked in one transaction. " +
+        told.replayInto(Claiming(key, ids.next()))
+        val kept = checkNotNull(rowsOf(key, locking = true)) {
+            "The attempt under $key vanished between being claimed and being locked in one transaction. " +
                 "Something deleted it; attempts are only removed by their cleanup, never mid-request."
         }
         if (!told.continues(kept)) {
             return AttemptSaveOutcome.Superseded
         }
-        told.replayBeyond(kept, Appending(id, kept))
+        told.replayBeyond(kept, Appending(kept.id(), kept))
         return AttemptSaveOutcome.Saved
+    }
+
+    override fun forget(key: Digest) {
+        rows.idOf(key)?.let { id -> AttemptsTable.deleteWhere { AttemptsTable.id eq id } }
     }
 
     override fun toString(): String = "PostgresAttempts(schema=authentication)"
 
-    private fun rowsOf(id: Uuid, locking: Boolean): Rows? {
-        val head = AttemptsTable.selectAll().where { AttemptsTable.id eq id }
+    private fun rowsOf(key: Digest, locking: Boolean): Rows? {
+        val told = DigestColumns().also { key.writeTo(it) }
+        val head = AttemptsTable.selectAll()
+            .where { (AttemptsTable.secretDigest eq told.bytes()) and (AttemptsTable.pepperVersion eq told.version()) }
             .let { query -> if (locking) query.forUpdate() else query }
             .singleOrNull() ?: return null
+        val id = head[AttemptsTable.id]
         val verified = AttemptVerifiedFactorsTable.selectAll()
             .where { AttemptVerifiedFactorsTable.attemptId eq id }
             .orderBy(AttemptVerifiedFactorsTable.position, SortOrder.ASC)
@@ -79,10 +91,15 @@ internal class PostgresAttempts : Attempts {
             refused(id, "attempt_failures")
         }
         return Rows(
+            id = id,
             purpose = words.purposeFrom(head[AttemptsTable.purpose]),
             startedAt = head[AttemptsTable.startedAt],
             verified = verified.map {
-                words.kindFrom(it[AttemptVerifiedFactorsTable.kind]) to it[AttemptVerifiedFactorsTable.verifiedAt]
+                Factor(
+                    words.kindFrom(it[AttemptVerifiedFactorsTable.kind]),
+                    it[AttemptVerifiedFactorsTable.subject],
+                    it[AttemptVerifiedFactorsTable.verifiedAt],
+                )
             },
             failures = failures.map { it[AttemptFailuresTable.failedAt] },
         )
@@ -100,8 +117,9 @@ internal class PostgresAttempts : Attempts {
      * Postgres refuses when the table name carries a schema, and a statement that names its schema and
      * its conflict rule outright is also the one reviewers can read.
      */
-    private class Claiming(private val id: Uuid) : Attempt.Record {
+    private class Claiming(private val key: Digest, private val id: Uuid) : Attempt.Record {
         private val words = StoredWords()
+        private val digest = DigestColumns().also { key.writeTo(it) }
 
         override fun started(purpose: Purpose, at: Instant) {
             TransactionManager.current().exec(
@@ -110,9 +128,13 @@ internal class PostgresAttempts : Attempts {
                     AttemptsTable.id.columnType to id,
                     AttemptsTable.purpose.columnType to words.of(purpose),
                     AttemptsTable.startedAt.columnType to at,
+                    AttemptsTable.secretDigest.columnType to digest.bytes(),
+                    AttemptsTable.pepperVersion.columnType to digest.version(),
                 ),
             )
         }
+
+        override fun identified(kind: FactorKind, subject: String, at: Instant) = Unit
 
         override fun verified(kind: FactorKind, at: Instant) = Unit
 
@@ -129,12 +151,17 @@ internal class PostgresAttempts : Attempts {
 
         override fun started(purpose: Purpose, at: Instant) = Unit
 
-        override fun verified(kind: FactorKind, at: Instant) {
+        override fun identified(kind: FactorKind, subject: String, at: Instant) = append(kind, subject, at)
+
+        override fun verified(kind: FactorKind, at: Instant) = append(kind, null, at)
+
+        private fun append(kind: FactorKind, subject: String?, at: Instant) {
             verifiedAlready += 1
             AttemptVerifiedFactorsTable.insert {
                 it[attemptId] = id
                 it[position] = verifiedAlready
                 it[AttemptVerifiedFactorsTable.kind] = words.of(kind)
+                it[AttemptVerifiedFactorsTable.subject] = subject
                 it[verifiedAt] = at
             }
         }
@@ -155,19 +182,23 @@ internal class PostgresAttempts : Attempts {
      * was written.
      */
     private class Rows(
+        private val id: Uuid?,
         private val purpose: Purpose,
         private val startedAt: Instant,
-        private val verified: List<Pair<FactorKind, Instant>>,
+        private val verified: List<Factor>,
         private val failures: List<Instant>,
     ) {
         constructor(attempt: Attempt) : this(Telling().also { attempt.writeTo(it) })
 
         private constructor(telling: Telling) : this(
+            null,
             telling.purpose(),
             telling.startedAt(),
             telling.verifiedFactors(),
             telling.failureTimes(),
         )
+
+        fun id(): Uuid = checkNotNull(id) { "Rows told by an attempt have no row of their own yet." }
 
         fun verifiedCount(): Int = verified.size
 
@@ -183,7 +214,7 @@ internal class PostgresAttempts : Attempts {
 
         fun replayInto(record: Attempt.Record) {
             record.started(purpose, startedAt)
-            verified.forEach { (kind, at) -> record.verified(kind, at) }
+            verified.forEach { it.replayInto(record) }
             failures.forEach { record.failed(it) }
         }
 
@@ -191,9 +222,21 @@ internal class PostgresAttempts : Attempts {
          * Only what these rows hold beyond [kept], which [continues] it.
          */
         fun replayBeyond(kept: Rows, record: Attempt.Record) {
-            verified.drop(kept.verified.size).forEach { (kind, at) -> record.verified(kind, at) }
+            verified.drop(kept.verified.size).forEach { it.replayInto(record) }
             failures.drop(kept.failures.size).forEach { record.failed(it) }
         }
+    }
+
+    /**
+     * A factor as a row holds it: its kind, whose account it proved if it identifies one, and when.
+     */
+    private data class Factor(val kind: FactorKind, val subject: String?, val at: Instant) {
+        fun replayInto(record: Attempt.Record) {
+            subject?.let { record.identified(kind, it, at) } ?: record.verified(kind, at)
+        }
+
+        // The subject names a person at Google; rows are compared, never printed.
+        override fun toString(): String = "Factor(kind=$kind, at=$at)"
     }
 
     /**
@@ -201,15 +244,19 @@ internal class PostgresAttempts : Attempts {
      */
     private class Telling : Attempt.Record {
         private val began = mutableListOf<Pair<Purpose, Instant>>()
-        private val verified = mutableListOf<Pair<FactorKind, Instant>>()
+        private val verified = mutableListOf<Factor>()
         private val failures = mutableListOf<Instant>()
 
         override fun started(purpose: Purpose, at: Instant) {
             began += purpose to at.toMicroseconds()
         }
 
+        override fun identified(kind: FactorKind, subject: String, at: Instant) {
+            verified += Factor(kind, subject, at.toMicroseconds())
+        }
+
         override fun verified(kind: FactorKind, at: Instant) {
-            verified += kind to at.toMicroseconds()
+            verified += Factor(kind, null, at.toMicroseconds())
         }
 
         override fun failed(at: Instant) {
@@ -220,7 +267,7 @@ internal class PostgresAttempts : Attempts {
 
         fun startedAt(): Instant = began.single().second
 
-        fun verifiedFactors(): List<Pair<FactorKind, Instant>> = verified.toList()
+        fun verifiedFactors(): List<Factor> = verified.toList()
 
         fun failureTimes(): List<Instant> = failures.toList()
 

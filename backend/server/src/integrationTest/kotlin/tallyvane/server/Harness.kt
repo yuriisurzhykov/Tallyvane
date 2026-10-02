@@ -6,6 +6,7 @@ import tallyvane.platform.persistence.DEFAULT_SIZE
 import tallyvane.platform.persistence.DatabaseAccess
 import tallyvane.server.config.Configuration
 import tallyvane.server.config.EnvironmentConfiguration
+import tallyvane.server.config.SignInConfiguration
 import java.net.ServerSocket
 import java.net.URI
 import java.net.http.HttpClient
@@ -39,6 +40,14 @@ internal fun settings(access: DatabaseAccess, port: Int = free(), pool: Int = DE
         port = port,
         level = Level.INFO,
         healthToken = Secret(TOKEN),
+        signIn = SignInConfiguration(
+            googleClientId = "client-id",
+            googleClientSecret = Secret("client-secret"),
+            appOrigin = "https://app.example.test",
+            apiOrigin = "https://api.example.test",
+            tokenPepper = Secret("a-pepper-only-the-tests-use-0123456789"),
+            pepperVersion = 1,
+        ),
     )
 
 /**

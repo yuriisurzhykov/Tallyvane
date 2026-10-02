@@ -8,19 +8,24 @@ import tallyvane.authentication.domain.Attempt
 import tallyvane.authentication.domain.FactorKind
 import tallyvane.authentication.domain.Purpose
 import tallyvane.authentication.domain.VerifiedFactor
+import tallyvane.platform.kernel.Digest
 import tallyvane.platform.kernel.TransactionRunner
 import tallyvane.platform.kernel.Verdict
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
-import kotlin.uuid.Uuid
 
-private val FIRST = Uuid.parse("0199a000-0000-7000-8000-000000000001")
-private val SECOND = Uuid.parse("0199a000-0000-7000-8000-000000000002")
+private val FIRST = KeysForTests().of("first")
+private val SECOND = KeysForTests().of("second")
 
 private val START = Instant.parse("2026-10-01T09:00:00Z")
 
-private fun Attempt.verifying(kind: FactorKind, secondsIn: Int) =
-    withVerified(VerifiedFactor(kind, START + secondsIn.seconds))
+private fun Attempt.verifying(kind: FactorKind, secondsIn: Int) = withVerified(
+    if (kind == FactorKind.Google) {
+        VerifiedFactor.identifying(kind, "subject-1", START + secondsIn.seconds)
+    } else {
+        VerifiedFactor.confirming(kind, START + secondsIn.seconds)
+    },
+)
 
 private fun Attempt.failingAt(secondsIn: Int) = withFailure(START + secondsIn.seconds)
 
@@ -51,10 +56,12 @@ abstract class AttemptsConformance : StringSpec() {
     private suspend fun <T> Subject.inOwnTransaction(call: Attempts.() -> T): T =
         transactions.inTransaction { Verdict.Commit(attempts.call()) }
 
-    private suspend fun Subject.found(id: Uuid): AttemptStory? = inOwnTransaction { find(id) }?.let { AttemptStory(it) }
+    private suspend fun Subject.found(key: Digest): AttemptStory? = inOwnTransaction {
+        find(key)
+    }?.let { AttemptStory(it) }
 
     init {
-        "finds nothing under an id that was never saved" {
+        "finds nothing under a key that was never saved" {
             fresh().found(FIRST) shouldBe null
         }
 
@@ -112,7 +119,7 @@ abstract class AttemptsConformance : StringSpec() {
                 AttemptSaveOutcome.Saved
         }
 
-        "keeps each attempt under its own id" {
+        "keeps each attempt under its own key" {
             val subject = fresh()
             val login = Attempt(Purpose.Login, START).verifying(FactorKind.Google, secondsIn = 10)
             val stepUp = Attempt(Purpose.StepUp, START + 60.seconds).failingAt(secondsIn = 70)
@@ -161,7 +168,7 @@ abstract class AttemptsConformance : StringSpec() {
             subject.found(FIRST) shouldBe AttemptStory(grown)
         }
 
-        "refuses an attempt that began otherwise than the one kept under the same id" {
+        "refuses an attempt that began otherwise than the one kept under the same key" {
             val subject = fresh()
             val kept = Attempt(Purpose.Login, START)
             subject.inOwnTransaction { save(FIRST, kept) }
@@ -182,6 +189,38 @@ abstract class AttemptsConformance : StringSpec() {
 
             subject.inOwnTransaction { save(FIRST, restored.failingAt(secondsIn = 15)) } shouldBe
                 AttemptSaveOutcome.Saved
+        }
+
+        "forgetting an attempt finds nothing under its key afterwards, and leaves the others" {
+            val subject = fresh()
+            val login = Attempt(Purpose.Login, START)
+            val stepUp = Attempt(Purpose.StepUp, START)
+            subject.inOwnTransaction { save(FIRST, login) }
+            subject.inOwnTransaction { save(SECOND, stepUp) }
+
+            subject.inOwnTransaction { forget(FIRST) }
+
+            subject.found(FIRST) shouldBe null
+            subject.found(SECOND) shouldBe AttemptStory(stepUp)
+        }
+
+        "forgetting what is not kept changes nothing" {
+            val subject = fresh()
+
+            subject.inOwnTransaction { forget(FIRST) }
+
+            subject.found(FIRST) shouldBe null
+        }
+
+        "an attempt forgotten can be kept again from the start" {
+            val subject = fresh()
+            val began = Attempt(Purpose.Login, START)
+            subject.inOwnTransaction { save(FIRST, began.verifying(FactorKind.Google, secondsIn = 10)) }
+            subject.inOwnTransaction { forget(FIRST) }
+
+            subject.inOwnTransaction { save(FIRST, began) } shouldBe AttemptSaveOutcome.Saved
+
+            subject.found(FIRST) shouldBe AttemptStory(began)
         }
     }
 }

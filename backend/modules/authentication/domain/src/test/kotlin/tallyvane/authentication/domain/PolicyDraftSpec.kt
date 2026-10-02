@@ -130,7 +130,10 @@ class PolicyDraftSpec :
                 factors.clear()
                 steps.removeAt(1)
                 val start = Instant.parse("2026-10-01T09:00:00Z")
-                val google = Attempt(Purpose.Login, start).withVerified(VerifiedFactor(Google, start))
+                val google = Attempt(
+                    Purpose.Login,
+                    start,
+                ).withVerified(VerifiedFactor.identifying(Google, "google-subject-1", start))
 
                 policy.progressOf(google, Enrollment(setOf(Totp)), now = start) shouldBe
                     Progress.Awaiting(setOf(Totp, RecoveryCode))

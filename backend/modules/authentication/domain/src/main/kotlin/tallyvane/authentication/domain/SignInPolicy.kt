@@ -43,11 +43,8 @@ public data class SignInPolicy internal constructor(
      * the policy and the account as they are at that moment. Lifetime and the failure limit come
      * first: an attempt past either is over, whatever its factors say.
      */
-    public fun progressOf(attempt: Attempt, enrollment: Enrollment, now: Instant): Progress = when {
-        attempt.hasOutlived(attemptLifetime, now) -> Progress.Expired()
-        attempt.hasFailedAtLeast(maxFailures) -> Progress.Exhausted()
-        else -> openProgressOf(attempt, enrollment, now)
-    }
+    public fun progressOf(attempt: Attempt, enrollment: Enrollment, now: Instant): Progress =
+        attempt.endedBy(attemptLifetime, maxFailures, now) ?: openProgressOf(attempt, enrollment, now)
 
     /**
      * Tells [record] what this policy is: its purpose, each step in order, then its limits.
@@ -70,7 +67,7 @@ public data class SignInPolicy internal constructor(
 
         return when {
             next != null -> next.requestFrom(attempt, firstDelay, now)
-            unreachable.isEmpty() -> attempt.complete()
+            unreachable.isEmpty() -> attempt.concluded(null)
             else -> unreachable.first().restrict(attempt)
         }
     }

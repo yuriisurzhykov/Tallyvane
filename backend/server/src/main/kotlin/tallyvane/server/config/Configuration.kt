@@ -17,4 +17,5 @@ public class Configuration(
     public val port: Int,
     public val level: Level,
     public val healthToken: Secret,
+    public val signIn: SignInConfiguration,
 )

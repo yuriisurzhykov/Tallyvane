@@ -41,6 +41,15 @@ tasks.withType<Test>().configureEach {
     useJUnitPlatform()
 }
 
+// A jar is named after its whole path, not after its project: every capability module has a `domain`
+// and an `application`, and two jars called `domain.jar` in one distribution's `lib/` overwrite each
+// other. `:modules:identity:domain` becomes `modules-identity-domain.jar`.
+val jarName = project.path.removePrefix(":").replace(':', '-')
+
+tasks.named<Jar>("jar") {
+    archiveBaseName.set(jarName)
+}
+
 tasks.named("check") {
     dependsOn("ktlintCheck", "detekt")
 }
