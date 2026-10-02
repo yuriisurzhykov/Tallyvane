@@ -32,8 +32,13 @@ private val LOGIN = policyOf(Purpose.Login, GOOGLE, SECOND_FACTOR_IF_ENABLED)
 private val ADMIN_LOGIN = policyOf(Purpose.AdminLogin, GOOGLE, SECOND_FACTOR_ALWAYS)
 private val STEP_UP = policyOf(Purpose.StepUp, GOOGLE, SECOND_FACTOR_IF_ENABLED)
 
+private const val SUBJECT = "google-subject-1"
+
+private fun factorOf(kind: FactorKind, at: Instant): VerifiedFactor =
+    if (kind == Google) VerifiedFactor.identifying(kind, SUBJECT, at) else VerifiedFactor.confirming(kind, at)
+
 private fun Attempt.verifying(kind: FactorKind, secondsIn: Int) =
-    withVerified(VerifiedFactor(kind, START + secondsIn.seconds))
+    withVerified(factorOf(kind, START + secondsIn.seconds))
 
 private fun Attempt.failingTimes(count: Int, secondsIn: Int) =
     (1..count).fold(this) { attempt, _ -> attempt.withFailure(START + secondsIn.seconds) }
@@ -45,7 +50,7 @@ class SignInPolicySpec :
                 val attempt = Attempt(Purpose.Login, START).verifying(Google, secondsIn = 10)
 
                 REGISTRATION.progressOf(attempt, NOTHING_SET_UP, now = START + 11.seconds) shouldBe
-                    Progress.Complete(setOf(Google), START + 10.seconds)
+                    Progress.Complete(setOf(Google), START + 10.seconds, SUBJECT)
             }
 
             "a fresh attempt asks for Google first, before anything about the account is known" {
@@ -57,7 +62,7 @@ class SignInPolicySpec :
                 val attempt = Attempt(Purpose.Login, START).verifying(Google, secondsIn = 10)
 
                 LOGIN.progressOf(attempt, NOTHING_SET_UP, now = START + 11.seconds) shouldBe
-                    Progress.Complete(setOf(Google), START + 10.seconds)
+                    Progress.Complete(setOf(Google), START + 10.seconds, SUBJECT)
             }
 
             // The user raised their own bar: the policy did not change, their enrolled factors did.
@@ -74,7 +79,7 @@ class SignInPolicySpec :
                     .verifying(Totp, secondsIn = 30)
 
                 LOGIN.progressOf(attempt, TOTP_SET_UP, now = START + 31.seconds) shouldBe
-                    Progress.Complete(setOf(Google, Totp), START + 30.seconds)
+                    Progress.Complete(setOf(Google, Totp), START + 30.seconds, SUBJECT)
             }
 
             "a recovery code satisfies the same step as TOTP" {
@@ -83,7 +88,7 @@ class SignInPolicySpec :
                     .verifying(RecoveryCode, secondsIn = 30)
 
                 LOGIN.progressOf(attempt, TOTP_SET_UP, now = START + 31.seconds) shouldBe
-                    Progress.Complete(setOf(Google, RecoveryCode), START + 30.seconds)
+                    Progress.Complete(setOf(Google, RecoveryCode), START + 30.seconds, SUBJECT)
             }
 
             // Without this case the policy would either lock the administrator out or let them in
@@ -92,7 +97,7 @@ class SignInPolicySpec :
                 val attempt = Attempt(Purpose.Login, START).verifying(Google, secondsIn = 10)
 
                 ADMIN_LOGIN.progressOf(attempt, NOTHING_SET_UP, now = START + 11.seconds) shouldBe
-                    Progress.Restricted(setOf(Google), START + 10.seconds, toSetUp = SECOND_FACTOR)
+                    Progress.Restricted(setOf(Google), START + 10.seconds, SUBJECT, toSetUp = SECOND_FACTOR)
             }
 
             "an administrator with TOTP is asked for it like anyone else" {
@@ -154,14 +159,14 @@ class SignInPolicySpec :
                     TOTP_SET_UP,
                     now = START + 21.seconds,
                 ) shouldBe
-                    Progress.Complete(setOf(Google, Totp), START + 20.seconds)
+                    Progress.Complete(setOf(Google, Totp), START + 20.seconds, SUBJECT)
             }
 
             "confirming a dangerous action without TOTP takes Google alone" {
                 val google = Attempt(Purpose.Login, START).verifying(Google, secondsIn = 10)
 
                 STEP_UP.progressOf(google, NOTHING_SET_UP, now = START + 11.seconds) shouldBe
-                    Progress.Complete(setOf(Google), START + 10.seconds)
+                    Progress.Complete(setOf(Google), START + 10.seconds, SUBJECT)
             }
 
             // Tightening applies mid-sign-in (ADR-078): the attempt stores what happened, never
@@ -171,7 +176,7 @@ class SignInPolicySpec :
                 val enrollment = TOTP_SET_UP
 
                 REGISTRATION.progressOf(attempt, enrollment, START + 11.seconds) shouldBe
-                    Progress.Complete(setOf(Google), START + 10.seconds)
+                    Progress.Complete(setOf(Google), START + 10.seconds, SUBJECT)
                 ADMIN_LOGIN.progressOf(attempt, enrollment, START + 11.seconds) shouldBe
                     Progress.Awaiting(SECOND_FACTOR)
             }

@@ -24,4 +24,11 @@ public enum class FactorKind(private val needsEnrollment: Boolean) {
      * person sets it up".
      */
     public fun isAvailableTo(enrollment: Enrollment): Boolean = !needsEnrollment || enrollment.includes(this)
+
+    /**
+     * Whether verifying this kind tells whose account it is. A kind nobody has to set up is one the
+     * provider vouches for on its own, so it names the person; a kind that needs setting up can only
+     * confirm somebody already named.
+     */
+    internal fun identifiesTheAccount(): Boolean = !needsEnrollment
 }

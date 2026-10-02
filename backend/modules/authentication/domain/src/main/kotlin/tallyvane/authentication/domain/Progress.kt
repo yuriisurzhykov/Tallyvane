@@ -30,13 +30,17 @@ public sealed interface Progress {
      * @param factors The kinds verified, which the session records as `amr` (RFC 8176).
      * @param authenticatedAt When the last factor was verified; freshness for dangerous actions
      * counts from here.
+     * @param subject Whose account the identifying factor proved, as its provider names them.
      */
     @ConsistentCopyVisibility
     public data class Complete internal constructor(
         private val factors: Set<FactorKind>,
         private val authenticatedAt: Instant,
+        private val subject: String,
     ) : Progress {
-        override fun <T> reportTo(report: Report<T>): T = report.complete(factors, authenticatedAt)
+        override fun <T> reportTo(report: Report<T>): T = report.complete(factors, authenticatedAt, subject)
+
+        override fun toString(): String = "Complete(factors=$factors, authenticatedAt=$authenticatedAt)"
     }
 
     /**
@@ -45,6 +49,7 @@ public sealed interface Progress {
      *
      * @param factors The kinds verified, as in [Complete].
      * @param authenticatedAt When the last factor was verified, as in [Complete].
+     * @param subject Whose account it is, as in [Complete].
      * @param toSetUp The kinds of the first step the account cannot reach yet; setting up any one
      * of them reaches it. A later unreachable step, if a policy ever has one, is reported at the
      * next sign-in.
@@ -53,9 +58,13 @@ public sealed interface Progress {
     public data class Restricted internal constructor(
         private val factors: Set<FactorKind>,
         private val authenticatedAt: Instant,
+        private val subject: String,
         private val toSetUp: Set<FactorKind>,
     ) : Progress {
-        override fun <T> reportTo(report: Report<T>): T = report.restricted(factors, authenticatedAt, toSetUp)
+        override fun <T> reportTo(report: Report<T>): T = report.restricted(factors, authenticatedAt, subject, toSetUp)
+
+        override fun toString(): String =
+            "Restricted(factors=$factors, authenticatedAt=$authenticatedAt, toSetUp=$toSetUp)"
     }
 
     /**
@@ -108,9 +117,14 @@ public sealed interface Progress {
      * paused attempt for its authentication time or an exhausted one for its factors.
      */
     public interface Report<out T> {
-        public fun complete(factors: Set<FactorKind>, authenticatedAt: Instant): T
+        public fun complete(factors: Set<FactorKind>, authenticatedAt: Instant, subject: String): T
 
-        public fun restricted(factors: Set<FactorKind>, authenticatedAt: Instant, toSetUp: Set<FactorKind>): T
+        public fun restricted(
+            factors: Set<FactorKind>,
+            authenticatedAt: Instant,
+            subject: String,
+            toSetUp: Set<FactorKind>,
+        ): T
 
         public fun awaiting(accepted: Set<FactorKind>): T
 
