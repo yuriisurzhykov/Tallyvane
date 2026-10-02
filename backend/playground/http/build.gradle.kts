@@ -11,6 +11,9 @@ dependencies {
     implementation(projects.platform.http)
     implementation(projects.platform.kernel)
     implementation(projects.platform.observability)
+    // The spike keeps no state, so it takes the in-memory ledger the tests use.
+    implementation(testFixtures(projects.platform.idempotency))
+    implementation(testFixtures(projects.platform.kernel))
     implementation(libs.ktor.server.core)
     implementation(libs.ktor.server.cio)
     implementation(libs.ktor.server.call.logging)

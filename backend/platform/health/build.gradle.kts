@@ -15,4 +15,5 @@ dependencies {
     testImplementation(libs.ktor.server.test.host)
     testImplementation(libs.ktor.server.cio)
     testImplementation(testFixtures(projects.platform.kernel))
+    testImplementation(testFixtures(projects.platform.idempotency))
 }

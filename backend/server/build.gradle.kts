@@ -15,6 +15,7 @@ dependencies {
     // here anyway: a composition root that depends on a platform module only by accident of
     // someone else's `api` edge is a root whose dependencies are not reviewable.
     implementation(projects.platform.kernel)
+    implementation(projects.platform.idempotency)
     implementation(projects.platform.persistence)
     implementation(projects.platform.observability)
     implementation(projects.platform.http)
@@ -32,6 +33,11 @@ dependencies {
 
     integrationTestImplementation(testFixtures(projects.platform.persistence))
     integrationTestImplementation(testFixtures(projects.platform.kernel))
+    // A case mounts the real edge over the real database with a route of its own, so it names the
+    // edge, the ledger it asks and the engine it runs on, as `Wiring` does.
+    integrationTestImplementation(projects.platform.http)
+    integrationTestImplementation(projects.platform.idempotency)
+    integrationTestImplementation(libs.ktor.server.cio)
     // The suite talks HTTP, so it names statuses in Ktor's vocabulary rather than as bare numbers.
     integrationTestImplementation(libs.ktor.server.core)
     integrationTestImplementation(libs.kotest.runner.junit5)

@@ -7,6 +7,8 @@ plugins {
 
 dependencies {
     api(projects.platform.kernel)
+    // `api`: `Api` takes a `Ledger` and `Owners` answers an `Owner`, so whoever builds one needs the types.
+    api(projects.platform.idempotency)
     // `api`: `RouteModule.install` takes Ktor's own `Route`, so anyone implementing one needs
     // Ktor on their compile classpath. ADR-050 accepts that this contract names Ktor.
     api(libs.ktor.server.core)
@@ -22,4 +24,5 @@ dependencies {
     testImplementation(libs.ktor.server.cio)
     testImplementation(projects.platform.observability)
     testImplementation(testFixtures(projects.platform.kernel))
+    testImplementation(testFixtures(projects.platform.idempotency))
 }

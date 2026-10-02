@@ -6,6 +6,7 @@ import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.string.shouldNotContain
 import io.ktor.client.request.get
+import io.ktor.client.request.header
 import io.ktor.client.request.headers
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
@@ -27,9 +28,13 @@ import tallyvane.platform.http.problems.FailureTranslator
 import tallyvane.platform.http.problems.Problem
 import tallyvane.platform.http.problems.Problems
 import tallyvane.platform.http.status.Answers
+import tallyvane.platform.idempotency.LedgerFake
+import tallyvane.platform.kernel.ClockFake
 import tallyvane.platform.kernel.Failure
 import tallyvane.platform.kernel.IdGeneratorFake
+import tallyvane.platform.kernel.TransactionRunnerFake
 import tallyvane.platform.observability.log.TraceContext
+import kotlin.time.Instant
 
 /**
  * A body with a camelCase property, so the naming strategy has something to rename.
@@ -56,6 +61,8 @@ private class Refusals : Problems<Refusal> {
         is Refusal.Absent -> missing(ABSENT_DETAIL)
     }
 }
+
+private const val KEY = "00000000-0000-0000-0000-000000000001"
 
 /**
  * A module's own 404, distinguishable from the one an unmatched path produces.
@@ -97,6 +104,8 @@ private fun api(): Api = Api(
     routes = listOf(Probes(Refusals())),
     failures = FailureTranslator.Chained(emptyList()),
     trace = TraceHeader(IdGeneratorFake()),
+    ledger = LedgerFake(TransactionRunnerFake(), ClockFake(Instant.parse("2026-10-01T12:00:00Z"))),
+    owners = Owners.Anonymous(),
 )
 
 class ApiSpec :
@@ -222,6 +231,7 @@ class ApiSpec :
 
                     val answer =
                         client.post("/api/v1/probes/body") {
+                            header("Idempotency-Key", KEY)
                             contentType(ContentType.Application.Json)
                             setBody("""{"take_home_cents":7}""")
                         }
@@ -264,7 +274,7 @@ class ApiSpec :
                     application { api().install(this) }
 
                     // POST to a route that only accepts GET. Nothing in `Api` mentions 405.
-                    val answer = client.post("/api/v1/probes/fine")
+                    val answer = client.post("/api/v1/probes/fine") { header("Idempotency-Key", KEY) }
 
                     answer.status shouldBe HttpStatusCode.MethodNotAllowed
                     answer.headers["Content-Type"]!! shouldContain "application/problem+json"
@@ -290,6 +300,7 @@ class ApiSpec :
 
                     val answer =
                         client.post("/api/v1/probes/body") {
+                            header("Idempotency-Key", KEY)
                             contentType(ContentType.Application.Json)
                             setBody("{ this is not json")
                         }

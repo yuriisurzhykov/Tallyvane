@@ -6,6 +6,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.jetbrains.exposed.v1.core.DatabaseConfig
 import org.jetbrains.exposed.v1.jdbc.Database
+import tallyvane.platform.idempotency.ClaimedTransactions
+import tallyvane.platform.idempotency.Ledger
+import tallyvane.platform.kernel.Clock
 import tallyvane.platform.kernel.TransactionRunner
 import kotlin.time.Duration.Companion.seconds
 
@@ -45,9 +48,13 @@ public const val DEFAULT_SIZE: Int = 8
  * dispatcher blocking work runs on — the two are one number by construction. Defaults to
  * [DEFAULT_SIZE], which the deploy overrides; a caller that has no opinion should not have
  * to invent one.
+ * @param clock what the ledger measures a claim's day by. The wall clock unless a test says otherwise.
  */
-public class PostgresPersistence(access: DatabaseAccess, private val size: Int = DEFAULT_SIZE) :
-    Persistence,
+public class PostgresPersistence(
+    access: DatabaseAccess,
+    private val size: Int = DEFAULT_SIZE,
+    private val clock: Clock = Clock.Wall(),
+) : Persistence,
     AutoCloseable {
     private val pool: HikariDataSource = HikariDataSource(configuration(access))
 
@@ -68,7 +75,14 @@ public class PostgresPersistence(access: DatabaseAccess, private val size: Int =
             },
         )
 
-    override val transactions: TransactionRunner = ExposedTransactionRunner(database, blocking)
+    /**
+     * The runner that does not take claims, for what must run on a connection of its own: the ledger.
+     */
+    private val unclaimed: TransactionRunner = ExposedTransactionRunner(database, blocking)
+
+    override val transactions: TransactionRunner = ClaimedTransactions(unclaimed, PostgresClaims(clock))
+
+    override val ledger: Ledger = PostgresLedger(unclaimed, clock)
 
     override fun close() {
         pool.close()

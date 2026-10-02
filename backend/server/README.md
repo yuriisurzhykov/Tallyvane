@@ -165,6 +165,21 @@ path and package it actually checks) was updated to `server/src/` and `tallyvane
 string naming the rule stayed put. The public hostname `app.<domain>` also stayed put — it names
 `frontend-app`'s URL, which this rename has nothing to do with.
 
+## 2026-10-01 — the sweep of expired idempotency claims (ADR-086)
+
+`Application.start()` starts `ClaimsSweep` (it lives in `platform:idempotency`, since `app-has-no-logic`
+keeps loops out of here) in `PlatformWiring.background`, a scope of its own that `close()` cancels with the
+other. It waits one hour before the first sweep and then repeats, so a process that restarts often does not
+sweep at every start and a database that is not up yet is not asked at the worst moment. The interval is a
+constructor argument of `Application` with an hour as its default, which is how
+`ApplicationIntegrationSpec` can see the process delete a claim of yesterday in fifty milliseconds without
+a second configuration path. `RepeatedRequestsIntegrationSpec` is the other server-level case: the real edge
+over the real database with one route that writes, hit by six identical requests at once, and by a repeat
+sent to a server that started after the first one stopped.
+
+`Wiring.api` hands `Owners.Anonymous()` to the edge: every request is anonymous until sessions exist, and
+the session slice replaces that one argument.
+
 ## Not here
 
 **The full schema-drift run.** It needs the process to find every `Table` object on the classpath, and

@@ -342,6 +342,33 @@ changed.
 every field — see `platform/kernel/README.md` for the reasoning and the reach of the change. Reads are
 `access.password.revealed()`.
 
+## 2026-10-01 — the table of keys, and the claim adapter (ADR-086)
+
+`platform.idempotency_keys` is the platform's first table of its own (migration `V20261001210000`), with
+`(owner, key)` as the primary key, which is the whole mechanism: two transactions cannot both insert one
+pair, and Postgres makes the second wait for the first.
+
+`PostgresClaims.take` is one statement, `insert ... on conflict (owner, key) do update ... where
+expires_at <= now returning key`. An unused key is inserted; a key whose day is over is taken over and its
+old answer cleared; a live key refuses it and returns no row, which is `ClaimedElsewhere`. The wait for a
+transaction still holding the key is bounded by the `lock_timeout` every pooled connection already has
+(ADR-058); when it runs out Postgres answers `55P03`, which is `ClaimBusy`. No new number appeared.
+
+Exposed's `exec` treats a statement starting with `insert` as an update and refuses a result set ("A result
+was returned when none was expected"), so the statement is passed `StatementType.SELECT`: `returning` makes
+it a query to the driver whatever word it starts with.
+
+`PostgresPersistence` builds two runners and publishes only one. `PostgresLedger` takes the *undecorated*
+one, because the ledger's own statements must not take a claim; `transactions` is `ClaimedTransactions`
+over it, so a module cannot obtain a runner that forgets.
+
+The specs: `PostgresLedgerIntegrationSpec` is the conformance suite from `platform:idempotency` against the
+real table, and `PostgresClaimsConcurrencyIntegrationSpec` holds one transaction open on purpose and proves
+the second waits, then decides by what the first did, and gives up after the lock wait. Two existing specs
+named the platform's migrations and had to learn the new one: `FlywayMigrationsSpec` pins the latest
+version, and `SchemaDriftSpec` expects the idempotency table to be the one undeclared table in a migrated
+database.
+
 ## Why it is understandable, scalable, extensible
 
 A module that needs a database in tests applies one plugin and takes

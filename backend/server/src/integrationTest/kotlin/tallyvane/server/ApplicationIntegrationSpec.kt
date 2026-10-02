@@ -8,6 +8,7 @@ import io.ktor.http.HttpStatusCode
 import tallyvane.platform.persistence.DatabaseAccess
 import tallyvane.platform.persistence.PostgresFixture
 import java.sql.DriverManager
+import kotlin.time.Duration.Companion.milliseconds
 
 // Ktor's own vocabulary rather than two numbers of ours: the server names them the same way.
 private val OK = HttpStatusCode.OK.value
@@ -102,8 +103,49 @@ class ApplicationIntegrationSpec :
                     awaited(OK) { get(settings.port, "/api/v1/health/ready").statusCode() } shouldBe OK
                 }
             }
+
+            // ADR-086. The sweep itself is proven in `ClaimsSweepSpec`; this is the case that the process
+            // actually starts one, which no unit case can see.
+            "forgets idempotency claims whose day is over while it runs" {
+                val access = PostgresFixture.migrated()
+                leaveClaimOfYesterday(access)
+
+                Application(settings(access), claimsSweepEvery = SWEEP_EVERY).use { application ->
+                    application.start()
+
+                    awaited(0) { claimsIn(access) } shouldBe 0
+                }
+            }
         },
     )
+
+private val SWEEP_EVERY = 50.milliseconds
+
+/**
+ * A claim whose day ended a day ago, put there over a connection of its own.
+ */
+private fun leaveClaimOfYesterday(access: DatabaseAccess) {
+    DriverManager.getConnection(access.url, access.user, access.password.revealed()).use { connection ->
+        connection.createStatement().use { statement ->
+            statement.execute(
+                "insert into platform.idempotency_keys (owner, key, fingerprint, created_at, expires_at) " +
+                    "values ('anonymous', gen_random_uuid(), decode(repeat('00', 32), 'hex'), " +
+                    "now() - interval '2 days', now() - interval '1 day')",
+            )
+        }
+    }
+}
+
+private fun claimsIn(access: DatabaseAccess): Int = DriverManager
+    .getConnection(access.url, access.user, access.password.revealed())
+    .use { connection ->
+        connection.createStatement().use { statement ->
+            statement.executeQuery("select count(*) from platform.idempotency_keys").use { rows ->
+                rows.next()
+                rows.getInt(1)
+            }
+        }
+    }
 
 /**
  * Whether Flyway's own schema exists, counted over a connection of its own — the observation cannot

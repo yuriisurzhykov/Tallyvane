@@ -11,6 +11,11 @@ import java.sql.SQLException
 
 private const val PLATFORM_BASELINE = "20260825020000"
 
+/**
+ * The newest platform migration, the table of idempotency keys (ADR-086). A migration added later moves it.
+ */
+private const val PLATFORM_LATEST = "20261001210000"
+
 private fun <T> on(access: DatabaseAccess, read: (Connection) -> T): T =
     DriverManager.getConnection(access.url, access.user, access.password.revealed()).use(read)
 
@@ -42,7 +47,7 @@ class FlywayMigrationsSpec :
                 // deeper, under `platform/`. ADR-051 leans on Flyway walking that, and
                 // says so as a claim to be verified where it first runs. This is it.
                 applied.count shouldBeGreaterThanOrEqualTo 1
-                applied.version shouldBe PLATFORM_BASELINE
+                applied.version shouldBe PLATFORM_LATEST
             }
 
             "applies nothing the second time, and still says which version is in place" {
@@ -54,11 +59,11 @@ class FlywayMigrationsSpec :
                 second.count shouldBe 0
                 // Reporting `null` here read as "there is no schema" in a deploy log,
                 // when it meant "already up to date".
-                second.version shouldBe PLATFORM_BASELINE
+                second.version shouldBe PLATFORM_LATEST
             }
 
             "reports what is pending on a database nobody has migrated" {
-                FlywayMigrations(PostgresFixture.empty()).pending() shouldBe listOf(PLATFORM_BASELINE)
+                FlywayMigrations(PostgresFixture.empty()).pending() shouldBe listOf(PLATFORM_BASELINE, PLATFORM_LATEST)
             }
 
             "reports nothing pending once applied" {

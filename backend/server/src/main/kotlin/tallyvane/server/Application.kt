@@ -6,15 +6,21 @@ import io.ktor.server.cio.CIO
 import io.ktor.server.engine.EmbeddedServer
 import io.ktor.server.engine.embeddedServer
 import org.slf4j.LoggerFactory
+import tallyvane.platform.idempotency.ClaimsSweep
 import tallyvane.platform.kernel.Environment
 import tallyvane.server.config.Configuration
 import tallyvane.server.config.EnvironmentConfiguration
 import java.util.Locale
 import java.util.concurrent.CountDownLatch
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.hours
 
 /**
  * The process: it reads its settings, builds everything, listens, and gives it all back on the way
  * out.
+ *
+ * [claimsSweepEvery] is how often expired idempotency claims are deleted (ADR-086); a test shortens it,
+ * the process never says.
  *
  * [close] is mandatory — it stops the server and releases the platform. `main` arranges it through a
  * shutdown hook; a test through `use`.
@@ -22,7 +28,8 @@ import java.util.concurrent.CountDownLatch
  * The entry point is `main` on the companion, so `mainClass` is `tallyvane.server.Application` rather
  * than `…ApplicationKt`. `@JvmStatic` is required for the JVM to find it. ADR-010 explains the shape.
  */
-public class Application(private val configuration: Configuration) : AutoCloseable {
+public class Application(private val configuration: Configuration, private val claimsSweepEvery: Duration = 1.hours) :
+    AutoCloseable {
     private val platform = PlatformWiring(configuration)
 
     private val wiring = Wiring(platform, configuration)
@@ -33,7 +40,7 @@ public class Application(private val configuration: Configuration) : AutoCloseab
      * Starts listening and returns as soon as it does — a caller that wants to block does so itself.
      *
      * Also applies the configured log level to the root logger, overriding whatever `logback.xml`
-     * started with (ADR-056).
+     * started with (ADR-056), and starts the hourly sweep of expired idempotency claims (ADR-086).
      */
     public fun start() {
         // Library messages follow the JVM locale, and pgjdbc ships translations — so a log line
@@ -48,6 +55,7 @@ public class Application(private val configuration: Configuration) : AutoCloseab
         }.also { server ->
             server.start(wait = false)
         }
+        ClaimsSweep(platform.persistence.ledger, claimsSweepEvery).startIn(platform.background)
     }
 
     /**

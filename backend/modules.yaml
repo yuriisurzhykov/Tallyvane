@@ -20,10 +20,17 @@ platform:
   # observability: persistence supplies the health checks over its own access to the
   # database, so it needs the HealthCheck port. The edge runs this way and not the
   # other because a check about Postgres belongs where Postgres is known.
-  persistence:   { depends: [platform:kernel, platform:observability] }
+  # idempotency: the transactions it hands out take the request's claim first, so persistence
+  # implements the ledger and the claims over its own database.
+  persistence:   { depends: [platform:kernel, platform:observability, platform:idempotency] }
   # observability: the response renderer puts the request's trace id on every answer and
   # logs one line per failure, so it needs TraceContext. Same shape as persistence's edge.
-  http:          { depends: [platform:kernel, platform:observability] }
+  # idempotency: the edge reads Idempotency-Key, fingerprints the request and asks the ledger
+  # what is already known about it.
+  http:          { depends: [platform:kernel, platform:observability, platform:idempotency] }
+  # The vocabulary of "this request was already seen" and the two ports that answer it. Owns no
+  # storage and no HTTP: persistence implements the ports, http speaks the header.
+  idempotency:   { depends: [platform:kernel] }
   outbox:        { depends: [platform:kernel, platform:persistence] }
   llm:           { depends: [platform:kernel] }
   storage:       { depends: [platform:kernel] }
@@ -32,7 +39,8 @@ platform:
   # The only platform module that publishes endpoints. It needs the reporter it exposes
   # (observability) and the machinery to expose it with (http); nothing depends on it but
   # `app`, so the edges stay one-directional.
-  health:        { depends: [platform:kernel, platform:observability, platform:http] }
+  # idempotency: tests only. The edge it is mounted on asks a ledger, and the spec uses the fake.
+  health:        { depends: [platform:kernel, platform:observability, platform:http, platform:idempotency] }
 
 # Modules that exist in the build today.
 modules:

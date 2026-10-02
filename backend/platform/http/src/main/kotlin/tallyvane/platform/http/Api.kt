@@ -28,6 +28,7 @@ import tallyvane.platform.http.problems.TransportFailures
 import tallyvane.platform.http.status.Answers
 import tallyvane.platform.http.status.Rfc9457Answers
 import tallyvane.platform.http.status.Statuses
+import tallyvane.platform.idempotency.Ledger
 import tallyvane.platform.observability.log.Trace
 import tallyvane.platform.observability.log.TraceContext
 
@@ -38,7 +39,7 @@ import tallyvane.platform.observability.log.TraceContext
  * touches the pipeline. That is deliberate: every guarantee below holds because there is exactly
  * one place where it is arranged, so no route can omit it and no future route can forget it.
  *
- * Six guarantees, in the order a request meets them:
+ * Seven guarantees, in the order a request meets them:
  *
  * 1. **Every call runs under a trace.** Continued from `traceparent` if a valid one arrived,
  *    fresh otherwise, and carried in the coroutine context so every log line of that call has
@@ -59,17 +60,27 @@ import tallyvane.platform.observability.log.TraceContext
  *    bodiless code it starts as. No status is named to make that true; see [renderProblems].
  * 6. **Only a failure that is ours is logged at ERROR.** A 4xx is the caller's business; logging
  *    it at a level that means "a human must look" (§16.6) would bury the 5xx that does.
+ * 7. **An unsafe request is carried out once per `Idempotency-Key`.** `POST`, `PUT`, `PATCH` and
+ *    `DELETE` need the header; a repeat is answered from what the first left, and one that is mid-flight
+ *    waits for it. No route says anything about it (ADR-086, [Repeats]).
  *
  * @param routes the modules to mount, each under `/api/v1` plus its own [RouteModule.basePath].
  * @param failures the modules' links only. This class puts the framework's own translator at
  * the head and the detail-free 500 at the tail, so neither end can be forgotten.
  * @param trace reads and writes `traceparent`.
+ * @param ledger what is remembered of requests already seen; every unsafe request is asked about
+ * there before it runs (ADR-086).
+ * @param owners whose `Idempotency-Key` a request's is.
  */
 public class Api(
     private val routes: List<RouteModule>,
     private val failures: FailureTranslator,
     private val trace: TraceHeader,
+    ledger: Ledger,
+    owners: Owners,
 ) {
+    private val repeats = Repeats(ledger, owners)
+
     init {
         val repeated = routes.groupBy { module -> module.basePath }.filterValues { it.size > 1 }.keys
         require(repeated.isEmpty()) {
@@ -84,6 +95,7 @@ public class Api(
         }
         traced(application)
         renderProblems(application)
+        repeats.install(application)
         mount(application)
     }
 
