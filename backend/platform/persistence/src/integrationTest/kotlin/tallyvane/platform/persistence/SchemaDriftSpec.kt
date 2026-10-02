@@ -115,13 +115,15 @@ class SchemaDriftSpec :
 
             "does not mistake Flyway's own history table for drift" {
                 // Matters for the run over every table in slice 13: that database has
-                // `platform.flyway_schema_history`, which no Kotlin table declares.
+                // `platform.flyway_schema_history`, which no Kotlin table declares. It also has the
+                // platform's idempotency table (ADR-086), which Kotlin declares but this spec does not
+                // pass in, so that one table is expected to be named and nothing else.
                 val access = PostgresFixture.migrated()
                 create(access, "create table aligned (id integer not null, label text not null)")
 
                 val drift = SchemaDrift(access)
                 drift.from(Aligned).shouldBeEmpty()
-                drift.unmappedTables(Aligned).shouldBeEmpty()
+                drift.unmappedTables(Aligned) shouldBe listOf("platform.idempotency_keys")
             }
         },
     )

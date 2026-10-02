@@ -242,6 +242,35 @@ implementation of either. Modules depend on those interfaces; `app` supplies the
 place the direction is inverted on purpose is `RouteModule`, which names Ktor's `Route` — recorded in
 ADR-050 as a deliberate cost rather than an oversight.
 
+## 2026-10-01 — the edge asks for an `Idempotency-Key` (ADR-086)
+
+`Api.install` now mounts two more interceptors before any route, which is guarantee 7: an unsafe request
+is carried out once per key. Installed by `Api` itself, like the trace and the renderer, so no route can
+opt out and no new route can forget.
+
+`Repeats` runs in the call phase, before routing. It asks for the header (`400` if missing or not a UUID),
+reads the body once (at most 1 MiB, else `400`) and hands the same bytes on again through an
+`ApplicationReceivePipeline.Before` interceptor, so the route reads what the fingerprint was made from. It
+then asks the `Ledger` what is known and either answers from that or lets the request run with its `Claim`
+in the coroutine context, where the transaction runner takes it. A copy that loses the race at the claim
+sees `ClaimedElsewhere` unwind out of its route; the catch is in this interceptor and not in `StatusPages`
+because it is *inside* it, which is the only reason it gets to see the exception first.
+
+`KeptAnswers` runs in the send pipeline's `After` phase, once the content is bytes, and stores status,
+content type and body, never headers. It stores nothing for a 5xx, for content it cannot read back, or for
+an answer that sets a cookie or that a route marked with `SecretAnswer(call).withheldFromReplay()`; for the
+last two it records the claim as *withheld*, so a repeat is told at once instead of waiting for an answer
+that is not coming. `SecretAnswer` is a class and not an extension on `ApplicationCall` for the reason the
+renderer above is an interceptor: `no-top-level-functions`.
+
+Two refusals are a `409`, since the closed set of meanings (ADR-062) has one conflict. A repeat that waited
+too long for a copy still running gets `Retry-After: 1` ("send the same request again"); one whose work was
+carried out and whose answer cannot be given gets none ("read the current state instead").
+
+`Repeats` is split from `KeptAnswers` because detekt counted fourteen functions in the first draft of one
+class, and the halves change for different reasons: what a request is made of, and what an answer is worth
+keeping.
+
 ## Not here, and whose it is
 
 The engine's real configuration, the port, graceful shutdown and the actual route list belong to `app`

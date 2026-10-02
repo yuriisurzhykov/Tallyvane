@@ -17,6 +17,10 @@ import org.slf4j.LoggerFactory
 import org.slf4j.event.Level
 import tallyvane.platform.http.status.Answers
 import tallyvane.platform.http.Api
+import tallyvane.platform.http.Owners
+import tallyvane.platform.idempotency.LedgerFake
+import tallyvane.platform.kernel.Clock
+import tallyvane.platform.kernel.TransactionRunnerFake
 import tallyvane.platform.http.BasePath
 import tallyvane.platform.http.problems.FailureTranslator
 import tallyvane.platform.http.FieldError
@@ -183,6 +187,10 @@ fun main() {
             // detail-free 500 at the tail itself, and /boom below proves the tail works.
             failures = FailureTranslator.Chained(emptyList()),
             trace = TraceHeader(IdGenerator.Uuid7()),
+            // Nothing here is stored, so a repeat is never recognised: the spike answers GETs and
+            // a body echo, and keeps no state worth protecting.
+            ledger = LedgerFake(TransactionRunnerFake(), Clock.Wall()),
+            owners = Owners.Anonymous(),
         )
     menu()
     // The check above closes the common case; this closes the race between it and here, so a

@@ -26,6 +26,7 @@ dependencyResolutionManagement {
 include(":platform:kernel")
 include(":platform:events")
 include(":platform:persistence")
+include(":platform:idempotency")
 include(":platform:http")
 include(":platform:outbox")
 include(":platform:llm")

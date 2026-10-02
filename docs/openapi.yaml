@@ -26,6 +26,14 @@ info:
     `next_cursor`, `PATCH` with merge semantics where an absent field is untouched and an
     explicit `null` clears.
 
+    Every `POST`, `PUT`, `PATCH` and `DELETE` carries `Idempotency-Key: <uuid>`, generated once
+    for one intention and sent again, unchanged, if the request is repeated (ADR-086). Without it
+    the answer is `400`. A repeat of a request that was carried out gets its first answer again,
+    marked `Idempotent-Replayed: true`; the same key with a different request is `422`; a repeat
+    that arrives while the first is still running is answered once the first finishes, or `409` with
+    `Retry-After` if it takes longer than a few seconds, and a `409` without `Retry-After` means the
+    work was carried out and its answer cannot be given again, so read the current state instead.
+
 servers:
   - url: /api/v1
     description: The only prefix. A module never writes it itself.

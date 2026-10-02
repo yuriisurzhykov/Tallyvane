@@ -78,3 +78,22 @@ internal fun <T> awaited(wanted: T, observed: () -> T): T {
     }
     return last
 }
+
+/**
+ * One `POST` over a real socket, as a client that retries would send it: the same [key] and [body]
+ * every time it is repeated. With no [key] the header is left out, which is how a client that forgot
+ * it looks.
+ */
+internal fun post(port: Int, path: String, key: String?, body: String): HttpResponse<String> = HttpClient
+    .newBuilder()
+    .connectTimeout(10.seconds.toJavaDuration())
+    .build()
+    .use { client ->
+        val request = HttpRequest
+            .newBuilder(URI("http://localhost:$port$path"))
+            .header("Content-Type", "application/json")
+            .apply { key?.let { header("Idempotency-Key", it) } }
+            .POST(HttpRequest.BodyPublishers.ofString(body))
+            .build()
+        client.send(request, HttpResponse.BodyHandlers.ofString())
+    }

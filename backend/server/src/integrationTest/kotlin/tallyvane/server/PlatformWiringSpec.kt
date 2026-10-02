@@ -50,6 +50,17 @@ class PlatformWiringSpec :
                 platform.abandoned.isActive shouldBe false
             }
 
+            // The sweep of expired idempotency claims lives in this scope (ADR-086); left running, it
+            // would go on asking a pool that has been closed.
+            "closing the platform cancels the scope that process-wide work lives in" {
+                val platform = PlatformWiring(settings(PostgresFixture.migrated(), port = 0))
+
+                platform.background.isActive shouldBe true
+                platform.close()
+
+                platform.background.isActive shouldBe false
+            }
+
             // B3. Observed on the server rather than by asking the pool, so the pool cannot satisfy
             // this by agreeing with itself. Fails while eight is a constant in the class.
             "opens as many connections as the configuration asked for, and no more" {

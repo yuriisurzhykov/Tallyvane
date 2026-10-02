@@ -1,5 +1,6 @@
 package tallyvane.platform.persistence
 
+import tallyvane.platform.idempotency.Ledger
 import tallyvane.platform.kernel.TransactionRunner
 
 /**
@@ -17,6 +18,16 @@ import tallyvane.platform.kernel.TransactionRunner
 public interface Persistence {
     /**
      * Transaction boundaries over this module's database.
+     *
+     * When the request being served carries a claim (an `Idempotency-Key`), the transaction takes it
+     * as its first statement, so the claim commits with the work or is gone with it (ADR-086). The
+     * runner an undecorated pool would offer is not published at all: a use case that could obtain one
+     * could write without being claimed.
      */
     public val transactions: TransactionRunner
+
+    /**
+     * What is remembered about requests already seen, asked around a transaction and never inside one.
+     */
+    public val ledger: Ledger
 }

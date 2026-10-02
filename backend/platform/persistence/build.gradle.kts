@@ -6,6 +6,8 @@ plugins {
 
 dependencies {
     api(projects.platform.kernel)
+    // `api`: `Persistence` publishes a `Ledger`, so whoever wires one has to see its types.
+    api(projects.platform.idempotency)
     // `implementation`, deliberately, even though `DatabaseAnswers` and
     // `MigrationsApplied` are public `HealthCheck`s: with `api` this module put
     // observability on the compile classpath of everything downstream, and `:migrate`
@@ -15,6 +17,7 @@ dependencies {
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.exposed.core)
     implementation(libs.exposed.jdbc)
+    implementation(libs.exposed.kotlin.datetime)
     implementation(libs.hikaricp)
     implementation(libs.flyway.core)
     runtimeOnly(libs.flyway.database.postgresql)
@@ -29,6 +32,7 @@ dependencies {
 
     integrationTestImplementation(testFixtures(project()))
     integrationTestImplementation(testFixtures(projects.platform.kernel))
+    integrationTestImplementation(testFixtures(projects.platform.idempotency))
     // The suite gets this module's `api` and not its `implementation`, so the specs that
     // assert on `Health` name observability themselves. That is the visible cost of the
     // line above, and it is preferred to `:migrate` carrying observability instead.

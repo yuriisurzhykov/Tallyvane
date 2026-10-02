@@ -10,6 +10,7 @@ import kotlinx.coroutines.runBlocking
 import tallyvane.platform.health.HealthRoutes
 import tallyvane.platform.health.ServiceToken
 import tallyvane.platform.http.Api
+import tallyvane.platform.http.Owners
 import tallyvane.platform.http.problems.FailureTranslator
 import tallyvane.platform.http.TraceHeader
 import tallyvane.platform.kernel.IdGenerator
@@ -221,6 +222,8 @@ fun main(): Unit =
                     // 500 at the tail itself, and health has no failures of its own to map.
                     failures = FailureTranslator.Chained(emptyList()),
                     trace = TraceHeader(IdGenerator.Uuid7()),
+                    ledger = persistence.ledger,
+                    owners = Owners.Anonymous(),
                 )
             menu()
             try {

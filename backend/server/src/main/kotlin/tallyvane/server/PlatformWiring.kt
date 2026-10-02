@@ -14,7 +14,7 @@ import tallyvane.server.config.Configuration
  * The platform's own objects: one per capability, built once, closed once.
  *
  * Owned by whoever constructs it, so [close] is mandatory — it is what gives the connection pool and
- * the abandoned-work scope back. Construction touches no database (ADR-010).
+ * the abandoned-work and background scopes back. Construction touches no database (ADR-010).
  */
 public class PlatformWiring(private val configuration: Configuration) : AutoCloseable {
     /**
@@ -47,11 +47,18 @@ public class PlatformWiring(private val configuration: Configuration) : AutoClos
     public val abandoned: CoroutineScope = CoroutineScope(SupervisorJob())
 
     /**
-     * Cancels abandoned work first and closes the pool second, so nothing is left waiting on a
-     * connection that has gone.
+     * Where work that belongs to no request runs, for as long as the process does: the sweep of
+     * expired idempotency claims today.
+     */
+    public val background: CoroutineScope = CoroutineScope(SupervisorJob())
+
+    /**
+     * Cancels abandoned and background work first and closes the pool second, so nothing is left
+     * waiting on a connection that has gone.
      */
     override fun close() {
         abandoned.cancel()
+        background.cancel()
         postgres.takeIf { it.isInitialized() }?.value?.close()
     }
 }

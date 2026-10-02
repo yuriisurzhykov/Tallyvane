@@ -21,6 +21,7 @@ the one module with code today:
 | `events`        | `DomainEvent`, `EventPublisher`, `EventSubscriber`                   | [ARCHITECTURE.md](../../ARCHITECTURE.md) §4.5                                                            |
 | `persistence`   | `TransactionRunner`, schema conventions, migration assembly          | [ARCHITECTURE.md](../../ARCHITECTURE.md) §4.6, §8.22                                                     |
 | `http`          | Ktor plumbing: RFC 9457 errors, authentication extraction, `RouteModule` | [ARCHITECTURE.md](../../ARCHITECTURE.md) §11.1, §11.6                                                    |
+| `idempotency`   | `Idempotency-Key`: the claim taken in the work's own transaction, the ledger of answers | [idempotency/README.md](idempotency/README.md), [ADR-086](../../docs/adr/ADR-086-a-request-is-claimed-in-the-transaction-it-runs-in.md) |
 | `outbox`        | Deferred side effects with exactly-once delivery                     | [ARCHITECTURE.md](../../ARCHITECTURE.md) §6.23, §8.9                                                     |
 | `llm`           | `LlmProvider` and its cache, budget, metering and retry decorators   | [ARCHITECTURE.md](../../ARCHITECTURE.md) §6.3                                                            |
 | `storage`       | `BlobStore`, content-addressed                                       | [ARCHITECTURE.md](../../ARCHITECTURE.md) §6.8                                                            |

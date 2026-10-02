@@ -10,14 +10,19 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.testing.testApplication
 import tallyvane.platform.http.Api
+import tallyvane.platform.http.Owners
 import tallyvane.platform.http.TraceHeader
 import tallyvane.platform.http.problems.FailureTranslator
+import tallyvane.platform.idempotency.LedgerFake
+import tallyvane.platform.kernel.ClockFake
 import tallyvane.platform.kernel.IdGeneratorFake
+import tallyvane.platform.kernel.TransactionRunnerFake
 import tallyvane.platform.observability.health.Ailment
 import tallyvane.platform.observability.health.Health
 import tallyvane.platform.observability.health.HealthReport
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.Instant
 
 private const val SECRET = "let-me-in-please"
 
@@ -47,6 +52,8 @@ private fun served(report: HealthReport, reporter: HealthReporterFake = HealthRe
     routes = listOf(HealthRoutes(reporter, ServiceToken(SECRET))),
     failures = FailureTranslator.Chained(emptyList()),
     trace = TraceHeader(IdGeneratorFake()),
+    ledger = LedgerFake(TransactionRunnerFake(), ClockFake(Instant.parse("2026-10-01T12:00:00Z"))),
+    owners = Owners.Anonymous(),
 )
 
 class HealthRoutesSpec :
