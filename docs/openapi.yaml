@@ -41,6 +41,10 @@ servers:
 tags:
   - name: health
     description: Probes an orchestrator and a human read for different reasons.
+  - name: authentication
+    description: |
+      Signing in with Google, and registering as a new person. Nothing here grants access: a completed
+      sign-in is redeemed for a session in a later step (ADR-076).
 
 paths:
   /health:
@@ -143,8 +147,147 @@ paths:
         default:
           $ref: "#/components/responses/Problem"
 
+  /google-sign-in:
+    post:
+      tags: [authentication]
+      operationId: signInWithGoogle
+      summary: Start signing in with Google
+      description: |
+        Begins an attempt and answers where to send the browser. The attempt's secret travels in the
+        `__Host-attempt` cookie set on this response: `HttpOnly`, `Secure`, `Path=/`, `SameSite=Lax`.
+        Every sign-in starts as a login; a person Google turns out not to know is moved to a
+        registration when they come back.
+
+        A response that sets a cookie is never stored for a repeat of its `Idempotency-Key`; a repeat
+        is answered `409` without `Retry-After`.
+      security:
+        - {}
+      responses:
+        "200":
+          description: Where to send the browser.
+          headers:
+            Set-Cookie:
+              $ref: "#/components/headers/AttemptCookie"
+            traceparent:
+              $ref: "#/components/headers/Traceparent"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SignInStarted"
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /google-return:
+    get:
+      tags: [authentication]
+      operationId: signInReturnFromGoogle
+      summary: Where Google sends the browser back to
+      description: |
+        The one address registered with Google as the redirect URI. Reached by a redirect, so it never
+        answers with an error document: every outcome is a `302` to a page of the application, and
+        nothing in the request chooses which.
+
+        - a person with an account: `/login/continue`
+        - a new person: `/welcome`, with a new `__Host-attempt` cookie for their registration
+        - anyone else: `/login?problem=<reason>`, the cookie cleared. Reasons: `restart`, `expired`,
+          `cancelled`, `refused`, `email-unverified`, `unavailable`.
+      security:
+        - {}
+      parameters:
+        - name: code
+          in: query
+          required: false
+          schema:
+            type: string
+          description: The authorization code. Absent when the person said no.
+        - name: state
+          in: query
+          required: false
+          schema:
+            type: string
+          description: The `state` this sign-in sent to Google, which must match.
+        - name: error
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Google's reason when it sent no code. Not read; its absence of a code is the signal.
+      responses:
+        "302":
+          description: On to a page of the application.
+          headers:
+            Location:
+              schema:
+                type: string
+            Set-Cookie:
+              $ref: "#/components/headers/AttemptCookie"
+            traceparent:
+              $ref: "#/components/headers/Traceparent"
+
+  /welcome:
+    get:
+      tags: [authentication]
+      operationId: showWelcome
+      summary: What the welcome form starts from
+      description: |
+        The name and address Google gave the person registering, to prefill the form. Never cached.
+        `404` when the browser has no registration to finish: no cookie, one that expired, or one
+        already used.
+      security:
+        - attemptCookie: []
+      responses:
+        "200":
+          description: What Google said.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+            traceparent:
+              $ref: "#/components/headers/Traceparent"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Welcomed"
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /registration:
+    post:
+      tags: [authentication]
+      operationId: register
+      summary: Finish the welcome form
+      description: |
+        Creates the account of the person registering, with the name they chose, if they agreed to the
+        privacy policy. Submitting twice finds the same account. Registering grants no access: the
+        sign-in it completes waits to be redeemed for a session.
+
+        `422` names the field: `agreed` (`consent-required`) or `name` (`name-invalid`). `404` when the
+        browser has no registration to finish.
+      security:
+        - attemptCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Registering"
+      responses:
+        "204":
+          description: The account exists.
+          headers:
+            traceparent:
+              $ref: "#/components/headers/Traceparent"
+        default:
+          $ref: "#/components/responses/Problem"
+
 components:
   securitySchemes:
+    attemptCookie:
+      type: apiKey
+      in: cookie
+      name: __Host-attempt
+      description: |
+        A random secret held by the browser for the sign-in in progress. The database keeps only a keyed
+        digest of it. Not a credential to act as anyone: it continues one sign-in and nothing else.
     serviceToken:
       type: apiKey
       in: header
@@ -158,6 +301,13 @@ components:
         refusing would tell an anonymous caller that there is something to refuse.
 
   headers:
+    AttemptCookie:
+      description: |
+        `__Host-attempt=<secret>; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=900`, or the same with
+        `Max-Age=0` to make the browser forget it. `__Host-` makes the browser refuse it unless it is
+        `Secure`, has `Path=/` and names no `Domain`.
+      schema:
+        type: string
     NoStore:
       description: |
         Always `no-store`. Cloudflare sits in front of this application, and a 200 with no cache
@@ -362,3 +512,37 @@ components:
             What is wrong, in a form a frontend can branch on. A free string on purpose: closing
             this set would put every module's validation vocabulary in the platform.
           examples: [range.invalid, required]
+
+    SignInStarted:
+      type: object
+      additionalProperties: false
+      required: [authorization_url]
+      properties:
+        authorization_url:
+          type: string
+          format: uri
+          description: Google's sign-in page, with this attempt's `state`, `nonce` and PKCE challenge.
+
+    Welcomed:
+      type: object
+      additionalProperties: false
+      required: [name, email]
+      properties:
+        name:
+          type: string
+          description: The name Google has for the person, to be edited.
+        email:
+          type: string
+          description: The address Google verified. Shown, not editable: it is the one that was verified.
+
+    Registering:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          description: The name the person chose. 1 to 80 characters, no control characters.
+        agreed:
+          type: boolean
+          default: false
+          description: Whether the person agreed to the privacy policy. Without it nothing is created.

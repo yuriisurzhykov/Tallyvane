@@ -79,7 +79,13 @@ class PolicyVersionSpec :
             "a restored version judges an attempt as the original did" {
                 val original = versionOf(2, Purpose.Login)
                 val restored = PolicyVersion.restore { record -> original.writeTo(record) }
-                val attempt = Attempt(Purpose.Login, START).withVerified(VerifiedFactor.identifying(Google, "google-subject-1", START + 10.seconds))
+                val attempt = Attempt(Purpose.Login, START).withVerified(
+                    VerifiedFactor.identifying(
+                        Google,
+                        "google-subject-1",
+                        START + 10.seconds,
+                    ),
+                )
                 val enrollment = Enrollment(setOf(Totp))
 
                 restored.progressOf(attempt, enrollment, now = START + 20.seconds) shouldBe

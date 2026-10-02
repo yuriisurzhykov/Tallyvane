@@ -12,6 +12,10 @@ import tallyvane.platform.persistence.DEFAULT_SIZE
 
 private const val PASSWORD_VALUE = "a-database-password-nobody-should-ever-see-in-a-log"
 
+private const val CLIENT_SECRET_VALUE = "a-google-client-secret-nobody-should-see"
+
+private const val PEPPER_VALUE = "a-token-pepper-of-at-least-thirty-two-characters"
+
 private const val TOKEN_VALUE = "a-service-token-of-at-least-forty-characters-length"
 
 /**
@@ -30,6 +34,11 @@ private fun complete(): MutableMap<String, String> = mutableMapOf(
     EnvironmentConfiguration.USER to "tallyvane",
     EnvironmentConfiguration.PASSWORD to PASSWORD_VALUE,
     EnvironmentConfiguration.HEALTH_TOKEN to TOKEN_VALUE,
+    EnvironmentConfiguration.GOOGLE_CLIENT_ID to "client-id",
+    EnvironmentConfiguration.GOOGLE_CLIENT_SECRET to CLIENT_SECRET_VALUE,
+    EnvironmentConfiguration.APP_ORIGIN to "https://app.example.test",
+    EnvironmentConfiguration.API_ORIGIN to "https://api.example.test",
+    EnvironmentConfiguration.TOKEN_PEPPER to PEPPER_VALUE,
 )
 
 private fun read(values: Map<String, String>): Configuration = EnvironmentConfiguration(EnvironmentFake(values)).read()
@@ -150,6 +159,41 @@ class EnvironmentConfigurationSpec :
 
                 printed shouldNotContain PASSWORD_VALUE
                 printed shouldContain "jdbc:postgresql://db:5432/tallyvane"
+            }
+
+            "reads how signing in is set up, with the pepper version defaulting to 1" {
+                val signIn = read(complete()).signIn
+
+                signIn.googleClientId shouldBe "client-id"
+                signIn.googleClientSecret shouldBe Secret(CLIENT_SECRET_VALUE)
+                signIn.appOrigin shouldBe "https://app.example.test"
+                signIn.redirectUri() shouldBe "https://api.example.test/api/v1/google-return"
+                signIn.tokenPepper shouldBe Secret(PEPPER_VALUE)
+                signIn.pepperVersion shouldBe 1
+            }
+
+            "refuses to start without what signing in needs, naming each variable and quoting no value" {
+                val said = refusal(
+                    complete().apply {
+                        remove(EnvironmentConfiguration.GOOGLE_CLIENT_ID)
+                        remove(EnvironmentConfiguration.GOOGLE_CLIENT_SECRET)
+                        remove(EnvironmentConfiguration.TOKEN_PEPPER)
+                        put(EnvironmentConfiguration.APP_ORIGIN, "https://app.example.test/with/a/path/")
+                    },
+                )
+
+                said shouldContain EnvironmentConfiguration.GOOGLE_CLIENT_ID
+                said shouldContain EnvironmentConfiguration.GOOGLE_CLIENT_SECRET
+                said shouldContain EnvironmentConfiguration.TOKEN_PEPPER
+                said shouldContain EnvironmentConfiguration.APP_ORIGIN
+                said shouldNotContain "with/a/path"
+            }
+
+            "refuses a pepper under the floor without quoting it" {
+                val said = refusal(complete().apply { put(EnvironmentConfiguration.TOKEN_PEPPER, BRIEF_TOKEN) })
+
+                said shouldContain EnvironmentConfiguration.TOKEN_PEPPER
+                said shouldNotContain BRIEF_TOKEN
             }
         },
     )

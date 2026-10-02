@@ -20,6 +20,14 @@ dependencies {
     implementation(projects.platform.observability)
     implementation(projects.platform.http)
     implementation(projects.platform.health)
+    // Each capability the process serves, by the layers the root wires: the use cases, the adapters that
+    // keep their state, and for `authentication` the routes. `identity` has no routes of its own.
+    implementation(projects.modules.identity.contract)
+    implementation(projects.modules.identity.application)
+    implementation(projects.modules.identity.infrastructure)
+    implementation(projects.modules.authentication.application)
+    implementation(projects.modules.authentication.infrastructure)
+    implementation(projects.modules.authentication.web)
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.ktor.server.core)
     implementation(libs.ktor.server.cio)

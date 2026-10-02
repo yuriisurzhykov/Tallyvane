@@ -7,7 +7,7 @@ import tallyvane.platform.kernel.TransactionRunnerFake
  */
 class AttemptsFakeSpec : AttemptsConformance() {
     override suspend fun fresh(): Subject = object : Subject {
-        override val attempts = AttemptsFake()
+        override val attempts = SignInsFake()
         override val transactions = TransactionRunnerFake()
     }
 }

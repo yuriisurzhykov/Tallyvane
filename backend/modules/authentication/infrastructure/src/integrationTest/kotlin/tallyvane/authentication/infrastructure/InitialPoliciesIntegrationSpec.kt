@@ -4,6 +4,7 @@ import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.shouldBe
 import tallyvane.authentication.application.VersionStory
 import tallyvane.authentication.domain.Purpose
+import tallyvane.platform.kernel.IdGeneratorFake
 import tallyvane.platform.kernel.Verdict
 import tallyvane.platform.persistence.PostgresFixture
 import tallyvane.platform.persistence.PostgresPersistence
@@ -38,7 +39,9 @@ class InitialPoliciesIntegrationSpec :
                     val persistence = PostgresPersistence(PostgresFixture.migrated())
                     try {
                         val inForce = persistence.transactions.inTransaction {
-                            Verdict.Commit(AuthenticationStorageFactory().policyVersions().active(purpose))
+                            Verdict.Commit(
+                                AuthenticationStorageFactory(IdGeneratorFake()).policyVersions().active(purpose),
+                            )
                         }
 
                         VersionStory(checkNotNull(inForce)).told() shouldBe expected[purpose]

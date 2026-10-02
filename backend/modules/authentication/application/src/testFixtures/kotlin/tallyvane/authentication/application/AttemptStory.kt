@@ -55,6 +55,10 @@ class AttemptStory private constructor(
             started += "$purpose ${at.toMicroseconds()}"
         }
 
+        override fun identified(kind: FactorKind, subject: String, at: Instant) {
+            verified += "$kind $subject ${at.toMicroseconds()}"
+        }
+
         override fun verified(kind: FactorKind, at: Instant) {
             verified += "$kind ${at.toMicroseconds()}"
         }

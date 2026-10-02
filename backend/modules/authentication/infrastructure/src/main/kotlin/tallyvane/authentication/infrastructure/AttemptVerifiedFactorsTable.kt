@@ -11,6 +11,7 @@ internal object AttemptVerifiedFactorsTable : Table("authentication.attempt_veri
     val attemptId = uuid("attempt_id")
     val position = integer("position")
     val kind = text("kind")
+    val subject = text("subject").nullable()
     val verifiedAt = timestamp("verified_at")
 
     override val primaryKey = PrimaryKey(attemptId, position)

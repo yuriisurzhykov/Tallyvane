@@ -19,8 +19,12 @@ private object Transcript : Progress.Report<String> {
     override fun complete(factors: Set<FactorKind>, authenticatedAt: Instant, subject: String) =
         "complete $factors $authenticatedAt $subject"
 
-    override fun restricted(factors: Set<FactorKind>, authenticatedAt: Instant, subject: String, toSetUp: Set<FactorKind>) =
-        "restricted $factors $authenticatedAt $subject $toSetUp"
+    override fun restricted(
+        factors: Set<FactorKind>,
+        authenticatedAt: Instant,
+        subject: String,
+        toSetUp: Set<FactorKind>,
+    ) = "restricted $factors $authenticatedAt $subject $toSetUp"
 
     override fun awaiting(accepted: Set<FactorKind>) = "awaiting $accepted"
 

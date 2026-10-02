@@ -2,13 +2,16 @@ package tallyvane.authentication.application.port
 
 import tallyvane.authentication.application.AttemptSaveOutcome
 import tallyvane.authentication.domain.Attempt
-import kotlin.uuid.Uuid
+import tallyvane.platform.kernel.Digest
 
 /**
  * Where sign-in attempts are kept between the requests one sign-in is spread over (ADR-078).
  *
  * An attempt cannot live in the memory of a server that may restart, or with a client that may
- * throw it away, so it is kept here: the client holds only the [Uuid] it is kept under.
+ * throw it away, so it is kept here. The client holds a secret, and the attempt is kept under the
+ * [Digest] of that secret: a random value the browser carries in a cookie, of which the database holds
+ * only the keyed hash (slice 3, fork 2). Whoever reads the table cannot continue anyone's sign-in, and
+ * nobody can guess one, which a UUIDv7 would have let them come close to.
  *
  * Both methods run inside the caller's transaction (`TransactionRunner`, ADR-052) and block on the
  * database. `suspend` would only say the caller may be a coroutine, not that no thread waits
@@ -32,19 +35,25 @@ import kotlin.uuid.Uuid
  */
 public interface Attempts {
     /**
-     * The attempt kept under [id], or null if none is, or none is any longer.
+     * The attempt kept under [key], or null if none is, or none is any longer.
      *
      * @throws IllegalStateException if what is kept could not have been written by [Attempt.writeTo].
      */
-    public fun find(id: Uuid): Attempt?
+    public fun find(key: Digest): Attempt?
 
     /**
-     * Keeps [attempt] under [id]: as a new attempt the first time, and on later calls as the same
+     * Keeps [attempt] under [key]: as a new attempt the first time, and on later calls as the same
      * attempt with whatever it gained since.
      *
      * Saving what is already kept again changes nothing and still answers [AttemptSaveOutcome.Saved].
      * Instants are kept to the microsecond, as the database keeps them, so an attempt saved twice
      * without being loaded in between is not mistaken for two different histories.
      */
-    public fun save(id: Uuid, attempt: Attempt): AttemptSaveOutcome
+    public fun save(key: Digest, attempt: Attempt): AttemptSaveOutcome
+
+    /**
+     * Forgets the attempt kept under [key], with everything kept beside it, such as its Google
+     * handshake. Forgetting one that is not kept changes nothing.
+     */
+    public fun forget(key: Digest)
 }

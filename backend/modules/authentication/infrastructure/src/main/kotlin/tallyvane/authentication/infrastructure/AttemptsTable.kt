@@ -10,6 +10,8 @@ internal object AttemptsTable : Table("authentication.attempts") {
     val id = uuid("id")
     val purpose = text("purpose")
     val startedAt = timestamp("started_at")
+    val secretDigest = binary("secret_digest")
+    val pepperVersion = integer("pepper_version")
 
     override val primaryKey = PrimaryKey(id)
 }

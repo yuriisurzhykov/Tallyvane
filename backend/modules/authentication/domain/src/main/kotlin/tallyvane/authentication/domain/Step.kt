@@ -81,7 +81,7 @@ public data class Step(private val accepts: Set<FactorKind>, private val necessi
     /**
      * This step cannot be reached yet: [attempt] is let in only to set up one of its kinds.
      */
-    internal fun restrict(attempt: Attempt): Progress = attempt.restrictedTo(accepts)
+    internal fun restrict(attempt: Attempt): Progress = attempt.concluded(accepts)
 
     /**
      * When a step applies.

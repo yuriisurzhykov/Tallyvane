@@ -52,8 +52,12 @@ private fun totp(at: Instant) = VerifiedFactor.confirming(Totp, at)
 private object Paused : Progress.Report<Instant> {
     override fun complete(factors: Set<FactorKind>, authenticatedAt: Instant, subject: String) = unexpected()
 
-    override fun restricted(factors: Set<FactorKind>, authenticatedAt: Instant, subject: String, toSetUp: Set<FactorKind>) =
-        unexpected()
+    override fun restricted(
+        factors: Set<FactorKind>,
+        authenticatedAt: Instant,
+        subject: String,
+        toSetUp: Set<FactorKind>,
+    ) = unexpected()
 
     override fun awaiting(accepted: Set<FactorKind>) = unexpected()
 
@@ -72,8 +76,12 @@ private object Paused : Progress.Report<Instant> {
 private object Whose : Progress.Report<String> {
     override fun complete(factors: Set<FactorKind>, authenticatedAt: Instant, subject: String) = subject
 
-    override fun restricted(factors: Set<FactorKind>, authenticatedAt: Instant, subject: String, toSetUp: Set<FactorKind>) =
-        unexpected()
+    override fun restricted(
+        factors: Set<FactorKind>,
+        authenticatedAt: Instant,
+        subject: String,
+        toSetUp: Set<FactorKind>,
+    ) = unexpected()
 
     override fun awaiting(accepted: Set<FactorKind>) = unexpected()
 
@@ -105,6 +113,13 @@ class AttemptSpec :
                     "failed ${at(20)}",
                     "failed ${at(30)}",
                 )
+            }
+
+            "an attempt says which purpose it was started for, and no other" {
+                val registration = Attempt(Purpose.Registration, START)
+
+                registration.isFor(Purpose.Registration) shouldBe true
+                registration.isFor(Purpose.Login) shouldBe false
             }
 
             "a fresh attempt tells only how it started" {
@@ -242,7 +257,10 @@ class AttemptSpec :
 
             "a factor pulled forward moves the pause by the same amount and no more" {
                 val login = PassedPolicy.loginAfterGoogle()
-                val behind = Attempt(Purpose.Login, START).withVerified(google(at(10))).withFailure(at(30)).withFailure(at(29))
+                val behind = Attempt(
+                    Purpose.Login,
+                    START,
+                ).withVerified(google(at(10))).withFailure(at(30)).withFailure(at(29))
                 val enrollment = Enrollment(setOf(Totp))
 
                 // Two wrong answers, both at 30 s, owe 1 s then 2 s: the attempt resumes at 32 s.

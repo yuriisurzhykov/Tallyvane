@@ -7,19 +7,20 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import tallyvane.authentication.application.AttemptSaveOutcome
 import tallyvane.authentication.application.AttemptStory
+import tallyvane.authentication.application.KeysForTests
 import tallyvane.authentication.domain.Attempt
 import tallyvane.authentication.domain.FactorKind
 import tallyvane.authentication.domain.Purpose
 import tallyvane.authentication.domain.VerifiedFactor
+import tallyvane.platform.kernel.IdGeneratorFake
 import tallyvane.platform.kernel.Verdict
 import tallyvane.platform.persistence.PostgresFixture
 import tallyvane.platform.persistence.PostgresPersistence
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
-import kotlin.uuid.Uuid
 
-private val ID = Uuid.parse("0199a000-0000-7000-8000-0000000000aa")
+private val ID = KeysForTests().of("concurrent")
 private val START = Instant.parse("2026-10-01T09:00:00Z")
 
 /**
@@ -38,8 +39,11 @@ class AttemptsConcurrencyIntegrationSpec :
             "two overlapping requests cannot both record the next wrong answer" {
                 val persistence = PostgresPersistence(PostgresFixture.migrated())
                 try {
-                    val attempts = AuthenticationStorageFactory().attempts()
-                    val loaded = Attempt(Purpose.Login, START).withVerified(VerifiedFactor(FactorKind.Google, START))
+                    val attempts = AuthenticationStorageFactory(IdGeneratorFake()).attempts()
+                    val loaded = Attempt(
+                        Purpose.Login,
+                        START,
+                    ).withVerified(VerifiedFactor.identifying(FactorKind.Google, "subject-1", START))
                     persistence.transactions.inTransaction { Verdict.Commit(attempts.save(ID, loaded)) }
 
                     val outcomes = coroutineScope {

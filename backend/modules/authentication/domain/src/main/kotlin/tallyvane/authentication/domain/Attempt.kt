@@ -53,8 +53,7 @@ public class Attempt private constructor(
      * This attempt with one more wrong answer, given [at], moved forward like a factor in
      * [withVerified] when the clock that stamped it was behind.
      */
-    public fun withFailure(at: Instant): Attempt =
-        failing(maxOf(at, startedAt, failures.lastOrNull() ?: startedAt))
+    public fun withFailure(at: Instant): Attempt = failing(maxOf(at, startedAt, failures.lastOrNull() ?: startedAt))
 
     /**
      * [factor] recorded exactly when it says, which only a restore may ask for: a stored history out
@@ -95,9 +94,22 @@ public class Attempt private constructor(
         failures.forEach { record.failed(it) }
     }
 
-    internal fun hasOutlived(lifetime: Duration, now: Instant): Boolean = now >= startedAt + lifetime
+    /**
+     * Whether this attempt was started for [purpose]. A registration that finds a sign-in attempt
+     * under its cookie, or the other way round, is not the step it thinks it is.
+     */
+    public fun isFor(purpose: Purpose): Boolean = this.purpose == purpose
 
-    internal fun hasFailedAtLeast(times: Int): Boolean = failures.size >= times
+    /**
+     * Whether this attempt is over, and how: past its [lifetime] at [now], or after [maxFailures] wrong
+     * answers. Null while it is still open. The lifetime is asked first, so an attempt past both is
+     * expired, whatever its factors say.
+     */
+    internal fun endedBy(lifetime: Duration, maxFailures: Int, now: Instant): Progress? = when {
+        now >= startedAt + lifetime -> Progress.Expired()
+        failures.size >= maxFailures -> Progress.Exhausted()
+        else -> null
+    }
 
     internal fun hasVerifiedOneOf(kinds: Set<FactorKind>): Boolean = verified.any { it.kind in kinds }
 
@@ -113,32 +125,26 @@ public class Attempt private constructor(
     }
 
     /**
-     * Everything the policy asks for is verified.
-     */
-    internal fun complete(): Progress = verifiedAs { kinds, at, subject -> Progress.Complete(kinds, at, subject) }
-
-    /**
-     * Everything reachable is verified; the person may only set up one of [toSetUp].
-     */
-    internal fun restrictedTo(toSetUp: Set<FactorKind>): Progress =
-        verifiedAs { kinds, at, subject -> Progress.Restricted(kinds, at, subject, toSetUp) }
-
-    /**
-     * The kinds verified so far, the time of the last of them and whose account they proved, which an
-     * outcome built from them carries.
+     * Everything reachable is verified: complete when nothing is left to set up, restricted to setting up
+     * one of [toSetUp] otherwise.
      *
-     * Never called before the account is identified: a policy only reaches Complete or Restricted
-     * after the step that identifies it, so [verified] holds a factor that names somebody.
+     * The outcome carries the kinds verified so far, the time of the last of them and whose account they
+     * proved. Never called before the account is identified: a policy only reaches either after the step
+     * that identifies it, so [verified] holds a factor that names somebody.
      */
-    private fun verifiedAs(outcome: (Set<FactorKind>, Instant, String) -> Progress): Progress =
-        outcome(
-            verified.mapTo(mutableSetOf()) { it.kind },
-            verified.maxOf { it.at },
-            checkNotNull(verified.firstNotNullOfOrNull { it.subject }) {
-                "A policy let an attempt through before any factor named whose it is; " +
-                    "SignInPolicy requires a step that identifies the account."
-            },
-        )
+    internal fun concluded(toSetUp: Set<FactorKind>?): Progress {
+        val kinds = verified.mapTo(mutableSetOf()) { it.kind }
+        val at = verified.maxOf { it.at }
+        val subject = checkNotNull(verified.firstNotNullOfOrNull { it.subject }) {
+            "A policy let an attempt through before any factor named whose it is; " +
+                "SignInPolicy requires a step that identifies the account."
+        }
+        return if (toSetUp == null) {
+            Progress.Complete(kinds, at, subject)
+        } else {
+            Progress.Restricted(kinds, at, subject, toSetUp)
+        }
+    }
 
     override fun toString(): String =
         "Attempt(purpose=$purpose, startedAt=$startedAt, verified=$verified, failures=${failures.size})"

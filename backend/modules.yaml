@@ -12,7 +12,9 @@ layers:
   domain:         [platform:kernel]
   application:    [own:domain, own:contract, platform:kernel, platform:events, any:contract]
   infrastructure: [own:application, own:contract, "platform:*"]
-  web:            [own:application, own:contract, platform:http]
+  # kernel and idempotency: tests only. A route is tested behind the real edge, which asks a ledger,
+  # so a spec needs the fakes of both, as platform:health's does.
+  web:            [own:application, own:contract, platform:http, platform:kernel, platform:idempotency]
 
 platform:
   kernel:        { depends: [] }
@@ -44,12 +46,16 @@ platform:
 
 # Modules that exist in the build today.
 modules:
-  authentication:
-    layers: [domain, application, infrastructure]
-    # Reads `identity` (ADR-076), but `:modules:identity:contract` does not exist yet, and an
-    # `any:contract` edge the build cannot draw is an error. The line comes back with the
-    # identity module, which is where the account id it will read is defined.
+  # Who the person is (ADR-076). No `web` yet: nothing about an account is served on its own until
+  # the settings screen; registration is a step of signing in and is served by `authentication`.
+  identity:
+    layers: [contract, domain, application, infrastructure]
     reads: []
+    publishes: []
+  authentication:
+    layers: [domain, application, infrastructure, web]
+    # Finds the account a Google sign-in proved, and creates it at registration (ADR-076).
+    reads: [identity]
     publishes: []
 
 # Modules that are designed but not yet created. Listed here so the intended
@@ -59,10 +65,6 @@ modules:
 planned:
   # Authentication is three modules, one per question (ADR-076): who the person is,
   # how they proved it, what they were given. Reads run one way only.
-  identity:
-    layers: [contract, domain, application, infrastructure, web]
-    reads: []
-    publishes: []
   sessions:
     layers: [contract, domain, application, infrastructure, web]
     reads: [authentication]

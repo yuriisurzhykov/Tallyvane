@@ -35,6 +35,7 @@ public class EnvironmentConfiguration(private val environment: Environment) {
                 port = number(PORT, DEFAULT_PORT, MIN_PORT..MAX_PORT, faults),
                 level = level(faults),
                 healthToken = token(faults),
+                signIn = signIn(faults),
             )
         check(faults.isEmpty()) {
             faults.joinToString(separator = "\n", prefix = "Refusing to start.\n") { "  - $it" }
@@ -82,6 +83,43 @@ public class EnvironmentConfiguration(private val environment: Environment) {
         }
     }
 
+    private fun signIn(faults: MutableList<String>): SignInConfiguration = SignInConfiguration(
+        googleClientId = text(GOOGLE_CLIENT_ID, faults),
+        googleClientSecret = Secret(text(GOOGLE_CLIENT_SECRET, faults)),
+        appOrigin = origin(APP_ORIGIN, faults),
+        apiOrigin = origin(API_ORIGIN, faults),
+        tokenPepper = pepper(faults),
+        pepperVersion = number(TOKEN_PEPPER_VERSION, 1, 1..MAX_PEPPER_VERSION, faults),
+    )
+
+    /**
+     * A mandatory origin: scheme and host, no path and no trailing slash, so `"$origin/path"` is
+     * always a well-formed address.
+     */
+    private fun origin(name: String, faults: MutableList<String>): String {
+        val raw = environment.read(name)?.takeIf { it.isNotBlank() }
+        return when {
+            raw == null -> "".also { faults += "$name is not set" }
+            !ORIGIN.matches(raw) ->
+                "".also { faults += "$name is not an origin like https://app.example.com, with no path or slash" }
+            else -> raw
+        }
+    }
+
+    /**
+     * Mandatory, and at least [PEPPER_FLOOR] characters: a short pepper can be guessed, and then every
+     * digest it made can be computed.
+     */
+    private fun pepper(faults: MutableList<String>): Secret {
+        val raw = environment.read(TOKEN_PEPPER)
+        return when {
+            raw == null -> Secret("").also { faults += "$TOKEN_PEPPER is not set" }
+            raw.length < PEPPER_FLOOR ->
+                Secret("").also { faults += "$TOKEN_PEPPER is shorter than $PEPPER_FLOOR characters" }
+            else -> Secret(raw)
+        }
+    }
+
     public companion object {
         /**
          * The contract with the deploy. Public so that a test can pin the names, and gathered in
@@ -101,6 +139,27 @@ public class EnvironmentConfiguration(private val environment: Environment) {
         public const val LEVEL: String = "TALLYVANE_LOG_LEVEL"
 
         public const val POOL: String = "TALLYVANE_DB_POOL_SIZE"
+
+        public const val GOOGLE_CLIENT_ID: String = "TALLYVANE_GOOGLE_CLIENT_ID"
+
+        public const val GOOGLE_CLIENT_SECRET: String = "TALLYVANE_GOOGLE_CLIENT_SECRET"
+
+        public const val APP_ORIGIN: String = "TALLYVANE_APP_ORIGIN"
+
+        public const val API_ORIGIN: String = "TALLYVANE_API_ORIGIN"
+
+        public const val TOKEN_PEPPER: String = "TALLYVANE_TOKEN_PEPPER"
+
+        public const val TOKEN_PEPPER_VERSION: String = "TALLYVANE_TOKEN_PEPPER_VERSION"
+
+        /**
+         * As long as `Digests.Hmac` insists on.
+         */
+        public const val PEPPER_FLOOR: Int = 32
+
+        public const val MAX_PEPPER_VERSION: Int = 1_000
+
+        private val ORIGIN = Regex("^https?://[A-Za-z0-9.-]+(:[0-9]{1,5})?$")
 
         /**
          * Long enough that nobody types one by accident.

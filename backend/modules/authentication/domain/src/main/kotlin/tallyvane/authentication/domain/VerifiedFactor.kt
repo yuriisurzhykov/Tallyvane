@@ -27,8 +27,7 @@ public class VerifiedFactor private constructor(
      * This factor as verified no earlier than [floor]: the same factor, moved forward in time if the
      * clock that stamped it was behind (slice 3, fork 5).
      */
-    internal fun notBefore(floor: Instant): VerifiedFactor =
-        VerifiedFactor(kind, maxOf(at, floor), subject)
+    internal fun notBefore(floor: Instant): VerifiedFactor = VerifiedFactor(kind, maxOf(at, floor), subject)
 
     /**
      * Whether this factor names a different person than [other] does. Two factors that name nobody,

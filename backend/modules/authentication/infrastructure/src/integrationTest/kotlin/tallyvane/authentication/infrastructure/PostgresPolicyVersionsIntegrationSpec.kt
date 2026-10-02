@@ -2,6 +2,7 @@ package tallyvane.authentication.infrastructure
 
 import tallyvane.authentication.application.PolicyVersionsConformance
 import tallyvane.authentication.application.port.PolicyVersions
+import tallyvane.platform.kernel.IdGeneratorFake
 import tallyvane.platform.kernel.TransactionRunner
 import tallyvane.platform.persistence.DatabaseAccess
 import tallyvane.platform.persistence.PostgresFixture
@@ -31,7 +32,7 @@ class PostgresPolicyVersionsIntegrationSpec : PolicyVersionsConformance() {
         emptyThePolicyTables(access)
         val persistence = PostgresPersistence(access).also { opened += it }
         return object : Subject {
-            override val versions: PolicyVersions = AuthenticationStorageFactory().policyVersions()
+            override val versions: PolicyVersions = AuthenticationStorageFactory(IdGeneratorFake()).policyVersions()
             override val transactions: TransactionRunner = persistence.transactions
         }
     }

@@ -3,10 +3,9 @@
 Capabilities. Each one owns its data, its rules and its slice of the API, and
 publishes exactly one thing outward: its `contract`.
 
-Empty for now — the first capabilities arrive in milestone 1 (`jobs`,
-`applications`, `contacts`). `modules.yaml` in the parent directory records the
-designed shape of all thirteen so the map can be reviewed before any of it is
-built.
+`identity` and `authentication` exist (ADR-076, ADR-087); the first product capabilities (`jobs`,
+`applications`, `contacts`) arrive in milestone 1. `modules.yaml` in the parent directory records the
+designed shape of all of them so the map can be reviewed before any of it is built.
 
 `_template` is the shape to copy. It is deliberately **not** included in
 `settings.gradle.kts`, so Gradle ignores it entirely and it never appears in

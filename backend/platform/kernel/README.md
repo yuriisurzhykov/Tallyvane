@@ -266,6 +266,21 @@ fault-tolerance this module actually provides is that a cancelled
 coroutine does not resume with a fallback value, and that a domain rule
 involving time or identity can be tested with the clock stopped.
 
+## 2026-10-02 — secrets, and keeping only a digest of them
+
+`SecretGenerator` draws a random `Secret`: 32 bytes from `SecureRandom`, base64url without padding.
+It is the second port beside `IdGenerator` for a reason `IdGenerator`'s own comment gives: a UUIDv7 is
+not unguessable, so anything that must be (a sign-in attempt's cookie, ADR-087) comes from here.
+`SecretGeneratorFake` numbers them `secret-1`, `secret-2`, ... so a test can name what it expects.
+
+`Digests` turns a secret into the `Digest` a database keeps, and `Digests.Hmac` does it with
+HMAC-SHA256 under a pepper of at least 32 characters. A plain SHA-256 would let whoever reads the table
+confirm a guess offline; the pepper lives in the deploy's configuration, not in the database. The digest
+carries the pepper's **version** (`Digest` equals only a digest of the same version), so a rotation can
+keep two apart. Like `Attempt`, `Digest` tells its state to a `Record` and gives out no byte array.
+`Csprng` and `Hmac` are nested in their ports and named in `NESTED_IMPL_ALLOW`, which puts them under
+`nested-impl-is-pure`: they reach the JDK's crypto and nothing with a driver.
+
 ## The SOLID angle
 
 Single responsibility is why `Clock` does not also mint ids, why
