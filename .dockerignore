@@ -25,13 +25,28 @@ ops/
 .next
 **/.next
 
-# Test tooling output — never a build input, always safe to leave behind.
+# Test tooling output — never a build input, always safe to leave behind. A bare name only
+# matches at the context root; Playwright writes these inside the packages that run it
+# (packages/storybook/test-results alone reached 1.6 GB), so each needs the **/ form.
 coverage
+**/coverage
 playwright-report
+**/playwright-report
 test-results
+**/test-results
 blob-report
+**/blob-report
 .playwright
+**/.playwright
 
 .cursor/
 .idea/
 .github/
+
+# Build leftovers from running the tools on the host — none is an input to the image build.
+.turbo
+**/.turbo
+**/storybook-static
+**/*.tsbuildinfo
+.pnpm-store
+*.log

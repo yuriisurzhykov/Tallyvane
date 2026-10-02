@@ -46,12 +46,23 @@ x-server: &server-defaults
     TALLYVANE_DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
     TALLYVANE_HEALTH_TOKEN: ${TALLYVANE_HEALTH_TOKEN:?TALLYVANE_HEALTH_TOKEN must be set}
     TALLYVANE_LOG_LEVEL: ${TALLYVANE_LOG_LEVEL:-INFO}
+    # Signing in (ADR-080, 3a/3b). The API answers on the console's own origin (nginx routes
+    # `/api/` there), so one address serves as both: it is what the browser's Origin header
+    # must equal on every unsafe request, and the base of the redirect URI given to Google.
+    TALLYVANE_APP_ORIGIN: ${APP_ORIGIN:-https://app.${DOMAIN:?DOMAIN must be set}}
+    TALLYVANE_API_ORIGIN: ${APP_ORIGIN:-https://app.${DOMAIN:?DOMAIN must be set}}
+    TALLYVANE_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:?GOOGLE_CLIENT_ID must be set}
+    TALLYVANE_GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:?GOOGLE_CLIENT_SECRET must be set}
+    TALLYVANE_TOKEN_PEPPER: ${TOKEN_PEPPER:?TOKEN_PEPPER must be set}
+    TALLYVANE_TOKEN_PEPPER_VERSION: ${TOKEN_PEPPER_VERSION:-1}
     # -javaagent alongside -XX:MaxRAMPercentage in the same value, same reasoning as the
     # heap/mem_limit pairing this line already carries: two settings that only make sense read
     # together stay written together, not one here and one guessed at from a second file.
     JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=66 -javaagent:/opt/tallyvane/opentelemetry-javaagent.jar
     OTEL_SERVICE_NAME: tallyvane-server
     OTEL_RESOURCE_ATTRIBUTES: *otel-namespace
+    # Off only on a laptop with no collector to talk to (ops/local/); never set on the server.
+    OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-false}
     OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:?OTEL_EXPORTER_OTLP_ENDPOINT must be set}
     OTEL_EXPORTER_OTLP_HEADERS: ${OTEL_EXPORTER_OTLP_HEADERS:?OTEL_EXPORTER_OTLP_HEADERS must be set}
     # ADR-067: renames the agent's own Logback MDC keys so they stop overwriting TraceContext's
@@ -83,6 +94,8 @@ x-frontend-web: &frontend-web-defaults
   environment:
     OTEL_SERVICE_NAME: tallyvane-frontend-web
     OTEL_RESOURCE_ATTRIBUTES: *otel-namespace
+    # Off only on a laptop with no collector to talk to (ops/local/); never set on the server.
+    OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-false}
     OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:?OTEL_EXPORTER_OTLP_ENDPOINT must be set}
     OTEL_EXPORTER_OTLP_HEADERS: ${OTEL_EXPORTER_OTLP_HEADERS:?OTEL_EXPORTER_OTLP_HEADERS must be set}
   mem_limit: 256m
@@ -100,15 +113,23 @@ x-frontend-app: &frontend-app-defaults
   restart: unless-stopped
   profiles: [ blue-green ]
   environment:
+    # Where a server component asks the API who is visiting (the console gate). Through nginx,
+    # with the visitor's own Host forwarded, so the request is routed exactly as the browser's is.
+    TALLYVANE_API_INTERNAL_URL: http://nginx
     OTEL_SERVICE_NAME: tallyvane-frontend-app
     OTEL_RESOURCE_ATTRIBUTES: *otel-namespace
+    # Off only on a laptop with no collector to talk to (ops/local/); never set on the server.
+    OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-false}
     OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:?OTEL_EXPORTER_OTLP_ENDPOINT must be set}
     OTEL_EXPORTER_OTLP_HEADERS: ${OTEL_EXPORTER_OTLP_HEADERS:?OTEL_EXPORTER_OTLP_HEADERS must be set}
   mem_limit: 384m
   networks: [ edge ]
   logging: *log-bound
+  # `/login`, not `/today`: every console page asks the API who is visiting, so a health check on one
+  # would report this container down whenever the server is, and a rollout of the console would stall
+  # on a server problem that is not the console's.
   healthcheck:
-    test: [ "CMD", "wget", "--quiet", "--tries=1", "--output-document=/dev/null", "http://127.0.0.1:3000/today" ]
+    test: [ "CMD", "wget", "--quiet", "--tries=1", "--output-document=/dev/null", "http://127.0.0.1:3000/login" ]
     interval: 10s
     timeout: 3s
     retries: 3
@@ -121,6 +142,8 @@ x-frontend-admin: &frontend-admin-defaults
   environment:
     OTEL_SERVICE_NAME: tallyvane-frontend-admin
     OTEL_RESOURCE_ATTRIBUTES: *otel-namespace
+    # Off only on a laptop with no collector to talk to (ops/local/); never set on the server.
+    OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-false}
     OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:?OTEL_EXPORTER_OTLP_ENDPOINT must be set}
     OTEL_EXPORTER_OTLP_HEADERS: ${OTEL_EXPORTER_OTLP_HEADERS:?OTEL_EXPORTER_OTLP_HEADERS must be set}
   mem_limit: 192m

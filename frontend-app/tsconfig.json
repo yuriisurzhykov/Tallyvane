@@ -48,6 +48,7 @@
     "steiger.config.ts",
     "next.config.ts",
     "instrumentation.ts",
+    "proxy.ts",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts"
   ],

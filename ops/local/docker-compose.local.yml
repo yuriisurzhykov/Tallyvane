@@ -1,0 +1,39 @@
+# What differs on a laptop, and only that. Used on top of ../docker-compose.yml, which is the very
+# file the server runs: same services, same networks, same nginx templates, same health checks.
+# Start it through ./stand.sh. Relative paths here resolve against ops/ (the first file), not this directory.
+#
+#   - the server and the console are built from this checkout instead of pulled from the registry;
+#   - nginx publishes port 8080 and gets one extra server block for `localhost`;
+#   - nothing here touches the services' own settings: those come from ./.env, same names as on the
+#     server, other values.
+services:
+  nginx:
+    ports:
+      - "8080:80"
+    volumes:
+      - ./local/nginx-localhost.conf:/etc/nginx/conf.d/99-localhost.conf:ro
+
+  server-blue:
+    build:
+      context: ../backend
+  # Same image as server-blue. Without a build of its own, compose tries to pull it from a registry
+  # (where `tallyvane-server:local` does not exist) before server-blue has built it.
+  migrate:
+    build:
+      context: ../backend
+  frontend-app-blue:
+    build:
+      context: ..
+      dockerfile: frontend-app/Dockerfile
+
+  # On a laptop only `localhost` is routed (to the console and the API), so the marketing site and
+  # the admin are never reached. nginx still needs their names to exist before it starts, so they
+  # run as an idle placeholder instead of two more full Next.js builds (each a complete pnpm install).
+  frontend-web-blue:
+    image: nginx:alpine
+    healthcheck:
+      disable: true
+  frontend-admin-blue:
+    image: nginx:alpine
+    healthcheck:
+      disable: true

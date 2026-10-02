@@ -579,3 +579,23 @@ Left alone, on purpose: the public hostname `app.<domain>` still names `frontend
 this rename, and the two dated entries above this one keep the names (`app_blue`, `upstream app`)
 that were actually typed during those spikes — a dated entry records what was measured at the time,
 not what a later rename would have called it.
+
+## 2026-10-02 — the same compose file on a laptop
+
+`docker-compose.yml` is the only description of the stack: the server runs it, and so does a laptop, so what
+works locally is what runs in production. `ops/local/` holds the difference and nothing else: `docker-compose.local.yml`
+(builds from the checkout, port 8080, one extra nginx block for `localhost`), `env.example` (the server's variable
+names with local values) and `stand.sh`. Google refuses `app.localhost` as a redirect URI and accepts `localhost`, which
+is why the block exists; the redirect URI to register is `http://localhost:8080/api/v1/google-return`. Use Chrome or
+Firefox: Safari does not keep `__Host-` cookies over plain http.
+
+    cp ops/local/env.example ops/local/.env     # fill in GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET
+    ops/local/stand.sh up                       # builds the server (Gradle) and the images, starts the stack
+    open http://localhost:8080
+
+`cloudflared` is left out (there is no tunnel to a laptop) and `OTEL_SDK_DISABLED=true` stands in for a collector.
+This change also made the file say what the server was already missing: the Google client, the token pepper and
+the console's origin. Put `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `TOKEN_PEPPER` (32+ characters) and, if you
+want a rotation, `TOKEN_PEPPER_VERSION` in the server's `.env` before the next deploy, or `apply.sh` will stop at
+the first `${...:?}`. The console's health check moved from `/today` to `/login`: every console page now asks the
+server who is visiting, and a health check that depends on the server would take the console down with it.

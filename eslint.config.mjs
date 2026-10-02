@@ -155,6 +155,8 @@ export default [
             // Next writes this and owns it; it is not in any tsconfig we
             // control, so the type-aware parser cannot read it either.
             "**/next-env.d.ts",
+            // Written by openapi-typescript from docs/openapi.yaml; api:check guards it.
+            "packages/frontend-shared/src/shared/api/generated/**",
             // Playwright's own report is a bundled application it ships, not
             // source. Linting it produced over a thousand findings about code
             // nobody here can change.

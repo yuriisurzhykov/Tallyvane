@@ -1,0 +1,25 @@
+# The API as the applications' own servers reach it: TALLYVANE_API_INTERNAL_URL is http://nginx.
+# Node's fetch drops a `host` header it is given and sends its own, so these requests arrive with
+# Host: nginx whatever the visitor's hostname was. Without this block they fell through to
+# default.conf and got its 404, which the console rendered as a 500.
+#
+# Not reachable from outside: the tunnel forwards exactly three hostnames, and `nginx` is none of them.
+# No limit_req here: every server-side render comes from the same container address, so a
+# per-address limit would throttle all visitors together.
+server {
+    listen 80;
+    server_name nginx;
+
+    access_log /var/log/nginx/access.log tallyvane;
+
+    location /api/ {
+        proxy_pass http://backend;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_set_header Host $host;
+    }
+
+    location / {
+        return 404;
+    }
+}

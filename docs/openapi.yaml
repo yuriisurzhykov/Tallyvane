@@ -637,7 +637,7 @@ components:
           description: The name Google has for the person, to be edited.
         email:
           type: string
-          description: The address Google verified. Shown, not editable: it is the one that was verified.
+          description: "The address Google verified. Shown, not editable, because it is the one that was verified."
 
     Me:
       type: object
