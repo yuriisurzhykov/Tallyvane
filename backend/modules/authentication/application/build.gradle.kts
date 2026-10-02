@@ -9,6 +9,8 @@ dependencies {
     // `api`: the ports speak in `Attempt` and `PolicyVersion`, so whoever implements or calls them
     // needs the domain on its own compile classpath.
     api(projects.modules.authentication.domain)
+    // `api`: `Redemptions` is what the composition root hands out as the contract `sessions` calls.
+    api(projects.modules.authentication.contract)
     // `Accounts` is how a Google subject becomes an account (slice 3).
     api(projects.modules.identity.contract)
 

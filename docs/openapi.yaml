@@ -34,6 +34,13 @@ info:
     `Retry-After` if it takes longer than a few seconds, and a `409` without `Retry-After` means the
     work was carried out and its answer cannot be given again, so read the current state instead.
 
+    Every endpoint is closed to anyone who is not signed in, unless its `security` lists `{}`, which
+    means no credential is needed (ADR-088). A request that has no session is answered `401` with the problem `sign-in-required`; one
+    whose session has ended, `401` with `session-expired`, and the client signs in again over the page it
+    is on (ADR-084). Every `POST`, `PUT`, `PATCH` and `DELETE` must also come from the application's own
+    origin: an `Origin` header that is not exactly it, or no `Origin` and no `Sec-Fetch-Site: same-origin`,
+    is `403`, and a body that is not JSON is `415` (ADR-080).
+
 servers:
   - url: /api/v1
     description: The only prefix. A module never writes it itself.
@@ -44,7 +51,13 @@ tags:
   - name: authentication
     description: |
       Signing in with Google, and registering as a new person. Nothing here grants access: a completed
-      sign-in is redeemed for a session in a later step (ADR-076).
+      sign-in is redeemed for a session in the next step (ADR-076).
+  - name: sessions
+    description: |
+      What a person is given once they have signed in: a session, held by the browser as a cookie
+      (ADR-079, ADR-080).
+  - name: identity
+    description: Who the signed-in person is.
 
 paths:
   /health:
@@ -279,6 +292,81 @@ paths:
         default:
           $ref: "#/components/responses/Problem"
 
+  /sessions:
+    post:
+      tags: [sessions]
+      operationId: openSession
+      summary: Exchange a completed sign-in for a session
+      description: |
+        Public: the person asking is not signed in yet. What they hold instead is the cookie of a sign-in
+        that is complete, and it is exchanged once. The answer sets `__Host-session` and takes
+        `__Host-attempt` away.
+
+        `404` when there is nothing complete to exchange: no cookie, one that expired, one already
+        exchanged, or a sign-in that is not finished (a registration waiting for its form). A response
+        that sets a cookie is never replayed for a repeated `Idempotency-Key`, so a repeat is told `409`
+        without `Retry-After`: the work was carried out, so read the current state instead.
+      security:
+        - attemptCookie: []
+      responses:
+        "204":
+          description: The session exists, and the browser holds it.
+          headers:
+            Set-Cookie:
+              $ref: "#/components/headers/SessionCookie"
+            traceparent:
+              $ref: "#/components/headers/Traceparent"
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /session:
+    delete:
+      tags: [sessions]
+      operationId: signOut
+      summary: Sign out
+      description: |
+        Public, so that a person whose session has already ended can still clear their cookie. Forgets the
+        session the browser presents and tells the browser to forget its cookie. Always `204`: a session
+        that was good, one that had ended and none at all all end the same way, with the person signed out.
+      security:
+        - {}
+        - sessionCookie: []
+      responses:
+        "204":
+          description: The person is signed out.
+          headers:
+            Set-Cookie:
+              $ref: "#/components/headers/SessionCookie"
+            traceparent:
+              $ref: "#/components/headers/Traceparent"
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /me:
+    get:
+      tags: [identity]
+      operationId: whoAmI
+      summary: Who the signed-in person is
+      description: |
+        Never cached. `401` `sign-in-required` when no session is presented; `401` `session-expired` when
+        the session has ended or names an account that no longer exists.
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: The account and the name the person is called by.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+            traceparent:
+              $ref: "#/components/headers/Traceparent"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Me"
+        default:
+          $ref: "#/components/responses/Problem"
+
 components:
   securitySchemes:
     attemptCookie:
@@ -288,6 +376,14 @@ components:
       description: |
         A random secret held by the browser for the sign-in in progress. The database keeps only a keyed
         digest of it. Not a credential to act as anyone: it continues one sign-in and nothing else.
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: __Host-session
+      description: |
+        A random secret held by the browser once the person has signed in. The database keeps only a keyed
+        digest of it, so reading the table does not let anyone act as the person. A session ends after a
+        day without use and after seven days whatever its use, or when the person signs out.
     serviceToken:
       type: apiKey
       in: header
@@ -306,6 +402,14 @@ components:
         `__Host-attempt=<secret>; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=900`, or the same with
         `Max-Age=0` to make the browser forget it. `__Host-` makes the browser refuse it unless it is
         `Secure`, has `Path=/` and names no `Domain`.
+      schema:
+        type: string
+    SessionCookie:
+      description: |
+        `__Host-session=<secret>; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=604800` when a session
+        begins, or the same with `Max-Age=0` to make the browser forget it. `__Host-` makes the browser
+        refuse it unless it is `Secure`, has `Path=/` and names no `Domain`. A response that sets it also
+        sets `__Host-attempt` with `Max-Age=0`.
       schema:
         type: string
     NoStore:
@@ -534,6 +638,19 @@ components:
         email:
           type: string
           description: The address Google verified. Shown, not editable: it is the one that was verified.
+
+    Me:
+      type: object
+      additionalProperties: false
+      required: [id, name]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: The account.
+        name:
+          type: string
+          description: The name the person is called by.
 
     Registering:
       type: object

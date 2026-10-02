@@ -58,7 +58,7 @@ internal const val UNSAFE_METHODS = "POST, PUT, PATCH and DELETE"
  * waits for it for a short, fixed time: a double click should not be told "carried out, cannot be
  * repeated" about a request whose answer is a few milliseconds away.
  */
-internal class Repeats(private val ledger: Ledger, private val owners: Owners) {
+internal class Repeats(private val ledger: Ledger) {
     private val problems = IdempotencyProblems()
 
     fun install(application: Application) {
@@ -88,7 +88,11 @@ internal class Repeats(private val ledger: Ledger, private val owners: Owners) {
             key == null -> Intake.Turned(IdempotencyFailure.Malformed)
             body == null -> Intake.Turned(IdempotencyFailure.TooLarge)
             else -> Intake.Admitted(
-                Claim(owners.of(call), key, Fingerprint.of(call.request.httpMethod.value, call.request.uri, body)),
+                Claim(
+                    Requester(call).caller().owner(),
+                    key,
+                    Fingerprint.of(call.request.httpMethod.value, call.request.uri, body),
+                ),
                 body,
             )
         }
@@ -202,7 +206,7 @@ internal class Repeats(private val ledger: Ledger, private val owners: Owners) {
 
         val WITHHELD = AttributeKey<Boolean>("tallyvane.idempotency.withheld")
 
-        private val UNSAFE = setOf(HttpMethod.Post, HttpMethod.Put, HttpMethod.Patch, HttpMethod.Delete)
+        val UNSAFE = setOf(HttpMethod.Post, HttpMethod.Put, HttpMethod.Patch, HttpMethod.Delete)
 
         /**
          * How long a repeat waits, in total about three quarters of a second, for an answer that is

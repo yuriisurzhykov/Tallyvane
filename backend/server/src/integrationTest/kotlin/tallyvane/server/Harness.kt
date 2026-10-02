@@ -43,12 +43,17 @@ internal fun settings(access: DatabaseAccess, port: Int = free(), pool: Int = DE
         signIn = SignInConfiguration(
             googleClientId = "client-id",
             googleClientSecret = Secret("client-secret"),
-            appOrigin = "https://app.example.test",
+            appOrigin = ORIGIN,
             apiOrigin = "https://api.example.test",
             tokenPepper = Secret("a-pepper-only-the-tests-use-0123456789"),
             pepperVersion = 1,
         ),
     )
+
+/**
+ * Where the application is served, as the real edge is told and as a browser would say it sends from.
+ */
+internal const val ORIGIN = "https://app.example.test"
 
 /**
  * One request over a real socket, with the service token when asked for.
@@ -101,6 +106,7 @@ internal fun post(port: Int, path: String, key: String?, body: String): HttpResp
         val request = HttpRequest
             .newBuilder(URI("http://localhost:$port$path"))
             .header("Content-Type", "application/json")
+            .header("Origin", ORIGIN)
             .apply { key?.let { header("Idempotency-Key", it) } }
             .POST(HttpRequest.BodyPublishers.ofString(body))
             .build()

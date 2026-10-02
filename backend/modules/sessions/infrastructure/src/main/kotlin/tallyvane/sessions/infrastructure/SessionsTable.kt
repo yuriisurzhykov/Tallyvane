@@ -1,0 +1,18 @@
+package tallyvane.sessions.infrastructure
+
+import org.jetbrains.exposed.v1.core.Table
+import org.jetbrains.exposed.v1.datetime.timestamp
+
+/**
+ * `sessions.sessions`: one row per session, found by the digest of the secret its browser holds.
+ */
+internal object SessionsTable : Table("sessions.sessions") {
+    val id = uuid("id")
+    val secretDigest = binary("secret_digest")
+    val pepperVersion = integer("pepper_version")
+    val accountId = uuid("account_id")
+    val authenticatedAt = timestamp("authenticated_at")
+    val lastActiveAt = timestamp("last_active_at")
+
+    override val primaryKey = PrimaryKey(id)
+}

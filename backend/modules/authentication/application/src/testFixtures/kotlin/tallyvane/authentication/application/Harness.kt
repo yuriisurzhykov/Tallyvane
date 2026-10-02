@@ -1,5 +1,7 @@
 package tallyvane.authentication.application
 
+import tallyvane.authentication.application.port.Attempts
+import tallyvane.authentication.contract.SignIns
 import tallyvane.authentication.domain.Purpose
 import tallyvane.platform.kernel.Clock
 import tallyvane.platform.kernel.Digests
@@ -43,6 +45,14 @@ class Harness {
 
     val register: RegisterUseCase =
         RegisterUseCase.Register(store, store, policies, accounts, transactions, clock, keys)
+
+    val redemptions: SignIns = Redemptions(store, policies, accounts, clock, keys)
+
+    /**
+     * Completed sign-ins as `sessions` takes them, over [attempts] in place of the store, for a case about
+     * what a port does that the fake never does.
+     */
+    fun redemptionsOver(attempts: Attempts): SignIns = Redemptions(attempts, policies, accounts, clock, keys)
 
     private fun trips() = GoogleTrips(store, store, store, accounts, transactions)
 

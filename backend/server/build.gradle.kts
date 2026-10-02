@@ -21,13 +21,19 @@ dependencies {
     implementation(projects.platform.http)
     implementation(projects.platform.health)
     // Each capability the process serves, by the layers the root wires: the use cases, the adapters that
-    // keep their state, and for `authentication` the routes. `identity` has no routes of its own.
+    // keep their state, and the routes.
     implementation(projects.modules.identity.contract)
     implementation(projects.modules.identity.application)
     implementation(projects.modules.identity.infrastructure)
+    implementation(projects.modules.identity.web)
+    implementation(projects.modules.authentication.contract)
     implementation(projects.modules.authentication.application)
     implementation(projects.modules.authentication.infrastructure)
     implementation(projects.modules.authentication.web)
+    implementation(projects.modules.sessions.domain)
+    implementation(projects.modules.sessions.application)
+    implementation(projects.modules.sessions.infrastructure)
+    implementation(projects.modules.sessions.web)
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.ktor.server.core)
     implementation(libs.ktor.server.cio)
@@ -44,6 +50,14 @@ dependencies {
     // A case mounts the real edge over the real database with a route of its own, so it names the
     // edge, the ledger it asks and the engine it runs on, as `Wiring` does.
     integrationTestImplementation(projects.platform.http)
+    // A case that signs somebody in plants what a completed sign-in would have left, through the same
+    // adapters the process reads with.
+    integrationTestImplementation(projects.modules.identity.contract)
+    integrationTestImplementation(projects.modules.identity.application)
+    integrationTestImplementation(projects.modules.identity.infrastructure)
+    integrationTestImplementation(projects.modules.sessions.domain)
+    integrationTestImplementation(projects.modules.sessions.application)
+    integrationTestImplementation(projects.modules.sessions.infrastructure)
     integrationTestImplementation(projects.platform.idempotency)
     integrationTestImplementation(libs.ktor.server.cio)
     // The suite talks HTTP, so it names statuses in Ktor's vocabulary rather than as bare numbers.

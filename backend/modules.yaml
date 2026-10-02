@@ -8,7 +8,7 @@
 # See ARCHITECTURE.md section 15.2.
 
 layers:
-  contract:       [platform:kernel, platform:events]
+  contract:       [platform:kernel, platform:events, any:contract]
   domain:         [platform:kernel]
   application:    [own:domain, own:contract, platform:kernel, platform:events, any:contract]
   infrastructure: [own:application, own:contract, "platform:*"]
@@ -47,15 +47,23 @@ platform:
 # Modules that exist in the build today.
 modules:
   # Who the person is (ADR-076). No `web` yet: nothing about an account is served on its own until
-  # the settings screen; registration is a step of signing in and is served by `authentication`.
+  # the settings screen; registration is a step of signing in and is served by `authentication`. Its
+  # `web` serves `GET /me`, the one question about an account the application asks of its signed-in person.
   identity:
-    layers: [contract, domain, application, infrastructure]
+    layers: [contract, domain, application, infrastructure, web]
     reads: []
     publishes: []
   authentication:
-    layers: [domain, application, infrastructure, web]
+    layers: [contract, domain, application, infrastructure, web]
     # Finds the account a Google sign-in proved, and creates it at registration (ADR-076).
     reads: [identity]
+    publishes: []
+
+  # What a person was given once they proved who they are (ADR-076, ADR-079). It redeems a completed
+  # sign-in through the contract of `authentication` and names the account by `identity`'s `AccountId`.
+  sessions:
+    layers: [domain, application, infrastructure, web]
+    reads: [authentication, identity]
     publishes: []
 
 # Modules that are designed but not yet created. Listed here so the intended
@@ -65,10 +73,6 @@ modules:
 planned:
   # Authentication is three modules, one per question (ADR-076): who the person is,
   # how they proved it, what they were given. Reads run one way only.
-  sessions:
-    layers: [contract, domain, application, infrastructure, web]
-    reads: [authentication]
-    publishes: []
   jobs:
     layers: [contract, domain, application, infrastructure, web]
     reads: [identity]

@@ -16,9 +16,10 @@ import kotlinx.coroutines.awaitAll
 import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
+import tallyvane.platform.http.Access
 import tallyvane.platform.http.Api
 import tallyvane.platform.http.BasePath
-import tallyvane.platform.http.Owners
+import tallyvane.platform.http.Callers
 import tallyvane.platform.http.RouteModule
 import tallyvane.platform.http.TraceHeader
 import tallyvane.platform.http.problems.FailureTranslator
@@ -53,6 +54,8 @@ private object Effects : Table("effects") {
 private class ProbeRoutes(private val transactions: TransactionRunner) : RouteModule {
     override val basePath = BasePath("/probe")
 
+    override val access = Access.Public
+
     override fun install(route: Route) {
         route.post {
             val done = transactions.inTransaction {
@@ -79,7 +82,8 @@ private class Served(private val access: DatabaseAccess) : AutoCloseable {
             failures = FailureTranslator.Chained(emptyList()),
             trace = TraceHeader(platform.ids),
             ledger = platform.persistence.ledger,
-            owners = Owners.Anonymous(),
+            callers = Callers.Anonymous(),
+            appOrigin = ORIGIN,
         ).install(this)
     }.also { it.start(wait = false) }
 

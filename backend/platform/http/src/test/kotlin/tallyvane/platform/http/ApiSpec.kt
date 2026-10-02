@@ -78,6 +78,8 @@ private const val ABSENT_DETAIL = "No payslip for August"
 private class Probes(private val problems: Refusals) : RouteModule {
     override val basePath: BasePath = BasePath("/probes")
 
+    override val access: Access = Access.Public
+
     override fun install(route: Route) {
         route.get("/fine") { call.respond(Payslip(takeHomeCents = 1)) }
         // The only way to answer with a failure: the failure and the table that maps it. There is
@@ -105,7 +107,8 @@ private fun api(): Api = Api(
     failures = FailureTranslator.Chained(emptyList()),
     trace = TraceHeader(IdGeneratorFake()),
     ledger = LedgerFake(TransactionRunnerFake(), ClockFake(Instant.parse("2026-10-01T12:00:00Z"))),
-    owners = Owners.Anonymous(),
+    callers = Callers.Anonymous(),
+    appOrigin = APP_ORIGIN,
 )
 
 class ApiSpec :
@@ -231,6 +234,7 @@ class ApiSpec :
 
                     val answer =
                         client.post("/api/v1/probes/body") {
+                            fromApp()
                             header("Idempotency-Key", KEY)
                             contentType(ContentType.Application.Json)
                             setBody("""{"take_home_cents":7}""")
@@ -259,7 +263,7 @@ class ApiSpec :
                 testApplication {
                     application { api().install(this) }
 
-                    val answer = client.get("/api/v1/nowhere")
+                    val answer = client.get("/api/v1/probes/nowhere")
 
                     answer.status shouldBe HttpStatusCode.NotFound
                     answer.headers["Content-Type"]!! shouldContain "application/problem+json"
@@ -274,7 +278,10 @@ class ApiSpec :
                     application { api().install(this) }
 
                     // POST to a route that only accepts GET. Nothing in `Api` mentions 405.
-                    val answer = client.post("/api/v1/probes/fine") { header("Idempotency-Key", KEY) }
+                    val answer = client.post("/api/v1/probes/fine") {
+                        fromApp()
+                        header("Idempotency-Key", KEY)
+                    }
 
                     answer.status shouldBe HttpStatusCode.MethodNotAllowed
                     answer.headers["Content-Type"]!! shouldContain "application/problem+json"
@@ -300,6 +307,7 @@ class ApiSpec :
 
                     val answer =
                         client.post("/api/v1/probes/body") {
+                            fromApp()
                             header("Idempotency-Key", KEY)
                             contentType(ContentType.Application.Json)
                             setBody("{ this is not json")

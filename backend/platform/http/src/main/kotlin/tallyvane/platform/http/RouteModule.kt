@@ -20,6 +20,13 @@ public interface RouteModule {
     public val basePath: BasePath
 
     /**
+     * Who may reach these routes. Closed unless a module says it is [Access.Public], so a route
+     * nobody thought about is not one anybody can call (ADR-088).
+     */
+    public val access: Access
+        get() = Access.Signed
+
+    /**
      * Registers this module's addresses on [route], which is already mounted at [basePath].
      */
     public fun install(route: Route)
