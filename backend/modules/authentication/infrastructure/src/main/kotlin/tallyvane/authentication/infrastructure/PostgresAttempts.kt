@@ -63,8 +63,11 @@ internal class PostgresAttempts(private val rows: AttemptRows, private val ids: 
         return AttemptSaveOutcome.Saved
     }
 
-    override fun forget(key: Digest) {
-        rows.idOf(key)?.let { id -> AttemptsTable.deleteWhere { AttemptsTable.id eq id } }
+    override fun forget(key: Digest): Boolean {
+        val id = rows.idOf(key) ?: return false
+        // A request that read the row at the same moment waits here for the one that deletes it, and then
+        // finds nothing to delete: only one of them is told it did.
+        return AttemptsTable.deleteWhere { AttemptsTable.id eq id } > 0
     }
 
     override fun toString(): String = "PostgresAttempts(schema=authentication)"

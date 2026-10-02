@@ -204,10 +204,18 @@ abstract class AttemptsConformance : StringSpec() {
             subject.found(SECOND) shouldBe AttemptStory(stepUp)
         }
 
+        "forgetting says it was the one that forgot, and a second forgetting says it was not" {
+            val subject = fresh()
+            subject.inOwnTransaction { save(FIRST, Attempt(Purpose.Login, START)) }
+
+            subject.inOwnTransaction { forget(FIRST) } shouldBe true
+            subject.inOwnTransaction { forget(FIRST) } shouldBe false
+        }
+
         "forgetting what is not kept changes nothing" {
             val subject = fresh()
 
-            subject.inOwnTransaction { forget(FIRST) }
+            subject.inOwnTransaction { forget(FIRST) } shouldBe false
 
             subject.found(FIRST) shouldBe null
         }

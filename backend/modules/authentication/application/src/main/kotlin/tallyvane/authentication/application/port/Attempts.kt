@@ -54,6 +54,9 @@ public interface Attempts {
     /**
      * Forgets the attempt kept under [key], with everything kept beside it, such as its Google
      * handshake. Forgetting one that is not kept changes nothing.
+     *
+     * @return whether this call is the one that removed it. Two requests that both read an attempt and then
+     * both forget it cannot both be told true, so the one that must be single-use takes it only when it is.
      */
-    public fun forget(key: Digest)
+    public fun forget(key: Digest): Boolean
 }

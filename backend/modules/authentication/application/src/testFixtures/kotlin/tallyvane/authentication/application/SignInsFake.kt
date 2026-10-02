@@ -36,10 +36,10 @@ class SignInsFake :
         return AttemptSaveOutcome.Saved
     }
 
-    override fun forget(key: Digest) {
-        attempts.remove(key)
+    override fun forget(key: Digest): Boolean {
         handshakes.remove(key)
         profiles.remove(key)
+        return attempts.remove(key) != null
     }
 
     override fun keep(attempt: Digest, handshake: GoogleHandshake) {

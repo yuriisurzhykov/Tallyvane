@@ -48,9 +48,13 @@ public class Redemptions(
      */
     private inner class Taking(private val key: Digest) : Progress.Report<Redemption> {
         override fun complete(factors: Set<FactorKind>, authenticatedAt: Instant, subject: String): Redemption {
-            val account = accounts.withGoogle(subject) ?: return NothingToRedeem()
-            attempts.forget(key)
-            return Redeemed(account, factors.mapTo(mutableSetOf(), ::proofOf), authenticatedAt)
+            val account = accounts.withGoogle(subject)
+            // Taken only by the request whose deletion removed it: two that read it together, with
+            // different Idempotency-Keys, must not both get a session out of one sign-in.
+            return when {
+                account == null || !attempts.forget(key) -> NothingToRedeem()
+                else -> Redeemed(account, factors.mapTo(mutableSetOf(), ::proofOf), authenticatedAt)
+            }
         }
 
         override fun restricted(

@@ -1,6 +1,7 @@
 package tallyvane.sessions.infrastructure
 
 import org.jetbrains.exposed.v1.core.IColumnType
+import org.jetbrains.exposed.v1.core.JoinType
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.lessEq
@@ -40,19 +41,23 @@ internal class PostgresSessions(private val ids: IdGenerator) : Sessions {
 
     override fun find(key: Digest): Session? {
         val told = DigestColumns().also { key.writeTo(it) }
-        val head = SessionsTable.selectAll()
+        // One statement, so one snapshot: a sign-out that commits meanwhile removes the session with its
+        // factors or leaves both, and never the factors alone.
+        val rows = SessionsTable.join(SessionFactorsTable, JoinType.INNER) {
+            SessionsTable.id eq
+                SessionFactorsTable.sessionId
+        }
+            .selectAll()
             .where { (SessionsTable.secretDigest eq told.bytes()) and (SessionsTable.pepperVersion eq told.version()) }
-            .singleOrNull() ?: return null
-        val factors = SessionFactorsTable.selectAll()
-            .where { SessionFactorsTable.sessionId eq head[SessionsTable.id] }
-            .map { words.from(it[SessionFactorsTable.factor]) }
+            .toList()
+        val head = rows.firstOrNull() ?: return null
         return Session.restore { record ->
             record.session(
                 head[SessionsTable.accountId],
                 head[SessionsTable.authenticatedAt],
                 head[SessionsTable.lastActiveAt],
             )
-            factors.forEach(record::proved)
+            rows.forEach { record.proved(words.from(it[SessionFactorsTable.factor])) }
         }
     }
 

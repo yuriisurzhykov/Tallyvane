@@ -2,9 +2,11 @@ package tallyvane.authentication.application
 
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.shouldBe
+import tallyvane.authentication.application.port.Attempts
 import tallyvane.authentication.contract.Proof
 import tallyvane.authentication.contract.Redemption
 import tallyvane.identity.contract.AccountId
+import tallyvane.platform.kernel.Digest
 import tallyvane.platform.kernel.Secret
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
@@ -19,6 +21,16 @@ private fun told(redemption: Redemption): String = redemption.reportTo(
         override fun nothingToRedeem(): String = "nothing"
     },
 )
+
+/**
+ * Attempts where another request deleted the attempt between this one reading and forgetting it.
+ */
+private class LosingTheRace(private val real: Attempts) : Attempts by real {
+    override fun forget(key: Digest): Boolean {
+        real.forget(key)
+        return false
+    }
+}
 
 class RedemptionsSpec :
     StringSpec(
@@ -41,6 +53,16 @@ class RedemptionsSpec :
                 harness.redemptions.redeem(pressed.attempt)
 
                 told(harness.redemptions.redeem(pressed.attempt)) shouldBe "nothing"
+            }
+
+            "gives nothing to a request that read the sign-in but lost the race to take it" {
+                val harness = Harness()
+                harness.accounts.knows("sub-1")
+                val pressed = harness.pressSignIn()
+                harness.returnWith(pressed, vouched("sub-1"))
+                val losing = harness.redemptionsOver(LosingTheRace(harness.store))
+
+                told(losing.redeem(pressed.attempt)) shouldBe "nothing"
             }
 
             "has nothing to hand over for a sign-in that Google has not answered yet" {
