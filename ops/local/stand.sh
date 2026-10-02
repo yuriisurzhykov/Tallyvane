@@ -25,9 +25,10 @@ case "${1:-up}" in
     # that spends its time collecting garbage at 1 GB is the usual reason it seems to stop.
     (cd "$root/backend" && sh ./gradlew --console=plain -Dorg.gradle.jvmargs="-Xmx3g -XX:MaxMetaspaceSize=768m" \
       :server:installDist :migrate:installDist)
-    # One image at a time: four Next.js builds (each a full pnpm install) next to Gradle can exhaust the
-    # memory Docker Desktop gives its VM, and a daemon out of memory stops answering.
-    COMPOSE_PARALLEL_LIMIT=1 "${compose[@]}" build --progress=plain server-blue frontend-web-blue frontend-app-blue frontend-admin-blue
+    # Two images, one at a time (the marketing site and the admin are idle placeholders here, see
+    # docker-compose.local.yml): a Next.js build is a full pnpm install, and several next to Gradle can
+    # exhaust the memory Docker Desktop gives its VM, after which the daemon stops answering.
+    COMPOSE_PARALLEL_LIMIT=1 "${compose[@]}" build --progress=plain server-blue frontend-app-blue
     "${compose[@]}" up -d --no-build "${services[@]}"
     echo "Ready: http://localhost:8080  (logs: ./stand.sh logs)"
     ;;

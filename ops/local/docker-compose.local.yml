@@ -2,7 +2,7 @@
 # file the server runs: same services, same networks, same nginx templates, same health checks.
 # Start it through ./stand.sh. Relative paths here resolve against ops/ (the first file), not this directory.
 #
-#   - images are built from this checkout instead of pulled from the registry;
+#   - the server and the console are built from this checkout instead of pulled from the registry;
 #   - nginx publishes port 8080 and gets one extra server block for `localhost`;
 #   - nothing here touches the services' own settings: those come from ./.env, same names as on the
 #     server, other values.
@@ -21,15 +21,19 @@ services:
   migrate:
     build:
       context: ../backend
-  frontend-web-blue:
-    build:
-      context: ..
-      dockerfile: frontend-web/Dockerfile
   frontend-app-blue:
     build:
       context: ..
       dockerfile: frontend-app/Dockerfile
+
+  # On a laptop only `localhost` is routed (to the console and the API), so the marketing site and
+  # the admin are never reached. nginx still needs their names to exist before it starts, so they
+  # run as an idle placeholder instead of two more full Next.js builds (each a complete pnpm install).
+  frontend-web-blue:
+    image: nginx:alpine
+    healthcheck:
+      disable: true
   frontend-admin-blue:
-    build:
-      context: ..
-      dockerfile: frontend-admin/Dockerfile
+    image: nginx:alpine
+    healthcheck:
+      disable: true
