@@ -14,8 +14,12 @@ services=(nginx server-blue frontend-web-blue frontend-app-blue frontend-admin-b
 
 case "${1:-up}" in
   up)
-    # The server image packs prebuilt output (backend/Dockerfile), so build that first.
-    (cd "$root/backend" && ./gradlew --quiet :server:installDist :migrate:installDist)
+    # The server image packs prebuilt output (backend/Dockerfile), so build that first. Progress is
+    # printed on purpose: a cold build of every module takes minutes, and silence looks like a hang.
+    # The 1 GB heap in gradle.properties is sized for the VPS; a laptop can spare more, and a build
+    # that spends its time collecting garbage at 1 GB is the usual reason it seems to stop.
+    (cd "$root/backend" && sh ./gradlew --console=plain -Dorg.gradle.jvmargs="-Xmx3g -XX:MaxMetaspaceSize=768m" \
+      :server:installDist :migrate:installDist)
     "${compose[@]}" up -d --build "${services[@]}"
     echo "Ready: http://localhost:8080  (logs: ./stand.sh logs)"
     ;;
