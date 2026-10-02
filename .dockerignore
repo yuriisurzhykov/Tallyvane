@@ -35,3 +35,11 @@ blob-report
 .cursor/
 .idea/
 .github/
+
+# Build leftovers from running the tools on the host — none is an input to the image build.
+.turbo
+**/.turbo
+**/storybook-static
+**/*.tsbuildinfo
+.pnpm-store
+*.log
