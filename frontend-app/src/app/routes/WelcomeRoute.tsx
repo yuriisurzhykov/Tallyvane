@@ -5,12 +5,12 @@ import { WelcomePage } from "@/views/welcome";
 
 type Confirmed = components["schemas"]["Welcomed"];
 
-/** What Google confirmed about the person (the attempt cookie travels with the request), or nothing if there is no attempt. */
+/** What Google confirmed about the person (the attempt cookie travels with the request), or nothing if there is no attempt (404). Any other failure is an error page, not a restart. */
 async function confirmed(): Promise<Confirmed | undefined> {
     try {
         return await (await serverApi()).get("/welcome");
     } catch (failure) {
-        if (failure instanceof ProblemError) {
+        if (failure instanceof ProblemError && failure.hasStatus(404)) {
             return undefined;
         }
         throw failure;

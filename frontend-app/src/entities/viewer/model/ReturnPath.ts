@@ -21,6 +21,10 @@ export class ReturnPath {
         this.storage?.setItem(KEY, path);
     }
 
+    public forget(): void {
+        this.storage?.removeItem(KEY);
+    }
+
     /** The remembered path, once; `undefined` when there is none worth following. */
     public take(): string | undefined {
         const path = this.storage?.getItem(KEY);

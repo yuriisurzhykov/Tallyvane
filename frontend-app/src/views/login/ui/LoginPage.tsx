@@ -27,7 +27,7 @@ export function LoginPage({ problem, returnTo }: LoginPageProps) {
     const known = problem !== undefined && problem in PROBLEMS ? PROBLEMS[problem as keyof typeof PROBLEMS] : undefined;
     return (
         <AuthFrame title={t("title")} lead={t("lead")}>
-            <RememberReturnPath path={returnTo} />
+            <RememberReturnPath path={returnTo} isRetry={problem !== undefined} />
             <Stack gap="stack">
                 {known !== undefined ? <Callout tone="attention">{t(known)}</Callout> : null}
                 <SignInWithGoogleButton />
