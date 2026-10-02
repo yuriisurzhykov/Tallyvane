@@ -9,6 +9,7 @@ import tallyvane.authentication.application.ContinueWithGoogleUseCase
 import tallyvane.authentication.application.GoogleReply
 import tallyvane.authentication.application.GoogleReturn
 import tallyvane.authentication.application.TurnBack
+import tallyvane.platform.http.Access
 import tallyvane.platform.http.BasePath
 import tallyvane.platform.http.RouteModule
 import tallyvane.platform.kernel.Secret
@@ -32,6 +33,8 @@ internal class GoogleReturnRoutes(
     private val pages: ReturnPages,
 ) : RouteModule {
     override val basePath: BasePath = BasePath("/google-return")
+
+    override val access: Access = Access.Public
 
     override fun install(route: Route) {
         route.get {

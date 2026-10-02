@@ -3,7 +3,7 @@ package tallyvane.server
 import tallyvane.platform.health.HealthRoutes
 import tallyvane.platform.health.ServiceToken
 import tallyvane.platform.http.Api
-import tallyvane.platform.http.Owners
+import tallyvane.platform.http.Callers
 import tallyvane.platform.http.TraceHeader
 import tallyvane.platform.http.problems.FailureTranslator
 import tallyvane.platform.observability.health.HealthCheck
@@ -57,7 +57,8 @@ public class Wiring(private val platform: PlatformWiring, private val configurat
             failures = FailureTranslator.Chained(emptyList()),
             trace = TraceHeader(platform.ids),
             ledger = platform.persistence.ledger,
-            owners = Owners.Anonymous(),
+            callers = Callers.Anonymous(),
+            appOrigin = configuration.signIn.appOrigin,
         )
     }
 

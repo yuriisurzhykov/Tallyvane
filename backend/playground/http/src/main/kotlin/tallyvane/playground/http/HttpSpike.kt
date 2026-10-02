@@ -17,10 +17,11 @@ import org.slf4j.LoggerFactory
 import org.slf4j.event.Level
 import tallyvane.platform.http.status.Answers
 import tallyvane.platform.http.Api
-import tallyvane.platform.http.Owners
+import tallyvane.platform.http.Callers
 import tallyvane.platform.idempotency.LedgerFake
 import tallyvane.platform.kernel.Clock
 import tallyvane.platform.kernel.TransactionRunnerFake
+import tallyvane.platform.http.Access
 import tallyvane.platform.http.BasePath
 import tallyvane.platform.http.problems.FailureTranslator
 import tallyvane.platform.http.FieldError
@@ -51,6 +52,8 @@ private class Refusals : Problems<Refusal> {
 
 private class Probes(private val problems: Refusals) : RouteModule {
     override val basePath: BasePath = BasePath("/probes")
+
+    override val access: Access = Access.Public
 
     private val logger = LoggerFactory.getLogger(Probes::class.java)
 
@@ -190,7 +193,8 @@ fun main() {
             // Nothing here is stored, so a repeat is never recognised: the spike answers GETs and
             // a body echo, and keeps no state worth protecting.
             ledger = LedgerFake(TransactionRunnerFake(), Clock.Wall()),
-            owners = Owners.Anonymous(),
+            callers = Callers.Anonymous(),
+            appOrigin = "http://localhost:$port",
         )
     menu()
     // The check above closes the common case; this closes the race between it and here, so a

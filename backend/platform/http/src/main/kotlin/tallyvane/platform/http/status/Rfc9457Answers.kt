@@ -38,6 +38,20 @@ internal class Rfc9457Answers : Answers {
         detail = detail,
     )
 
+    override fun signInRequired(detail: String?): Problem = Problem(
+        type = uri("sign-in-required"),
+        title = "Sign-in required",
+        status = UNAUTHENTICATED,
+        detail = detail,
+    )
+
+    override fun sessionExpired(detail: String?): Problem = Problem(
+        type = uri("session-expired"),
+        title = "Session expired",
+        status = UNAUTHENTICATED,
+        detail = detail,
+    )
+
     override fun missing(detail: String?): Problem = Problem(
         type = uri("not-found"),
         title = "Not found",
@@ -71,6 +85,8 @@ internal class Rfc9457Answers : Answers {
         const val PREFIX = "https://tallyvane.com/errors/"
 
         const val MALFORMED = 400
+
+        const val UNAUTHENTICATED = 401
 
         const val FORBIDDEN = 403
 

@@ -39,7 +39,7 @@ import tallyvane.platform.observability.log.TraceContext
  * touches the pipeline. That is deliberate: every guarantee below holds because there is exactly
  * one place where it is arranged, so no route can omit it and no future route can forget it.
  *
- * Seven guarantees, in the order a request meets them:
+ * Eight guarantees, in the order a request meets them:
  *
  * 1. **Every call runs under a trace.** Continued from `traceparent` if a valid one arrived,
  *    fresh otherwise, and carried in the coroutine context so every log line of that call has
@@ -60,7 +60,10 @@ import tallyvane.platform.observability.log.TraceContext
  *    bodiless code it starts as. No status is named to make that true; see [renderProblems].
  * 6. **Only a failure that is ours is logged at ERROR.** A 4xx is the caller's business; logging
  *    it at a level that means "a human must look" (§16.6) would bury the 5xx that does.
- * 7. **An unsafe request is carried out once per `Idempotency-Key`.** `POST`, `PUT`, `PATCH` and
+ * 7. **A request that changes anything comes from our own pages, and a closed route is for signed-in people.**
+ *    Both are decided before the idempotency claim, so a refused request leaves nothing behind. A route
+ *    is closed unless its module says [Access.Public] (ADR-088, [Gate]).
+ * 8. **An unsafe request is carried out once per `Idempotency-Key`.** `POST`, `PUT`, `PATCH` and
  *    `DELETE` need the header; a repeat is answered from what the first left, and one that is mid-flight
  *    waits for it. No route says anything about it (ADR-086, [Repeats]).
  *
@@ -70,16 +73,21 @@ import tallyvane.platform.observability.log.TraceContext
  * @param trace reads and writes `traceparent`.
  * @param ledger what is remembered of requests already seen; every unsafe request is asked about
  * there before it runs (ADR-086).
- * @param owners whose `Idempotency-Key` a request's is.
+ * @param callers who a request comes from; asked once, before the idempotency claim, and the answer is
+ * whose `Idempotency-Key` it is (ADR-086, ADR-088).
+ * @param appOrigin the one origin, such as `https://app.tallyvane.com`, unsafe requests must come from.
  */
 public class Api(
     private val routes: List<RouteModule>,
     private val failures: FailureTranslator,
     private val trace: TraceHeader,
     ledger: Ledger,
-    owners: Owners,
+    callers: Callers,
+    appOrigin: String,
 ) {
-    private val repeats = Repeats(ledger, owners)
+    private val gate = Gate(routes, callers, appOrigin)
+
+    private val repeats = Repeats(ledger)
 
     init {
         val repeated = routes.groupBy { module -> module.basePath }.filterValues { it.size > 1 }.keys
@@ -95,6 +103,7 @@ public class Api(
         }
         traced(application)
         renderProblems(application)
+        gate.install(application)
         repeats.install(application)
         mount(application)
     }
@@ -250,11 +259,6 @@ public class Api(
          * Below this a failure is the caller's to fix; at or above it, ours.
          */
         const val SERVER_FAULT = 500
-
-        /**
-         * §11.1: the version lives in the path, and a module never writes it itself.
-         */
-        const val VERSIONED = "/api/v1"
 
         val PROBLEM_JSON = ContentType("application", "problem+json")
 

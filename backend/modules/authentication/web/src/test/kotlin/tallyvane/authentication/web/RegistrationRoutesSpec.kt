@@ -10,12 +10,14 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import tallyvane.platform.http.fromApp
 import io.ktor.http.contentType
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
 
 private suspend fun ApplicationTestBuilder.submit(cookie: String?, key: String, body: String) =
     client.post("/api/v1/registration") {
+        fromApp()
         header("Idempotency-Key", key)
         cookie?.let { header(HttpHeaders.Cookie, "__Host-attempt=$it") }
         contentType(ContentType.Application.Json)

@@ -9,6 +9,7 @@ import io.ktor.client.request.post
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import tallyvane.platform.http.fromApp
 import io.ktor.server.testing.testApplication
 
 class SignInRoutesSpec :
@@ -19,6 +20,7 @@ class SignInRoutesSpec :
                     application { Served().api().install(this) }
 
                     val answer = client.post("/api/v1/google-sign-in") {
+                        fromApp()
                         header("Idempotency-Key", "0199a000-0000-7000-8000-000000000001")
                     }
 
@@ -40,7 +42,7 @@ class SignInRoutesSpec :
                 testApplication {
                     application { Served().api().install(this) }
 
-                    client.post("/api/v1/google-sign-in").status shouldBe HttpStatusCode.BadRequest
+                    client.post("/api/v1/google-sign-in") { fromApp() }.status shouldBe HttpStatusCode.BadRequest
                 }
             }
         },

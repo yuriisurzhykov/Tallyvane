@@ -7,6 +7,7 @@ import io.ktor.server.response.header
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
+import tallyvane.platform.http.Access
 import tallyvane.platform.http.BasePath
 import tallyvane.platform.http.RouteModule
 import tallyvane.platform.observability.health.HealthReporter
@@ -48,6 +49,8 @@ import tallyvane.platform.observability.health.HealthReporter
 public class HealthRoutes(private val reporter: HealthReporter, private val token: ServiceToken) : RouteModule {
 
     override val basePath: BasePath = BasePath("/health")
+
+    override val access: Access = Access.Public
 
     private val presented = Presented()
 

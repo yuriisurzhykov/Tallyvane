@@ -17,6 +17,7 @@ dependencies {
     testImplementation(libs.ktor.server.content.negotiation)
     testImplementation(libs.ktor.serialization.kotlinx.json)
     testImplementation(testFixtures(projects.modules.authentication.application))
+    testImplementation(testFixtures(projects.platform.http))
     testImplementation(testFixtures(projects.platform.kernel))
     testImplementation(testFixtures(projects.platform.idempotency))
 }

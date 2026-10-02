@@ -5,6 +5,7 @@ import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.post
 import tallyvane.authentication.application.BeginSignInUseCase
+import tallyvane.platform.http.Access
 import tallyvane.platform.http.BasePath
 import tallyvane.platform.http.RouteModule
 
@@ -21,6 +22,8 @@ import tallyvane.platform.http.RouteModule
  */
 internal class SignInRoutes(private val begin: BeginSignInUseCase, private val cookie: AttemptCookie) : RouteModule {
     override val basePath: BasePath = BasePath("/google-sign-in")
+
+    override val access: Access = Access.Public
 
     override fun install(route: Route) {
         route.post {

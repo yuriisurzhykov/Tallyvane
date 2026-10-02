@@ -10,7 +10,7 @@ import tallyvane.platform.http.problems.Problems
  *
  * Not the only source there is, and the distinction became load-bearing on 2026-08-26: [Statuses]
  * also makes one, for the statuses Ktor answers on its own. That port is `internal`, so no module can
- * name it — which is why this one can still promise a module seven meanings and no way to invent an
+ * name it — which is why this one can still promise a module nine meanings and no way to invent an
  * eighth.
  *
  * ### Why a receiver instead of a companion
@@ -26,7 +26,7 @@ import tallyvane.platform.http.problems.Problems
  *
  * ### Why the set is closed
  *
- * Seven HTTP meanings, no parameters for a status or a `type`. A module picks the meaning and
+ * Nine HTTP meanings, no parameters for a status or a `type`. A module picks the meaning and
  * supplies what only it knows: which field, which code, what to say. So `type` cannot drift into
  * a free string, two modules cannot describe one kind of failure differently, and slice 14 has
  * something enumerable to write into the specification.
@@ -57,6 +57,19 @@ public interface Answers {
      * a judgement for the module, which says so by choosing [missing] instead.
      */
     public fun forbidden(detail: String? = null): Problem
+
+    /**
+     * Nobody is signed in and this needs somebody: 401, type `sign-in-required`. The client sends the
+     * person to sign in.
+     */
+    public fun signInRequired(detail: String? = null): Problem
+
+    /**
+     * The request carried a session that has ended: 401, type `session-expired` (ADR-084). Told apart
+     * from [signInRequired] because the client signs the person in again over the page they are on,
+     * instead of leaving it.
+     */
+    public fun sessionExpired(detail: String? = null): Problem
 
     /**
      * Nothing here to act on: 404.

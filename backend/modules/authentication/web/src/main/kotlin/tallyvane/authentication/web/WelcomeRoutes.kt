@@ -8,6 +8,7 @@ import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import tallyvane.authentication.application.ShowRegistrationOutcome
 import tallyvane.authentication.application.ShowRegistrationUseCase
+import tallyvane.platform.http.Access
 import tallyvane.platform.http.BasePath
 import tallyvane.platform.http.Refused
 import tallyvane.platform.http.RouteModule
@@ -28,6 +29,8 @@ internal class WelcomeRoutes(
     private val problems: WelcomeProblems,
 ) : RouteModule {
     override val basePath: BasePath = BasePath("/welcome")
+
+    override val access: Access = Access.Public
 
     override fun install(route: Route) {
         route.get {

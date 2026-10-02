@@ -10,7 +10,8 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.testing.testApplication
 import tallyvane.platform.http.Api
-import tallyvane.platform.http.Owners
+import tallyvane.platform.http.APP_ORIGIN
+import tallyvane.platform.http.Callers
 import tallyvane.platform.http.TraceHeader
 import tallyvane.platform.http.problems.FailureTranslator
 import tallyvane.platform.idempotency.LedgerFake
@@ -53,7 +54,8 @@ private fun served(report: HealthReport, reporter: HealthReporterFake = HealthRe
     failures = FailureTranslator.Chained(emptyList()),
     trace = TraceHeader(IdGeneratorFake()),
     ledger = LedgerFake(TransactionRunnerFake(), ClockFake(Instant.parse("2026-10-01T12:00:00Z"))),
-    owners = Owners.Anonymous(),
+    callers = Callers.Anonymous(),
+    appOrigin = APP_ORIGIN,
 )
 
 class HealthRoutesSpec :
