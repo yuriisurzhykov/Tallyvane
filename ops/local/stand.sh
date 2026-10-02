@@ -11,6 +11,11 @@ compose=(docker compose --project-directory "$here/.." --env-file "$here/.env" -
 services=(nginx server-blue frontend-web-blue frontend-app-blue frontend-admin-blue)
 
 [[ -f "$here/.env" ]] || { echo "Copy $here/env.example to $here/.env and fill in the Google client first." >&2; exit 1; }
+# Say which line is missing or empty, rather than letting compose fail later with a message about an anchor.
+for name in BACKEND_IMAGE FRONTEND_WEB_IMAGE FRONTEND_APP_IMAGE FRONTEND_ADMIN_IMAGE POSTGRES_PASSWORD \
+            TALLYVANE_HEALTH_TOKEN TOKEN_PEPPER GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET; do
+  grep -qE "^${name}=.+" "$here/.env" || { echo "$here/.env has no value for $name (see env.example)." >&2; exit 1; }
+done
 
 case "${1:-up}" in
   up)
