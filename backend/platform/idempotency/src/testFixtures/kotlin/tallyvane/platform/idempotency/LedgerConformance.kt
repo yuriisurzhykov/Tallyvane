@@ -205,6 +205,20 @@ abstract class LedgerConformance : StringSpec() {
             subject.survivingWork() shouldBe 2
         }
 
+        "keeps the late answer of a request off the claim of another request that took the key over" {
+            val subject = fresh()
+            val first = claimed(1, body = "first")
+            subject.commits(first)
+            subject.later(25.hours)
+            val second = claimed(1, body = "second")
+            subject.commits(second)
+
+            subject.ledger.record(first, answer(201, "application/json", """{"first":true}"""))
+            subject.ledger.withhold(first)
+
+            subject.ledger.earlier(second) shouldBe Earlier.Unanswered
+        }
+
         "still holds a claim a little before its day is over" {
             val subject = fresh()
             subject.commits(claimed(1))

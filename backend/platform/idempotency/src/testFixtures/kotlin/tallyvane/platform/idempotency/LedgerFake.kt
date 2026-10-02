@@ -43,11 +43,11 @@ class LedgerFake(
     }
 
     override suspend fun record(claim: Claim, answer: Answer) {
-        entries.firstOrNull { it.stands(Facts.of(claim)) && it.committed() }?.answerWith(answer)
+        entries.firstOrNull { it.stands(Facts.of(claim)) && it.committed() }?.answerWith(answer, Facts.of(claim))
     }
 
     override suspend fun withhold(claim: Claim) {
-        entries.firstOrNull { it.stands(Facts.of(claim)) && it.committed() }?.withhold()
+        entries.firstOrNull { it.stands(Facts.of(claim)) && it.committed() }?.withhold(Facts.of(claim))
     }
 
     override suspend fun forgetExpired(): Int {
@@ -84,17 +84,23 @@ class LedgerFake(
             else -> answer?.let { kept -> Earlier.Replay(kept) } ?: Earlier.Unanswered
         }
 
-        fun answerWith(given: Answer) {
-            if (answer == null && !withheld) {
+        /**
+         * Keeps [given] if it is the answer to the request that made this claim, which a different
+         * request that took the key over later is not.
+         */
+        fun answerWith(given: Answer, asked: Facts) {
+            if (answer == null && !withheld && isOf(asked)) {
                 answer = given
             }
         }
 
-        fun withhold() {
-            if (answer == null) {
+        fun withhold(asked: Facts) {
+            if (answer == null && isOf(asked)) {
                 withheld = true
             }
         }
+
+        private fun isOf(asked: Facts): Boolean = facts.fingerprint.contentEquals(asked.fingerprint)
     }
 
     /**

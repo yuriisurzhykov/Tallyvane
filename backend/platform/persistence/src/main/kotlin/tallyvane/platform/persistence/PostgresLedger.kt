@@ -48,7 +48,7 @@ internal class PostgresLedger(private val transactions: TransactionRunner, priva
     override suspend fun record(claim: Claim, answer: Answer) {
         val facts = ClaimFacts.of(claim)
         transactions.inTransaction {
-            IdempotencyKeysTable.update({ standing(facts) and IdempotencyKeysTable.outcome.isNull() }) { row ->
+            IdempotencyKeysTable.update({ unansweredClaimOf(facts) }) { row ->
                 answer.tell(Storing(row))
             }
             Verdict.Commit(Unit)
@@ -58,7 +58,7 @@ internal class PostgresLedger(private val transactions: TransactionRunner, priva
     override suspend fun withhold(claim: Claim) {
         val facts = ClaimFacts.of(claim)
         transactions.inTransaction {
-            IdempotencyKeysTable.update({ standing(facts) and IdempotencyKeysTable.outcome.isNull() }) { row ->
+            IdempotencyKeysTable.update({ unansweredClaimOf(facts) }) { row ->
                 row[outcome] = WITHHELD
             }
             Verdict.Commit(Unit)
@@ -76,6 +76,18 @@ internal class PostgresLedger(private val transactions: TransactionRunner, priva
         contentType = kept[IdempotencyKeysTable.contentType],
         body = checkNotNull(kept[IdempotencyKeysTable.body]),
     )
+
+    /**
+     * The row this request's own claim made, still without an answer.
+     *
+     * Matching the fingerprint as well as the key keeps a late answer off the claim of a *different*
+     * request that took the key over after this one's day was up. What it cannot tell apart is two
+     * identical requests, and for them to collide the answer would have to arrive a day after the
+     * commit, in the same coroutine that committed.
+     */
+    private fun unansweredClaimOf(facts: ClaimFacts) = standing(facts) and
+        (IdempotencyKeysTable.fingerprint eq facts.fingerprint) and
+        IdempotencyKeysTable.outcome.isNull()
 
     private fun standing(facts: ClaimFacts) = (IdempotencyKeysTable.owner eq facts.owner) and
         (IdempotencyKeysTable.key eq facts.key) and
