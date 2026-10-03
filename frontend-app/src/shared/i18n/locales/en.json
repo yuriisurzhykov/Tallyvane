@@ -24,7 +24,9 @@
         "working": "Finishing sign-in…",
         "failed": "We couldn't finish signing you in.",
         "back": "Back to sign in",
-        "closeTab": "You're signed in. You can close this tab."
+        "closeTab": "You're signed in. You can close this tab.",
+        "ended": "That sign-in has ended. Start again, please.",
+        "blocked": "This account can't sign in yet."
     },
     "welcome": {
         "title": "Welcome to Tallyvane",
@@ -53,7 +55,7 @@
     },
     "stepUp": {
         "title": "Confirm it's you",
-        "lead": "This can't be undone, so we need you to sign in with Google once more. The page behind stays as it is.",
+        "lead": "This can't be undone, so we need you to sign in with Google once more. If you use an authenticator app, we'll ask for a code in the window that opens. The page behind stays as it is.",
         "blocked": "Pop-up blocked?",
         "openLink": "Open Google sign-in",
         "failed": "We couldn't reach Google just now.",
@@ -64,12 +66,16 @@
         "working": "Finishing confirmation…",
         "done": "Confirmed. You can close this tab.",
         "failed": "We couldn't confirm it's you.",
-        "otherAccount": "That was a different Google account. Close this tab and try again with the one you are signed in with."
+        "otherAccount": "That was a different Google account. Close this tab and try again with the one you are signed in with.",
+        "lead": "If you use an authenticator app, we ask for a code too.",
+        "ended": "That confirmation has ended. Close this tab and try again.",
+        "recoveryUsed": "You used a recovery code, so your authenticator app no longer works. Set it up again in Settings, Security."
     },
     "account": {
         "menu": "Account menu",
         "signOut": "Sign out",
-        "devices": "Devices"
+        "devices": "Devices",
+        "security": "Security"
     },
     "devices": {
         "loading": "Loading your devices…",
@@ -97,5 +103,98 @@
         "activeNow": "Active now",
         "activeAgo": "Active {when}",
         "lastActiveOn": "Last active {time}"
+    },
+    "verify": {
+        "title": "Enter your code",
+        "lead": "One more step to finish signing in.",
+        "working": "Checking your sign-in…",
+        "failed": "We couldn't check your sign-in just now. Try again in a moment.",
+        "ended": "That sign-in has ended. Start again, please.",
+        "blocked": "This account can't sign in yet.",
+        "startAgain": "Back to sign in"
+    },
+    "secondFactor": {
+        "codeLabel": "Code from your app",
+        "codeHint": "Six digits from your authenticator app.",
+        "recoveryLabel": "Recovery code",
+        "recoveryHint": "Ten characters, like ABCDE-FGHJK. Each code works once.",
+        "wrongCode": "That code didn't work. Check your app and try again.",
+        "wrongRecovery": "That recovery code didn't work. Check it and try again.",
+        "paused": "Too many tries. Try again in {seconds} s.",
+        "pausedAnnouncement": "Too many tries. You can try again in {seconds} seconds.",
+        "failed": "We couldn't check that code just now. Try again in a moment.",
+        "submit": "Continue",
+        "useRecovery": "No access to the app?",
+        "useApp": "Use the code from your app"
+    },
+    "recoveryUsed": {
+        "used": "You signed in with a recovery code.",
+        "noneLeft": "You have no recovery codes left.",
+        "oneLeft": "You have 1 recovery code left.",
+        "manyLeft": "You have {count} recovery codes left.",
+        "retired": "Your authenticator app no longer works. Until you set it up again, only your recovery codes sign you in, and each works once.",
+        "setUp": "Set up now",
+        "continue": "Continue"
+    },
+    "recoveryCodes": {
+        "title": "Your recovery codes",
+        "lead": "Each code works once. Keep them somewhere safe: we can't show them again.",
+        "copy": "Copy",
+        "copied": "Copied",
+        "copyFailed": "Copying didn't work. Select the codes and copy them by hand.",
+        "download": "Download",
+        "saved": "I have saved these codes.",
+        "done": "Done"
+    },
+    "security": {
+        "page": "Security",
+        "lead": "How your account is protected besides Google.",
+        "title": "Two-step sign-in",
+        "on": "On",
+        "off": "Off",
+        "needsSetUp": "Needs set-up",
+        "loading": "Loading your security settings…",
+        "loadFailed": "We couldn't load your security settings.",
+        "refreshFailed": "We couldn't refresh this, so it may be out of date.",
+        "tryAgain": "Try again",
+        "offLead": "Ask for a code from an authenticator app after Google. You also get recovery codes, so a lost phone does not lock you out.",
+        "activeLead": "After Google, we ask for a code from your authenticator app.",
+        "retiredTitle": "Your authenticator app no longer works.",
+        "retiredLead": "A recovery code was used, so we stopped trusting the app. Set it up again to get a new key and ten new recovery codes.",
+        "noCodesLeft": "You have no recovery codes left.",
+        "oneCodeLeft": "1 recovery code left.",
+        "manyCodesLeft": "{count} recovery codes left."
+    },
+    "enableTotp": {
+        "turnOn": "Turn on",
+        "setUpAgain": "Set up again",
+        "scanTitle": "Set up your authenticator app",
+        "scanLead": "Scan this code with an authenticator app such as Google Authenticator, 1Password or Authy. On this device, open the link instead.",
+        "qrLabel": "QR code for your authenticator app",
+        "orType": "Or type this key into the app:",
+        "openInApp": "Open in your authenticator app",
+        "codeLabel": "Code from your app",
+        "codeHint": "Type the six digits the app shows now, to check it works.",
+        "wrongCode": "That code didn't work. Check your app and try again.",
+        "confirm": "Turn on",
+        "cancel": "Cancel",
+        "failed": "That didn't work. Try again in a moment.",
+        "tryAgain": "Try again",
+        "lost": "Two-step sign-in is on, but your recovery codes didn't reach you. Ask for new ones before you leave.",
+        "lostContinue": "Continue"
+    },
+    "disableTotp": {
+        "turnOff": "Turn off",
+        "ask": "Turn off two-step sign-in? Your recovery codes stop working too.",
+        "confirm": "Turn off",
+        "cancel": "Cancel",
+        "failed": "That didn't work. Try again in a moment."
+    },
+    "reissueCodes": {
+        "ask": "Get new recovery codes",
+        "warning": "This replaces all your recovery codes. The old ones stop working.",
+        "confirm": "Replace codes",
+        "cancel": "Cancel",
+        "failed": "That didn't work. Try again in a moment."
     }
 }

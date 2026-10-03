@@ -280,14 +280,24 @@ classDiagram
     class TypedCode {
         <<features.answer-second-factor>>
         -text
-        +clean(kind) text
+        +forKind(kind) text
         +isComplete(kind) Boolean
+    }
+    class FirstCode {
+        <<features.enable-totp>>
+        -text
+        +digits() text
+        +isComplete() Boolean
+    }
+    class Confirmation {
+        <<entities.second-factor>>
+        +when(reaction) T
     }
     class SecondFactors {
         <<entities.second-factor api>>
         +standing() Standing
         +begin() TotpKey
-        +confirm(code) RecoveryCodes
+        +confirm(code) Confirmation
         +disable()
         +reissue() RecoveryCodes
     }
@@ -319,6 +329,7 @@ classDiagram
     SecondFactors --> Standing
     SecondFactors --> TotpKey
     SecondFactors --> RecoveryCodes
+    SecondFactors --> Confirmation
 ```
 
 Other changes in shared code: `ProblemError.retryAfterSeconds()` and the kinds `gone` and `slow-down`; `StepUpDeclined` in `shared/api`, with which `StepUpSession.cancel` rejects the waiting requests; strings in `en.json`; a "Security" item in the account menu; the `QrCode` primitive in `frontend-shared`.
@@ -329,4 +340,16 @@ The backend and `docs/openapi.yaml` (unchanged); the journal and emails (slice 6
 
 ## 9. What changed while implementing
 
-Nothing yet.
+The screens follow the diagrams. Where the code differs from them, or the plan said nothing, this is what happened:
+
+- **`Confirmation` at the border.** `SecondFactors.confirm` returns a `Confirmation` (`confirmed`, `wrong`, `conflict`) that the page reads with `when`, the same way `CodeAnswer` is read, instead of the page catching a 422 itself. Diagram 5 shows it.
+- **`FirstCode` next to `TypedCode`.** Turning TOTP on only ever takes six digits, so it has its own small class in `features/enable-totp` rather than reusing `TypedCode`, which also knows recovery codes. Features cannot import each other, so sharing was not an option anyway.
+- **`useCodeEntry`.** The field of the second step is split into a hook (what is typed, what is awaited, what the server said) and `SecondFactorForm` (what each of those looks like), to stay under the function size and complexity limits.
+- **A wrong code clears itself when the person types.** The design system's `Field` marks the control invalid while an error is shown, and the Base UI `Form` refuses to submit an invalid field, so without this a second try after a wrong code was silently not sent. Found by driving the screens in Chromium. The same goes for the first-code field when turning TOTP on.
+- **`StepUpDeclined` has its own file** (one class per file) and `Api.ResponseBody` now distributes over the success responses, so a call with a `204` or a `200` with a body types correctly.
+- **`Redirect` in `shared/navigation`.** The dispatcher and the verify page both need "go there, show a spinner meanwhile" from inside a render, which has to happen from an effect.
+- **`ConfirmStepUp keepOpen`.** In the confirmation window the code is asked in the same window, so after the confirmation the window must not close before the code step is done; the new prop lets the window decide.
+- **Set-up states.** The "confirming" state of turning TOTP on is its own state, and the key step carries the mistake (`none`, `wrong`, `failed`), so the key and the QR code stay on screen across a wrong code and a retry.
+- **A line under the title of the confirmation window** (`stepUpContinue.lead`) says an app code may be asked, because the window now sometimes shows a field.
+
+How it was checked: unit tests of the border classes and the client chain over a fake `fetch`; type check, lint and the architecture check; `next build`; and the screens driven in Chromium against a stand-in API that follows the contract of `POST /second-factor-codes`, `GET /sign-in` and the enrollment routes (code and recovery-code sign-in, a pause and an exhausted attempt, turning on with the QR code, recovery codes, reissue, turning off, a retired authenticator, and the confirmation window asking for a code). It was not run against the real backend or the real Google.

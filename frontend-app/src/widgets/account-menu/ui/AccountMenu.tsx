@@ -15,6 +15,7 @@ export function AccountMenu() {
         <Menu.Root>
             <Menu.Trigger render={<Button tone="ghost" size="sm" aria-label={t("menu")}>{viewer.label()}</Button>} />
             <Menu.Popup align="end">
+                <Menu.Item render={<Link href="/settings/security" />}>{t("security")}</Menu.Item>
                 <Menu.Item render={<Link href="/settings/devices" />}>{t("devices")}</Menu.Item>
                 <SignOutMenuItem />
             </Menu.Popup>

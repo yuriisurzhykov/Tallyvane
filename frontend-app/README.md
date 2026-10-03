@@ -35,12 +35,16 @@ sign in and then brought back (ADR-089).
 
 ## Signing in
 
-`/login` (Google), `/login/continue` (opens the session once Google has sent
-the person back), `/welcome` (name and consent for a new account) and the
+`/login` (Google), `/login/continue` (reads where the sign-in stands and opens
+the session, or sends the person to `/login/verify` for the code from an
+authenticator app or a recovery code), `/welcome` (name and consent for a new account) and the
 console gate in front of everything else. The whole flow, the transport chain
 under it and the "session ended" dialog are ADR-089. To see it running against
 the real server and database, use the stand in `ops/local/` (see `ops/README.md`);
 the server component that asks who is visiting needs `TALLYVANE_API_INTERNAL_URL`.
+
+Turning two-step sign-in on and off, and the recovery codes, are on
+`/settings/security` (slice 5c, `docs/backend/04-authentication-slice-5c-totp-screens.md`).
 
 ## What's shared with the sibling apps, and how
 
