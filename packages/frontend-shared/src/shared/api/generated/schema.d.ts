@@ -563,8 +563,9 @@ export interface components {
         /**
          * @description `__Host-session=<secret>; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=7776000` when a session
          *     begins (the longest a session can be allowed to live, so a lifetime loosened later still reaches it),
-         *     or the same with `Max-Age=0` to make the browser forget it. `__Host-` makes the browser refuse it unless it is `Secure`, has `Path=/` and names no `Domain`. A response that sets it also
-         *     sets `__Host-attempt` with `Max-Age=0`.
+         *     or the same with `Max-Age=0` to make the browser forget it. `__Host-` makes the browser refuse it
+         *     unless it is `Secure`, has `Path=/` and names no `Domain`. A response that sets it also sets
+         *     `__Host-attempt` with `Max-Age=0`.
          */
         SessionCookie: string;
         /**
