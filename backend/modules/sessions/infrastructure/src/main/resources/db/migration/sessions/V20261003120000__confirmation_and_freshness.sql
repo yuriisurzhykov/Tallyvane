@@ -3,17 +3,13 @@
 -- A session now says when its person last proved who they are: at first the moment it began, and later
 -- the moment they confirmed a dangerous act. That is a separate column from `authenticated_at` because
 -- confirming must not make a session live longer, and the absolute lifetime counts from the sign-in.
--- The rows that exist were all begun by a sign-in, so their last proof is that.
+--
+-- Nullable, because a release rolls out beside the one before it (ADR-066): the colour still running the old
+-- code inserts sessions without this column. A null means no confirmation after the sign-in, so the code reads
+-- it as `authenticated_at`, which is also what every row that exists now is. The code always writes it.
 
 alter table sessions.sessions
     add column confirmed_at timestamptz;
-
-update sessions.sessions
-   set confirmed_at = authenticated_at;
-
-alter table sessions.sessions
-    alter column confirmed_at set not null,
-    add constraint sessions_confirmed_not_before_begun check (confirmed_at >= authenticated_at);
 
 -- The third number of a version of the lifetimes: how long a proof stays fresh. Like the other two, the
 -- bounds (1 to 15 minutes) are the code's and not a check here. A default is only for the versions that

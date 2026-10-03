@@ -26,7 +26,8 @@ internal class RestoredSessions(private val devices: StoredDevices, private val 
                 head[SessionsTable.accountId],
                 devices.clientFrom(head[SessionsTable.clientType]),
                 head[SessionsTable.authenticatedAt],
-                head[SessionsTable.confirmedAt],
+                // Null: begun by a release that did not know confirming; its last proof is the sign-in.
+                head[SessionsTable.confirmedAt] ?: head[SessionsTable.authenticatedAt],
                 head[SessionsTable.lastActiveAt],
             )
             record.device(

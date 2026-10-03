@@ -66,5 +66,5 @@ cannot see a session's age.
 A person whose proof is older than five minutes meets `403 step-up-required` on the two guarded calls and, in the
 console, a window that confirms with Google and repeats the call. The window uses the existing re-sign-in popup. TOTP
 adds a second step to the same flow in slice 5b. The migration adds `sessions.confirmed_at` and
-`lifetime_versions.freshness_millis`; existing sessions start with `confirmed_at = authenticated_at` and existing
-versions with five minutes.
+`lifetime_versions.freshness_millis`; `confirmed_at` is nullable, as ADR-066 asks of a release that rolls out beside the one before it, and a null is read as
+`authenticated_at`; existing versions get five minutes.
