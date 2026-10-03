@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { StepUpDeclined } from "frontend-shared/api";
 import { StepUpSession } from "./StepUpSession";
 
 describe("StepUpSession", () => {
@@ -30,7 +31,7 @@ describe("StepUpSession", () => {
 
         session.cancel();
 
-        await expect(asked).rejects.toThrow("did not confirm");
+        await expect(asked).rejects.toBeInstanceOf(StepUpDeclined);
         expect(session.isWaiting()).toBe(false);
         const again = session.confirm();
         expect(again).not.toBe(asked);

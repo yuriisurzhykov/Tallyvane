@@ -57,6 +57,28 @@ describe("ProblemTransport", () => {
         expect(ProblemError.from(problem("conflict", 409, { "retry-after": "3" })).isAnsweredBefore()).toBe(false);
     });
 
+    it("reads Retry-After in seconds, and says nothing when it is absent or not a count", () => {
+        expect(ProblemError.from(problem("slow-down", 429, { "retry-after": "4" })).retryAfterSeconds()).toBe(4);
+        expect(ProblemError.from(problem("slow-down", 429)).retryAfterSeconds()).toBeUndefined();
+        expect(ProblemError.from(problem("slow-down", 429, { "retry-after": "Wed, 21 Oct 2026 07:28:00 GMT" })).retryAfterSeconds()).toBeUndefined();
+    });
+
+    it("knows the kinds gone and slow-down", () => {
+        expect(ProblemError.from(problem("gone", 410)).kind()).toBe("gone");
+        expect(ProblemError.from(problem("slow-down", 429)).kind()).toBe("slow-down");
+    });
+
+    it("knows a wrong code from other refusals", () => {
+        const wrong = (code: string) => ProblemError.from({
+            status: 422,
+            headers: new Headers(),
+            body: { type: "https://tallyvane.com/errors/validation-failed", title: "Invalid", status: 422, errors: [{ field: "code", code }] },
+        });
+
+        expect(wrong("wrong-code").isWrongCode()).toBe(true);
+        expect(wrong("required").isWrongCode()).toBe(false);
+    });
+
     it("names the code of a field the server refused", () => {
         const refused = ProblemError.from({
             status: 422,

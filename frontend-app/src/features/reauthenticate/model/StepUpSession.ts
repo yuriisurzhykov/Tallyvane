@@ -1,4 +1,4 @@
-import type { StepUpHandler } from "frontend-shared/api";
+import { StepUpDeclined, type StepUpHandler } from "frontend-shared/api";
 
 /**
  * "A dangerous act needs a recent proof and someone has to give it" as a thing the page can watch. The
@@ -34,7 +34,7 @@ export class StepUpSession implements StepUpHandler {
     public cancel(): void {
         const release = this.release;
         this.settle();
-        release?.reject(new Error("The person did not confirm."));
+        release?.reject(new StepUpDeclined());
     }
 
     public subscribe = (listener: () => void): (() => void) => {

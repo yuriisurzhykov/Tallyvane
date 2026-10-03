@@ -53,6 +53,7 @@
     "./ui/meter": "./src/shared/ui/meter/index.ts",
     "./ui/skeleton": "./src/shared/ui/skeleton/index.ts",
     "./ui/spinner": "./src/shared/ui/spinner/index.ts",
+    "./ui/qr-code": "./src/shared/ui/qr-code/index.ts",
     "./ui/callout": "./src/shared/ui/callout/index.ts",
     "./ui/live-region": "./src/shared/ui/live-region/index.ts",
     "./ui/collapsible": "./src/shared/ui/collapsible/index.ts",
@@ -110,6 +111,7 @@
     "@vercel/otel": "^2.1.3",
     "design-token-engine": "workspace:*",
     "lucide-react": "^1.32.0",
+    "qrcode": "^1.5.4",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },
@@ -120,6 +122,7 @@
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.2",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "dependency-cruiser": "^18.2.0",
