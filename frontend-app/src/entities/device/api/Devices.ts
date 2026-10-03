@@ -15,10 +15,16 @@ export class Devices {
     }
 
     /**
-     * Ends the session on the device, this one included. A device that has already gone (`404`) is as signed
-     * out as the person wanted it, so that is not a failure.
+     * Ends the session on the device. On this one it is the session the cookie holds *now*, which is not the
+     * one listed if the person has signed in again since (ADR-084): `/session` ends that one, where the listed
+     * id would end the old one and leave the new one signed in. A device that has already gone (`404`) is as
+     * signed out as the person wanted it, so that is not a failure.
      */
     public async signOut(device: Device): Promise<void> {
+        if (device.isCurrent()) {
+            await this.api.delete("/session");
+            return;
+        }
         await this.unlessGone(() => this.api.delete("/device/{id}", { params: { id: device.key() } }));
     }
 

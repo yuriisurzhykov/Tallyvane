@@ -7,7 +7,8 @@ import type { Device } from "./Device";
 
 export type DevicesState =
     | { readonly status: "loading" }
-    | { readonly status: "ready"; readonly devices: readonly Device[] }
+    /** `stale` when the last read failed: the list is what the screen had, and may be out of date. */
+    | { readonly status: "ready"; readonly devices: readonly Device[]; readonly stale: boolean }
     | { readonly status: "failed" };
 
 export interface DevicesView {
@@ -27,10 +28,10 @@ export function useDevices(): DevicesView {
         let current = true;
         devices.list().then(
             (list) => {
-                if (current) setState({ status: "ready", devices: list });
+                if (current) setState({ status: "ready", devices: list, stale: false });
             },
             () => {
-                if (current) setState({ status: "failed" });
+                if (current) setState((now) => (now.status === "ready" ? { ...now, stale: true } : { status: "failed" }));
             },
         );
         return () => {

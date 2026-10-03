@@ -40,6 +40,15 @@ async function firstOf(devices: Devices): Promise<Device> {
     return first;
 }
 
+async function secondOf(devices: Devices): Promise<Device> {
+    const listed = await devices.list();
+    const second = listed[1];
+    if (second === undefined) {
+        throw new Error("The scripted list has no second device.");
+    }
+    return second;
+}
+
 function json(body: unknown, status = 200): Response {
     return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 }
@@ -85,22 +94,32 @@ describe("Devices", () => {
         expect(sent[0]).toMatchObject({ method: "GET", url: "/api/v1/devices" });
     });
 
-    it("signs out on a device with a key of its own, and a second time with another", async () => {
+    it("signs out on another device with a key of its own, and a second time with another", async () => {
         const { devices, sent } = over(json(LISTED));
-        const laptop = await firstOf(devices);
+        const laptop = await secondOf(devices);
 
         await devices.signOut(laptop);
         await devices.signOut(laptop);
 
         const [, first, second] = sent;
-        expect(first).toMatchObject({ method: "DELETE", url: "/api/v1/device/d-1" });
+        expect(first).toMatchObject({ method: "DELETE", url: "/api/v1/device/d-2" });
         expect(first?.headers.get("idempotency-key")).toBeTruthy();
         expect(second?.headers.get("idempotency-key")).not.toBe(first?.headers.get("idempotency-key"));
     });
 
+    it("signs out here through the session the cookie holds, not the one that was listed", async () => {
+        const { devices, sent } = over(json(LISTED));
+        const here = await firstOf(devices);
+
+        await devices.signOut(here);
+
+        expect(here.isCurrent()).toBe(true);
+        expect(sent[1]).toMatchObject({ method: "DELETE", url: "/api/v1/session" });
+    });
+
     it("counts a device that has already gone as signed out", async () => {
         const { devices } = over(json(LISTED), problem(NOT_FOUND, 404));
-        const laptop = await firstOf(devices);
+        const laptop = await secondOf(devices);
 
         await expect(devices.signOut(laptop)).resolves.toBeUndefined();
     });
@@ -110,7 +129,7 @@ describe("Devices", () => {
             json(LISTED),
             problem({ type: "https://tallyvane.com/errors/unavailable", title: "Down", status: 503 }, 503),
         );
-        const laptop = await firstOf(devices);
+        const laptop = await secondOf(devices);
 
         await expect(devices.signOut(laptop)).rejects.toThrow("Down");
     });

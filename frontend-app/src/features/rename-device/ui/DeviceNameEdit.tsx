@@ -9,6 +9,7 @@ import { Stack } from "frontend-shared/ui/stack";
 import { Text } from "frontend-shared/ui/text";
 import { Devices, type Device } from "@/entities/device";
 import { useStrings } from "@/shared/i18n";
+import { RenameQueue } from "../model/RenameQueue";
 
 /**
  * The name goes into the security journal, so it is saved once, when the person commits it (Enter, or leaving
@@ -32,11 +33,14 @@ export function DeviceNameEdit({ device, fallbackLabel, onChanged }: DeviceNameE
     const [mistake, setMistake] = useState<string | undefined>(undefined);
     /** A refused name leaves the field showing it; starting the field over shows the name the server has. */
     const [attempt, setAttempt] = useState(0);
+    const [queue] = useState(() => new RenameQueue());
 
     const save = async (name: string) => {
         setMistake(undefined);
-        await new Devices(api).rename(device, name);
-        onChanged();
+        const drained = await queue.run(() => new Devices(api).rename(device, name));
+        if (drained) {
+            onChanged();
+        }
     };
 
     const explain = (failure: unknown) => {

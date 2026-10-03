@@ -60,6 +60,7 @@
         "loading": "Loading your devices…",
         "loadFailed": "We couldn't load your devices.",
         "tryAgain": "Try again",
+        "refreshFailed": "We couldn't refresh the list, so it may be out of date.",
         "actionFailed": "That didn't work. Try again in a moment.",
         "thisDevice": "This device",
         "rename": "Rename",

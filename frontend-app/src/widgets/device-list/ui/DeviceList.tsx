@@ -64,6 +64,14 @@ export function DeviceList() {
     return (
         <Stack gap="stack">
             {failed ? <Callout tone="danger">{t("actionFailed")}</Callout> : null}
+            {state.stale ? (
+                <Callout tone="attention">
+                    <Row gap="inline" className="flex-wrap items-center">
+                        {t("refreshFailed")}
+                        <Button tone="ghost" size="sm" onClick={refresh}>{t("tryAgain")}</Button>
+                    </Row>
+                </Callout>
+            ) : null}
             {state.devices.map((device) => (
                 <DeviceRow
                     key={device.key()}
