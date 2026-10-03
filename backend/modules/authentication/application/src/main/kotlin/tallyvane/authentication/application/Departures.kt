@@ -7,9 +7,10 @@ import tallyvane.platform.kernel.Clock
 
 /**
  * Sends a person to Google for an attempt of some purpose: the one thing signing in and confirming a
- * dangerous act both begin with. What differs between them is the purpose, and nothing else.
+ * dangerous act both begin with. What differs between them is the purpose, and nothing else, so it is
+ * built once and handed to both use cases.
  */
-internal class Departures(
+public class Departures(
     private val trips: GoogleTrips,
     private val google: Google,
     private val clock: Clock,
@@ -18,7 +19,7 @@ internal class Departures(
     /**
      * Keeps a new attempt for [purpose], and says where to send the person.
      */
-    suspend fun begin(purpose: Purpose): SignInBegun {
+    public suspend fun begin(purpose: Purpose): SignInBegun {
         val issued = keys.issue()
         val handshake = keys.handshake()
         trips.depart(issued.key, Attempt(purpose, clock.now()), handshake)

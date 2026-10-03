@@ -35,9 +35,11 @@ class Harness {
         Digests.Hmac(Secret("a-pepper-only-the-tests-use-0123456789"), 1),
     )
 
-    val begin: BeginSignInUseCase = BeginSignInUseCase.BeginSignIn(trips(), google, clock, keys)
+    private val departures = Departures(trips(), google, clock, keys)
 
-    val beginStepUp: BeginStepUpUseCase = BeginStepUpUseCase.BeginStepUp(trips(), google, clock, keys)
+    val begin: BeginSignInUseCase = BeginSignInUseCase.BeginSignIn(departures)
+
+    val beginStepUp: BeginStepUpUseCase = BeginStepUpUseCase.BeginStepUp(departures)
 
     val continueWith: ContinueWithGoogleUseCase =
         ContinueWithGoogleUseCase.ContinueWithGoogle(trips(), google, policies, clock, keys)

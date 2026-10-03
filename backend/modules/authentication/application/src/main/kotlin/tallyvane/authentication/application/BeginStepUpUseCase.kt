@@ -1,8 +1,6 @@
 package tallyvane.authentication.application
 
-import tallyvane.authentication.application.port.Google
 import tallyvane.authentication.domain.Purpose
-import tallyvane.platform.kernel.Clock
 import tallyvane.platform.kernel.UseCase
 
 /**
@@ -16,9 +14,7 @@ import tallyvane.platform.kernel.UseCase
 public interface BeginStepUpUseCase : UseCase {
     public suspend fun begin(): SignInBegun
 
-    public class BeginStepUp(trips: GoogleTrips, google: Google, clock: Clock, keys: SignInKeys) : BeginStepUpUseCase {
-        private val departures = Departures(trips, google, clock, keys)
-
+    public class BeginStepUp(private val departures: Departures) : BeginStepUpUseCase {
         override suspend fun begin(): SignInBegun = departures.begin(Purpose.StepUp)
     }
 }
