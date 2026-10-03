@@ -5,6 +5,7 @@ import io.ktor.server.application.call
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.delete
+import tallyvane.platform.http.Access
 import tallyvane.platform.http.BasePath
 import tallyvane.platform.http.Refused
 import tallyvane.platform.http.RouteModule
@@ -18,6 +19,8 @@ import tallyvane.sessions.application.SignOutOthersUseCase
  * DELETE /api/v1/other-devices   ends every session of the person except the one asking
  * ```
  *
+ * A dangerous act, so the edge asks for a recent proof of who the person is first (ADR-092).
+ *
  * Always `204` for a signed-in person, whether there was another session or not.
  */
 internal class OtherDevicesSignOutRoutes(
@@ -26,6 +29,8 @@ internal class OtherDevicesSignOutRoutes(
     private val problems: DeviceProblems,
 ) : RouteModule {
     override val basePath: BasePath = BasePath("/other-devices")
+
+    override val access: Access = Access.SignedFresh
 
     override fun install(route: Route) {
         route.delete {

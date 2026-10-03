@@ -3,7 +3,7 @@
 ## Status
 
 Accepted. Refines ADR-078 (where the session numbers live) and ADR-079 (device list, revoking).
-Records one deviation from ADR-079, to be closed in the next slice.
+Records one deviation from ADR-079, closed by ADR-092.
 
 ## Context
 
@@ -51,6 +51,8 @@ synchronous bus: the subscriber runs in the publisher's transaction, so the acco
 go together or not at all. No code deletes an account yet; the path is tested with a test publisher.
 
 ## Deviation from ADR-079
+
+**Closed by ADR-092 (slice 5a):** `DELETE /device/{id}` and `DELETE /other-devices` now ask for a fresh proof. What follows is the record of the deviation as it stood.
 
 ADR-079 says signing out other devices asks for a step-up when the session's authentication is older
 than the fresh-factor window. This slice does not check it. The factor-freshness policy and the

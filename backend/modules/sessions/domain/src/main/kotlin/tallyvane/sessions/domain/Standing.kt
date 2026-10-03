@@ -24,8 +24,10 @@ public sealed interface Standing {
         private val account: Uuid,
         private val factors: Set<Factor>,
         private val authenticatedAt: Instant,
+        private val freshness: Freshness,
     ) : Standing {
-        override fun <T> reportTo(report: Report<T>): T = report.live(session, account, factors, authenticatedAt)
+        override fun <T> reportTo(report: Report<T>): T =
+            report.live(session, account, factors, authenticatedAt, freshness)
 
         override fun toString(): String = "Live(authenticatedAt=$authenticatedAt)"
     }
@@ -65,8 +67,15 @@ public sealed interface Standing {
          * @param account Whose session it is; the domain does not know what an account is.
          * @param factors How they proved who they are.
          * @param authenticatedAt When they did.
+         * @param freshness Whether they proved it again recently enough for a dangerous act.
          */
-        public fun live(session: SessionId, account: Uuid, factors: Set<Factor>, authenticatedAt: Instant): T
+        public fun live(
+            session: SessionId,
+            account: Uuid,
+            factors: Set<Factor>,
+            authenticatedAt: Instant,
+            freshness: Freshness,
+        ): T
 
         public fun endedByIdleness(): T
 

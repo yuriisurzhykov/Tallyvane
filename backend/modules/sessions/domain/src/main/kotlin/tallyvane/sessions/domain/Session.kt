@@ -11,9 +11,11 @@ import kotlin.uuid.Uuid
  *
  * It holds its id, whose it is, how they proved it and when, what kind of client and device it is on, and
  * when it was last used, and answers one question about them: whether it may still be used at a moment
- * ([standingAt]). It does not know its secret, which only its keeper does. Its trust cannot be changed: a
- * session is replaced, never edited, so that trust changing means a new secret. The only things that
- * change are what is said about it ([renamed]) and when it was last used ([seenAt]).
+ * ([standingAt]). It does not know its secret, which only its keeper does. Who holds it cannot change: a
+ * session is replaced, never edited, so a different person or a different sign-in means a new secret.
+ * What does change is what is said about it ([renamed]), when it was last used ([seenAt]) and when its
+ * person last proved who they are again ([confirmed], ADR-092). That last is not a new sign-in: the
+ * absolute lifetime still counts from [authenticatedAt], so confirming never makes a session live longer.
  *
  * Not a `data class`, for the reason `Attempt` is not one: a generated `copy()` is public.
  *
@@ -26,6 +28,7 @@ public class Session private constructor(
     private val client: ClientType,
     private val device: Device,
     private val authenticatedAt: Instant,
+    private val confirmedAt: Instant,
     private val lastActiveAt: Instant,
 ) {
     init {
@@ -43,21 +46,32 @@ public class Session private constructor(
         return when {
             lifetimes.hasPassedSinceStart(authenticatedAt, now) -> Standing.EndedByAge()
             lifetimes.hasPassedSinceUse(lastActiveAt, now) -> Standing.EndedByIdleness()
-            else -> Standing.Live(id, account, factors, authenticatedAt)
+            else -> Standing.Live(id, account, factors, authenticatedAt, freshnessAt(now, lifetimes))
         }
     }
+
+    private fun freshnessAt(now: Instant, lifetimes: Lifetimes): Freshness =
+        if (lifetimes.hasLostFreshness(confirmedAt, now)) Freshness.Stale else Freshness.Fresh
 
     /**
      * This session, used at [now]. Use only moves forward: a [now] before the last use leaves it as it was.
      */
     public fun seenAt(now: Instant): Session =
-        Session(id, account, factors, client, device, authenticatedAt, maxOf(lastActiveAt, now))
+        Session(id, account, factors, client, device, authenticatedAt, confirmedAt, maxOf(lastActiveAt, now))
+
+    /**
+     * This session, its person having proved who they are again by [proved] at [at]: the factors join
+     * those it already records, and the moment of the last proof moves forward. Never back: a proof
+     * stamped before the last one leaves it as it was, so a slow request cannot make a session staler.
+     */
+    public fun confirmed(at: Instant, proved: Set<Factor>): Session =
+        Session(id, account, factors + proved, client, device, authenticatedAt, maxOf(confirmedAt, at), lastActiveAt)
 
     /**
      * This session, with its device called [name].
      */
     public fun renamed(name: DeviceName): Session =
-        Session(id, account, factors, client, device.named(name), authenticatedAt, lastActiveAt)
+        Session(id, account, factors, client, device.named(name), authenticatedAt, confirmedAt, lastActiveAt)
 
     /**
      * Whether this is [other], for whoever keeps sessions and has to find one.
@@ -73,7 +87,7 @@ public class Session private constructor(
      * Tells [record] everything about this session.
      */
     public fun writeTo(record: Record) {
-        record.session(id, account, client, authenticatedAt, lastActiveAt)
+        record.session(id, account, client, authenticatedAt, confirmedAt, lastActiveAt)
         device.writeTo(record)
         Factor.entries.filter { it in factors }.forEach(record::proved)
     }
@@ -89,6 +103,7 @@ public class Session private constructor(
             account: Uuid,
             client: ClientType,
             authenticatedAt: Instant,
+            confirmedAt: Instant,
             lastActiveAt: Instant,
         )
 
@@ -104,7 +119,8 @@ public class Session private constructor(
 
         /**
          * A session known as [id] for [account] who proved who they are by [factors], the last of them at
-         * [authenticatedAt], begun at [now] by a [client] on [device].
+         * [authenticatedAt], begun at [now] by a [client] on [device]. That proof is also the last
+         * confirmation: a person who has just signed in may do a dangerous act without being asked again.
          *
          * A [now] before [authenticatedAt], which two clocks that disagree by milliseconds can make, is
          * taken as [authenticatedAt] (slice 3, fork 5).
@@ -117,7 +133,16 @@ public class Session private constructor(
             device: Device,
             authenticatedAt: Instant,
             now: Instant,
-        ): Session = Session(id, account, factors.toSet(), client, device, authenticatedAt, maxOf(now, authenticatedAt))
+        ): Session = Session(
+            id,
+            account,
+            factors.toSet(),
+            client,
+            device,
+            authenticatedAt,
+            authenticatedAt,
+            maxOf(now, authenticatedAt),
+        )
 
         /**
          * The session [replay] describes, as storage kept it.
@@ -142,9 +167,10 @@ public class Session private constructor(
             account: Uuid,
             client: ClientType,
             authenticatedAt: Instant,
+            confirmedAt: Instant,
             lastActiveAt: Instant,
         ) {
-            told += Told(id, account, client, authenticatedAt, lastActiveAt)
+            told += Told(id, account, client, authenticatedAt, confirmedAt, lastActiveAt)
         }
 
         override fun device(browser: Browser, platform: Platform, mobile: Boolean, name: String?) {
@@ -166,6 +192,10 @@ public class Session private constructor(
                 "A session kept as last used (${one.lastActiveAt}) before it began (${one.authenticatedAt}); " +
                     "writeTo never tells that."
             }
+            check(one.confirmedAt >= one.authenticatedAt) {
+                "A session kept as last confirmed (${one.confirmedAt}) before it began (${one.authenticatedAt}); " +
+                    "writeTo never tells that."
+            }
             return Session(
                 one.id,
                 one.account,
@@ -173,6 +203,7 @@ public class Session private constructor(
                 one.client,
                 devices.single(),
                 one.authenticatedAt,
+                one.confirmedAt,
                 one.lastActiveAt,
             )
         }
@@ -183,6 +214,7 @@ public class Session private constructor(
         val account: Uuid,
         val client: ClientType,
         val authenticatedAt: Instant,
+        val confirmedAt: Instant,
         val lastActiveAt: Instant,
     )
 }

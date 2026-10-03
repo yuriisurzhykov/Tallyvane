@@ -12,6 +12,7 @@ export type ProblemKind =
     | "forbidden"
     | "sign-in-required"
     | "session-expired"
+    | "step-up-required"
     | "not-found"
     | "conflict"
     | "unavailable"
@@ -24,6 +25,7 @@ const KINDS: readonly ProblemKind[] = [
     "forbidden",
     "sign-in-required",
     "session-expired",
+    "step-up-required",
     "not-found",
     "conflict",
     "unavailable",
@@ -72,6 +74,11 @@ export class ProblemError extends Error {
 
     public isSessionExpired(): boolean {
         return this.kind() === "session-expired";
+    }
+
+    /** The person is signed in but must prove who they are again before this act (ADR-092). */
+    public isStepUpRequired(): boolean {
+        return this.kind() === "step-up-required";
     }
 
     public isSignInRequired(): boolean {

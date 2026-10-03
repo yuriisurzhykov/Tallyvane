@@ -23,7 +23,8 @@ import tallyvane.platform.kernel.Secret
  *
  * Reached by a redirect, so it never answers with an error document: every outcome is another
  * redirect, to a page of the application. A person with an account goes on to `/login/continue`, a new
- * person to `/welcome` with a new cookie, and anyone else back to `/login` with a reason.
+ * person to `/welcome` with a new cookie, one confirming a dangerous act to `/step-up/continue`, and
+ * anyone else back to `/login` with a reason.
  *
  * This is the one address registered with Google as the redirect URI.
  */
@@ -57,6 +58,8 @@ internal class GoogleReturnRoutes(
         private val pages: ReturnPages,
     ) : GoogleReturn.Report<String> {
         override fun verified(): String = pages.afterVerified()
+
+        override fun steppedUp(): String = pages.afterSteppedUp()
 
         override fun registering(attempt: Secret): String {
             cookie.give(call, attempt)

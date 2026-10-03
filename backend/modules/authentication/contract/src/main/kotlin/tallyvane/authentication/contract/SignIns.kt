@@ -23,4 +23,15 @@ public interface SignIns {
      * not lost to a request that came too early.
      */
     public fun redeem(secret: Secret): Redemption
+
+    /**
+     * Takes the completed confirmation the browser's [secret] belongs to: a person who is already signed in
+     * proved who they are again (ADR-092).
+     *
+     * A confirmation is single use like a sign-in, and a different thing: it never grants a session, only
+     * says whose proof it was and when it was given, and the one that takes it decides whether that is the
+     * person it was for. A sign-in cannot be taken as a confirmation, nor the other way round, so neither
+     * can be used for the other's purpose. Reports nothing to redeem in every case [redeem] does.
+     */
+    public fun redeemStepUp(secret: Secret): Redemption
 }

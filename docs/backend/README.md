@@ -11,6 +11,10 @@ before the module is built.
   of them than there are modules; and what happens to all of it when the
   monolith starts splitting into services.
 
+- [02-authentication-slice-5.md](02-authentication-slice-5.md) — step-up (a fresh
+  factor for dangerous actions) and TOTP: the flows, module dependencies and
+  classes the code of slice 5 is written from.
+
 ## Per capability
 
 None yet. [ARCHITECTURE.md](../../ARCHITECTURE.md) sections 4 through 9 hold the

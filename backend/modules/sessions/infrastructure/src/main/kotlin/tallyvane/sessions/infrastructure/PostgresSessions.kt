@@ -1,15 +1,15 @@
 package tallyvane.sessions.infrastructure
 
 import org.jetbrains.exposed.v1.core.IColumnType
-import org.jetbrains.exposed.v1.core.JoinType
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.core.lessEq
 import org.jetbrains.exposed.v1.core.neq
 import org.jetbrains.exposed.v1.core.statements.StatementType
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insert
-import org.jetbrains.exposed.v1.jdbc.selectAll
+import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager
 import org.jetbrains.exposed.v1.jdbc.update
 import tallyvane.platform.kernel.Digest
@@ -26,12 +26,18 @@ import kotlin.uuid.Uuid
 
 private const val CLAIM_SESSION = """
     insert into sessions.sessions (
-        id, secret_digest, pepper_version, account_id, authenticated_at, last_active_at,
+        id, secret_digest, pepper_version, account_id, authenticated_at, confirmed_at, last_active_at,
         client_type, device_browser, device_platform, device_mobile, device_name
     )
-    values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     on conflict (secret_digest) do nothing
     returning id
+"""
+
+private const val ADD_FACTOR = """
+    insert into sessions.session_factors (session_id, factor)
+    values (?, ?)
+    on conflict (session_id, factor) do nothing
 """
 
 /**
@@ -43,6 +49,13 @@ private const val CLAIM_SESSION = """
  * kept is at least [Session.USE_GRAIN] before the moment noted. A request that does not qualify
  * matches no row, so it takes no row lock and writes nothing, which is what keeps a person who clicks
  * around from writing on every request. Two requests that do qualify at once simply queue on the row.
+ *
+ * ### Confirmation
+ *
+ * [confirm] moves `confirmed_at` forward only: its `WHERE` holds the rule, as [saw]'s does, so a slow
+ * request cannot make a session staler. It reads nothing else from the session it is given but the moment
+ * and the factors, and adds those factors to the ones kept; the row is found by the key and never by
+ * anything the session says about itself.
  *
  * ### Whose
  *
@@ -58,7 +71,7 @@ internal class PostgresSessions : Sessions {
         val told = DigestColumns().also { key.writeTo(it) }
         // One statement, so one snapshot: a sign-out that commits meanwhile removes the session with its
         // factors or leaves both, and never the factors alone.
-        val rows = joined()
+        val rows = restored.rows()
             .where { (SessionsTable.secretDigest eq told.bytes()) and (SessionsTable.pepperVersion eq told.version()) }
             .toList()
         return rows.takeIf { it.isNotEmpty() }?.let(restored::from)
@@ -98,7 +111,7 @@ internal class PostgresSessions : Sessions {
         }
     }
 
-    override fun ofAccount(account: Uuid): List<Session> = joined()
+    override fun ofAccount(account: Uuid): List<Session> = restored.rows()
         .where { SessionsTable.accountId eq account }
         .toList()
         .groupBy { it[SessionsTable.id] }
@@ -116,6 +129,31 @@ internal class PostgresSessions : Sessions {
         SessionsTable.deleteWhere { accountId eq account }
     }
 
+    override fun confirm(key: Digest, session: Session) {
+        val told = DigestColumns().also { key.writeTo(it) }
+        val proof = Proof().also { session.writeTo(it) }
+        val kept = SessionsTable.select(SessionsTable.id)
+            .where { (SessionsTable.secretDigest eq told.bytes()) and (SessionsTable.pepperVersion eq told.version()) }
+            .singleOrNull()
+            ?.get(SessionsTable.id) ?: return
+        SessionsTable.update(
+            {
+                (SessionsTable.id eq kept) and (SessionsTable.confirmedAt less proof.confirmedAt())
+            },
+        ) {
+            it[confirmedAt] = proof.confirmedAt()
+        }
+        proof.factors().forEach { factor ->
+            TransactionManager.current().exec(
+                ADD_FACTOR,
+                listOf<Pair<IColumnType<*>, Any?>>(
+                    SessionFactorsTable.sessionId.columnType to kept,
+                    SessionFactorsTable.factor.columnType to factors.of(factor),
+                ),
+            )
+        }
+    }
+
     override fun rename(account: Uuid, id: SessionId, name: DeviceName): Boolean {
         val text = mutableListOf<String>()
         name.writeTo { text += it }
@@ -123,10 +161,6 @@ internal class PostgresSessions : Sessions {
             it[deviceName] = text.single()
         } > 0
     }
-
-    private fun joined() = SessionsTable
-        .join(SessionFactorsTable, JoinType.INNER) { SessionsTable.id eq SessionFactorsTable.sessionId }
-        .selectAll()
 
     override fun toString(): String = "PostgresSessions(schema=sessions)"
 
@@ -143,9 +177,10 @@ internal class PostgresSessions : Sessions {
             account: Uuid,
             client: ClientType,
             authenticatedAt: Instant,
+            confirmedAt: Instant,
             lastActiveAt: Instant,
         ) {
-            sessions += Told(id, account, client, authenticatedAt, lastActiveAt)
+            sessions += Told(id, account, client, authenticatedAt, confirmedAt, lastActiveAt)
         }
 
         override fun device(browser: Browser, platform: Platform, mobile: Boolean, name: String?) {
@@ -170,6 +205,7 @@ internal class PostgresSessions : Sessions {
                     table.pepperVersion.columnType to digest.version(),
                     table.accountId.columnType to session.account,
                     table.authenticatedAt.columnType to session.authenticatedAt,
+                    table.confirmedAt.columnType to session.confirmedAt,
                     table.lastActiveAt.columnType to session.lastActiveAt,
                     table.clientType.columnType to devices.of(session.client),
                     table.deviceBrowser.columnType to devices.of(device.browser),
@@ -187,11 +223,41 @@ internal class PostgresSessions : Sessions {
         }
     }
 
+    /**
+     * What a confirmed session says about the proof, and nothing else of it.
+     */
+    private class Proof : Session.Record {
+        private var confirmedAt: Instant? = null
+        private val proved = mutableListOf<Factor>()
+
+        override fun session(
+            id: SessionId,
+            account: Uuid,
+            client: ClientType,
+            authenticatedAt: Instant,
+            confirmedAt: Instant,
+            lastActiveAt: Instant,
+        ) {
+            this.confirmedAt = confirmedAt
+        }
+
+        override fun device(browser: Browser, platform: Platform, mobile: Boolean, name: String?) = Unit
+
+        override fun proved(factor: Factor) {
+            proved += factor
+        }
+
+        fun confirmedAt(): Instant = checkNotNull(confirmedAt) { "A session tells when it was last confirmed." }
+
+        fun factors(): List<Factor> = proved
+    }
+
     private class Told(
         val id: SessionId,
         val account: Uuid,
         val client: ClientType,
         val authenticatedAt: Instant,
+        val confirmedAt: Instant,
         val lastActiveAt: Instant,
     )
 

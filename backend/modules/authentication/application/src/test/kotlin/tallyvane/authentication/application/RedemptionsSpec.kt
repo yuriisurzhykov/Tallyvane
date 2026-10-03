@@ -99,5 +99,53 @@ class RedemptionsSpec :
 
                 told(harness.redemptions.redeem(pressed.attempt)) shouldBe "nothing"
             }
+
+            "hands over a completed confirmation as a confirmation, with who proved it and when" {
+                val harness = Harness()
+                harness.accounts.knows("sub-1")
+                val pressed = harness.pressStepUp()
+                harness.returnWith(pressed, vouched("sub-1"))
+
+                told(harness.redemptions.redeemStepUp(pressed.attempt)) shouldBe
+                    "redeemed 00000000-0000-7000-8000-000000000001 [Google] 2026-10-02T09:00:00Z"
+            }
+
+            "hands a confirmation over once" {
+                val harness = Harness()
+                harness.accounts.knows("sub-1")
+                val pressed = harness.pressStepUp()
+                harness.returnWith(pressed, vouched("sub-1"))
+                harness.redemptions.redeemStepUp(pressed.attempt)
+
+                told(harness.redemptions.redeemStepUp(pressed.attempt)) shouldBe "nothing"
+            }
+
+            "a confirmation cannot be taken as a sign-in, so it never grants a session" {
+                val harness = Harness()
+                harness.accounts.knows("sub-1")
+                val pressed = harness.pressStepUp()
+                harness.returnWith(pressed, vouched("sub-1"))
+
+                told(harness.redemptions.redeem(pressed.attempt)) shouldBe "nothing"
+                told(harness.redemptions.redeemStepUp(pressed.attempt)).startsWith("redeemed") shouldBe true
+            }
+
+            "a sign-in cannot be taken as a confirmation, so it cannot confirm another session" {
+                val harness = Harness()
+                harness.accounts.knows("sub-1")
+                val pressed = harness.pressSignIn()
+                harness.returnWith(pressed, vouched("sub-1"))
+
+                told(harness.redemptions.redeemStepUp(pressed.attempt)) shouldBe "nothing"
+                told(harness.redemptions.redeem(pressed.attempt)).startsWith("redeemed") shouldBe true
+            }
+
+            "a confirmation by a Google account nobody here knows is not handed over" {
+                val harness = Harness()
+                val pressed = harness.pressStepUp()
+                harness.returnWith(pressed, vouched("stranger"))
+
+                told(harness.redemptions.redeemStepUp(pressed.attempt)) shouldBe "nothing"
+            }
         },
     )

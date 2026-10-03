@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { ConfirmingTransport } from "./ConfirmingTransport";
 import { IdempotentTransport } from "./IdempotentTransport";
 import { ProblemError } from "./ProblemError";
 import { ProblemTransport } from "./ProblemTransport";
@@ -128,5 +129,60 @@ describe("ReauthenticatingTransport", () => {
         await flight.run(() => { runs += 1; return Promise.resolve(); });
 
         expect(runs).toBe(2);
+    });
+});
+
+describe("ConfirmingTransport", () => {
+    const stale = () => ProblemError.from(problem("step-up-required", 403));
+
+    it("waits for the handler, then repeats the very same request once", async () => {
+        const wire = new ScriptedTransport(stale(), ok("done"));
+        const calls: string[] = [];
+        const transport = new ConfirmingTransport(wire, { confirm: () => { calls.push("confirmed"); return Promise.resolve(); } });
+        const sent = request("DELETE", "/other-devices", { "idempotency-key": "k" });
+
+        const answer = await transport.send(sent);
+
+        expect(answer.body).toBe("done");
+        expect(calls).toEqual(["confirmed"]);
+        expect(wire.requests).toEqual([sent, sent]);
+    });
+
+    it("opens one confirmation for acts refused together", async () => {
+        const wire = new ScriptedTransport(stale(), stale(), ok(1), ok(2));
+        let opened = 0;
+        let finish = (): void => undefined;
+        const gate = new Promise<void>((resolve) => { finish = resolve; });
+        const transport = new ConfirmingTransport(wire, { confirm: () => { opened += 1; return gate; } });
+
+        const answers = Promise.all([1, 2].map(() => transport.send(request("DELETE", "/x"))));
+        await Promise.resolve();
+        finish();
+        await answers;
+
+        expect(opened).toBe(1);
+    });
+
+    it("does not touch a failure that is not a missing proof, an ended session included", async () => {
+        const wire = new ScriptedTransport(ProblemError.from(problem("session-expired", 401)));
+        const transport = new ConfirmingTransport(wire, { confirm: () => Promise.reject(new Error("must not be asked")) });
+
+        await expect(transport.send(request("DELETE", "/x"))).rejects.toBeInstanceOf(ProblemError);
+        expect(wire.requests).toHaveLength(1);
+    });
+
+    it("lets a second refusal through instead of looping", async () => {
+        const wire = new ScriptedTransport(stale(), stale());
+        const transport = new ConfirmingTransport(wire, { confirm: () => Promise.resolve() });
+
+        await expect(transport.send(request("DELETE", "/x"))).rejects.toBeInstanceOf(ProblemError);
+        expect(wire.requests).toHaveLength(2);
+    });
+
+    it("passes the failure on when the person gives up", async () => {
+        const wire = new ScriptedTransport(stale());
+        const transport = new ConfirmingTransport(wire, { confirm: () => Promise.reject(new Error("closed")) });
+
+        await expect(transport.send(request("DELETE", "/x"))).rejects.toThrow("closed");
     });
 });

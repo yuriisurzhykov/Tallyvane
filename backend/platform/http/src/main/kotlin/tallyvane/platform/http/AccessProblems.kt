@@ -13,6 +13,8 @@ internal class AccessProblems : Problems<AccessFailure> {
 
         AccessFailure.SessionExpired -> sessionExpired("Your session has ended. Sign in again.")
 
+        AccessFailure.StepUpRequired -> stepUpRequired("Confirm that it is you to do this.")
+
         AccessFailure.ForeignOrigin -> forbidden(
             "Requests that change anything are accepted only from the application's own pages.",
         )

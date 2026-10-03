@@ -15,6 +15,7 @@ import tallyvane.sessions.domain.Platform
 import tallyvane.sessions.domain.Session
 import tallyvane.sessions.domain.SessionId
 import tallyvane.sessions.domain.UserAgent
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
@@ -45,9 +46,10 @@ private fun told(session: Session): List<String> {
                 account: Uuid,
                 client: ClientType,
                 authenticatedAt: Instant,
+                confirmedAt: Instant,
                 lastActiveAt: Instant,
             ) {
-                lines += "session ${id.value} $account $client $authenticatedAt $lastActiveAt"
+                lines += "session ${id.value} $account $client $authenticatedAt $confirmedAt $lastActiveAt"
             }
 
             override fun device(browser: Browser, platform: Platform, mobile: Boolean, name: String?) {
@@ -278,6 +280,50 @@ abstract class SessionsConformance : StringSpec() {
             subject.inOwnTransaction { rename(OTHER_ACCOUNT, FIRST_ID, DeviceName("Mine now")) } shouldBe false
 
             told(checkNotNull(subject.inOwnTransaction { find(FIRST) })) shouldBe told(session())
+        }
+
+        "confirms a session: the moment of the last proof moves and the new factor joins" {
+            val subject = fresh()
+            subject.inOwnTransaction { add(FIRST, session()) }
+            val later = START + 3.minutes
+
+            subject.inOwnTransaction {
+                confirm(FIRST, session().confirmed(later, setOf(Factor.Totp)))
+            }
+
+            val kept = checkNotNull(subject.inOwnTransaction { find(FIRST) })
+            confirmedAtOf(kept) shouldBe later
+            factorsOf(kept) shouldBe setOf(Factor.Google, Factor.Totp)
+        }
+
+        "does not move the last confirmation back" {
+            val subject = fresh()
+            val confirmed = session().confirmed(START + 5.minutes, setOf(Factor.Google))
+            subject.inOwnTransaction { add(FIRST, confirmed) }
+
+            subject.inOwnTransaction { confirm(FIRST, session().confirmed(START + 2.minutes, setOf(Factor.Google))) }
+
+            confirmedAtOf(checkNotNull(subject.inOwnTransaction { find(FIRST) })) shouldBe START + 5.minutes
+        }
+
+        "confirming changes nothing but the proof: not the device, the account nor the last use" {
+            val subject = fresh()
+            val kept = session()
+            subject.inOwnTransaction { add(FIRST, kept) }
+            val stranger = session(id = SECOND_ID, account = OTHER_ACCOUNT).confirmed(START + 1.minutes, emptySet())
+
+            subject.inOwnTransaction { confirm(FIRST, stranger) }
+
+            told(checkNotNull(subject.inOwnTransaction { find(FIRST) })) shouldBe
+                told(kept.confirmed(START + 1.minutes, emptySet()))
+        }
+
+        "confirming a session nobody kept changes nothing" {
+            val subject = fresh()
+
+            subject.inOwnTransaction { confirm(FIRST, session()) }
+
+            subject.inOwnTransaction { find(FIRST) } shouldBe null
         }
     }
 }

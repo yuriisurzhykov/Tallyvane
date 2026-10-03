@@ -1,6 +1,7 @@
 package tallyvane.sessions.application
 
 import tallyvane.identity.contract.AccountId
+import tallyvane.sessions.domain.Freshness
 import tallyvane.sessions.domain.SessionId
 
 /**
@@ -18,7 +19,7 @@ public sealed interface Resolution {
      * What a [Resolution] says about itself, one method per case.
      */
     public interface Report<out T> {
-        public fun signedIn(account: AccountId, session: SessionId): T
+        public fun signedIn(account: AccountId, session: SessionId, freshness: Freshness): T
 
         public fun lapsed(): T
 
@@ -27,16 +28,20 @@ public sealed interface Resolution {
 
     /**
      * The session is good, and it is this person's. It also says which session it is, for the routes that
-     * act on the person's sessions and must tell the one in use from the rest.
+     * act on the person's sessions and must tell the one in use from the rest, and whether the person proved
+     * who they are recently enough for a dangerous act (ADR-092).
      */
-    public class SignedIn internal constructor(private val account: AccountId, private val session: SessionId) :
-        Resolution {
-        override fun <T> reportTo(report: Report<T>): T = report.signedIn(account, session)
+    public class SignedIn internal constructor(
+        private val account: AccountId,
+        private val session: SessionId,
+        private val freshness: Freshness,
+    ) : Resolution {
+        override fun <T> reportTo(report: Report<T>): T = report.signedIn(account, session, freshness)
 
         override fun equals(other: Any?): Boolean =
-            other is SignedIn && other.account == account && other.session == session
+            other is SignedIn && other.account == account && other.session == session && other.freshness == freshness
 
-        override fun hashCode(): Int = 31 * account.hashCode() + session.hashCode()
+        override fun hashCode(): Int = 31 * (31 * account.hashCode() + session.hashCode()) + freshness.hashCode()
 
         override fun toString(): String = "SignedIn"
     }

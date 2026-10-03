@@ -8,6 +8,7 @@ import tallyvane.platform.kernel.Verdict
 import tallyvane.sessions.application.port.LifetimeVersions
 import tallyvane.sessions.application.port.Sessions
 import tallyvane.sessions.domain.Factor
+import tallyvane.sessions.domain.Freshness
 import tallyvane.sessions.domain.SessionId
 import tallyvane.sessions.domain.Standing
 import kotlin.time.Instant
@@ -50,7 +51,13 @@ public interface ListDevicesUseCase : UseCase {
          * Whether a session still stands.
          */
         private class Liveness : Standing.Report<Boolean> {
-            override fun live(session: SessionId, account: Uuid, factors: Set<Factor>, authenticatedAt: Instant) = true
+            override fun live(
+                session: SessionId,
+                account: Uuid,
+                factors: Set<Factor>,
+                authenticatedAt: Instant,
+                freshness: Freshness,
+            ) = true
 
             override fun endedByIdleness() = false
 

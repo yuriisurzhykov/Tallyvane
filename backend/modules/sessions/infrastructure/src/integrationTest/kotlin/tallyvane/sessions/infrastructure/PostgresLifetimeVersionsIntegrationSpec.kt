@@ -66,8 +66,8 @@ class PostgresLifetimeVersionsIntegrationSpec : LifetimeVersionsConformance() {
                 persistence.transactions.inTransaction {
                     TransactionManager.current().exec(
                         """
-                        insert into sessions.lifetime_versions (client_type, number, idle_millis, absolute_millis, created_at)
-                        select 'browser', coalesce(max(number), 0) + 1, ${idle.inWholeMilliseconds}, ${absolute.inWholeMilliseconds}, now()
+                        insert into sessions.lifetime_versions (client_type, number, idle_millis, absolute_millis, freshness_millis, created_at)
+                        select 'browser', coalesce(max(number), 0) + 1, ${idle.inWholeMilliseconds}, ${absolute.inWholeMilliseconds}, 300000, now()
                           from sessions.lifetime_versions where client_type = 'browser';
                         insert into sessions.lifetime_activations (client_type, number, activated_at)
                         select 'browser', max(number), now() from sessions.lifetime_versions where client_type = 'browser';

@@ -12,6 +12,7 @@ internal object SessionsTable : Table("sessions.sessions") {
     val pepperVersion = integer("pepper_version")
     val accountId = uuid("account_id")
     val authenticatedAt = timestamp("authenticated_at")
+    val confirmedAt = timestamp("confirmed_at").nullable()
     val lastActiveAt = timestamp("last_active_at")
     val clientType = text("client_type")
     val deviceBrowser = text("device_browser")

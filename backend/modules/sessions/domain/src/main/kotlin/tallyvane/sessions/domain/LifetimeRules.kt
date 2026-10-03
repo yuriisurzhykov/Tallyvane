@@ -18,7 +18,7 @@ public class LifetimeRules private constructor(private val byClient: Map<ClientT
      * Whoever keeps lifetimes, told which kind of client each is for.
      */
     public fun interface Record {
-        public fun lifetimes(client: ClientType, idle: Duration, absolute: Duration)
+        public fun lifetimes(client: ClientType, idle: Duration, absolute: Duration, freshness: Duration)
     }
 
     public companion object {
@@ -34,8 +34,8 @@ public class LifetimeRules private constructor(private val byClient: Map<ClientT
     private class Restoration : Record {
         private val told = mutableMapOf<ClientType, Lifetimes>()
 
-        override fun lifetimes(client: ClientType, idle: Duration, absolute: Duration) {
-            check(told.put(client, Lifetimes(idle, absolute)) == null) {
+        override fun lifetimes(client: ClientType, idle: Duration, absolute: Duration, freshness: Duration) {
+            check(told.put(client, Lifetimes(idle, absolute, freshness)) == null) {
                 "Lifetimes were kept twice for $client; there is one active version for each."
             }
         }

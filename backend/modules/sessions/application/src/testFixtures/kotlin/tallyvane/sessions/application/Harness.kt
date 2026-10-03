@@ -8,6 +8,7 @@ import tallyvane.platform.kernel.IdGeneratorFake
 import tallyvane.platform.kernel.Secret
 import tallyvane.platform.kernel.SecretGeneratorFake
 import tallyvane.platform.kernel.TransactionRunnerFake
+import tallyvane.sessions.domain.Freshness
 import tallyvane.sessions.domain.SessionId
 import tallyvane.sessions.domain.UserAgent
 import kotlin.time.Duration
@@ -55,6 +56,9 @@ class Harness {
 
     val signOutOthers: SignOutOthersUseCase = SignOutOthersUseCase.SignOutOthers(recognition, sessions, transactions)
 
+    val confirmStepUp: ConfirmStepUpUseCase =
+        ConfirmStepUpUseCase.ConfirmStepUp(recognition, signIns, sessions, transactions, keys)
+
     /**
      * A person whose sign-in is complete, as the browser's `__Host-attempt` cookie.
      */
@@ -92,13 +96,40 @@ class Harness {
      */
     suspend fun who(session: Secret?): String = authenticate.resolve(session).reportTo(
         object : Resolution.Report<String> {
-            override fun signedIn(account: AccountId, session: SessionId): String = "signed in ${account.value}"
+            override fun signedIn(account: AccountId, session: SessionId, freshness: Freshness): String =
+                "signed in ${account.value}"
 
             override fun lapsed(): String = "lapsed"
 
             override fun anonymous(): String = "anonymous"
         },
     )
+
+    /**
+     * Whether a browser holding [session] proved who it is recently enough for a dangerous act, or null
+     * when the session speaks for nobody.
+     */
+    suspend fun freshnessOf(session: Secret?): Freshness? = authenticate.resolve(session).reportTo(
+        object : Resolution.Report<Freshness?> {
+            override fun signedIn(account: AccountId, session: SessionId, freshness: Freshness): Freshness = freshness
+
+            override fun lapsed(): Freshness? = null
+
+            override fun anonymous(): Freshness? = null
+        },
+    )
+
+    /**
+     * A person who confirmed in a window of their own: the cookie their finished confirmation is kept under.
+     */
+    fun finishedConfirming(
+        account: AccountId = ACCOUNT,
+        proofs: Set<Proof> = setOf(Proof.Google),
+        attempt: Secret = Secret("step-up-1"),
+    ): Secret {
+        signIns.confirm(attempt, account, proofs, clock.now())
+        return attempt
+    }
 
     /**
      * A clock the specs move.

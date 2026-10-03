@@ -11,6 +11,7 @@ internal object LifetimeVersionsTable : Table("sessions.lifetime_versions") {
     val number = integer("number")
     val idleMillis = long("idle_millis")
     val absoluteMillis = long("absolute_millis")
+    val freshnessMillis = long("freshness_millis")
     val createdAt = timestamp("created_at")
 
     override val primaryKey = PrimaryKey(clientType, number)

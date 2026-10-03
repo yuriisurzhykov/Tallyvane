@@ -51,6 +51,21 @@
         "preparing": "Getting Google ready…",
         "failed": "We couldn't reach Google just now."
     },
+    "stepUp": {
+        "title": "Confirm it's you",
+        "lead": "This can't be undone, so we need you to sign in with Google once more. The page behind stays as it is.",
+        "blocked": "Pop-up blocked?",
+        "openLink": "Open Google sign-in",
+        "failed": "We couldn't reach Google just now.",
+        "cancel": "Cancel"
+    },
+    "stepUpContinue": {
+        "title": "Confirming it's you",
+        "working": "Finishing confirmation…",
+        "done": "Confirmed. You can close this tab.",
+        "failed": "We couldn't confirm it's you.",
+        "otherAccount": "That was a different Google account. Close this tab and try again with the one you are signed in with."
+    },
     "account": {
         "menu": "Account menu",
         "signOut": "Sign out",

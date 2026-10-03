@@ -20,6 +20,12 @@ internal sealed interface AccessFailure : Failure {
     data object SessionExpired : AccessFailure
 
     /**
+     * The route is a dangerous act, and the person has not proved who they are recently enough for it
+     * (ADR-092). Told apart from the 401s because the person is still signed in: they confirm and go on.
+     */
+    data object StepUpRequired : AccessFailure
+
+    /**
      * An unsafe request from a page that is not ours (ADR-080).
      */
     data object ForeignOrigin : AccessFailure

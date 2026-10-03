@@ -38,6 +38,16 @@ public interface Sessions {
     public fun forget(key: Digest)
 
     /**
+     * Keeps what [session], the one kept under [key] and confirmed since, says about when its person last
+     * proved who they are and by what (ADR-092): the later of the moments, and every factor that proved it.
+     *
+     * Only that moves. Nothing else [session] tells is read, so a session carrying another device or another
+     * account cannot change what is kept under [key]. A moment earlier than the one kept changes nothing,
+     * and confirming a session nobody kept changes nothing.
+     */
+    public fun confirm(key: Digest, session: Session)
+
+    /**
      * Notes that the session under [key] was in use at [at].
      *
      * Last use is kept only to [Session.USE_GRAIN]: a note less than that after the one kept changes

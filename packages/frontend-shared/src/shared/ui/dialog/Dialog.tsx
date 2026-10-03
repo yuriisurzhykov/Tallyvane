@@ -62,9 +62,9 @@ function DialogDescription({ children }: DialogTextProps) {
 
 /**
  * Tier 0 — a blocking interruption. `COMPONENTS.md` bans modals for creation flows (those are drawers);
- * this exists for the one thing that cannot wait and is not a form on the page: the session ended
- * under the user's hands (ADR-084, ADR-089). It has no close button on purpose: the caller decides how
- * it ends, by controlling `open`.
+ * this exists for what cannot wait and is not a form on the page: the session ended under the user's
+ * hands (ADR-084, ADR-089), and a dangerous act that needs a recent proof of who they are (ADR-092). It
+ * has no close button on purpose: the caller decides how it ends, by controlling `open`.
  */
 export const Dialog = {
     Root: DialogRoot,

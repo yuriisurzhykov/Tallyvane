@@ -30,6 +30,10 @@ class SessionsFake : Sessions {
         kept.remove(key)
     }
 
+    override fun confirm(key: Digest, session: Session) {
+        kept[key]?.let { kept[key] = it.confirmed(confirmedAtOf(session), factorsOf(session)) }
+    }
+
     override fun saw(key: Digest, at: Instant) {
         kept[key]?.let { session ->
             if (at - lastUseOf(session) >= Session.USE_GRAIN) {
@@ -85,6 +89,7 @@ fun lastUseOf(session: Session): Instant {
                 account: Uuid,
                 client: ClientType,
                 authenticatedAt: Instant,
+                confirmedAt: Instant,
                 lastActiveAt: Instant,
             ) {
                 told += lastActiveAt
@@ -96,4 +101,56 @@ fun lastUseOf(session: Session): Instant {
         },
     )
     return told.single()
+}
+
+/**
+ * When [session] was last confirmed, as it tells.
+ */
+fun confirmedAtOf(session: Session): Instant {
+    val told = mutableListOf<Instant>()
+    session.writeTo(
+        object : Session.Record {
+            override fun session(
+                id: SessionId,
+                account: Uuid,
+                client: ClientType,
+                authenticatedAt: Instant,
+                confirmedAt: Instant,
+                lastActiveAt: Instant,
+            ) {
+                told += confirmedAt
+            }
+
+            override fun device(browser: Browser, platform: Platform, mobile: Boolean, name: String?) = Unit
+
+            override fun proved(factor: Factor) = Unit
+        },
+    )
+    return told.single()
+}
+
+/**
+ * How [session] says its person proved who they are.
+ */
+fun factorsOf(session: Session): Set<Factor> {
+    val told = mutableSetOf<Factor>()
+    session.writeTo(
+        object : Session.Record {
+            override fun session(
+                id: SessionId,
+                account: Uuid,
+                client: ClientType,
+                authenticatedAt: Instant,
+                confirmedAt: Instant,
+                lastActiveAt: Instant,
+            ) = Unit
+
+            override fun device(browser: Browser, platform: Platform, mobile: Boolean, name: String?) = Unit
+
+            override fun proved(factor: Factor) {
+                told += factor
+            }
+        },
+    )
+    return told
 }

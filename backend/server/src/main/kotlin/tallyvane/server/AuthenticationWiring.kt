@@ -2,7 +2,9 @@ package tallyvane.server
 
 import tallyvane.authentication.application.ActivePolicies
 import tallyvane.authentication.application.BeginSignInUseCase
+import tallyvane.authentication.application.BeginStepUpUseCase
 import tallyvane.authentication.application.ContinueWithGoogleUseCase
+import tallyvane.authentication.application.Departures
 import tallyvane.authentication.application.GoogleTrips
 import tallyvane.authentication.application.Redemptions
 import tallyvane.authentication.application.RegisterUseCase
@@ -49,7 +51,11 @@ public class AuthenticationWiring(
         transactions = platform.persistence.transactions,
     )
 
-    private val begin: BeginSignInUseCase by lazy { BeginSignInUseCase.BeginSignIn(trips, google, clock, keys) }
+    private val departures by lazy { Departures(trips, google, clock, keys) }
+
+    private val begin: BeginSignInUseCase by lazy { BeginSignInUseCase.BeginSignIn(departures) }
+
+    private val beginStepUp: BeginStepUpUseCase by lazy { BeginStepUpUseCase.BeginStepUp(departures) }
 
     private val continueWith: ContinueWithGoogleUseCase by lazy {
         ContinueWithGoogleUseCase.ContinueWithGoogle(trips, google, policies, clock, keys)
@@ -79,7 +85,7 @@ public class AuthenticationWiring(
     }
 
     /**
-     * Completed sign-ins, as `sessions` takes them.
+     * Completed sign-ins and confirmations, as `sessions` takes them.
      */
     public val signIns: SignIns by lazy {
         Redemptions(storage.attempts(), policies, identity.accounts, clock, keys)
@@ -92,6 +98,7 @@ public class AuthenticationWiring(
         val web = AuthenticationRoutesFactory()
         listOf(
             web.signIn(begin),
+            web.stepUp(beginStepUp),
             web.googleReturn(continueWith, settings.appOrigin),
             web.welcome(show),
             web.registration(register),

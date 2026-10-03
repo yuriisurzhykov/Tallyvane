@@ -4,6 +4,7 @@ import tallyvane.authentication.application.port.Attempts
 import tallyvane.authentication.application.port.GoogleHandshakes
 import tallyvane.authentication.application.port.GoogleProfiles
 import tallyvane.authentication.domain.Attempt
+import tallyvane.authentication.domain.Purpose
 import tallyvane.identity.contract.Accounts
 import tallyvane.platform.kernel.Digest
 import tallyvane.platform.kernel.TransactionRunner
@@ -64,16 +65,22 @@ public class GoogleTrips(
     /**
      * Records that Google identified [person] on [trip]: in the attempt itself when they have an
      * account, or in a registration begun for them under [fresh] when they do not.
+     *
+     * A confirmation never becomes a registration: someone who is signed in and confirms with a Google
+     * account nobody here knows is recorded like anyone else, and the module that grants sessions finds
+     * it is not their account when it takes the confirmation (ADR-092).
      */
     internal suspend fun land(trip: Trip, person: Identified, fresh: IssuedKey): GoogleReturn =
         transactions.inTransaction {
             val known = person.accountIn(accounts) != null
-            Verdict.Commit(if (known) verified(trip, person) else registering(trip, person, fresh))
+            val confirming = trip.attempt.isFor(Purpose.StepUp)
+            Verdict.Commit(if (known || confirming) verified(trip, person) else registering(trip, person, fresh))
         }
 
     private fun verified(trip: Trip, person: Identified): GoogleReturn =
         when (attempts.save(trip.key, trip.attempt.withVerified(person.factor()))) {
-            AttemptSaveOutcome.Saved -> GoogleReturn.Verified()
+            AttemptSaveOutcome.Saved ->
+                if (trip.attempt.isFor(Purpose.StepUp)) GoogleReturn.SteppedUp() else GoogleReturn.Verified()
             // Only a request holding the same handshake could have changed it, and there is one.
             AttemptSaveOutcome.Superseded -> GoogleReturn.TurnedBack(TurnBack.Restart)
         }
