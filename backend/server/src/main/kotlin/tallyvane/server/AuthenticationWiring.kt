@@ -135,7 +135,7 @@ public class AuthenticationWiring(
     }
 
     private val beginTotp: BeginTotpUseCase by lazy {
-        BeginTotpUseCase.BeginTotp(totp, seeds, ISSUER, platform.persistence.transactions)
+        BeginTotpUseCase.BeginTotp(totp, seeds, settings.totpIssuer, platform.persistence.transactions)
     }
 
     private val confirmTotp: ConfirmTotpUseCase by lazy {
@@ -199,11 +199,4 @@ public class AuthenticationWiring(
     }
 
     override fun toString(): String = "AuthenticationWiring"
-
-    private companion object {
-        /**
-         * What an authenticator app says the code is for.
-         */
-        const val ISSUER = "Tallyvane"
-    }
 }

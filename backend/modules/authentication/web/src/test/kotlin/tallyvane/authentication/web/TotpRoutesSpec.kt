@@ -77,7 +77,7 @@ class TotpRoutesSpec :
                     val confirmed = confirm(AuthenticatorApp(key).codeAt(served.harness.clock.now()))
                     confirmed.status shouldBe HttpStatusCode.OK
                     confirmed.headers[HttpHeaders.CacheControl] shouldBe "no-store"
-                    Regex("CODE\\d+").findAll(confirmed.bodyAsText()).count() shouldBe 10
+                    Regex("[A-Z2-9]{5}-[A-Z2-9]{5}").findAll(confirmed.bodyAsText()).count() shouldBe 10
                     standing() shouldBe """{"standing":"active","recovery_codes_remaining":10}"""
                 }
             }

@@ -31,5 +31,10 @@ public class SignInConfiguration(
      */
     public fun redirectUri(): String = "$apiOrigin/api/v1/google-return"
 
+    /**
+     * What an authenticator app says a TOTP code is for: the product's name.
+     */
+    public val totpIssuer: String = "Tallyvane"
+
     override fun toString(): String = "SignInConfiguration(appOrigin=$appOrigin, apiOrigin=$apiOrigin)"
 }

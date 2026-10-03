@@ -3,11 +3,10 @@ package tallyvane.authentication.application
 import tallyvane.platform.kernel.TransactionRunnerFake
 
 /**
- * The fake held to the suite every [tallyvane.authentication.application.port.TotpEnrollments] and
- * [tallyvane.authentication.application.port.RecoveryCodeSets] must pass.
+ * The fake held to the suite every [tallyvane.authentication.application.port.TotpEnrollments] must pass.
  */
-class SecondFactorsFakeSpec : SecondFactorsConformance() {
-    override suspend fun fresh(): Subject = object : Subject {
+class TotpEnrollmentsFakeSpec : TotpEnrollmentsConformance() {
+    override suspend fun fresh(): SecondFactorStorage = object : SecondFactorStorage {
         private val fake = SecondFactorsFake()
         override val enrollments = fake
         override val codes = fake

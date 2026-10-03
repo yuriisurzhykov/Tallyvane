@@ -327,6 +327,255 @@ paths:
         default:
           $ref: "#/components/responses/Problem"
 
+  /sign-in:
+    get:
+      tags: [authentication]
+      operationId: showSignIn
+      summary: Where a sign-in or a confirmation stands
+      description: |
+        What the attempt named by the `__Host-attempt` cookie waits for, so the page can show the next step:
+        a code from the authenticator, a recovery code, nothing more (it is `complete` and is redeemed with
+        `POST /sessions` or taken with `POST /step-ups`), or that it is over. Answers from the policy in force
+        and the account as they are now. Never cached. `404` when the browser has no sign-in or confirmation:
+        no cookie, one that expired, or one already used (ADR-093).
+      security:
+        - attemptCookie: []
+      responses:
+        "200":
+          description: Where the attempt stands.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+            traceparent:
+              $ref: "#/components/headers/Traceparent"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SignInState"
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /second-factor-codes:
+    post:
+      tags: [authentication]
+      operationId: answerSecondFactor
+      summary: Answer the second step of a sign-in
+      description: |
+        Gives the attempt named by the `__Host-attempt` cookie a code from the person's authenticator, or a
+        recovery code, when `GET /sign-in` says it waits for one (ADR-093). What is proved is only recorded
+        on the attempt; redeeming it for a session, or taking it as a fresh proof, is the next request.
+        A recovery code is spent, and spending one retires the TOTP seed. Typing a recovery code ignores
+        case, dashes and spaces.
+
+        - `204` a code from the authenticator was right.
+        - `200` a recovery code was right; `recovery_codes_remaining` counts what is left.
+        - `422` the answer was wrong (`code` is `wrong-code`). `Retry-After` says how long the next answer is
+          not looked at, once a pause applies. Five wrong answers end the attempt, and the account has a
+          count of its own that outlives any one attempt: it is a pause that grows to five minutes, never a
+          lockout.
+        - `429` a pause is running and the answer was not even checked; `Retry-After` is the time left.
+        - `410` there is no sign-in to answer: none was begun, it ran out, or its last wrong answer ended it.
+          The person starts again.
+        - `409` nothing more is wanted from this attempt, or another request changed it first; ask where it
+          stands with `GET /sign-in`.
+        - `400` `kind` is not `totp` or `recovery_code`.
+      security:
+        - attemptCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SecondFactorCode"
+      responses:
+        "200":
+          description: A recovery code was spent.
+          headers:
+            traceparent:
+              $ref: "#/components/headers/Traceparent"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SecondFactorCodeAccepted"
+        "204":
+          description: The code was right.
+          headers:
+            traceparent:
+              $ref: "#/components/headers/Traceparent"
+        "422":
+          description: The answer was wrong.
+          headers:
+            Retry-After:
+              $ref: "#/components/headers/RetryAfter"
+            traceparent:
+              $ref: "#/components/headers/Traceparent"
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          description: A pause is running.
+          headers:
+            Retry-After:
+              $ref: "#/components/headers/RetryAfter"
+            traceparent:
+              $ref: "#/components/headers/Traceparent"
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /second-factor:
+    get:
+      tags: [authentication]
+      operationId: showSecondFactor
+      summary: What the signed-in person has set up as a second factor
+      description: |
+        `off` (nothing, or a set-up begun and not confirmed), `active`, or `retired`: the seed stopped
+        working because a recovery code was spent, and only the remaining recovery codes do until the person
+        turns TOTP on again. `recovery_codes_remaining` counts the codes still unspent. Never cached.
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: What is set up.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+            traceparent:
+              $ref: "#/components/headers/Traceparent"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SecondFactorState"
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /totp-enrollments:
+    post:
+      tags: [authentication]
+      operationId: beginTotp
+      summary: Begin turning TOTP on
+      description: |
+        Makes a new seed and tells it once, as text to type and as the `otpauth://` address a QR code carries.
+        Nothing is protected until the first code is typed (`POST /totp-confirmations`); beginning again
+        starts over with another seed. `409` when TOTP is already on: it is turned off first.
+
+        A dangerous act: it asks for a recent proof of who the person is (ADR-092), since a second factor set
+        up by somebody else locks the owner out. A person whose last proof is older is answered `403` with the
+        problem type `step-up-required`, and goes on after `POST /step-ups`.
+
+        The answer carries the seed, so it is never stored for a repeat of its `Idempotency-Key`; a repeat is
+        answered `409` without `Retry-After`. Never cached.
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: The seed, told once.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+            traceparent:
+              $ref: "#/components/headers/Traceparent"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TotpStarted"
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /totp-confirmations:
+    post:
+      tags: [authentication]
+      operationId: confirmTotp
+      summary: Type the first code, which turns TOTP on
+      description: |
+        The first code the authenticator shows. A right one makes the enrolment active and tells ten recovery
+        codes, once, replacing any set the person had. `422` when the code was wrong (`code` is `wrong-code`);
+        the set-up stays waiting and no limit applies, since whoever began it already knows the seed. `409`
+        when nothing was begun or TOTP is already on.
+
+        It needs only a signed-in person: the code is itself the proof of holding the seed. The answer carries
+        the recovery codes, so it is never stored for a repeat of its `Idempotency-Key`. Never cached.
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FirstCode"
+      responses:
+        "200":
+          description: TOTP is on; the recovery codes, told once.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+            traceparent:
+              $ref: "#/components/headers/Traceparent"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecoveryCodesIssued"
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /totp-enrollment:
+    delete:
+      tags: [authentication]
+      operationId: disableTotp
+      summary: Turn TOTP off
+      description: |
+        Removes the seed, whatever its standing, and the recovery codes with it. `409` when there is nothing
+        to remove.
+
+        A dangerous act: it asks for a recent proof of who the person is (ADR-092). A person whose last
+        proof is older is answered `403` with the problem type `step-up-required`, and goes on after
+        `POST /step-ups`.
+      security:
+        - sessionCookie: []
+      responses:
+        "204":
+          description: TOTP is off.
+          headers:
+            traceparent:
+              $ref: "#/components/headers/Traceparent"
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /recovery-codes:
+    post:
+      tags: [authentication]
+      operationId: regenerateRecoveryCodes
+      summary: Ask for ten new recovery codes
+      description: |
+        Replaces every recovery code the person had, spent or not, and tells the new ones once. `409` unless
+        TOTP is active.
+
+        A dangerous act: it asks for a recent proof of who the person is (ADR-092). A person whose last
+        proof is older is answered `403` with the problem type `step-up-required`, and goes on after
+        `POST /step-ups`.
+
+        The answer carries the codes, so it is never stored for a repeat of its `Idempotency-Key`. Never cached.
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: The new codes, told once.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+            traceparent:
+              $ref: "#/components/headers/Traceparent"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecoveryCodesIssued"
+        default:
+          $ref: "#/components/responses/Problem"
+
   /sessions:
     post:
       tags: [sessions]
@@ -605,6 +854,13 @@ components:
       schema:
         type: string
         const: no-store
+    RetryAfter:
+      description: |
+        Whole seconds the person must wait before the next answer is looked at, rounded up and never fewer
+        than one.
+      schema:
+        type: integer
+        minimum: 1
     Traceparent:
       description: |
         W3C Trace Context. Present on every response, including ones with no body. Quote it when
@@ -765,6 +1021,8 @@ components:
             - https://tallyvane.com/errors/validation-failed
             - https://tallyvane.com/errors/malformed-request
             - https://tallyvane.com/errors/internal
+            - https://tallyvane.com/errors/gone
+            - https://tallyvane.com/errors/slow-down
             - about:blank
         title:
           type: string
@@ -811,6 +1069,99 @@ components:
           type: string
           format: uri
           description: Google's sign-in page, with this attempt's `state`, `nonce` and PKCE challenge.
+
+    SignInState:
+      type: object
+      additionalProperties: false
+      required: [state, factors]
+      properties:
+        state:
+          type: string
+          enum: [awaiting, paused, complete, restricted, exhausted, expired]
+          description: |
+            `awaiting` an answer from `factors`; `paused` as `awaiting`, but a pause is running (`retry_after`);
+            `complete` everything wanted is proved; `restricted` everything is proved but the person must set
+            up a factor first; `exhausted` the last wrong answer ended the attempt; `expired` it outlived its
+            lifetime. The last two mean the person starts again.
+        factors:
+          type: array
+          items:
+            type: string
+            enum: [totp, recovery_code]
+          description: The kinds of answer wanted. Empty unless the state is `awaiting` or `paused`.
+        retry_after:
+          type: integer
+          minimum: 1
+          description: Seconds a `paused` attempt must still wait.
+
+    SecondFactorCode:
+      type: object
+      additionalProperties: false
+      required: [kind, code]
+      properties:
+        kind:
+          type: string
+          enum: [totp, recovery_code]
+        code:
+          type: string
+          description: Six digits from the authenticator, or a recovery code as it was written down.
+
+    SecondFactorCodeAccepted:
+      type: object
+      additionalProperties: false
+      required: [recovery_codes_remaining]
+      properties:
+        recovery_codes_remaining:
+          type: integer
+          minimum: 0
+
+    SecondFactorState:
+      type: object
+      additionalProperties: false
+      required: [standing, recovery_codes_remaining]
+      properties:
+        standing:
+          type: string
+          enum: [off, active, retired]
+        recovery_codes_remaining:
+          type: integer
+          minimum: 0
+
+    TotpStarted:
+      type: object
+      additionalProperties: false
+      required: [key, uri]
+      properties:
+        key:
+          type: string
+          description: The seed in base32, to type into an authenticator app. Told once.
+        uri:
+          type: string
+          description: The `otpauth://` address a QR code carries. Told once.
+
+    FirstCode:
+      type: object
+      additionalProperties: false
+      required: [code]
+      properties:
+        code:
+          type: string
+          description: The six digits the authenticator shows now.
+
+    RecoveryCodesIssued:
+      type: object
+      additionalProperties: false
+      required: [recovery_codes]
+      properties:
+        recovery_codes:
+          type: array
+          minItems: 10
+          maxItems: 10
+          items:
+            type: string
+          description: |
+            Ten codes such as `ABCDE-FGHJK`, each valid once. Told once, and kept only as digests: the person
+            writes them down now.
 
     Welcomed:
       type: object

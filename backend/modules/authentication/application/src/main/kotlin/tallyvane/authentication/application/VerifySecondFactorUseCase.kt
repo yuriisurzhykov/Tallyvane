@@ -55,14 +55,19 @@ public interface VerifySecondFactorUseCase : UseCase {
     ) : VerifySecondFactorUseCase {
         override suspend fun verify(attempt: Secret?, submission: Submission): Verification {
             val key = attempt?.let(keys::keyOf) ?: return Verification.Failed.Closed()
-            return transactions.inTransaction { Sitting(key, clock.now()).answer(submission) }
+            return transactions.inTransaction {
+                Sitting(key, clock.now()).answer(submission).decide<Verdict<Verification>>(
+                    commit = { Verdict.Commit(it) },
+                    rollback = { Verdict.Rollback(it) },
+                )
+            }
         }
 
         /**
          * One answer, judged inside the transaction that records what came of it.
          */
         private inner class Sitting(private val key: Digest, private val now: Instant) {
-            fun answer(submission: Submission): Verdict<Verification> {
+            fun answer(submission: Submission): Ruling {
                 val attempt = attempts.find(key)
                 val purpose = attempt?.let { found -> PURPOSES.firstOrNull(found::isFor) }
                 val account = attempt?.let(owners::of)
@@ -72,13 +77,13 @@ public interface VerifySecondFactorUseCase : UseCase {
                 val kind = submission.reportTo(KindOf())
                 return when (val standing = policies.progressOf(attempt, purpose, now).reportTo(Waiting(kind))) {
                     is Standing.Closed -> closed()
-                    is Standing.NotWanted -> Verdict.Rollback(Verification.Failed.NotWanted())
-                    is Standing.Paused -> Verdict.Rollback(Verification.Failed.Paused(standing.wait(now)))
+                    is Standing.NotWanted -> undo(Verification.Failed.NotWanted())
+                    is Standing.Paused -> undo(Verification.Failed.Paused(standing.wait(now)))
                     is Standing.Open -> submission.reportTo(Answering(attempt, purpose, account, kind))
                 }
             }
 
-            private fun closed(): Verdict<Verification> = Verdict.Rollback(Verification.Failed.Closed())
+            private fun closed(): Ruling = undo(Verification.Failed.Closed())
 
             /**
              * What to do with each kind of answer, for an attempt that is waiting for it.
@@ -88,18 +93,18 @@ public interface VerifySecondFactorUseCase : UseCase {
                 private val purpose: Purpose,
                 private val account: AccountId,
                 private val kind: FactorKind,
-            ) : Submission.Report<Verdict<Verification>> {
-                override fun totp(code: String): Verdict<Verification> {
+            ) : Submission.Report<Ruling> {
+                override fun totp(code: String): Ruling {
                     val enrollment = totp.lock(account)
                     val pause = accountPause()
                     return when {
-                        pause > Duration.ZERO -> Verdict.Rollback(Verification.Failed.Paused(pause))
+                        pause > Duration.ZERO -> undo(Verification.Failed.Paused(pause))
                         enrollment == null -> wrong(countedAgainstAccount = true)
                         else -> enrollment.check(code, now).reportTo(TotpChecked())
                     }
                 }
 
-                override fun recovery(code: String): Verdict<Verification> {
+                override fun recovery(code: String): Ruling {
                     val enrollment = totp.lock(account)
                     val digest = digests.of(words.normalised(code))
                     val spent = codes.of(account)?.spend(digest, now)
@@ -109,27 +114,27 @@ public interface VerifySecondFactorUseCase : UseCase {
                 private fun accountPause(): Duration = failures.recent(account, now - AccountGuesses.WINDOW)
                     .pauseLeft(now, policies.firstDelayOf(purpose))
 
-                private fun proved(kind: FactorKind, left: Int?): Verdict<Verification> =
+                private fun proved(kind: FactorKind, left: Int?): Ruling =
                     when (attempts.save(key, attempt.withVerified(VerifiedFactor.confirming(kind, now)))) {
-                        AttemptSaveOutcome.Saved -> Verdict.Commit(Verification.Verified(left))
-                        AttemptSaveOutcome.Superseded -> Verdict.Rollback(Verification.Failed.Busy())
+                        AttemptSaveOutcome.Saved -> keep(Verification.Verified(left))
+                        AttemptSaveOutcome.Superseded -> undo(Verification.Failed.Busy())
                     }
 
                 /**
                  * Records a wrong answer and commits it with the refusal. The account's own count is kept
                  * even when another request changed the attempt first, so racing requests do not buy guesses.
                  */
-                private fun wrong(countedAgainstAccount: Boolean): Verdict<Verification> {
+                private fun wrong(countedAgainstAccount: Boolean): Ruling {
                     if (countedAgainstAccount) {
                         failures.record(account, now)
                     }
                     val later = attempt.withFailure(now)
                     if (attempts.save(key, later) == AttemptSaveOutcome.Superseded) {
-                        return Verdict.Commit(Verification.Failed.Busy())
+                        return keep(Verification.Failed.Busy())
                     }
                     val standing = policies.progressOf(later, purpose, now).reportTo(Waiting(kind))
                     val wait = maxOf(standing.waitAfterWrong(now), accountPause())
-                    return Verdict.Commit(
+                    return keep(
                         if (standing is Standing.Closed) {
                             Verification.Failed.Closed()
                         } else {
@@ -138,26 +143,42 @@ public interface VerifySecondFactorUseCase : UseCase {
                     )
                 }
 
-                private inner class TotpChecked : CodeVerdict.Report<Verdict<Verification>> {
-                    override fun accepted(next: TotpEnrollment): Verdict<Verification> {
+                private inner class TotpChecked : CodeVerdict.Report<Ruling> {
+                    override fun accepted(next: TotpEnrollment): Ruling {
                         totp.keep(account, next)
                         return proved(FactorKind.Totp, null)
                     }
 
-                    override fun wrong(): Verdict<Verification> = wrong(countedAgainstAccount = true)
+                    override fun wrong(): Ruling = wrong(countedAgainstAccount = true)
                 }
 
                 private inner class Spending(private val enrollment: TotpEnrollment?) :
-                    SpendVerdict.Report<Verdict<Verification>> {
-                    override fun spent(next: RecoveryCodes): Verdict<Verification> {
+                    SpendVerdict.Report<Ruling> {
+                    override fun spent(next: RecoveryCodes): Ruling {
                         codes.keep(account, next)
                         enrollment?.let { totp.keep(account, it.retired()) }
                         return proved(FactorKind.RecoveryCode, next.remaining())
                     }
 
-                    override fun unknown(): Verdict<Verification> = wrong(countedAgainstAccount = false)
+                    override fun unknown(): Ruling = wrong(countedAgainstAccount = false)
                 }
             }
+        }
+
+        private fun keep(verification: Verification): Ruling = Ruling(verification, commits = true)
+
+        private fun undo(verification: Verification): Ruling = Ruling(verification, commits = false)
+
+        /**
+         * What an answer came to, and whether what was recorded while judging it stays.
+         *
+         * A wrong answer stays, so that the limit on guessing cannot be beaten by a client that makes every
+         * request fail. A right answer that lost a race does not, or the code it used would be spent for
+         * nothing.
+         */
+        private class Ruling(private val verification: Verification, private val commits: Boolean) {
+            fun <T> decide(commit: (Verification) -> T, rollback: (Verification) -> T): T =
+                if (commits) commit(verification) else rollback(verification)
         }
 
         /**

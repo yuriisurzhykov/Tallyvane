@@ -55,6 +55,8 @@ x-server: &server-defaults
     TALLYVANE_GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:?GOOGLE_CLIENT_SECRET must be set}
     TALLYVANE_TOKEN_PEPPER: ${TOKEN_PEPPER:?TOKEN_PEPPER must be set}
     TALLYVANE_TOKEN_PEPPER_VERSION: ${TOKEN_PEPPER_VERSION:-1}
+    # Seals the seeds of TOTP enrolments in the database (ADR-093); see .env.example for how to make one.
+    TALLYVANE_TOTP_KEYSET: ${TOTP_KEYSET:?TOTP_KEYSET must be set}
     # -javaagent alongside -XX:MaxRAMPercentage in the same value, same reasoning as the
     # heap/mem_limit pairing this line already carries: two settings that only make sense read
     # together stay written together, not one here and one guessed at from a second file.

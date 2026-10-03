@@ -11,10 +11,7 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
-import kotlin.uuid.Uuid
 
-private val ANN = AccountId(Uuid.parse("00000000-0000-7000-8000-00000000000a"))
-private val BOB = AccountId(Uuid.parse("00000000-0000-7000-8000-00000000000b"))
 private val NOW = Instant.parse("2026-10-03T09:00:00Z")
 private val FIRST = 1.seconds
 

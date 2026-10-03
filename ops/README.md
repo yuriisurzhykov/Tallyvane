@@ -599,3 +599,12 @@ the console's origin. Put `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `TOKEN_PEP
 want a rotation, `TOKEN_PEPPER_VERSION` in the server's `.env` before the next deploy, or `apply.sh` will stop at
 the first `${...:?}`. The console's health check moved from `/today` to `/login`: every console page now asks the
 server who is visiting, and a health check that depends on the server would take the console down with it.
+
+### TOTP keyset
+
+The server seals the seeds of TOTP enrolments with a Tink keyset it reads from `TOTP_KEYSET` (ADR-093), one line of
+JSON in single quotes. `apply.sh` stops at the first `${...:?}` without it, and the server refuses to start with
+one it cannot parse. Make it once with `tinkey create-keyset --key-template AES256_GCM --out-format json | jq -c .` and keep it
+with the other secrets: a keyset that cannot open a stored seed makes that person's TOTP unusable until they turn it
+off and on again. To rotate, add a key and make it primary, so the old key still opens what it sealed. `ops/local/env.example`
+carries one for a laptop only.

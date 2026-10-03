@@ -35,22 +35,23 @@ public interface ConfirmTotpUseCase : UseCase {
     ) : ConfirmTotpUseCase {
         override suspend fun confirm(account: AccountId, code: String): TotpConfirmed = transactions.inTransaction {
             val pending = enrollments.lock(account)?.takeIf { it.isPending() }
-            if (pending == null) {
-                Verdict.Rollback(TotpConfirmed.Failed.NotBegun())
-            } else {
-                pending.confirm(code, clock.now()).reportTo(Confirming(account))
+            val result = pending?.confirm(code, clock.now())?.reportTo(Confirming(account))
+                ?: TotpConfirmed.Failed.NotBegun()
+            when (result) {
+                is TotpConfirmed.Confirmed -> Verdict.Commit(result)
+                is TotpConfirmed.Failed -> Verdict.Rollback(result)
             }
         }
 
-        private inner class Confirming(private val account: AccountId) : CodeVerdict.Report<Verdict<TotpConfirmed>> {
-            override fun accepted(next: TotpEnrollment): Verdict<TotpConfirmed> {
+        private inner class Confirming(private val account: AccountId) : CodeVerdict.Report<TotpConfirmed> {
+            override fun accepted(next: TotpEnrollment): TotpConfirmed {
                 enrollments.keep(account, next)
                 val shown = mint.mint()
                 codes.keep(account, RecoveryCodes.issue(shown.map { digests.of(words.normalised(it.revealed())) }))
-                return Verdict.Commit(TotpConfirmed.Confirmed(shown))
+                return TotpConfirmed.Confirmed(shown)
             }
 
-            override fun wrong(): Verdict<TotpConfirmed> = Verdict.Rollback(TotpConfirmed.Failed.WrongCode())
+            override fun wrong(): TotpConfirmed = TotpConfirmed.Failed.WrongCode()
         }
     }
 }

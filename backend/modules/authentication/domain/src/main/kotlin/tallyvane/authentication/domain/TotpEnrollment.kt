@@ -1,7 +1,6 @@
 package tallyvane.authentication.domain
 
 import tallyvane.platform.kernel.Secret
-import java.net.URLEncoder
 import kotlin.time.Instant
 
 /**
@@ -72,7 +71,7 @@ public class TotpEnrollment private constructor(
      * The address names only [issuer]; the account's own label arrives when `identity` publishes one.
      */
     public fun provision(issuer: String, provisioned: Provisioned) {
-        val named = URLEncoder.encode(issuer, Charsets.UTF_8).replace("+", "%20")
+        val named = ENCODING.of(issuer)
         val uri = "otpauth://totp/$named?secret=${seed.revealed()}&issuer=$named" +
             "&algorithm=SHA1&digits=$DIGITS&period=$PERIOD_SECONDS"
         provisioned.provisioned(seed, Secret(uri))
@@ -185,6 +184,7 @@ public class TotpEnrollment private constructor(
         private const val TOLERANCE = 1
         private const val DIGITS = 6
         private const val PERIOD_SECONDS = 30
+        private val ENCODING = PercentEncoding()
         private val BASE32 = Base32()
         private val TOTP = Rfc6238Totp()
     }

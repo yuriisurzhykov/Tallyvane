@@ -208,6 +208,196 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/sign-in": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Where a sign-in or a confirmation stands
+         * @description What the attempt named by the `__Host-attempt` cookie waits for, so the page can show the next step:
+         *     a code from the authenticator, a recovery code, nothing more (it is `complete` and is redeemed with
+         *     `POST /sessions` or taken with `POST /step-ups`), or that it is over. Answers from the policy in force
+         *     and the account as they are now. Never cached. `404` when the browser has no sign-in or confirmation:
+         *     no cookie, one that expired, or one already used (ADR-093).
+         */
+        get: operations["showSignIn"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/second-factor-codes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Answer the second step of a sign-in
+         * @description Gives the attempt named by the `__Host-attempt` cookie a code from the person's authenticator, or a
+         *     recovery code, when `GET /sign-in` says it waits for one (ADR-093). What is proved is only recorded
+         *     on the attempt; redeeming it for a session, or taking it as a fresh proof, is the next request.
+         *     A recovery code is spent, and spending one retires the TOTP seed. Typing a recovery code ignores
+         *     case, dashes and spaces.
+         *
+         *     - `204` a code from the authenticator was right.
+         *     - `200` a recovery code was right; `recovery_codes_remaining` counts what is left.
+         *     - `422` the answer was wrong (`code` is `wrong-code`). `Retry-After` says how long the next answer is
+         *       not looked at, once a pause applies. Five wrong answers end the attempt, and the account has a
+         *       count of its own that outlives any one attempt: it is a pause that grows to five minutes, never a
+         *       lockout.
+         *     - `429` a pause is running and the answer was not even checked; `Retry-After` is the time left.
+         *     - `410` there is no sign-in to answer: none was begun, it ran out, or its last wrong answer ended it.
+         *       The person starts again.
+         *     - `409` nothing more is wanted from this attempt, or another request changed it first; ask where it
+         *       stands with `GET /sign-in`.
+         *     - `400` `kind` is not `totp` or `recovery_code`.
+         */
+        post: operations["answerSecondFactor"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/second-factor": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What the signed-in person has set up as a second factor
+         * @description `off` (nothing, or a set-up begun and not confirmed), `active`, or `retired`: the seed stopped
+         *     working because a recovery code was spent, and only the remaining recovery codes do until the person
+         *     turns TOTP on again. `recovery_codes_remaining` counts the codes still unspent. Never cached.
+         */
+        get: operations["showSecondFactor"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/totp-enrollments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Begin turning TOTP on
+         * @description Makes a new seed and tells it once, as text to type and as the `otpauth://` address a QR code carries.
+         *     Nothing is protected until the first code is typed (`POST /totp-confirmations`); beginning again
+         *     starts over with another seed. `409` when TOTP is already on: it is turned off first.
+         *
+         *     A dangerous act: it asks for a recent proof of who the person is (ADR-092), since a second factor set
+         *     up by somebody else locks the owner out. A person whose last proof is older is answered `403` with the
+         *     problem type `step-up-required`, and goes on after `POST /step-ups`.
+         *
+         *     The answer carries the seed, so it is never stored for a repeat of its `Idempotency-Key`; a repeat is
+         *     answered `409` without `Retry-After`. Never cached.
+         */
+        post: operations["beginTotp"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/totp-confirmations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Type the first code, which turns TOTP on
+         * @description The first code the authenticator shows. A right one makes the enrolment active and tells ten recovery
+         *     codes, once, replacing any set the person had. `422` when the code was wrong (`code` is `wrong-code`);
+         *     the set-up stays waiting and no limit applies, since whoever began it already knows the seed. `409`
+         *     when nothing was begun or TOTP is already on.
+         *
+         *     It needs only a signed-in person: the code is itself the proof of holding the seed. The answer carries
+         *     the recovery codes, so it is never stored for a repeat of its `Idempotency-Key`. Never cached.
+         */
+        post: operations["confirmTotp"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/totp-enrollment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Turn TOTP off
+         * @description Removes the seed, whatever its standing, and the recovery codes with it. `409` when there is nothing
+         *     to remove.
+         *
+         *     A dangerous act: it asks for a recent proof of who the person is (ADR-092). A person whose last
+         *     proof is older is answered `403` with the problem type `step-up-required`, and goes on after
+         *     `POST /step-ups`.
+         */
+        delete: operations["disableTotp"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/recovery-codes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ask for ten new recovery codes
+         * @description Replaces every recovery code the person had, spent or not, and tells the new ones once. `409` unless
+         *     TOTP is active.
+         *
+         *     A dangerous act: it asks for a recent proof of who the person is (ADR-092). A person whose last
+         *     proof is older is answered `403` with the problem type `step-up-required`, and goes on after
+         *     `POST /step-ups`.
+         *
+         *     The answer carries the codes, so it is never stored for a repeat of its `Idempotency-Key`. Never cached.
+         */
+        post: operations["regenerateRecoveryCodes"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/sessions": {
         parameters: {
             query?: never;
@@ -498,6 +688,8 @@ export interface components {
              * @example https://tallyvane.com/errors/validation-failed
              * @example https://tallyvane.com/errors/malformed-request
              * @example https://tallyvane.com/errors/internal
+             * @example https://tallyvane.com/errors/gone
+             * @example https://tallyvane.com/errors/slow-down
              * @example about:blank
              */
             type: string;
@@ -532,6 +724,51 @@ export interface components {
              * @description Google's sign-in page, with this attempt's `state`, `nonce` and PKCE challenge.
              */
             authorization_url: string;
+        };
+        SignInState: {
+            /**
+             * @description `awaiting` an answer from `factors`; `paused` as `awaiting`, but a pause is running (`retry_after`);
+             *     `complete` everything wanted is proved; `restricted` everything is proved but the person must set
+             *     up a factor first; `exhausted` the last wrong answer ended the attempt; `expired` it outlived its
+             *     lifetime. The last two mean the person starts again.
+             * @enum {string}
+             */
+            state: "awaiting" | "paused" | "complete" | "restricted" | "exhausted" | "expired";
+            /** @description The kinds of answer wanted. Empty unless the state is `awaiting` or `paused`. */
+            factors: ("totp" | "recovery_code")[];
+            /** @description Seconds a `paused` attempt must still wait. */
+            retry_after?: number;
+        };
+        SecondFactorCode: {
+            /** @enum {string} */
+            kind: "totp" | "recovery_code";
+            /** @description Six digits from the authenticator, or a recovery code as it was written down. */
+            code: string;
+        };
+        SecondFactorCodeAccepted: {
+            recovery_codes_remaining: number;
+        };
+        SecondFactorState: {
+            /** @enum {string} */
+            standing: "off" | "active" | "retired";
+            recovery_codes_remaining: number;
+        };
+        TotpStarted: {
+            /** @description The seed in base32, to type into an authenticator app. Told once. */
+            key: string;
+            /** @description The `otpauth://` address a QR code carries. Told once. */
+            uri: string;
+        };
+        FirstCode: {
+            /** @description The six digits the authenticator shows now. */
+            code: string;
+        };
+        RecoveryCodesIssued: {
+            /**
+             * @description Ten codes such as `ABCDE-FGHJK`, each valid once. Told once, and kept only as digests: the person
+             *     writes them down now.
+             */
+            recovery_codes: string[];
         };
         Welcomed: {
             /** @description The name Google has for the person, to be edited. */
@@ -641,6 +878,11 @@ export interface components {
          *     truth.
          */
         NoStore: "no-store";
+        /**
+         * @description Whole seconds the person must wait before the next answer is looked at, rounded up and never fewer
+         *     than one.
+         */
+        RetryAfter: number;
         /**
          * @description W3C Trace Context. Present on every response, including ones with no body. Quote it when
          *     reporting a problem: the same id is on the log lines of that request.
@@ -848,6 +1090,201 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    showSignIn: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Where the attempt stands. */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    traceparent: components["headers"]["Traceparent"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignInState"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    answerSecondFactor: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SecondFactorCode"];
+            };
+        };
+        responses: {
+            /** @description A recovery code was spent. */
+            200: {
+                headers: {
+                    traceparent: components["headers"]["Traceparent"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SecondFactorCodeAccepted"];
+                };
+            };
+            /** @description The code was right. */
+            204: {
+                headers: {
+                    traceparent: components["headers"]["Traceparent"];
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The answer was wrong. */
+            422: {
+                headers: {
+                    "Retry-After": components["headers"]["RetryAfter"];
+                    traceparent: components["headers"]["Traceparent"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description A pause is running. */
+            429: {
+                headers: {
+                    "Retry-After": components["headers"]["RetryAfter"];
+                    traceparent: components["headers"]["Traceparent"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    showSecondFactor: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description What is set up. */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    traceparent: components["headers"]["Traceparent"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SecondFactorState"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    beginTotp: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The seed, told once. */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    traceparent: components["headers"]["Traceparent"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TotpStarted"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    confirmTotp: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FirstCode"];
+            };
+        };
+        responses: {
+            /** @description TOTP is on; the recovery codes, told once. */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    traceparent: components["headers"]["Traceparent"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecoveryCodesIssued"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    disableTotp: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description TOTP is off. */
+            204: {
+                headers: {
+                    traceparent: components["headers"]["Traceparent"];
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    regenerateRecoveryCodes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The new codes, told once. */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    traceparent: components["headers"]["Traceparent"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecoveryCodesIssued"];
+                };
             };
             default: components["responses"]["Problem"];
         };
