@@ -4,8 +4,8 @@ import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import tallyvane.platform.kernel.Secret
+import tallyvane.sessions.domain.Lifetimes
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.days
 
 class OpenSessionSpec :
     StringSpec(
@@ -28,7 +28,7 @@ class OpenSessionSpec :
                 harness.who(attempt) shouldBe "lapsed"
             }
 
-            "the browser is told how long the session can last at most" {
+            "the browser is told the longest a session can ever last, so a loosened policy reaches its cookie" {
                 val harness = Harness()
                 val told = mutableListOf<Duration>()
 
@@ -40,7 +40,7 @@ class OpenSessionSpec :
                         lasting
                 }
 
-                told.single() shouldBe 7.days
+                told.single() shouldBe Lifetimes.LONGEST
             }
 
             "no cookie is nothing to open, and nothing is kept" {

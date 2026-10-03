@@ -69,7 +69,6 @@ abstract class LifetimeVersionsConformance : StringSpec() {
         "starts with a day idle and a week at most for a browser, as ADR-079 says" {
             val rules = fresh().active()
 
-            rules.longest(ClientType.Browser) shouldBe 7.days
             rules.lives(START + 1.days - 1.minutes) shouldBe true
             rules.lives(START + 1.days) shouldBe false
         }
@@ -91,7 +90,6 @@ abstract class LifetimeVersionsConformance : StringSpec() {
 
             val rules = subject.active()
 
-            rules.longest(ClientType.Browser) shouldBe 30.days
             rules.lives(START + 2.days) shouldBe true
         }
     }

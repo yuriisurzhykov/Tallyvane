@@ -9,11 +9,11 @@ import tallyvane.platform.kernel.Secret
 import tallyvane.platform.kernel.TransactionRunner
 import tallyvane.platform.kernel.UseCase
 import tallyvane.platform.kernel.Verdict
-import tallyvane.sessions.application.port.LifetimeVersions
 import tallyvane.sessions.application.port.Sessions
 import tallyvane.sessions.domain.ClientType
 import tallyvane.sessions.domain.Device
 import tallyvane.sessions.domain.Factor
+import tallyvane.sessions.domain.Lifetimes
 import tallyvane.sessions.domain.Session
 import tallyvane.sessions.domain.UserAgent
 import kotlin.time.Instant
@@ -39,7 +39,6 @@ public interface OpenSessionUseCase : UseCase {
         private val transactions: TransactionRunner,
         private val clock: Clock,
         private val keys: SessionKeys,
-        private val lifetimes: LifetimeVersions,
     ) : OpenSessionUseCase {
         override suspend fun open(attempt: Secret?, agent: UserAgent): Opened {
             val secret = attempt ?: return Opened.Failed.NothingToOpen()
@@ -69,7 +68,7 @@ public interface OpenSessionUseCase : UseCase {
                         now,
                     ),
                 )
-                return Opened.Issued(issued.secret, lifetimes.active().longest(ClientType.Browser))
+                return Opened.Issued(issued.secret, Lifetimes.LONGEST)
             }
 
             override fun nothingToRedeem(): Opened = Opened.Failed.NothingToOpen()

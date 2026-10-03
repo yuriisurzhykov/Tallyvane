@@ -30,7 +30,9 @@ update and delete, the pattern of the `authentication` policy tables), `lifetime
 which version is in force for a client type. Bounds stay in code (idle 15 minutes to 30 days,
 absolute up to 90 days and not below idle); values are data (ADR-078). They are read on every request,
 one query for all client types, and only when a session was found. Tightening a version therefore
-reaches existing sessions at their next request. Version 1 for the browser is one day idle, seven days
+reaches existing sessions at their next request. A loosened version reaches them too, because the
+cookie is told the longest the code allows (90 days) and not the value in force when it was issued;
+the server alone decides when a session is over. Version 1 for the browser is one day idle, seven days
 absolute. The admin screen that activates a version is slice 7.
 
 **The use case takes the cookie secret and looks the session up again.** The list, revoke, rename and

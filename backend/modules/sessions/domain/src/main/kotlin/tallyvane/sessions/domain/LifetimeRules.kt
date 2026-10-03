@@ -12,11 +12,6 @@ import kotlin.time.Duration
 public class LifetimeRules private constructor(private val byClient: Map<ClientType, Lifetimes>) {
     internal fun of(client: ClientType): Lifetimes = byClient.getValue(client)
 
-    /**
-     * The longest a session of [client] can live, which is as long as its cookie has to be remembered.
-     */
-    public fun longest(client: ClientType): Duration = of(client).longest()
-
     override fun toString(): String = "LifetimeRules($byClient)"
 
     /**

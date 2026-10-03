@@ -27,11 +27,6 @@ public class Lifetimes internal constructor(private val idle: Duration, private 
         }
     }
 
-    /**
-     * The longest a session can live, which is as long as its cookie has to be remembered.
-     */
-    public fun longest(): Duration = absolute
-
     internal fun hasPassedSinceStart(authenticatedAt: Instant, now: Instant): Boolean =
         now - authenticatedAt >= absolute
 
@@ -39,9 +34,14 @@ public class Lifetimes internal constructor(private val idle: Duration, private 
 
     override fun toString(): String = "Lifetimes(idle=$idle, absolute=$absolute)"
 
-    private companion object {
-        val IDLE: ClosedRange<Duration> = 15.minutes..30.days
+    public companion object {
+        private val IDLE: ClosedRange<Duration> = 15.minutes..30.days
 
-        val LONGEST: Duration = 90.days
+        /**
+         * The longest any session can be allowed to live, which is as long as its cookie is told to be
+         * remembered. The browser is told the bound and not today's value, so a policy loosened later
+         * reaches the cookies already issued; the server is what decides when a session is over.
+         */
+        public val LONGEST: Duration = 90.days
     }
 }

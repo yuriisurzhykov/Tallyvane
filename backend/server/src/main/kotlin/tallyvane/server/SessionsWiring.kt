@@ -58,7 +58,6 @@ public class SessionsWiring(
             platform.persistence.transactions,
             clock,
             keys,
-            storage.lifetimeVersions(),
         )
     }
 

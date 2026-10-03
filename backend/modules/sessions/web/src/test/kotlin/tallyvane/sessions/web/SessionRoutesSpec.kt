@@ -61,7 +61,7 @@ class SessionRoutesSpec :
                     session shouldContain "HttpOnly"
                     session shouldContain "Path=/"
                     session shouldContain "SameSite=Lax"
-                    session shouldContain "Max-Age=604800"
+                    session shouldContain "Max-Age=7776000"
                     session shouldContain "secret-1"
                     cookies.single { it.startsWith("__Host-attempt=") } shouldContain "Max-Age=0"
                 }

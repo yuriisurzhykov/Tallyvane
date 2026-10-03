@@ -40,7 +40,6 @@ class Harness {
         transactions,
         clock,
         keys,
-        lifetimeVersions,
     )
 
     val authenticate: AuthenticateUseCase = AuthenticateUseCase.Authenticate(recognition, transactions)
