@@ -69,7 +69,7 @@ private fun send(
  * Plants what a completed sign-in leaves behind, through the adapters the process itself reads with, and
  * returns the secret the browser would hold.
  */
-private suspend fun signedUp(access: DatabaseAccess, settings: Configuration): Secret {
+internal suspend fun signedUp(access: DatabaseAccess, settings: Configuration): Secret {
     val persistence = PostgresPersistence(access)
     try {
         val directory = AccountDirectory(IdentityStorageFactory().accounts(), IdGenerator.Uuid7())

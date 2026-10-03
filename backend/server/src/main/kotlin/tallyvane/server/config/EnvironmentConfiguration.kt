@@ -90,6 +90,7 @@ public class EnvironmentConfiguration(private val environment: Environment) {
         apiOrigin = origin(API_ORIGIN, faults),
         tokenPepper = pepper(faults),
         pepperVersion = number(TOKEN_PEPPER_VERSION, 1, 1..MAX_PEPPER_VERSION, faults),
+        totpKeyset = Secret(text(TOTP_KEYSET, faults)),
     )
 
     /**
@@ -151,6 +152,8 @@ public class EnvironmentConfiguration(private val environment: Environment) {
         public const val TOKEN_PEPPER: String = "TALLYVANE_TOKEN_PEPPER"
 
         public const val TOKEN_PEPPER_VERSION: String = "TALLYVANE_TOKEN_PEPPER_VERSION"
+
+        public const val TOTP_KEYSET: String = "TALLYVANE_TOTP_KEYSET"
 
         /**
          * As long as `Digests.Hmac` insists on.

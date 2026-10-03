@@ -18,17 +18,18 @@ import kotlin.time.Instant
 const val APP = "https://app.example.test"
 
 /**
- * The module's four routes over the real use cases and fakes of every port, behind the real edge.
+ * The module's routes over the real use cases and fakes of every port, behind the real edge.
  */
 class Served(val harness: Harness = Harness()) {
     private val routes = AuthenticationRoutesFactory()
+    private val secondFactor = SecondFactorRoutesFactory()
 
-    fun api(): Api = Api(
+    fun api(callers: Callers = Callers.Anonymous()): Api = Api(
         routes = modules(),
         failures = FailureTranslator.Chained(emptyList()),
         trace = TraceHeader(IdGeneratorFake()),
         ledger = LedgerFake(TransactionRunnerFake(), ClockFake(Instant.parse("2026-10-02T09:00:00Z"))),
-        callers = Callers.Anonymous(),
+        callers = callers,
         appOrigin = APP,
     )
 
@@ -48,6 +49,13 @@ class Served(val harness: Harness = Harness()) {
         routes.googleReturn(harness.continueWith, APP),
         routes.welcome(harness.show),
         routes.registration(harness.register),
+        secondFactor.signInState(harness.showSignIn),
+        secondFactor.secondFactorCodes(harness.verify),
+        secondFactor.secondFactor(harness.showSecondFactor),
+        secondFactor.totpEnrollments(harness.beginTotp),
+        secondFactor.totpConfirmations(harness.confirmTotp),
+        secondFactor.totpEnrollment(harness.disableTotp),
+        secondFactor.recoveryCodes(harness.regenerateRecoveryCodes),
     )
 
     override fun toString(): String = "Served"

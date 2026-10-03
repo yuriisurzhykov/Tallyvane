@@ -16,6 +16,8 @@ private const val CLIENT_SECRET_VALUE = "a-google-client-secret-nobody-should-se
 
 private const val PEPPER_VALUE = "a-token-pepper-of-at-least-thirty-two-characters"
 
+private const val KEYSET_VALUE = "a-tink-keyset-nobody-should-see-in-a-log"
+
 private const val TOKEN_VALUE = "a-service-token-of-at-least-forty-characters-length"
 
 /**
@@ -39,6 +41,7 @@ private fun complete(): MutableMap<String, String> = mutableMapOf(
     EnvironmentConfiguration.APP_ORIGIN to "https://app.example.test",
     EnvironmentConfiguration.API_ORIGIN to "https://api.example.test",
     EnvironmentConfiguration.TOKEN_PEPPER to PEPPER_VALUE,
+    EnvironmentConfiguration.TOTP_KEYSET to KEYSET_VALUE,
 )
 
 private fun read(values: Map<String, String>): Configuration = EnvironmentConfiguration(EnvironmentFake(values)).read()
@@ -170,6 +173,7 @@ class EnvironmentConfigurationSpec :
                 signIn.redirectUri() shouldBe "https://api.example.test/api/v1/google-return"
                 signIn.tokenPepper shouldBe Secret(PEPPER_VALUE)
                 signIn.pepperVersion shouldBe 1
+                signIn.totpKeyset shouldBe Secret(KEYSET_VALUE)
             }
 
             "refuses to start without what signing in needs, naming each variable and quoting no value" {
@@ -178,6 +182,7 @@ class EnvironmentConfigurationSpec :
                         remove(EnvironmentConfiguration.GOOGLE_CLIENT_ID)
                         remove(EnvironmentConfiguration.GOOGLE_CLIENT_SECRET)
                         remove(EnvironmentConfiguration.TOKEN_PEPPER)
+                        remove(EnvironmentConfiguration.TOTP_KEYSET)
                         put(EnvironmentConfiguration.APP_ORIGIN, "https://app.example.test/with/a/path/")
                     },
                 )
@@ -185,6 +190,7 @@ class EnvironmentConfigurationSpec :
                 said shouldContain EnvironmentConfiguration.GOOGLE_CLIENT_ID
                 said shouldContain EnvironmentConfiguration.GOOGLE_CLIENT_SECRET
                 said shouldContain EnvironmentConfiguration.TOKEN_PEPPER
+                said shouldContain EnvironmentConfiguration.TOTP_KEYSET
                 said shouldContain EnvironmentConfiguration.APP_ORIGIN
                 said shouldNotContain "with/a/path"
             }

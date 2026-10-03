@@ -15,6 +15,7 @@ import tallyvane.platform.http.problems.Problem
  * nesting would have made it public and given every module a constructor. Found by the compiler,
  * which is the right place to find it.
  */
+@Suppress("TooManyFunctions") // One function per meaning of [Answers].
 internal class Rfc9457Answers : Answers {
     override fun malformed(detail: String?): Problem = Problem(
         type = uri("malformed-request"),
@@ -73,6 +74,20 @@ internal class Rfc9457Answers : Answers {
         detail = detail,
     )
 
+    override fun gone(detail: String?): Problem = Problem(
+        type = uri("gone"),
+        title = "Gone",
+        status = GONE,
+        detail = detail,
+    )
+
+    override fun slowDown(detail: String?): Problem = Problem(
+        type = uri("slow-down"),
+        title = "Slow down",
+        status = TOO_MANY,
+        detail = detail,
+    )
+
     override fun unavailable(detail: String?): Problem = Problem(
         type = uri("unavailable"),
         title = "Temporarily unavailable",
@@ -101,7 +116,11 @@ internal class Rfc9457Answers : Answers {
 
         const val CONFLICT = 409
 
+        const val GONE = 410
+
         const val UNPROCESSABLE = 422
+
+        const val TOO_MANY = 429
 
         const val INTERNAL = 500
 

@@ -11,6 +11,11 @@ tasks.withType<Test>().configureEach {
     val backendRoot = rootProject.projectDir
     val repoRoot = backendRoot.parentFile
 
+    // Konsist parses every source file under the root and keeps the result of each scan alive while a spec
+    // runs; the default 512 MB of a Gradle test worker was spent by `ExceptionBudgetSpec` once the backend
+    // reached the size of slice 5b.
+    maxHeapSize = "1g"
+
     systemProperty("konsist.root", backendRoot.absolutePath)
     systemProperty("repo.root", repoRoot.absolutePath)
 

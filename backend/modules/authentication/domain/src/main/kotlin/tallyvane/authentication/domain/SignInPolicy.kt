@@ -66,7 +66,7 @@ public data class SignInPolicy internal constructor(
         val next = reachable.firstOrNull { !it.isSatisfiedBy(attempt) }
 
         return when {
-            next != null -> next.requestFrom(attempt, firstDelay, now)
+            next != null -> next.requestFrom(attempt, enrollment, firstDelay, now)
             unreachable.isEmpty() -> attempt.concluded(null)
             else -> unreachable.first().restrict(attempt)
         }

@@ -135,7 +135,7 @@ class PolicyDraftSpec :
                     start,
                 ).withVerified(VerifiedFactor.identifying(Google, "google-subject-1", start))
 
-                policy.progressOf(google, Enrollment(setOf(Totp)), now = start) shouldBe
+                policy.progressOf(google, Enrollment(setOf(Totp, RecoveryCode)), now = start) shouldBe
                     Progress.Awaiting(setOf(Totp, RecoveryCode))
             }
 

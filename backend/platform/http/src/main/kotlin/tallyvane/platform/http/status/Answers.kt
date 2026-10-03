@@ -10,8 +10,8 @@ import tallyvane.platform.http.problems.Problems
  *
  * Not the only source there is, and the distinction became load-bearing on 2026-08-26: [Statuses]
  * also makes one, for the statuses Ktor answers on its own. That port is `internal`, so no module can
- * name it — which is why this one can still promise a module ten meanings and no way to invent an
- * eighth.
+ * name it — which is why this one can still promise a module twelve meanings and no way to invent a
+ * thirteenth.
  *
  * ### Why a receiver instead of a companion
  *
@@ -26,15 +26,16 @@ import tallyvane.platform.http.problems.Problems
  *
  * ### Why the set is closed
  *
- * Ten HTTP meanings, no parameters for a status or a `type`. A module picks the meaning and
+ * Twelve HTTP meanings, no parameters for a status or a `type`. A module picks the meaning and
  * supplies what only it knows: which field, which code, what to say. So `type` cannot drift into
  * a free string, two modules cannot describe one kind of failure differently, and slice 14 has
  * something enumerable to write into the specification.
  *
- * An eighth meaning means editing this interface, which is the point: adding one is a decision
+ * A thirteenth meaning means editing this interface, which is the point: adding one is a decision
  * about the API's contract, and it should appear in a diff of the platform. [malformed] was the
  * seventh, added when a live run showed a malformed body answering 500.
  */
+@Suppress("TooManyFunctions") // One function per meaning, and the number of meanings is a decision of this interface.
 public interface Answers {
     /**
      * Could not be read at all: 400. A body that is not the JSON it claims to be, a media type
@@ -88,6 +89,20 @@ public interface Answers {
      * index refused, a state machine that has already moved on.
      */
     public fun conflicting(detail: String? = null): Problem
+
+    /**
+     * What the request was about is over and will not come back: 410, type `gone`. A sign-in or
+     * confirmation that ran out or was closed (ADR-093). Told apart from [missing] because the client
+     * starts again instead of looking elsewhere.
+     */
+    public fun gone(detail: String? = null): Problem
+
+    /**
+     * Too many wrong answers lately, and the next one is not looked at yet: 429, type `slow-down`
+     * (ADR-093). The route says how long to wait with `Retry-After`; the problem carries no number of
+     * its own, so the header is the one place that says it.
+     */
+    public fun slowDown(detail: String? = null): Problem
 
     /**
      * A dependency is down and the request may be retried: 503.
