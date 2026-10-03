@@ -1,7 +1,7 @@
 # Slice 5b. TOTP on the backend
 
 > Layers: `platform:http`, `authentication`, `server`
-> Status: plan accepted by Yurii on 2026-10-03 as part of slice 5 (all four recommendations); this document is the 5b plan and the code is written from its diagrams. If the code departs from a diagram, the same PR changes the diagram.
+> Status: plan accepted by Yurii on 2026-10-03 as part of slice 5 (all four recommendations). **5b is implemented**: the diagrams below are brought in line with the code (see "What changed while implementing" at the end). If the code departs from a diagram again, the same PR changes the diagram.
 > The decision is recorded in [ADR-093](../adr/ADR-093-totp-is-an-enrolment-with-a-standing-and-recovery-codes-retire-it.md).
 > Parent documents: [02-authentication-slice-5.md](02-authentication-slice-5.md) (the slice plan and 5a), [ADR-078](../adr/ADR-078-factors-attempts-and-versioned-policies.md), [ADR-082](../adr/ADR-082-second-factor-operations.md), [ADR-092](../adr/ADR-092-a-dangerous-act-asks-for-a-fresh-proof-and-the-session-remembers-it.md)
 
@@ -42,7 +42,7 @@ One route module per use case (`web-one-usecase`) and one segment per base path,
 | Route | Who may call | Use case | Answers |
 |---|---|---|---|
 | `GET /sign-in` | holder of the attempt cookie | `ShowSignIn` | the state: `awaiting` (with the kinds accepted), `paused` (`retryAfter`), `complete`, `restricted`, `exhausted`, `expired`; `404` without a sign-in or confirmation |
-| `POST /second-factor-codes` `{kind, code}` | holder of the attempt cookie | `VerifySecondFactor` | `204` for a TOTP code, `200 {recoveryCodesRemaining}` for a recovery code, `422 wrong-code` (+`Retry-After`), `429` (+`Retry-After`), `410`, `409` |
+| `POST /second-factor-codes` `{kind, code}` | holder of the attempt cookie | `VerifySecondFactor` | `204` for a TOTP code, `200 {recoveryCodesRemaining}` for a recovery code, `422 wrong-code` (+`Retry-After`), `429` (+`Retry-After`), `410` the attempt is over, `409` when the attempt does not wait for this kind of answer or another request changed it first, `400` for an unknown `kind` |
 | `GET /second-factor` | signed in | `ShowSecondFactor` | `{standing: off|active|retired, recoveryCodesRemaining}` |
 | `POST /totp-enrollments` | signed in, fresh | `BeginTotp` | `200 {key, uri}` shown once; `409` when already active |
 | `POST /totp-confirmations` `{code}` | signed in | `ConfirmTotp` | `200 {recoveryCodes}` shown once; `422 wrong-code`; `409` when nothing was begun |
@@ -122,7 +122,7 @@ flowchart TB
         answers["Answers<br/>new: gone 410, slowDown 429"]
     end
     subgraph authn [authentication]
-        aweb["web<br/>SignInStateRoutes, SecondFactorCodeRoutes, SecondFactorRoutes,<br/>TotpEnrollmentRoutes, TotpConfirmationRoutes, TotpRemovalRoutes, RecoveryCodeRoutes"]
+        aweb["web<br/>SignInStateRoutes, SecondFactorCodeRoutes, SecondFactorRoutes,<br/>TotpEnrollmentRoutes, TotpConfirmationRoutes, TotpRemovalRoutes, RecoveryCodeRoutes,<br/>SecondFactorRoutesFactory"]
         aapp["application<br/>VerifySecondFactor, ShowSignIn, ShowSecondFactor, BeginTotp, ConfirmTotp,<br/>DisableTotp, RegenerateRecoveryCodes, ActivePolicies, Enrollments"]
         acon["contract<br/>SignIns.redeem, SignIns.redeemStepUp"]
         adom["domain<br/>TotpEnrollment, RecoveryCodes, AccountGuesses, Enrollment, Rfc6238Totp, Base32"]
@@ -132,7 +132,7 @@ flowchart TB
         icon["contract<br/>Accounts, AccountId"]
     end
     subgraph server [server]
-        wiring["AuthenticationWiring<br/>TALLYVANE_TOTP_KEYSET"]
+        wiring["AuthenticationWiring<br/>SignInConfiguration: totpKeyset, totpIssuer<br/>TALLYVANE_TOTP_KEYSET"]
     end
     aweb ==> gate
     aweb ==> answers
@@ -163,7 +163,7 @@ classDiagram
         +confirm(code, now) CodeVerdict
         +check(code, now) CodeVerdict
         +retired() TotpEnrollment
-        +provision(issuer, Provisioning.Record)
+        +provision(issuer, Provisioned)
         +writeTo(Record)
         +restore(replay)
     }
@@ -198,7 +198,7 @@ classDiagram
     }
     class Rfc6238Totp {
         <<internal>>
-        +matchingStep(secret, code, now) Step
+        +matchingStep(secret, code, now, tolerance, after) Step
     }
     class Attempt {
         <<already exists>>
@@ -245,6 +245,11 @@ classDiagram
     class ActivePolicies {
         <<application>>
         +progressOf(attempt, purpose, now) Progress
+        +firstDelayOf(purpose) Duration
+    }
+    class AttemptOwners {
+        <<application>>
+        +of(attempt) AccountId
     }
     class Enrollments {
         <<application>>
@@ -254,13 +259,13 @@ classDiagram
         <<port>>
         +find(account) TotpEnrollment
         +lock(account) TotpEnrollment
-        +save(account, enrollment)
+        +keep(account, enrollment)
         +forget(account)
     }
     class RecoveryCodeSets {
         <<port>>
-        +find(account) RecoveryCodes
-        +save(account, codes)
+        +of(account) RecoveryCodes
+        +keep(account, codes)
     }
     class AccountFailures {
         <<port>>
@@ -286,6 +291,7 @@ classDiagram
     VerifySecondFactorUseCase --> AccountFailures
     ShowSignInUseCase --> ActivePolicies
     ActivePolicies --> Enrollments
+    ActivePolicies --> AttemptOwners
     Enrollments --> TotpEnrollments
     Enrollments --> RecoveryCodeSets
     BeginTotpUseCase --> TotpEnrollments
@@ -300,7 +306,7 @@ classDiagram
     RegenerateRecoveryCodesUseCase --> RecoveryCodeMint
 ```
 
-`ActivePolicies` keeps its signature. Inside, it asks the attempt for its Google subject by having it tell its state to a small record, asks `Accounts` whose account that is, and asks `Enrollments` for the shape of what the account has set up. No other class learns an account from an attempt.
+`ActivePolicies` keeps `progressOf` and its constructor takes the policy versions, `AttemptOwners` and `Enrollments`. `AttemptOwners` asks the attempt for its Google subject by having it tell its state to a small record and asks `Accounts` whose account that is; `Enrollments` says what shape of second factor the account has set up. `VerifySecondFactor` uses the same `AttemptOwners` to know whose failures to count, so no other class learns an account from an attempt.
 
 ## 8. What is stored
 
@@ -310,29 +316,42 @@ erDiagram
         uuid account_id PK
         text sealed_seed
         text standing "pending, active, retired"
-        bigint last_accepted_step "null while pending"
-        timestamptz begun_at
+        bigint last_accepted_step "null exactly while pending"
     }
     recovery_codes {
-        uuid account_id PK
+        uuid account_id PK, FK
         int position PK
         bytea digest
         int pepper_version
         timestamptz spent_at "null while unspent"
     }
     second_factor_failures {
+        bigint id PK "identity column"
         uuid account_id
         timestamptz failed_at
     }
-    totp_enrollments ||--o{ recovery_codes : "ten at a time"
+    totp_enrollments ||--o{ recovery_codes : "ten at a time, deleted with it"
 ```
 
-All three tables live in the `authentication` schema. `account_id` names an `identity` account by value, with no foreign key across schemas (`own-schema-only`). Old failure rows are removed when a new one is written. Disabling removes the enrolment row and, with it, the codes.
+All three tables live in the `authentication` schema. `account_id` names an `identity` account by value, with no foreign key across schemas (`own-schema-only`); the only foreign key is inside the schema, from `recovery_codes` to `totp_enrollments`, with `on delete cascade`. `recovery_codes` is unique on `(account_id, digest, pepper_version)`, so a code is one row. A check says an enrolment has accepted no step exactly while it is pending. Old failure rows are removed when a new one is written. Disabling removes the enrolment row and, with it, the codes. The sealed seed is the only column that needs the keyset; the migration is `V20261003150000__second_factor_storage.sql`.
 
 ## 9. Configuration
 
-`TALLYVANE_TOTP_KEYSET` is a Tink keyset in JSON form (AES-256-GCM). The server refuses to start without it. `ops/` documents how to generate one (`tinkey create-keyset --key-template AES256_GCM --out-format json`) and the local stand ships a local-only keyset.
+`TALLYVANE_TOTP_KEYSET` is a Tink keyset in JSON form (AES-256-GCM). The server refuses to start without it. `ops/README.md` documents how to generate one (`tinkey create-keyset --key-template AES256_GCM --out-format json`), `ops/.env.example` and `docker-compose.yml` carry the variable, and the local stand ships a local-only keyset. The issuer shown in authenticator apps is `SignInConfiguration.totpIssuer`.
 
 ## 10. Out of scope
 
 The screens (5c: `/login/verify`, a code field in the confirmation dialog, Settings → Security, "Set up the second factor again"), the journal and emails (slice 6), forced setup and mandatory TOTP for administrators (slice 7; `admin_login` with an account that has nothing enrolled stays `restricted`, which nothing redeems yet), the account label in the `otpauth://` address, cleaning up old attempts.
+
+## 11. What changed while implementing
+
+The flows and the module arrows above are as planned. These are the places where the code differs from what the plan drew or said, and the diagrams are corrected to match.
+
+- **Port names.** `TotpEnrollments` and `RecoveryCodeSets` say `keep` (not `save`), because they replace what is there; `RecoveryCodeSets` reads with `of(account)` (not `find`). `ActivePolicies` gained `firstDelayOf(purpose)`, which `VerifySecondFactor` uses to turn the policy's first delay into the account pause.
+- **Domain.** `Rfc6238Totp.matchingStep` takes the tolerance and the step after which a code may be taken (the single-use rule), and returns the matching step or null. `TotpEnrollment.provision` takes the issuer and a `Provisioned` callback that receives the key and the `otpauth://` address as `Secret`s, so neither is ever a `String` field on a domain class.
+- **Tables.** `begun_at` was dropped, since nothing reads it. `recovery_codes` cascades from `totp_enrollments` and is unique on `(account_id, digest, pepper_version)`; `second_factor_failures` has an identity column.
+- **Web.** The seven new route modules are built by their own `SecondFactorRoutesFactory`, because adding them to `AuthenticationRoutesFactory` went over the function-count limit; the older routes stay where they were. `SignInShown.Shown` carries the moment it was asked and has a `Report` of its own that tells how long a pause still lasts, so the route needs neither the clock nor the domain's `Progress`. An unknown `kind` in `POST /second-factor-codes` is a `400`.
+- **Rulings.** `VerifySecondFactor` decides in a private `Ruling` whether what was recorded stays, because a `Verdict` may only be the last expression of the transactional block (`no-verdict-in-signature`): a wrong code commits its failure; a right code that lost a race to change the attempt (`409`) rolls back, so the code is not spent for nothing; a wrong code that lost the race still commits the account's failure.
+- **First code.** A wrong first code at `POST /totp-confirmations` commits nothing and has no limit of its own: the enrolment is still `Pending`, counts for nothing, and the person is signed in already, so there is nothing to guess towards.
+- **The label.** The `otpauth://` address names the issuer only, as planned; the account label waits for a profile contract from `identity`.
+- **Open point for the owner.** A `Retired` person who has spent every recovery code is signed in by Google alone again (`Enrollment.of`, one line). That follows ADR-082's no-lockout rule; making them set TOTP up again first is a decision for slice 7 (forced setup).
