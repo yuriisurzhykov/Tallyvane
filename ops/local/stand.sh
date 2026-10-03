@@ -23,13 +23,21 @@ case "${1:-up}" in
     # printed on purpose: a cold build of every module takes minutes, and silence looks like a hang.
     # The 1 GB heap in gradle.properties is sized for the VPS; a laptop can spare more, and a build
     # that spends its time collecting garbage at 1 GB is the usual reason it seems to stop.
-    (cd "$root/backend" && sh ./gradlew --console=plain -Dorg.gradle.jvmargs="-Xmx3g -XX:MaxMetaspaceSize=768m" \
+    # --no-daemon and in-process Kotlin: the build runs in one JVM that exits when it is done. A
+    # daemon (Gradle's, plus Kotlin's own, which inherits the same 3 GB heap) would otherwise stay
+    # resident for hours inside a 4 GB WSL VM, and the Docker builds below would run out of room.
+    # Nothing is recompiled for it: up-to-date checks, the build cache and the configuration cache
+    # all live on disk, not in the daemon.
+    (cd "$root/backend" && sh ./gradlew --console=plain --no-daemon \
+      -Dorg.gradle.jvmargs="-Xmx3g -XX:MaxMetaspaceSize=768m" -Pkotlin.compiler.execution.strategy=in-process \
       :server:installDist :migrate:installDist)
     # Two images, one at a time (the marketing site and the admin are idle placeholders here, see
     # docker-compose.local.yml): a Next.js build is a full pnpm install, and several next to Gradle can
     # exhaust the memory Docker Desktop gives its VM, after which the daemon stops answering.
     COMPOSE_PARALLEL_LIMIT=1 "${compose[@]}" build --progress=plain server-blue frontend-app-blue
     "${compose[@]}" up -d --no-build "${services[@]}"
+    # Each rebuild leaves the previous image untagged; drop those so they do not pile up.
+    docker image prune -f >/dev/null
     echo "Ready: http://localhost:8080  (logs: ./stand.sh logs)"
     ;;
   down)  "${compose[@]}" down ;;
