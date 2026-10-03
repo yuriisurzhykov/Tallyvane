@@ -23,12 +23,16 @@ COPY packages/frontend-shared/package.json packages/frontend-shared/
 COPY packages/content-kit/package.json packages/content-kit/
 COPY packages/test-kit/package.json packages/test-kit/
 COPY packages/storybook/package.json packages/storybook/
-RUN pnpm install --frozen-lockfile
+# See frontend-web/Dockerfile's comment on this exact line for why.
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
+    pnpm install --frozen-lockfile --prefer-offline --store-dir=/pnpm/store
 
 FROM deps AS builder
 WORKDIR /workspace
 COPY . .
-RUN pnpm --filter "./frontend-admin" run build
+# See frontend-web/Dockerfile's comment on this exact line for why.
+RUN --mount=type=cache,id=next-cache-frontend-admin,target=/workspace/frontend-admin/.next/cache \
+    pnpm --filter "./frontend-admin" run build
 
 # See frontend-web/Dockerfile's comment on this exact line for why: pnpm's workspace
 # symlinks in .next/standalone break across this stage boundary unless dereferenced here,

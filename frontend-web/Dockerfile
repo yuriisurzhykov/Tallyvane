@@ -34,7 +34,11 @@ COPY packages/frontend-shared/package.json packages/frontend-shared/
 COPY packages/content-kit/package.json packages/content-kit/
 COPY packages/test-kit/package.json packages/test-kit/
 COPY packages/storybook/package.json packages/storybook/
-RUN pnpm install --frozen-lockfile
+# The pnpm store lives in a BuildKit cache mount, outside every layer: when a manifest change
+# invalidates this layer, the install relinks from packages already on disk instead of
+# downloading all of them again. The mount never ends up in the image.
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
+    pnpm install --frozen-lockfile --prefer-offline --store-dir=/pnpm/store
 
 FROM deps AS builder
 WORKDIR /workspace
@@ -44,7 +48,11 @@ COPY . .
 # no `--webpack` flag. `outputFileTracingRoot`/`turbopack.root` in next.config.ts already
 # point at this workspace root, which is what lets tracing see frontend-shared and
 # content-kit instead of stopping at this app's own directory.
-RUN pnpm --filter "./frontend-web" run build
+#
+# Next's own build cache, kept between builds the same way, so a source change rebuilds
+# only what it touched. Per-app id: the three apps must not share one.
+RUN --mount=type=cache,id=next-cache-frontend-web,target=/workspace/frontend-web/.next/cache \
+    pnpm --filter "./frontend-web" run build
 
 # `.next/standalone` traces only the runtime files this app actually needs — a fraction
 # of the full workspace install — but pnpm links workspace and hoisted npm dependencies
