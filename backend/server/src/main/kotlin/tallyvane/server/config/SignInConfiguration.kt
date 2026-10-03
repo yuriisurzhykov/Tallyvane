@@ -14,6 +14,8 @@ import tallyvane.platform.kernel.Secret
  * browser back to `<apiOrigin>/api/v1/google-return`, which must be registered with it.
  * @param tokenPepper The key under which a browser's secret becomes the digest the database keeps.
  * @param pepperVersion Which pepper this is, kept beside each digest so a rotation can tell them apart.
+ * @param totpKeyset The Tink keyset, as JSON, that seals the seeds of TOTP enrolments in the database
+ * (ADR-093). Losing it loses every seed: the people who had one turn TOTP on again.
  */
 public class SignInConfiguration(
     public val googleClientId: String,
@@ -22,6 +24,7 @@ public class SignInConfiguration(
     public val apiOrigin: String,
     public val tokenPepper: Secret,
     public val pepperVersion: Int,
+    public val totpKeyset: Secret,
 ) {
     /**
      * The address registered with Google, to which it sends the browser back.

@@ -37,7 +37,7 @@ public interface ShowSignInUseCase : UseCase {
                     if (found == null || purpose == null) {
                         SignInShown.Failed.NoSignIn()
                     } else {
-                        SignInShown.Shown(policies.progressOf(found, purpose, clock.now()))
+                        clock.now().let { now -> SignInShown.Shown(policies.progressOf(found, purpose, now), now) }
                     },
                 )
             }

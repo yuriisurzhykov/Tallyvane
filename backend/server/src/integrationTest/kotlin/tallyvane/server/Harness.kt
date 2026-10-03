@@ -47,8 +47,15 @@ internal fun settings(access: DatabaseAccess, port: Int = free(), pool: Int = DE
             apiOrigin = "https://api.example.test",
             tokenPepper = Secret("a-pepper-only-the-tests-use-0123456789"),
             pepperVersion = 1,
+            totpKeyset = Secret(TEST_KEYSET),
         ),
     )
+
+/**
+ * A Tink keyset made for tests and used for nothing else: it seals the seeds of a database that is thrown away.
+ */
+private const val TEST_KEYSET =
+    """{"primaryKeyId":2602122958,"key":[{"keyData":{"typeUrl":"type.googleapis.com/google.crypto.tink.AesGcmKey","value":"GiAAjLcRyBhuI4zBR/h+CyKZTber9zoQ3CM85HhNUC5UsA==","keyMaterialType":"SYMMETRIC"},"status":"ENABLED","keyId":2602122958,"outputPrefixType":"TINK"}]}"""
 
 /**
  * Where the application is served, as the real edge is told and as a browser would say it sends from.

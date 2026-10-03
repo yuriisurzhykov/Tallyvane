@@ -35,6 +35,12 @@ private val TOKEN = "t".repeat(EnvironmentConfiguration.TOKEN_FLOOR)
 
 private fun free(): Int = ServerSocket(0).use { it.localPort }
 
+/**
+ * A Tink keyset made for tests and used for nothing else: it seals the seeds of a database that is thrown away.
+ */
+private const val TEST_KEYSET =
+    """{"primaryKeyId":2602122958,"key":[{"keyData":{"typeUrl":"type.googleapis.com/google.crypto.tink.AesGcmKey","value":"GiAAjLcRyBhuI4zBR/h+CyKZTber9zoQ3CM85HhNUC5UsA==","keyMaterialType":"SYMMETRIC"},"status":"ENABLED","keyId":2602122958,"outputPrefixType":"TINK"}]}"""
+
 private fun settings(port: Int, level: Level = Level.INFO): Configuration = Configuration(
     database = DatabaseAccess(url = NOWHERE, user = "nobody", password = Secret("nothing")),
     pool = DEFAULT_SIZE,
@@ -48,6 +54,7 @@ private fun settings(port: Int, level: Level = Level.INFO): Configuration = Conf
         apiOrigin = "https://api.example.test",
         tokenPepper = Secret("a-pepper-only-the-tests-use-0123456789"),
         pepperVersion = 1,
+        totpKeyset = Secret(TEST_KEYSET),
     ),
 )
 
