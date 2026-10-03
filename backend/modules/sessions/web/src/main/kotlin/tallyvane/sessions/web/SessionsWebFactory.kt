@@ -3,6 +3,7 @@ package tallyvane.sessions.web
 import tallyvane.platform.http.Callers
 import tallyvane.platform.http.RouteModule
 import tallyvane.sessions.application.AuthenticateUseCase
+import tallyvane.sessions.application.ConfirmStepUpUseCase
 import tallyvane.sessions.application.ListDevicesUseCase
 import tallyvane.sessions.application.OpenSessionUseCase
 import tallyvane.sessions.application.RenameDeviceUseCase
@@ -21,6 +22,12 @@ public class SessionsWebFactory {
      */
     public fun open(open: OpenSessionUseCase): RouteModule =
         SessionRoutes(open, SessionCookie(), SpentAttemptCookie(), SessionProblems())
+
+    /**
+     * `POST /step-ups`: proving who the person is again, for a dangerous act.
+     */
+    public fun stepUp(confirm: ConfirmStepUpUseCase): RouteModule =
+        ConfirmationRoutes(confirm, SessionCookie(), SpentAttemptCookie(), ConfirmationProblems())
 
     /**
      * `DELETE /session`: signing out.

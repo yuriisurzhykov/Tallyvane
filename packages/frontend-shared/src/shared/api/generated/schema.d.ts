@@ -103,6 +103,36 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/google-step-up": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start confirming a dangerous act with Google
+         * @description Begins a confirmation and answers where to send the browser, exactly as `POST /google-sign-in`
+         *     does, with the attempt's secret in the same `__Host-attempt` cookie. It is public because it only
+         *     begins an attempt, which proves nothing by itself. It counts only when a signed-in person takes it
+         *     with `POST /step-ups`.
+         *
+         *     When Google sends the browser back the redirect goes to `/step-up/continue`, never to the
+         *     pages of a sign-in, and a Google account this application does not know is turned back instead
+         *     of becoming a registration.
+         *
+         *     A response that sets a cookie is never stored for a repeat of its `Idempotency-Key`; a repeat
+         *     is answered `409` without `Retry-After`.
+         */
+        post: operations["stepUpWithGoogle"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/google-return": {
         parameters: {
             query?: never;
@@ -116,7 +146,8 @@ export interface paths {
          *     answers with an error document: every outcome is a `302` to a page of the application, and
          *     nothing in the request chooses which.
          *
-         *     - a person with an account: `/login/continue`
+         *     - a person with an account who was signing in: `/login/continue`
+         *     - a person confirming a dangerous act (`POST /google-step-up`): `/step-up/continue`
          *     - a new person: `/welcome`, with a new `__Host-attempt` cookie for their registration
          *     - anyone else: `/login?problem=<reason>`, the cookie cleared. Reasons: `restart`, `expired`,
          *       `cancelled`, `refused`, `email-unverified`, `unavailable`.
@@ -198,6 +229,37 @@ export interface paths {
          *     without `Retry-After`: the work was carried out, so read the current state instead.
          */
         post: operations["openSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/step-ups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Prove who you are again, for a dangerous act
+         * @description For a signed-in person, including one whose last proof has gone stale: this is how they get a
+         *     fresh one. Takes the finished confirmation named by the `__Host-attempt` cookie (see
+         *     `POST /google-step-up`) and moves the time of the last proof on the session the browser presents.
+         *     The session is the same one: its secret does not change and it does not live longer.
+         *
+         *     - `401` no session, or one that has ended.
+         *     - `403` the confirmation was another person's. It is spent all the same, and the session is
+         *       unchanged. The page starts again.
+         *     - `409` there is no finished confirmation to take: no cookie, one that expired, one already
+         *       taken, or one still waiting for a code.
+         *
+         *     A response that sets a cookie is never replayed for a repeated `Idempotency-Key`.
+         */
+        post: operations["confirmStepUp"];
         delete?: never;
         options?: never;
         head?: never;
@@ -286,6 +348,10 @@ export interface paths {
          * @description Ends the session `id`, which `GET /devices` lists. It may be the one asking, which is then the same
          *     as signing out here. `404` when `id` is not a session of the signed-in person: one that never was,
          *     one that has ended, a stranger's and a value that is not an id all answer alike.
+         *
+         *     A dangerous act: it asks for a recent proof of who the person is (ADR-092). A person whose last
+         *     proof is older is answered `403` with the problem type `step-up-required`, and goes on after
+         *     `POST /step-ups`.
          */
         delete: operations["signOutOnDevice"];
         options?: never;
@@ -329,8 +395,9 @@ export interface paths {
          * @description Ends every session of the signed-in person except the one asking. `204` whether there was
          *     another session or not.
          *
-         *     Not yet asked to confirm with a fresh factor, which ADR-079 wants of this action: the confirmation
-         *     arrives with the second factor.
+         *     A dangerous act: it asks for a recent proof of who the person is (ADR-092). A person whose last
+         *     proof is older is answered `403` with the problem type `step-up-required`, and goes on after
+         *     `POST /step-ups`.
          */
         delete: operations["signOutOnOtherDevices"];
         options?: never;
@@ -687,6 +754,29 @@ export interface operations {
             default: components["responses"]["Problem"];
         };
     };
+    stepUpWithGoogle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Where to send the browser. */
+            200: {
+                headers: {
+                    "Set-Cookie": components["headers"]["AttemptCookie"];
+                    traceparent: components["headers"]["Traceparent"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignInStarted"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
     signInReturnFromGoogle: {
         parameters: {
             query?: {
@@ -775,6 +865,30 @@ export interface operations {
             204: {
                 headers: {
                     "Set-Cookie": components["headers"]["SessionCookie"];
+                    traceparent: components["headers"]["Traceparent"];
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    confirmStepUp: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /**
+             * @description The session counts the new proof. `__Host-attempt` is set with `Max-Age=0`, since the
+             *     confirmation is spent.
+             */
+            204: {
+                headers: {
+                    "Set-Cookie": components["headers"]["AttemptCookie"];
                     traceparent: components["headers"]["Traceparent"];
                     [name: string]: unknown;
                 };

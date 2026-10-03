@@ -15,11 +15,22 @@ internal class Judgement(private val policies: ActivePolicies, private val now: 
     /**
      * Where [trip] goes with [reply]: on to Google with the code, or back to the sign-in page.
      */
-    fun of(trip: Trip, reply: GoogleReply): Arrival = when {
-        reply !is GoogleReply.Granted -> Arrival.Stopped(TurnBack.Cancelled)
-        !trip.answers(reply.state) -> Arrival.Stopped(TurnBack.Restart)
-        !trip.attempt.isFor(Purpose.Login) -> Arrival.Stopped(TurnBack.Restart)
-        else -> policies.progressOf(trip.attempt, Purpose.Login, now).reportTo(GoogleAwaited(trip, reply.code))
+    fun of(trip: Trip, reply: GoogleReply): Arrival {
+        val purpose = THROUGH_GOOGLE.firstOrNull(trip.attempt::isFor)
+        return when {
+            reply !is GoogleReply.Granted -> Arrival.Stopped(TurnBack.Cancelled)
+            !trip.answers(reply.state) -> Arrival.Stopped(TurnBack.Restart)
+            purpose == null -> Arrival.Stopped(TurnBack.Restart)
+            else -> policies.progressOf(trip.attempt, purpose, now).reportTo(GoogleAwaited(trip, reply.code))
+        }
+    }
+
+    private companion object {
+        /**
+         * The purposes that begin with a trip to Google and come back to this callback: signing in, and
+         * confirming a dangerous act. Registration is never begun; a sign-in becomes one on the way back.
+         */
+        val THROUGH_GOOGLE = listOf(Purpose.Login, Purpose.StepUp)
     }
 
     /**

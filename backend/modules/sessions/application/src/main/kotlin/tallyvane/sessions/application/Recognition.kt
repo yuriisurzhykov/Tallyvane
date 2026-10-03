@@ -7,6 +7,7 @@ import tallyvane.platform.kernel.Secret
 import tallyvane.sessions.application.port.LifetimeVersions
 import tallyvane.sessions.application.port.Sessions
 import tallyvane.sessions.domain.Factor
+import tallyvane.sessions.domain.Freshness
 import tallyvane.sessions.domain.SessionId
 import tallyvane.sessions.domain.Standing
 import kotlin.time.Instant
@@ -63,9 +64,10 @@ public class Recognition(
             account: Uuid,
             factors: Set<Factor>,
             authenticatedAt: Instant,
+            freshness: Freshness,
         ): Resolution {
             sessions.saw(key, now)
-            return Resolution.SignedIn(AccountId(account), session)
+            return Resolution.SignedIn(AccountId(account), session, freshness)
         }
 
         override fun endedByIdleness(): Resolution = ended()
@@ -80,7 +82,8 @@ public class Recognition(
 
     private class Acting(private val act: (AccountId, SessionId) -> DeviceOutcome) :
         Resolution.Report<DeviceOutcome> {
-        override fun signedIn(account: AccountId, session: SessionId): DeviceOutcome = act(account, session)
+        override fun signedIn(account: AccountId, session: SessionId, freshness: Freshness): DeviceOutcome =
+            act(account, session)
 
         override fun lapsed(): DeviceOutcome = DeviceOutcome.Failed.SessionExpired()
 

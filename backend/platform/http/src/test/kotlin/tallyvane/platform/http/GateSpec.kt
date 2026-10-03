@@ -63,8 +63,28 @@ private class Vault : RouteModule {
     }
 }
 
+/**
+ * An address that is a dangerous act: only a person who confirmed recently may reach it. It counts how
+ * often it ran, so a refusal can be shown to have come first.
+ */
+private class Danger(val ran: AtomicInteger) : RouteModule {
+    override val basePath: BasePath = BasePath("/danger")
+
+    override val access: Access = Access.SignedFresh
+
+    override fun install(route: Route) {
+        route.get("/who") { call.respondText(Requester(call).caller().reportTo(Naming())) }
+        route.post("/do") {
+            ran.incrementAndGet()
+            call.respondText("done")
+        }
+    }
+}
+
 private class Naming : Caller.Report<String> {
     override fun signedIn(account: Uuid): String = "person $account"
+
+    override fun confirmed(account: Uuid): String = "confirmed person $account"
 
     override fun lapsed(): String = "lapsed"
 
@@ -72,13 +92,14 @@ private class Naming : Caller.Report<String> {
 }
 
 private fun gated(ran: AtomicInteger = AtomicInteger()): Api = Api(
-    routes = listOf(Lobby(ran), Vault()),
+    routes = listOf(Lobby(ran), Vault(), Danger(ran)),
     failures = FailureTranslator.Chained(emptyList()),
     trace = TraceHeader(IdGeneratorFake()),
     ledger = LedgerFake(TransactionRunnerFake(), ClockFake(Instant.parse("2026-10-02T09:00:00Z"))),
     callers = Callers { call ->
         when (call.request.headers["X-Who"]) {
             "person" -> Caller.Signed(PERSON)
+            "confirmed" -> Caller.Confirmed(PERSON)
             "lapsed" -> Caller.Lapsed()
             else -> Caller.Anonymous()
         }
@@ -255,6 +276,82 @@ class GateSpec :
 
                     answer.status shouldBe HttpStatusCode.OK
                     answer.bodyAsText() shouldBe "person $PERSON"
+                }
+            }
+
+            "a dangerous route refuses a person who has not confirmed recently, and says to confirm" {
+                testApplication {
+                    application { gated().install(this) }
+
+                    val answer = client.get("/api/v1/danger/who") { header("X-Who", "person") }
+
+                    answer.status shouldBe HttpStatusCode.Forbidden
+                    answer.bodyAsText() shouldContain "step-up-required"
+                }
+            }
+
+            "a dangerous route lets in a person who confirmed, and the route learns who" {
+                testApplication {
+                    application { gated().install(this) }
+
+                    val answer = client.get("/api/v1/danger/who") { header("X-Who", "confirmed") }
+
+                    answer.status shouldBe HttpStatusCode.OK
+                    answer.bodyAsText() shouldBe "confirmed person $PERSON"
+                }
+            }
+
+            "a dangerous route still tells a stranger to sign in and an ended session to sign in again" {
+                testApplication {
+                    application { gated().install(this) }
+
+                    val nobody = client.get("/api/v1/danger/who")
+                    val lapsed = client.get("/api/v1/danger/who") { header("X-Who", "lapsed") }
+
+                    nobody.bodyAsText() shouldContain "sign-in-required"
+                    lapsed.bodyAsText() shouldContain "session-expired"
+                }
+            }
+
+            "a refused dangerous request does not run, and leaves no claim" {
+                val ran = AtomicInteger()
+                testApplication {
+                    application { gated(ran).install(this) }
+
+                    val answer = client.post("/api/v1/danger/do") {
+                        fromApp()
+                        header("Idempotency-Key", KEY)
+                        header("X-Who", "person")
+                    }
+                    val confirmed = client.post("/api/v1/danger/do") {
+                        fromApp()
+                        header("Idempotency-Key", KEY)
+                        header("X-Who", "confirmed")
+                    }
+
+                    answer.status shouldBe HttpStatusCode.Forbidden
+                    confirmed.status shouldBe HttpStatusCode.OK
+                    ran.get() shouldBe 1
+                }
+            }
+
+            "an odd spelling of a path does not reach a dangerous route on a stale proof" {
+                testApplication {
+                    application { gated().install(this) }
+
+                    val encoded = client.get("/api/v1/lobby/%2e%2e/danger/who") { header("X-Who", "person") }
+                    val doubled = client.get("/api/v1/vault//../danger/who") { header("X-Who", "person") }
+
+                    encoded.bodyAsText() shouldContain "step-up-required"
+                    doubled.bodyAsText() shouldContain "step-up-required"
+                }
+            }
+
+            "a person who has not confirmed still reaches an ordinary closed route" {
+                testApplication {
+                    application { gated().install(this) }
+
+                    client.get("/api/v1/vault/who") { header("X-Who", "person") }.status shouldBe HttpStatusCode.OK
                 }
             }
 

@@ -13,7 +13,7 @@ internal val CALLER = AttributeKey<Caller>("tallyvane.caller")
  */
 public class Requester(private val call: ApplicationCall) {
     /**
-     * Who this request comes from. A route behind [Access.Signed] can rely on it being a [Caller.Signed].
+     * Who this request comes from. A route behind [Access.Signed] or [Access.SignedFresh] can rely on it being a [Caller.Signed] or a [Caller.Confirmed].
      */
     public fun caller(): Caller = call.attributes[CALLER]
 
@@ -32,6 +32,8 @@ public class Requester(private val call: ApplicationCall) {
 
     private class Requiring : Caller.Report<Uuid> {
         override fun signedIn(account: Uuid): Uuid = account
+
+        override fun confirmed(account: Uuid): Uuid = account
 
         override fun lapsed(): Uuid = error(MISTAKE)
 

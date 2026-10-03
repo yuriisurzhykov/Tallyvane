@@ -16,6 +16,11 @@ internal class ReturnPages(private val origin: String) {
     fun afterVerified(): String = "$origin/login/continue"
 
     /**
+     * A signed-in person who came back from Google to confirm a dangerous act.
+     */
+    fun afterSteppedUp(): String = "$origin/step-up/continue"
+
+    /**
      * A new person: the welcome form.
      */
     fun afterRegistering(): String = "$origin/welcome"

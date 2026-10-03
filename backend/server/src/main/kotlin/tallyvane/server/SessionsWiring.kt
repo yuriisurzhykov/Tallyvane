@@ -9,6 +9,7 @@ import tallyvane.platform.kernel.Digests
 import tallyvane.platform.kernel.SecretGenerator
 import tallyvane.server.config.SignInConfiguration
 import tallyvane.sessions.application.AuthenticateUseCase
+import tallyvane.sessions.application.ConfirmStepUpUseCase
 import tallyvane.sessions.application.ListDevicesUseCase
 import tallyvane.sessions.application.OpenSessionUseCase
 import tallyvane.sessions.application.Recognition
@@ -61,6 +62,16 @@ public class SessionsWiring(
         )
     }
 
+    private val confirmStepUp: ConfirmStepUpUseCase by lazy {
+        ConfirmStepUpUseCase.ConfirmStepUp(
+            recognition,
+            signIns,
+            storage.sessions(),
+            platform.persistence.transactions,
+            keys,
+        )
+    }
+
     private val signOut: SignOutUseCase by lazy {
         SignOutUseCase.SignOut(storage.sessions(), platform.persistence.transactions, keys)
     }
@@ -102,6 +113,7 @@ public class SessionsWiring(
     public val routes: List<RouteModule> by lazy {
         listOf(
             web.open(open),
+            web.stepUp(confirmStepUp),
             web.signOut(signOut),
             web.devices(listDevices),
             web.deviceSignOut(revokeDevice),

@@ -10,4 +10,5 @@ export { ApiProvider, useApi } from "./ApiProvider";
 export { createApi, type ApiOptions } from "./createApi";
 export { ProblemError, type ProblemKind } from "./ProblemError";
 export { type ExpiredSessionHandler } from "./ReauthenticatingTransport";
+export { type StepUpHandler } from "./ConfirmingTransport";
 export type { components } from "./generated/schema";

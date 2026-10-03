@@ -7,9 +7,10 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 
-private fun rules(idle: Duration, absolute: Duration): LifetimeRules =
-    LifetimeRules.restore { it.lifetimes(ClientType.Browser, idle, absolute) }
+private fun rules(idle: Duration, absolute: Duration, freshness: Duration = 5.minutes): LifetimeRules =
+    LifetimeRules.restore { it.lifetimes(ClientType.Browser, idle, absolute, freshness) }
 
 class LifetimeRulesSpec :
     StringSpec(
@@ -39,6 +40,19 @@ class LifetimeRulesSpec :
                 shouldThrow<IllegalArgumentException> { rules(2.days, 1.days) }
             }
 
+            "accepts a proof that stays fresh from one minute to fifteen" {
+                shouldNotThrowAny { rules(1.days, 7.days, freshness = 1.minutes) }
+                shouldNotThrowAny { rules(1.days, 7.days, freshness = 15.minutes) }
+            }
+
+            "refuses a proof that stays fresh for less than a minute, which no person could use" {
+                shouldThrow<IllegalArgumentException> { rules(1.days, 7.days, freshness = 59.seconds) }
+            }
+
+            "refuses a proof that stays fresh for more than fifteen minutes, which would make the check empty" {
+                shouldThrow<IllegalArgumentException> { rules(1.days, 7.days, freshness = 16.minutes) }
+            }
+
             "refuses rules that leave a kind of client without lifetimes" {
                 shouldThrow<IllegalStateException> { LifetimeRules.restore { } }
             }
@@ -46,8 +60,8 @@ class LifetimeRulesSpec :
             "refuses rules that give a kind of client two pairs" {
                 shouldThrow<IllegalStateException> {
                     LifetimeRules.restore {
-                        it.lifetimes(ClientType.Browser, 1.days, 7.days)
-                        it.lifetimes(ClientType.Browser, 2.days, 7.days)
+                        it.lifetimes(ClientType.Browser, 1.days, 7.days, 5.minutes)
+                        it.lifetimes(ClientType.Browser, 2.days, 7.days, 5.minutes)
                     }
                 }
             }

@@ -16,8 +16,16 @@ import kotlin.time.Instant
  * days and an absolute limit of at most 90 days, never less than the idle limit. A value outside them
  * cannot be built, so an administrator's mistake, or a captured admin API, cannot make a session live
  * ten years.
+ *
+ * A third number is how long a proof of who the person is stays fresh for a dangerous act (ADR-092):
+ * 1 to 15 minutes. It lives here, with the others, so one version, one history and one screen answer for
+ * everything about how long a session is trusted.
  */
-public class Lifetimes internal constructor(private val idle: Duration, private val absolute: Duration) {
+public class Lifetimes internal constructor(
+    private val idle: Duration,
+    private val absolute: Duration,
+    private val freshness: Duration,
+) {
     init {
         require(idle in IDLE) { "A session may sit idle for $IDLE, not $idle." }
         require(absolute <= LONGEST) { "A session may live at most $LONGEST, not $absolute." }
@@ -27,15 +35,23 @@ public class Lifetimes internal constructor(private val idle: Duration, private 
         }
     }
 
+    init {
+        require(freshness in FRESHNESS) { "A proof may stay fresh for $FRESHNESS, not $freshness." }
+    }
+
+    internal fun hasLostFreshness(confirmedAt: Instant, now: Instant): Boolean = now - confirmedAt >= freshness
+
     internal fun hasPassedSinceStart(authenticatedAt: Instant, now: Instant): Boolean =
         now - authenticatedAt >= absolute
 
     internal fun hasPassedSinceUse(lastActiveAt: Instant, now: Instant): Boolean = now - lastActiveAt >= idle
 
-    override fun toString(): String = "Lifetimes(idle=$idle, absolute=$absolute)"
+    override fun toString(): String = "Lifetimes(idle=$idle, absolute=$absolute, freshness=$freshness)"
 
     public companion object {
         private val IDLE: ClosedRange<Duration> = 15.minutes..30.days
+
+        private val FRESHNESS: ClosedRange<Duration> = 1.minutes..15.minutes
 
         /**
          * The longest any session can be allowed to live, which is as long as its cookie is told to be

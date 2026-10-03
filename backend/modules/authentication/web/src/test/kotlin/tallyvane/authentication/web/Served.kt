@@ -44,6 +44,7 @@ class Served(val harness: Harness = Harness()) {
 
     private fun modules(): List<RouteModule> = listOf(
         routes.signIn(harness.begin),
+        routes.stepUp(harness.beginStepUp),
         routes.googleReturn(harness.continueWith, APP),
         routes.welcome(harness.show),
         routes.registration(harness.register),

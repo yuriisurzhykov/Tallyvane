@@ -65,6 +65,7 @@ public sealed interface DeviceOutcome {
                 account: Uuid,
                 client: ClientType,
                 authenticatedAt: Instant,
+                confirmedAt: Instant,
                 lastActiveAt: Instant,
             ) {
                 this.id = id

@@ -6,6 +6,7 @@ import tallyvane.platform.http.Caller
 import tallyvane.platform.http.Callers
 import tallyvane.sessions.application.AuthenticateUseCase
 import tallyvane.sessions.application.Resolution
+import tallyvane.sessions.domain.Freshness
 import tallyvane.sessions.domain.SessionId
 
 /**
@@ -19,7 +20,10 @@ internal class SessionCallers(private val authenticate: AuthenticateUseCase, pri
     override fun toString(): String = "SessionCallers"
 
     private class Naming : Resolution.Report<Caller> {
-        override fun signedIn(account: AccountId, session: SessionId): Caller = Caller.Signed(account.value)
+        override fun signedIn(account: AccountId, session: SessionId, freshness: Freshness): Caller = when (freshness) {
+            Freshness.Fresh -> Caller.Confirmed(account.value)
+            Freshness.Stale -> Caller.Signed(account.value)
+        }
 
         override fun lapsed(): Caller = Caller.Lapsed()
 

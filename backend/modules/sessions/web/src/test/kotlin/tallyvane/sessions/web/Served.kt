@@ -26,6 +26,7 @@ class Served(val harness: Harness = Harness()) {
     fun api(extra: List<RouteModule> = emptyList()): Api = Api(
         routes = listOf(
             routes.open(harness.open),
+            routes.stepUp(harness.confirmStepUp),
             routes.signOut(harness.signOut),
             routes.devices(harness.listDevices),
             routes.deviceSignOut(harness.revokeDevice),

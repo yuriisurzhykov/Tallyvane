@@ -7,6 +7,7 @@ import tallyvane.platform.kernel.Verdict
 import tallyvane.sessions.application.port.LifetimeVersions
 import tallyvane.sessions.domain.ClientType
 import tallyvane.sessions.domain.Factor
+import tallyvane.sessions.domain.Freshness
 import tallyvane.sessions.domain.LifetimeRules
 import tallyvane.sessions.domain.Session
 import tallyvane.sessions.domain.SessionId
@@ -31,9 +32,31 @@ private fun session(): Session = Session.begin(
     START,
 )
 
+private fun LifetimeRules.freshness(at: Instant): Freshness? = session().standingAt(at, this).reportTo(
+    object : Standing.Report<Freshness?> {
+        override fun live(
+            session: SessionId,
+            account: Uuid,
+            factors: Set<Factor>,
+            authenticatedAt: Instant,
+            freshness: Freshness,
+        ) = freshness
+
+        override fun endedByIdleness() = null
+
+        override fun endedByAge() = null
+    },
+)
+
 private fun LifetimeRules.lives(at: Instant): Boolean = session().standingAt(at, this).reportTo(
     object : Standing.Report<Boolean> {
-        override fun live(session: SessionId, account: Uuid, factors: Set<Factor>, authenticatedAt: Instant) = true
+        override fun live(
+            session: SessionId,
+            account: Uuid,
+            factors: Set<Factor>,
+            authenticatedAt: Instant,
+            freshness: Freshness,
+        ) = true
 
         override fun endedByIdleness() = false
 
@@ -71,6 +94,13 @@ abstract class LifetimeVersionsConformance : StringSpec() {
 
             rules.lives(START + 1.days - 1.minutes) shouldBe true
             rules.lives(START + 1.days) shouldBe false
+        }
+
+        "starts with five minutes of freshness for a browser, as ADR-092 says" {
+            val rules = fresh().active()
+
+            rules.freshness(START + 5.minutes - 1.minutes) shouldBe Freshness.Fresh
+            rules.freshness(START + 5.minutes) shouldBe Freshness.Stale
         }
 
         "takes the version activated last, so a tighter one is in force at the next read" {

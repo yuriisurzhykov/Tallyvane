@@ -24,19 +24,26 @@ import io.ktor.util.pipeline.PipelineContext
  *    header names it, or, where the browser sent none, `Sec-Fetch-Site` says `same-origin`. A request
  *    with neither is refused. A body must be `application/json`, which an HTML form cannot send.
  * 2. **Identity.** [Callers] says who the request comes from, once, and the answer is kept on the call.
- *    A route that is not [Access.Public] then lets only a signed-in person through.
+ *    A route that is not [Access.Public] then lets only a signed-in person through, and one that is
+ *    [Access.SignedFresh] only a person who also proved who they are recently enough (ADR-092).
  *
  * ### Closed unless clearly open
  *
  * The decision is made on the path before routing, and routing might read the same path differently.
  * So a path is open only when it names a public module's address plainly: no `.` or `..` segment, no
  * empty segment, no percent-encoding and no backslash. Anything odd falls on the closed side, whatever
- * the router would have made of it.
+ * the router would have made of it. The same goes for freshness, the other way round: a path is let
+ * through on a stale proof only when it plainly names no dangerous route, so an odd spelling cannot
+ * reach one without the confirmation.
  */
 internal class Gate(routes: List<RouteModule>, private val callers: Callers, private val appOrigin: String) {
     private val problems = AccessProblems()
 
     private val openPrefixes = routes.filter { it.access == Access.Public }.map { "$VERSIONED${it.basePath.value}" }
+
+    private val freshPrefixes = routes.filter {
+        it.access == Access.SignedFresh
+    }.map { "$VERSIONED${it.basePath.value}" }
 
     fun install(application: Application) {
         application.intercept(ApplicationCallPipeline.Call) { refuseForgery() }
@@ -81,7 +88,8 @@ internal class Gate(routes: List<RouteModule>, private val callers: Callers, pri
     private suspend fun PipelineContext<Unit, PipelineCall>.identify() {
         val caller = callers.of(call)
         call.attributes.put(CALLER, caller)
-        val refusal = if (closed(call.request.path())) caller.reportTo(Admitting()) else null
+        val path = call.request.path()
+        val refusal = if (closed(path)) caller.reportTo(Admitting(demandsFreshness(path))) else null
         if (refusal != null) {
             call.respond(Refused(refusal, problems))
             finish()
@@ -95,6 +103,12 @@ internal class Gate(routes: List<RouteModule>, private val callers: Callers, pri
     private fun closed(path: String): Boolean =
         path.startsWith("$VERSIONED/") && !(isPlain(path) && openPrefixes.any { path == it || path.startsWith("$it/") })
 
+    /**
+     * Whether [path] is a dangerous act, or spelled so oddly that it might be.
+     */
+    private fun demandsFreshness(path: String): Boolean =
+        !isPlain(path) || freshPrefixes.any { path == it || path.startsWith("$it/") }
+
     private fun isPlain(path: String): Boolean {
         val segments = path.removePrefix("/").split('/')
         return segments.none { it.isEmpty() || it == "." || it == ".." } && '%' !in path && '\\' !in path
@@ -102,9 +116,13 @@ internal class Gate(routes: List<RouteModule>, private val callers: Callers, pri
 
     /**
      * What a route that needs a signed-in person says to each kind of caller: nothing, or why not.
+     * Where the route is a dangerous act, a person who has not confirmed recently is told to.
      */
-    private class Admitting : Caller.Report<AccessFailure?> {
-        override fun signedIn(account: kotlin.uuid.Uuid): AccessFailure? = null
+    private class Admitting(private val demandsFreshness: Boolean) : Caller.Report<AccessFailure?> {
+        override fun signedIn(account: kotlin.uuid.Uuid): AccessFailure? =
+            if (demandsFreshness) AccessFailure.StepUpRequired else null
+
+        override fun confirmed(account: kotlin.uuid.Uuid): AccessFailure? = null
 
         override fun lapsed(): AccessFailure = AccessFailure.SessionExpired
 

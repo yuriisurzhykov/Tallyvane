@@ -25,7 +25,7 @@ class Harness {
     val clock = TickingClock(Instant.parse("2026-10-02T09:00:00Z"))
     private val transactions = TransactionRunnerFake()
     private val versions = PolicyVersionsFake().also { versions ->
-        listOf(Purpose.Login, Purpose.Registration).forEach { purpose ->
+        listOf(Purpose.Login, Purpose.Registration, Purpose.StepUp).forEach { purpose ->
             versions.activate(versions.add(CheckedPolicy(purpose).policy(), clock.now()), clock.now())
         }
     }
@@ -36,6 +36,8 @@ class Harness {
     )
 
     val begin: BeginSignInUseCase = BeginSignInUseCase.BeginSignIn(trips(), google, clock, keys)
+
+    val beginStepUp: BeginStepUpUseCase = BeginStepUpUseCase.BeginStepUp(trips(), google, clock, keys)
 
     val continueWith: ContinueWithGoogleUseCase =
         ContinueWithGoogleUseCase.ContinueWithGoogle(trips(), google, policies, clock, keys)
@@ -67,6 +69,16 @@ class Harness {
     }
 
     /**
+     * Starts confirming a dangerous act: the cookie the browser keeps, and the state Google was sent.
+     */
+    suspend fun pressStepUp(): Pressed {
+        val told = mutableListOf<Pair<Secret, String>>()
+        beginStepUp.begin().writeTo { attempt, address -> told += attempt to address }
+        val (attempt, address) = told.single()
+        return Pressed(attempt, address.substringAfter("state="))
+    }
+
+    /**
      * Comes back from Google with a code Google arranged for [pressed] to be worth [answer].
      */
     suspend fun returnWith(pressed: Pressed, answer: GoogleAnswer, cookie: Secret? = pressed.attempt): GoogleReturn =
@@ -79,6 +91,8 @@ class Harness {
         object : GoogleReturn.Report<String> {
             override fun verified(): String = "verified"
 
+            override fun steppedUp(): String = "stepped up"
+
             override fun registering(attempt: Secret): String = "registering ${attempt.revealed()}"
 
             override fun turnedBack(reason: TurnBack): String = "turned back: $reason"
@@ -86,7 +100,7 @@ class Harness {
     )
 
     /**
-     * A sign-in pressed: the secret in the cookie and the `state` in the address.
+     * A sign-in or a confirmation pressed: the secret in the cookie and the `state` in the address.
      */
     class Pressed(val attempt: Secret, val state: String)
 

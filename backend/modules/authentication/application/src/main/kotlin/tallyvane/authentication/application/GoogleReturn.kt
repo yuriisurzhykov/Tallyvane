@@ -27,6 +27,21 @@ public sealed interface GoogleReturn {
     }
 
     /**
+     * Google identified somebody on a trip that began as a confirmation of a dangerous act (ADR-092), and
+     * the attempt now says so. Whether it is the person who asked is for the module that holds the session
+     * to say; this module cannot.
+     */
+    public class SteppedUp internal constructor() : GoogleReturn {
+        override fun <T> reportTo(report: Report<T>): T = report.steppedUp()
+
+        override fun equals(other: Any?): Boolean = other is SteppedUp
+
+        override fun hashCode(): Int = SteppedUp::class.hashCode()
+
+        override fun toString(): String = "SteppedUp"
+    }
+
+    /**
      * Google identified somebody without an account. Their sign-in became a registration under a new
      * secret, the [attempt] the browser holds from now on (slice 3, fork 3).
      */
@@ -54,6 +69,8 @@ public sealed interface GoogleReturn {
      */
     public interface Report<out T> {
         public fun verified(): T
+
+        public fun steppedUp(): T
 
         public fun registering(attempt: Secret): T
 

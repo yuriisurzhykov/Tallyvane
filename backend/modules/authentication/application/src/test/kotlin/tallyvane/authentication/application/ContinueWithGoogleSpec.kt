@@ -110,5 +110,21 @@ class ContinueWithGoogleSpec :
                 harness.line(harness.returnWith(pressed, vouched("sub-1"))) shouldBe "turned back: Unavailable"
                 harness.line(harness.returnWith(pressed, vouched("sub-1"))) shouldBe "turned back: Restart"
             }
+
+            "a person confirming a dangerous act, who has an account, goes on to be taken by the session" {
+                val harness = Harness()
+                harness.accounts.knows("sub-1")
+                val pressed = harness.pressStepUp()
+
+                harness.line(harness.returnWith(pressed, vouched("sub-1"))) shouldBe "stepped up"
+            }
+
+            "a confirmation with a Google account nobody here knows never becomes a registration" {
+                val harness = Harness()
+                val pressed = harness.pressStepUp()
+
+                harness.line(harness.returnWith(pressed, vouched("stranger"))) shouldBe "stepped up"
+                harness.accounts.knowing("stranger") shouldBe false
+            }
         },
     )

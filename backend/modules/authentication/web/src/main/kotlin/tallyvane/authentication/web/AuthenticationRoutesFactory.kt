@@ -1,6 +1,7 @@
 package tallyvane.authentication.web
 
 import tallyvane.authentication.application.BeginSignInUseCase
+import tallyvane.authentication.application.BeginStepUpUseCase
 import tallyvane.authentication.application.ContinueWithGoogleUseCase
 import tallyvane.authentication.application.RegisterUseCase
 import tallyvane.authentication.application.ShowRegistrationUseCase
@@ -16,6 +17,11 @@ public class AuthenticationRoutesFactory {
      * `POST /google-sign-in`: starting a sign-in.
      */
     public fun signIn(begin: BeginSignInUseCase): RouteModule = SignInRoutes(begin, AttemptCookie())
+
+    /**
+     * `POST /google-step-up`: starting a confirmation of a dangerous act.
+     */
+    public fun stepUp(begin: BeginStepUpUseCase): RouteModule = StepUpRoutes(begin, AttemptCookie())
 
     /**
      * `GET /google-return`: where Google sends the browser back to, which sends it on to the

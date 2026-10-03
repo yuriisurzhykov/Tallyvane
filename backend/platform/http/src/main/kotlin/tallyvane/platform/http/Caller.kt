@@ -29,13 +29,16 @@ public sealed interface Caller {
     public interface Report<out T> {
         public fun signedIn(account: Uuid): T
 
+        public fun confirmed(account: Uuid): T
+
         public fun lapsed(): T
 
         public fun anonymous(): T
     }
 
     /**
-     * A person the request proved to be.
+     * A person the request proved to be, who has not proved it again recently: enough for everything but
+     * the acts behind [Access.SignedFresh].
      */
     public class Signed(private val account: Uuid) : Caller {
         override fun <T> reportTo(report: Report<T>): T = report.signedIn(account)
@@ -47,6 +50,22 @@ public sealed interface Caller {
         override fun hashCode(): Int = account.hashCode()
 
         override fun toString(): String = "Signed"
+    }
+
+    /**
+     * A person the request proved to be, who also proved it again recently enough for a dangerous act
+     * (ADR-092). What "recently enough" means is the issuer of credentials' to say; the edge only asks.
+     */
+    public class Confirmed(private val account: Uuid) : Caller {
+        override fun <T> reportTo(report: Report<T>): T = report.confirmed(account)
+
+        override fun owner(): Owner = Owner.subject(account)
+
+        override fun equals(other: Any?): Boolean = other is Confirmed && other.account == account
+
+        override fun hashCode(): Int = account.hashCode() + 1
+
+        override fun toString(): String = "Confirmed"
     }
 
     /**

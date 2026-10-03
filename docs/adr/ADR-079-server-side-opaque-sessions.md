@@ -3,7 +3,7 @@
 ## Status
 
 Accepted. Replaces the access and refresh token pair of the `feature/authentication` attempt.
-See ADR-090 for the device list and revoking, and for the step-up check on revoking that is deferred to slice 5.
+See ADR-090 for the device list and revoking. ADR-092 makes the fresh-factor check real: where freshness is decided, what a confirmation does to the session, and the revoking calls it guards.
 
 ## Context
 

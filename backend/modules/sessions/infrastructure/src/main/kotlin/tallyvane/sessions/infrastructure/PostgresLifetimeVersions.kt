@@ -33,6 +33,7 @@ internal class PostgresLifetimeVersions : LifetimeVersions {
                 LifetimeVersionsTable.clientType,
                 LifetimeVersionsTable.idleMillis,
                 LifetimeVersionsTable.absoluteMillis,
+                LifetimeVersionsTable.freshnessMillis,
             )
             .where { LifetimeActivationsTable.id inSubQuery inForce }
             .toList()
@@ -42,6 +43,7 @@ internal class PostgresLifetimeVersions : LifetimeVersions {
                     words.clientFrom(it[LifetimeVersionsTable.clientType]),
                     it[LifetimeVersionsTable.idleMillis].milliseconds,
                     it[LifetimeVersionsTable.absoluteMillis].milliseconds,
+                    it[LifetimeVersionsTable.freshnessMillis].milliseconds,
                 )
             }
         }
