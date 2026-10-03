@@ -175,8 +175,9 @@ class VerifySecondFactorSpec :
 
                     redeemed(harness.redemptions.redeem(attempt)) shouldBe "redeemed [Google, RecoveryCode]"
                     val later = harness.signedInWithGoogle("sub-1")
-                    harness.standing(later) shouldBe "awaiting [RecoveryCode, Totp]"
-                    harness.code(later, setup.app.codeAt(harness.clock.now())) shouldBe "WrongCode 1s"
+                    harness.standing(later) shouldBe "awaiting [RecoveryCode]"
+                    harness.code(later, setup.app.codeAt(harness.clock.now())) shouldBe "NotWanted"
+                    harness.standing(later) shouldBe "awaiting [RecoveryCode]"
                 }
             }
 

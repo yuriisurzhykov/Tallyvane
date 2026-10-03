@@ -110,4 +110,8 @@ Deployments need `TALLYVANE_TOTP_KEYSET` (a Tink keyset in JSON form; `TOTP_KEYS
 `ops/README.md` says how to generate one. Losing the keyset makes every sealed seed unreadable, so it is kept with the same care as the pepper, and
 the recovery codes (which do not depend on it) are what lets people back in.
 
+Recovery codes are digests under the token pepper, and the pepper port knows one pepper only, like sessions and attempts
+do today. Until retained older peppers can be read by version (ADR-079), rotating `TOKEN_PEPPER` makes every unspent
+recovery code fail, so a rotation has to wait for that.
+
 The console screens come with slice 5c. Until then TOTP can be driven through the API only.

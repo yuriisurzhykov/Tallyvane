@@ -1,9 +1,11 @@
 package tallyvane.authentication.infrastructure
 
+import org.jetbrains.exposed.v1.core.TextColumnType
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
+import org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager
 import org.jetbrains.exposed.v1.jdbc.update
 import tallyvane.authentication.application.port.TotpEnrollments
 import tallyvane.authentication.domain.TotpEnrollment
@@ -18,7 +20,10 @@ import tallyvane.identity.contract.AccountId
 internal class PostgresTotpEnrollments(private val cipher: SecretCipher) : TotpEnrollments {
     override fun find(account: AccountId): TotpEnrollment? = read(account, locking = false)
 
-    override fun lock(account: AccountId): TotpEnrollment? = read(account, locking = true)
+    override fun lock(account: AccountId): TotpEnrollment? {
+        takeTurnFor(account)
+        return read(account, locking = true)
+    }
 
     override fun keep(account: AccountId, enrollment: TotpEnrollment) {
         enrollment.writeTo { seed, standing, lastAcceptedStep ->
@@ -45,6 +50,20 @@ internal class PostgresTotpEnrollments(private val cipher: SecretCipher) : TotpE
     }
 
     override fun toString(): String = "PostgresTotpEnrollments(schema=authentication)"
+
+    /**
+     * Makes whoever is about to change this account's enrolment take turns, until the transaction ends.
+     *
+     * `for update` cannot lock a row that is not there yet, so two first-time requests would both find
+     * nothing and then both insert; the advisory lock, named after the account, serialises them, and
+     * the second one finds what the first made.
+     */
+    private fun takeTurnFor(account: AccountId) {
+        TransactionManager.current().exec(
+            "select pg_advisory_xact_lock(hashtext(?))",
+            listOf(TextColumnType() to "authentication.totp_enrollments.${account.value}"),
+        ) { }
+    }
 
     private fun read(account: AccountId, locking: Boolean): TotpEnrollment? {
         val row = TotpEnrollmentsTable.selectAll()

@@ -17,6 +17,7 @@ import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
 private val ANN = AccountId(Uuid.parse("00000000-0000-7000-8000-00000000000a"))
+private val BOB = AccountId(Uuid.parse("00000000-0000-7000-8000-00000000000b"))
 private val ENTROPY = "12345678901234567890".toByteArray(Charsets.US_ASCII)
 private val AT = Instant.parse("2026-10-03T09:00:20Z")
 
@@ -77,6 +78,35 @@ class TotpEnrollmentsConcurrencyIntegrationSpec :
                     }
 
                     outcomes shouldBe ("accepted" to "wrong")
+                } finally {
+                    persistence.close()
+                }
+            }
+
+            "two first-time beginnings at once both succeed, the second after the first" {
+                val persistence = PostgresPersistence(PostgresFixture.migrated())
+                try {
+                    val enrollments = storageForTests().totpEnrollments()
+
+                    suspend fun begin(holding: Boolean): String = persistence.transactions.inTransaction {
+                        val found = enrollments.lock(BOB)
+                        if (holding) {
+                            delay(300.milliseconds)
+                        }
+                        enrollments.keep(BOB, TotpEnrollment.begin(ENTROPY))
+                        Verdict.Commit(if (found == null) "created" else "started over")
+                    }
+
+                    val outcomes = coroutineScope {
+                        val first = async { begin(holding = true) }
+                        val second = async {
+                            delay(100.milliseconds)
+                            begin(holding = false)
+                        }
+                        first.await() to second.await()
+                    }
+
+                    outcomes shouldBe ("created" to "started over")
                 } finally {
                     persistence.close()
                 }

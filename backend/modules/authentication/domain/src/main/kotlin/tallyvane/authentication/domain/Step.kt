@@ -73,10 +73,12 @@ public data class Step(private val accepts: Set<FactorKind>, private val necessi
     internal fun identifiesTheAccount(): Boolean = necessity == Necessity.Always && isReachableWith(Enrollment.Unknown)
 
     /**
-     * This step is next: [attempt] is asked for any of its kinds, now or after its pause.
+     * This step is next: [attempt] is asked for any of its kinds that an account with this [enrollment]
+     * can verify, now or after its pause. A kind the account cannot pass, such as a retired TOTP seed,
+     * is not offered, so nobody is invited to a wrong answer that would count against them.
      */
-    internal fun requestFrom(attempt: Attempt, firstDelay: Duration, now: Instant): Progress =
-        attempt.awaiting(accepts, firstDelay, now)
+    internal fun requestFrom(attempt: Attempt, enrollment: Enrollment, firstDelay: Duration, now: Instant): Progress =
+        attempt.awaiting(accepts.filterTo(mutableSetOf()) { it.isAvailableTo(enrollment) }, firstDelay, now)
 
     /**
      * This step cannot be reached yet: [attempt] is let in only to set up one of its kinds.

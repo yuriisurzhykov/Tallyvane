@@ -20,7 +20,8 @@ private val SECOND_FACTOR_ALWAYS = Step(setOf(Totp, RecoveryCode), Always)
 private val SECOND_FACTOR = setOf(Totp, RecoveryCode)
 
 private val NOTHING_SET_UP = Enrollment(emptySet())
-private val TOTP_SET_UP = Enrollment(setOf(Totp))
+private val TOTP_SET_UP = Enrollment(setOf(Totp, RecoveryCode))
+private val ONLY_CODES_LEFT = Enrollment(setOf(RecoveryCode))
 
 private fun policyOf(purpose: Purpose, vararg steps: Step) =
     PolicyDraft(purpose, steps.toList(), attemptLifetime = 5.minutes, maxFailures = 5, firstDelay = 1.seconds)
@@ -71,6 +72,13 @@ class SignInPolicySpec :
 
                 LOGIN.progressOf(attempt, TOTP_SET_UP, now = START + 11.seconds) shouldBe
                     Progress.Awaiting(SECOND_FACTOR)
+            }
+
+            "a retired seed is not offered: only the recovery codes are asked for" {
+                val attempt = Attempt(Purpose.Login, START).verifying(Google, secondsIn = 10)
+
+                LOGIN.progressOf(attempt, ONLY_CODES_LEFT, now = START + 11.seconds) shouldBe
+                    Progress.Awaiting(setOf(RecoveryCode))
             }
 
             "TOTP completes it, and the session remembers both factors and the later time" {
