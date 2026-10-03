@@ -12,7 +12,6 @@ import tallyvane.authentication.domain.Attempt
 import tallyvane.authentication.domain.FactorKind
 import tallyvane.authentication.domain.Purpose
 import tallyvane.authentication.domain.VerifiedFactor
-import tallyvane.platform.kernel.IdGeneratorFake
 import tallyvane.platform.kernel.Verdict
 import tallyvane.platform.persistence.PostgresFixture
 import tallyvane.platform.persistence.PostgresPersistence
@@ -39,7 +38,7 @@ class AttemptsConcurrencyIntegrationSpec :
             "two overlapping requests cannot both record the next wrong answer" {
                 val persistence = PostgresPersistence(PostgresFixture.migrated())
                 try {
-                    val attempts = AuthenticationStorageFactory(IdGeneratorFake()).attempts()
+                    val attempts = storageForTests().attempts()
                     val loaded = Attempt(
                         Purpose.Login,
                         START,

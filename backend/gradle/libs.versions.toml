@@ -29,6 +29,10 @@ flyway = "13.3.0"
 # vulnerability surface (algorithm confusion among others); this is the audited choice for the JVM.
 nimbusJoseJwt = "10.9.1"
 
+# Authenticated encryption of the one secret that must be read back, a TOTP seed. Hand-rolled AES-GCM is
+# a real vulnerability surface (nonce reuse among others); Tink is the audited choice for the JVM.
+tink = "1.23.0"
+
 # YAML
 snakeyaml = "2.4"
 
@@ -105,6 +109,9 @@ ktlint-test = { group = "com.pinterest.ktlint", name = "ktlint-test", version.re
 
 # JOSE/JWT. See the `nimbusJoseJwt` version comment above.
 nimbus-jose-jwt = { group = "com.nimbusds", name = "nimbus-jose-jwt", version.ref = "nimbusJoseJwt" }
+
+# Tink. See the `tink` version comment above.
+tink = { group = "com.google.crypto.tink", name = "tink", version.ref = "tink" }
 
 # SnakeYAML
 snakeyaml = { group = "org.yaml", name = "snakeyaml", version.ref = "snakeyaml" }

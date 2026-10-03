@@ -20,6 +20,8 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     // Checks the signature of the ID token Google signs, against Google's published keys.
     implementation(libs.nimbus.jose.jwt)
+    // Seals a TOTP seed in the database: it must be read back to compute a code, so it cannot be hashed.
+    implementation(libs.tink)
     implementation(libs.kotlinx.coroutines.core)
 
     testImplementation(testFixtures(projects.modules.authentication.application))
@@ -36,6 +38,7 @@ dependencies {
     integrationTestImplementation(libs.kotest.runner.junit5)
     integrationTestImplementation(libs.kotest.assertions.core)
     integrationTestImplementation(libs.kotlinx.coroutines.core)
+    integrationTestImplementation(libs.tink)
     integrationTestImplementation(libs.exposed.core)
     integrationTestImplementation(libs.exposed.jdbc)
     integrationTestRuntimeOnly(libs.postgresql)

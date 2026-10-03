@@ -2,7 +2,6 @@ package tallyvane.authentication.infrastructure
 
 import tallyvane.authentication.application.AttemptsConformance
 import tallyvane.authentication.application.port.Attempts
-import tallyvane.platform.kernel.IdGeneratorFake
 import tallyvane.platform.kernel.TransactionRunner
 import tallyvane.platform.persistence.PostgresFixture
 import tallyvane.platform.persistence.PostgresPersistence
@@ -27,7 +26,7 @@ class PostgresAttemptsIntegrationSpec : AttemptsConformance() {
     override suspend fun fresh(): Subject {
         val persistence = PostgresPersistence(PostgresFixture.migrated()).also { opened += it }
         return object : Subject {
-            override val attempts: Attempts = AuthenticationStorageFactory(IdGeneratorFake()).attempts()
+            override val attempts: Attempts = storageForTests().attempts()
             override val transactions: TransactionRunner = persistence.transactions
         }
     }

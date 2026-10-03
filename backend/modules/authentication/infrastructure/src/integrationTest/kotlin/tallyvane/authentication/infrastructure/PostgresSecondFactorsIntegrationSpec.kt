@@ -1,16 +1,19 @@
 package tallyvane.authentication.infrastructure
 
-import tallyvane.authentication.application.GoogleProfilesConformance
-import tallyvane.authentication.application.port.Attempts
-import tallyvane.authentication.application.port.GoogleProfiles
+import tallyvane.authentication.application.SecondFactorsConformance
+import tallyvane.authentication.application.port.RecoveryCodeSets
+import tallyvane.authentication.application.port.TotpEnrollments
 import tallyvane.platform.kernel.TransactionRunner
 import tallyvane.platform.persistence.PostgresFixture
 import tallyvane.platform.persistence.PostgresPersistence
 
 /**
- * The adapter over Postgres, judged by the suite the fake already passes (ADR-046).
+ * The adapters over Postgres, judged by the suite the fake already passes (ADR-046).
+ *
+ * Every case gets a database of its own, migrated from the module's own migrations, and the pool is
+ * closed after each case.
  */
-class PostgresGoogleProfilesIntegrationSpec : GoogleProfilesConformance() {
+class PostgresSecondFactorsIntegrationSpec : SecondFactorsConformance() {
     private val opened = mutableListOf<PostgresPersistence>()
 
     init {
@@ -24,8 +27,8 @@ class PostgresGoogleProfilesIntegrationSpec : GoogleProfilesConformance() {
         val persistence = PostgresPersistence(PostgresFixture.migrated()).also { opened += it }
         val storage = storageForTests()
         return object : Subject {
-            override val attempts: Attempts = storage.attempts()
-            override val profiles: GoogleProfiles = storage.googleProfiles()
+            override val enrollments: TotpEnrollments = storage.totpEnrollments()
+            override val codes: RecoveryCodeSets = storage.recoveryCodeSets()
             override val transactions: TransactionRunner = persistence.transactions
         }
     }

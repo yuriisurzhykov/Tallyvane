@@ -1,8 +1,7 @@
 package tallyvane.authentication.infrastructure
 
-import tallyvane.authentication.application.GoogleProfilesConformance
-import tallyvane.authentication.application.port.Attempts
-import tallyvane.authentication.application.port.GoogleProfiles
+import tallyvane.authentication.application.AccountFailuresConformance
+import tallyvane.authentication.application.port.AccountFailures
 import tallyvane.platform.kernel.TransactionRunner
 import tallyvane.platform.persistence.PostgresFixture
 import tallyvane.platform.persistence.PostgresPersistence
@@ -10,7 +9,7 @@ import tallyvane.platform.persistence.PostgresPersistence
 /**
  * The adapter over Postgres, judged by the suite the fake already passes (ADR-046).
  */
-class PostgresGoogleProfilesIntegrationSpec : GoogleProfilesConformance() {
+class PostgresAccountFailuresIntegrationSpec : AccountFailuresConformance() {
     private val opened = mutableListOf<PostgresPersistence>()
 
     init {
@@ -22,10 +21,8 @@ class PostgresGoogleProfilesIntegrationSpec : GoogleProfilesConformance() {
 
     override suspend fun fresh(): Subject {
         val persistence = PostgresPersistence(PostgresFixture.migrated()).also { opened += it }
-        val storage = storageForTests()
         return object : Subject {
-            override val attempts: Attempts = storage.attempts()
-            override val profiles: GoogleProfiles = storage.googleProfiles()
+            override val failures: AccountFailures = storageForTests().accountFailures()
             override val transactions: TransactionRunner = persistence.transactions
         }
     }

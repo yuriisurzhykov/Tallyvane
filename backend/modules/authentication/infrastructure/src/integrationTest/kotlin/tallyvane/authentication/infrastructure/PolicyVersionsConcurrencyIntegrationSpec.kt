@@ -9,7 +9,6 @@ import tallyvane.authentication.application.CheckedPolicy
 import tallyvane.authentication.application.VersionStory
 import tallyvane.authentication.domain.PolicyVersion
 import tallyvane.authentication.domain.Purpose
-import tallyvane.platform.kernel.IdGeneratorFake
 import tallyvane.platform.kernel.Verdict
 import tallyvane.platform.persistence.PostgresFixture
 import tallyvane.platform.persistence.PostgresPersistence
@@ -38,7 +37,7 @@ class PolicyVersionsConcurrencyIntegrationSpec :
             "two administrators adding at once each get a version of their own" {
                 val persistence = PostgresPersistence(PostgresFixture.migrated())
                 try {
-                    val versions = AuthenticationStorageFactory(IdGeneratorFake()).policyVersions()
+                    val versions = storageForTests().policyVersions()
                     val policy = CheckedPolicy(Purpose.Login).policy()
 
                     val added = coroutineScope {
