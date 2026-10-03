@@ -9,18 +9,22 @@ import kotlin.uuid.Uuid
  * What a person was given once they proved who they are: a record that a request carrying the right
  * secret is from them (ADR-079).
  *
- * It holds whose it is, how they proved it and when, and when it was last used, and answers one
- * question about them: whether it may still be used at a moment ([standingAt]). It does not know its
- * secret, which only its keeper does, and it cannot be changed: a session is replaced, never edited, so
- * that trust changing means a new secret.
+ * It holds its id, whose it is, how they proved it and when, what kind of client and device it is on, and
+ * when it was last used, and answers one question about them: whether it may still be used at a moment
+ * ([standingAt]). It does not know its secret, which only its keeper does. Its trust cannot be changed: a
+ * session is replaced, never edited, so that trust changing means a new secret. The only things that
+ * change are what is said about it ([renamed]) and when it was last used ([seenAt]).
  *
  * Not a `data class`, for the reason `Attempt` is not one: a generated `copy()` is public.
  *
  * Its state leaves through [writeTo] and comes back through [restore] (ADR-085), and through nothing else.
  */
 public class Session private constructor(
+    private val id: SessionId,
     private val account: Uuid,
     private val factors: Set<Factor>,
+    private val client: ClientType,
+    private val device: Device,
     private val authenticatedAt: Instant,
     private val lastActiveAt: Instant,
 ) {
@@ -29,26 +33,48 @@ public class Session private constructor(
     }
 
     /**
-     * Whether this session may be used at [now] under [lifetimes], or why it may not.
+     * Whether this session may be used at [now] under [rules], or why it may not. It takes the lifetimes
+     * of its own kind of client.
      *
      * Age is asked first: a session that is past its absolute lifetime is over however recently it was used.
      */
-    public fun standingAt(now: Instant, lifetimes: Lifetimes): Standing = when {
-        lifetimes.hasPassedSinceStart(authenticatedAt, now) -> Standing.EndedByAge()
-        lifetimes.hasPassedSinceUse(lastActiveAt, now) -> Standing.EndedByIdleness()
-        else -> Standing.Live(account, factors, authenticatedAt)
+    public fun standingAt(now: Instant, rules: LifetimeRules): Standing {
+        val lifetimes = rules.of(client)
+        return when {
+            lifetimes.hasPassedSinceStart(authenticatedAt, now) -> Standing.EndedByAge()
+            lifetimes.hasPassedSinceUse(lastActiveAt, now) -> Standing.EndedByIdleness()
+            else -> Standing.Live(id, account, factors, authenticatedAt)
+        }
     }
 
     /**
      * This session, used at [now]. Use only moves forward: a [now] before the last use leaves it as it was.
      */
-    public fun seenAt(now: Instant): Session = Session(account, factors, authenticatedAt, maxOf(lastActiveAt, now))
+    public fun seenAt(now: Instant): Session =
+        Session(id, account, factors, client, device, authenticatedAt, maxOf(lastActiveAt, now))
+
+    /**
+     * This session, with its device called [name].
+     */
+    public fun renamed(name: DeviceName): Session =
+        Session(id, account, factors, client, device.named(name), authenticatedAt, lastActiveAt)
+
+    /**
+     * Whether this is [other], for whoever keeps sessions and has to find one.
+     */
+    public fun isIdentifiedBy(other: SessionId): Boolean = id == other
+
+    /**
+     * Whether this session is [person]'s.
+     */
+    public fun isOf(person: Uuid): Boolean = account == person
 
     /**
      * Tells [record] everything about this session.
      */
     public fun writeTo(record: Record) {
-        record.session(account, authenticatedAt, lastActiveAt)
+        record.session(id, account, client, authenticatedAt, lastActiveAt)
+        device.writeTo(record)
         Factor.entries.filter { it in factors }.forEach(record::proved)
     }
 
@@ -57,8 +83,14 @@ public class Session private constructor(
     /**
      * Whoever keeps a session, told what it holds.
      */
-    public interface Record {
-        public fun session(account: Uuid, authenticatedAt: Instant, lastActiveAt: Instant)
+    public interface Record : Device.Record {
+        public fun session(
+            id: SessionId,
+            account: Uuid,
+            client: ClientType,
+            authenticatedAt: Instant,
+            lastActiveAt: Instant,
+        )
 
         public fun proved(factor: Factor)
     }
@@ -71,14 +103,21 @@ public class Session private constructor(
         public val USE_GRAIN: Duration = 1.minutes
 
         /**
-         * A session for [account] who proved who they are by [factors], the last of them at
-         * [authenticatedAt], begun at [now].
+         * A session known as [id] for [account] who proved who they are by [factors], the last of them at
+         * [authenticatedAt], begun at [now] by a [client] on [device].
          *
          * A [now] before [authenticatedAt], which two clocks that disagree by milliseconds can make, is
          * taken as [authenticatedAt] (slice 3, fork 5).
          */
-        public fun begin(account: Uuid, factors: Set<Factor>, authenticatedAt: Instant, now: Instant): Session =
-            Session(account, factors.toSet(), authenticatedAt, maxOf(now, authenticatedAt))
+        public fun begin(
+            id: SessionId,
+            account: Uuid,
+            factors: Set<Factor>,
+            client: ClientType,
+            device: Device,
+            authenticatedAt: Instant,
+            now: Instant,
+        ): Session = Session(id, account, factors.toSet(), client, device, authenticatedAt, maxOf(now, authenticatedAt))
 
         /**
          * The session [replay] describes, as storage kept it.
@@ -94,11 +133,22 @@ public class Session private constructor(
      * only mutable things here: `domain` has no `var`.
      */
     private class Restoration : Record {
-        private val told = mutableListOf<Triple<Uuid, Instant, Instant>>()
+        private val told = mutableListOf<Told>()
+        private val devices = mutableListOf<Device>()
         private val factors = mutableSetOf<Factor>()
 
-        override fun session(account: Uuid, authenticatedAt: Instant, lastActiveAt: Instant) {
-            told += Triple(account, authenticatedAt, lastActiveAt)
+        override fun session(
+            id: SessionId,
+            account: Uuid,
+            client: ClientType,
+            authenticatedAt: Instant,
+            lastActiveAt: Instant,
+        ) {
+            told += Told(id, account, client, authenticatedAt, lastActiveAt)
+        }
+
+        override fun device(browser: Browser, platform: Platform, mobile: Boolean, name: String?) {
+            devices += Device.restore(browser, platform, mobile, name)
         }
 
         override fun proved(factor: Factor) {
@@ -107,14 +157,32 @@ public class Session private constructor(
 
         fun session(): Session {
             check(told.size == 1) { "Storage replayed ${told.size} sessions where one was kept." }
-            val (account, begun, used) = told.single()
+            check(devices.size == 1) { "Storage replayed ${devices.size} devices where one was kept." }
+            val one = told.single()
             check(factors.isNotEmpty()) {
                 "A session was kept with no proof of who its person is; writeTo never tells that."
             }
-            check(used >= begun) {
-                "A session kept as last used ($used) before it began ($begun); writeTo never tells that."
+            check(one.lastActiveAt >= one.authenticatedAt) {
+                "A session kept as last used (${one.lastActiveAt}) before it began (${one.authenticatedAt}); " +
+                    "writeTo never tells that."
             }
-            return Session(account, factors.toSet(), begun, used)
+            return Session(
+                one.id,
+                one.account,
+                factors.toSet(),
+                one.client,
+                devices.single(),
+                one.authenticatedAt,
+                one.lastActiveAt,
+            )
         }
     }
+
+    private class Told(
+        val id: SessionId,
+        val account: Uuid,
+        val client: ClientType,
+        val authenticatedAt: Instant,
+        val lastActiveAt: Instant,
+    )
 }

@@ -73,11 +73,12 @@ internal fun openapiCoversRoutes(scope: KoScope): List<String> {
  * That is the common mistake, not the rare one: a module that ships with no spec entry at all is
  * hard to miss in review, an endpoint added to an existing module is not.
  *
- * The base alone is included because a handler registered at the base takes no literal
- * (`route.get { … }`). A sub-path spelled with a Ktor parameter reads the same as OpenAPI's —
- * `/{id}` — so the two sides compare directly. A path built at runtime would be invisible here, and
- * there is none; if one appears, this rule will not notice it, which is why slice 14's conformance
- * run against a live server is still owed.
+ * The base alone is included only when a handler is registered at it, which takes no literal
+ * (`route.get { … }`); a module whose every route is a sub-path (`/device/{id}`) serves no `/device`.
+ * A sub-path spelled with a Ktor parameter reads the same as OpenAPI's — `/{id}` — so the two sides
+ * compare directly. A path built at runtime would be invisible here, and there is none; if one
+ * appears, this rule will not notice it, which is why slice 14's conformance run against a live
+ * server is still owed.
  */
 private fun servedBy(source: String): Set<String> {
     val base = BASE_PATH.find(source)?.groupValues?.get(1) ?: return emptySet()
@@ -85,7 +86,8 @@ private fun servedBy(source: String): Set<String> {
         .map { found -> found.groupValues[2] }
         .filter { sub -> sub.startsWith("/") }
         .map { sub -> base + sub }
-    return nested.toSet() + base
+    val atBase = AT_BASE.containsMatchIn(source)
+    return if (atBase) nested.toSet() + base else nested.toSet()
 }
 
 /**
@@ -105,6 +107,8 @@ private fun documentedPaths(): Set<String> {
 private val BASE_PATH = Regex("""BasePath\("([^"]+)"\)""")
 
 private val ROUTE = Regex("""\b(get|post|put|patch|delete)\(\s*"([^"]*)"""")
+
+private val AT_BASE = Regex("""\b(get|post|put|patch|delete)\s*\{""")
 
 private val SPEC_PATH = Regex("""^ {2}(/[A-Za-z0-9\-_/{}]*):\s*$""", RegexOption.MULTILINE)
 

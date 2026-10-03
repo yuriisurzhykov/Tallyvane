@@ -16,6 +16,8 @@ dependencies {
     integrationTestImplementation(testFixtures(projects.platform.kernel))
     integrationTestImplementation(projects.platform.persistence)
     integrationTestImplementation(projects.platform.kernel)
+    integrationTestImplementation(libs.exposed.core)
+    integrationTestImplementation(libs.exposed.jdbc)
     integrationTestImplementation(libs.kotest.runner.junit5)
     integrationTestImplementation(libs.kotest.assertions.core)
     integrationTestImplementation(libs.kotlinx.coroutines.core)

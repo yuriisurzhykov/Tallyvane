@@ -10,9 +10,12 @@ import tallyvane.platform.kernel.TransactionRunner
 import tallyvane.platform.kernel.UseCase
 import tallyvane.platform.kernel.Verdict
 import tallyvane.sessions.application.port.Sessions
+import tallyvane.sessions.domain.ClientType
+import tallyvane.sessions.domain.Device
 import tallyvane.sessions.domain.Factor
 import tallyvane.sessions.domain.Lifetimes
 import tallyvane.sessions.domain.Session
+import tallyvane.sessions.domain.UserAgent
 import kotlin.time.Instant
 
 /**
@@ -26,8 +29,9 @@ import kotlin.time.Instant
 public interface OpenSessionUseCase : UseCase {
     /**
      * @param attempt The secret from the browser's `__Host-attempt` cookie, or null when it sent none.
+     * @param agent What the browser said about itself, which the session keeps as the device it is on.
      */
-    public suspend fun open(attempt: Secret?): Opened
+    public suspend fun open(attempt: Secret?, agent: UserAgent): Opened
 
     public class OpenSession(
         private val signIns: SignIns,
@@ -35,12 +39,11 @@ public interface OpenSessionUseCase : UseCase {
         private val transactions: TransactionRunner,
         private val clock: Clock,
         private val keys: SessionKeys,
-        private val lifetimes: Lifetimes,
     ) : OpenSessionUseCase {
-        override suspend fun open(attempt: Secret?): Opened {
+        override suspend fun open(attempt: Secret?, agent: UserAgent): Opened {
             val secret = attempt ?: return Opened.Failed.NothingToOpen()
             return transactions.inTransaction {
-                val outcome = signIns.redeem(secret).reportTo(Beginning(clock.now()))
+                val outcome = signIns.redeem(secret).reportTo(Beginning(clock.now(), agent.device()))
                 if (outcome is Opened.Issued) Verdict.Commit(outcome) else Verdict.Rollback(outcome)
             }
         }
@@ -49,14 +52,23 @@ public interface OpenSessionUseCase : UseCase {
          * What to do with each answer `authentication` can give: keep a session for a sign-in, and
          * for nothing, nothing.
          */
-        private inner class Beginning(private val now: Instant) : Redemption.Report<Opened> {
+        private inner class Beginning(private val now: Instant, private val device: Device) :
+            Redemption.Report<Opened> {
             override fun redeemed(account: AccountId, proofs: Set<Proof>, authenticatedAt: Instant): Opened {
                 val issued = keys.issue()
                 sessions.add(
                     issued.key,
-                    Session.begin(account.value, proofs.mapTo(mutableSetOf(), ::factorOf), authenticatedAt, now),
+                    Session.begin(
+                        issued.id,
+                        account.value,
+                        proofs.mapTo(mutableSetOf(), ::factorOf),
+                        ClientType.Browser,
+                        device,
+                        authenticatedAt,
+                        now,
+                    ),
                 )
-                return Opened.Issued(issued.secret, lifetimes.longest())
+                return Opened.Issued(issued.secret, Lifetimes.LONGEST)
             }
 
             override fun nothingToRedeem(): Opened = Opened.Failed.NothingToOpen()

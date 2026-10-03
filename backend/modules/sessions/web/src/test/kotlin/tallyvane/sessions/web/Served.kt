@@ -24,7 +24,14 @@ class Served(val harness: Harness = Harness()) {
     private val routes = SessionsWebFactory()
 
     fun api(extra: List<RouteModule> = emptyList()): Api = Api(
-        routes = listOf(routes.open(harness.open), routes.signOut(harness.signOut)) + extra,
+        routes = listOf(
+            routes.open(harness.open),
+            routes.signOut(harness.signOut),
+            routes.devices(harness.listDevices),
+            routes.deviceSignOut(harness.revokeDevice),
+            routes.deviceName(harness.renameDevice),
+            routes.otherDevicesSignOut(harness.signOutOthers),
+        ) + extra,
         failures = FailureTranslator.Chained(emptyList()),
         trace = TraceHeader(IdGeneratorFake()),
         ledger = LedgerFake(TransactionRunnerFake(), ClockFake(Instant.parse("2026-10-02T09:00:00Z"))),

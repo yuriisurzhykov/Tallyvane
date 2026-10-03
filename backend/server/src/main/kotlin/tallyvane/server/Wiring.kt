@@ -1,5 +1,7 @@
 package tallyvane.server
 
+import tallyvane.platform.events.EventBus
+import tallyvane.platform.events.EventPublisher
 import tallyvane.platform.health.HealthRoutes
 import tallyvane.platform.health.ServiceToken
 import tallyvane.platform.http.Api
@@ -37,6 +39,13 @@ public class Wiring(private val platform: PlatformWiring, private val configurat
     private val authentication = AuthenticationWiring(platform, identity, configuration.signIn)
 
     private val sessions = SessionsWiring(platform, authentication.signIns, configuration.signIn)
+
+    /**
+     * Tells every module's subscribers that something happened. Nothing publishes yet, because the only
+     * event, an account being deleted, has no way to happen yet; the deletion that adds one takes this
+     * from here (ADR-090).
+     */
+    public val events: EventPublisher by lazy { EventBus(sessions.subscribers) }
 
     /**
      * Everything mounted, in the shape `platform:http` guarantees.

@@ -20,11 +20,12 @@ public sealed interface Standing {
      */
     @ConsistentCopyVisibility
     public data class Live internal constructor(
+        private val session: SessionId,
         private val account: Uuid,
         private val factors: Set<Factor>,
         private val authenticatedAt: Instant,
     ) : Standing {
-        override fun <T> reportTo(report: Report<T>): T = report.live(account, factors, authenticatedAt)
+        override fun <T> reportTo(report: Report<T>): T = report.live(session, account, factors, authenticatedAt)
 
         override fun toString(): String = "Live(authenticatedAt=$authenticatedAt)"
     }
@@ -60,11 +61,12 @@ public sealed interface Standing {
      */
     public interface Report<out T> {
         /**
+         * @param session Which session it is, to point at it later.
          * @param account Whose session it is; the domain does not know what an account is.
          * @param factors How they proved who they are.
          * @param authenticatedAt When they did.
          */
-        public fun live(account: Uuid, factors: Set<Factor>, authenticatedAt: Instant): T
+        public fun live(session: SessionId, account: Uuid, factors: Set<Factor>, authenticatedAt: Instant): T
 
         public fun endedByIdleness(): T
 

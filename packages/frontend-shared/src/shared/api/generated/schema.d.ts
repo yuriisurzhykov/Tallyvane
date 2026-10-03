@@ -247,6 +247,97 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/devices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The devices the person is signed in on
+         * @description The live sessions of the signed-in person, the most recently used first, the one asking marked
+         *     `current`. A session past its lifetimes under the policy in force is not listed. Never cached.
+         *
+         *     A browser says its kind and its system and no more, so two of a person's browsers on the same
+         *     system look alike; `PUT /device-names/{id}` lets them tell the devices apart.
+         */
+        get: operations["listDevices"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/device/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Sign out on one device
+         * @description Ends the session `id`, which `GET /devices` lists. It may be the one asking, which is then the same
+         *     as signing out here. `404` when `id` is not a session of the signed-in person: one that never was,
+         *     one that has ended, a stranger's and a value that is not an id all answer alike.
+         */
+        delete: operations["signOutOnDevice"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/device-names/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Give a device a name
+         * @description Names the session `id` of the signed-in person. Naming twice leaves the last name. `422` names the
+         *     field: `name` (`name-invalid`). `404` as for `DELETE /device/{id}`.
+         */
+        put: operations["nameDevice"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/other-devices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Sign out everywhere but here
+         * @description Ends every session of the signed-in person except the one asking. `204` whether there was
+         *     another session or not.
+         *
+         *     Not yet asked to confirm with a fresh factor, which ADR-079 wants of this action: the confirmation
+         *     arrives with the second factor.
+         */
+        delete: operations["signOutOnOtherDevices"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -399,6 +490,46 @@ export interface components {
              */
             agreed: boolean;
         };
+        Devices: {
+            devices: components["schemas"]["Device"][];
+        };
+        Device: {
+            /**
+             * Format: uuid
+             * @description The session. Names it for `DELETE /device/{id}` and `PUT /device-names/{id}`; it is not a secret.
+             */
+            id: string;
+            /**
+             * @description As far as the `User-Agent` of the request that began the session says.
+             * @enum {string}
+             */
+            browser: "chrome" | "edge" | "firefox" | "opera" | "safari" | "other";
+            /**
+             * @description The system, as far as the `User-Agent` says. Not the machine.
+             * @enum {string}
+             */
+            platform: "windows" | "macos" | "linux" | "android" | "ios" | "chromeos" | "other";
+            /** @description A phone or a tablet. */
+            mobile: boolean;
+            /** @description What the person called the device. Absent until they do. */
+            name?: string;
+            /**
+             * Format: date-time
+             * @description When the person proved who they are.
+             */
+            signed_in_at: string;
+            /**
+             * Format: date-time
+             * @description Kept to the minute.
+             */
+            last_active_at: string;
+            /** @description Whether this is the session asking. */
+            current: boolean;
+        };
+        DeviceNaming: {
+            /** @description 1 to 60 characters once trimmed, no control characters. */
+            name: string;
+        };
     };
     responses: {
         /**
@@ -430,10 +561,11 @@ export interface components {
          */
         AttemptCookie: string;
         /**
-         * @description `__Host-session=<secret>; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=604800` when a session
-         *     begins, or the same with `Max-Age=0` to make the browser forget it. `__Host-` makes the browser
-         *     refuse it unless it is `Secure`, has `Path=/` and names no `Domain`. A response that sets it also
-         *     sets `__Host-attempt` with `Max-Age=0`.
+         * @description `__Host-session=<secret>; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=7776000` when a session
+         *     begins (the longest a session can be allowed to live, so a lifetime loosened later still reaches it),
+         *     or the same with `Max-Age=0` to make the browser forget it. `__Host-` makes the browser refuse it
+         *     unless it is `Secure`, has `Path=/` and names no `Domain`. A response that sets it also sets
+         *     `__Host-attempt` with `Max-Age=0`.
          */
         SessionCookie: string;
         /**
@@ -691,6 +823,97 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Me"];
                 };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listDevices: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The devices. */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    traceparent: components["headers"]["Traceparent"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Devices"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    signOutOnDevice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The session has ended. */
+            204: {
+                headers: {
+                    traceparent: components["headers"]["Traceparent"];
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    nameDevice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeviceNaming"];
+            };
+        };
+        responses: {
+            /** @description The device has the name. */
+            204: {
+                headers: {
+                    traceparent: components["headers"]["Traceparent"];
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    signOutOnOtherDevices: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Every other session has ended. */
+            204: {
+                headers: {
+                    traceparent: components["headers"]["Traceparent"];
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             default: components["responses"]["Problem"];
         };

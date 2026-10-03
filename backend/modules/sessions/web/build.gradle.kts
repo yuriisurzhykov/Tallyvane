@@ -1,5 +1,7 @@
 plugins {
     id("tallyvane.web-module")
+    // Generates the serializers of the request and response bodies of the device routes.
+    alias(libs.plugins.kotlin.serialization)
 }
 
 dependencies {
@@ -8,6 +10,7 @@ dependencies {
     // `api`: every route here is a `RouteModule`, and `SessionCallers` is a `Callers`.
     api(projects.platform.http)
     implementation(libs.ktor.server.core)
+    implementation(libs.kotlinx.serialization.json)
 
     testImplementation(libs.ktor.server.test.host)
     testImplementation(libs.ktor.server.cio)

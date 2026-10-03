@@ -77,6 +77,26 @@ class AuthenticateSpec :
                 harness.sessions.count() shouldBe 0
             }
 
+            "tightening the lifetimes reaches a session that was issued before, at its next request" {
+                val harness = Harness()
+                val session = harness.signedIn()
+                harness.clock.advance(2.hours)
+
+                harness.lifetimeVersions.activate(1.hours, 7.days)
+
+                harness.who(session) shouldBe "lapsed"
+            }
+
+            "loosening the lifetimes keeps a session that would have been over" {
+                val harness = Harness()
+                val session = harness.signedIn()
+                harness.clock.advance(1.days - 1.minutes)
+                harness.lifetimeVersions.activate(3.days, 7.days)
+                harness.clock.advance(2.days)
+
+                harness.who(session) shouldBe "signed in ${Harness.ACCOUNT.value}"
+            }
+
             "use is noted no more often than a grain, so a busy person does not make a write per request" {
                 val harness = Harness()
                 val session = harness.signedIn()

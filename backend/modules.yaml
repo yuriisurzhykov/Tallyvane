@@ -52,7 +52,7 @@ modules:
   identity:
     layers: [contract, domain, application, infrastructure, web]
     reads: []
-    publishes: []
+    publishes: [AccountDeleted]
   authentication:
     layers: [contract, domain, application, infrastructure, web]
     # Finds the account a Google sign-in proved, and creates it at registration (ADR-076).

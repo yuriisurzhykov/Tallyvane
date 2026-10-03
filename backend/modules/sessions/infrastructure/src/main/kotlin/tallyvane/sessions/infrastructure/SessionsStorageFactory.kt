@@ -1,6 +1,6 @@
 package tallyvane.sessions.infrastructure
 
-import tallyvane.platform.kernel.IdGenerator
+import tallyvane.sessions.application.port.LifetimeVersions
 import tallyvane.sessions.application.port.Sessions
 
 /**
@@ -9,11 +9,16 @@ import tallyvane.sessions.application.port.Sessions
  * The adapter runs inside a transaction the caller opened, so it holds no connection and building it
  * needs no database.
  */
-public class SessionsStorageFactory(private val ids: IdGenerator) {
+public class SessionsStorageFactory {
     /**
      * Where sessions are kept.
      */
-    public fun sessions(): Sessions = PostgresSessions(ids)
+    public fun sessions(): Sessions = PostgresSessions()
+
+    /**
+     * Where the lifetimes of sessions are kept.
+     */
+    public fun lifetimeVersions(): LifetimeVersions = PostgresLifetimeVersions()
 
     override fun toString(): String = "SessionsStorageFactory(schema=sessions)"
 }

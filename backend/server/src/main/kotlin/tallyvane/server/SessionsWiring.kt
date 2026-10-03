@@ -1,6 +1,7 @@
 package tallyvane.server
 
 import tallyvane.authentication.contract.SignIns
+import tallyvane.platform.events.EventSubscriber
 import tallyvane.platform.http.Callers
 import tallyvane.platform.http.RouteModule
 import tallyvane.platform.kernel.Clock
@@ -8,10 +9,15 @@ import tallyvane.platform.kernel.Digests
 import tallyvane.platform.kernel.SecretGenerator
 import tallyvane.server.config.SignInConfiguration
 import tallyvane.sessions.application.AuthenticateUseCase
+import tallyvane.sessions.application.ListDevicesUseCase
 import tallyvane.sessions.application.OpenSessionUseCase
+import tallyvane.sessions.application.Recognition
+import tallyvane.sessions.application.RenameDeviceUseCase
+import tallyvane.sessions.application.RevokeDeviceUseCase
 import tallyvane.sessions.application.SessionKeys
+import tallyvane.sessions.application.SessionsOfDeletedAccounts
+import tallyvane.sessions.application.SignOutOthersUseCase
 import tallyvane.sessions.application.SignOutUseCase
-import tallyvane.sessions.domain.Lifetimes
 import tallyvane.sessions.infrastructure.SessionsStorageFactory
 import tallyvane.sessions.web.SessionsWebFactory
 
@@ -29,13 +35,19 @@ public class SessionsWiring(
     private val signIns: SignIns,
     settings: SignInConfiguration,
 ) {
-    private val storage = SessionsStorageFactory(platform.ids)
+    private val storage = SessionsStorageFactory()
 
     private val clock: Clock = Clock.Wall()
 
-    private val lifetimes = Lifetimes.forBrowser()
+    private val keys = SessionKeys(
+        SecretGenerator.Csprng(),
+        Digests.Hmac(settings.tokenPepper, settings.pepperVersion),
+        platform.ids,
+    )
 
-    private val keys = SessionKeys(SecretGenerator.Csprng(), Digests.Hmac(settings.tokenPepper, settings.pepperVersion))
+    private val recognition by lazy {
+        Recognition(storage.sessions(), storage.lifetimeVersions(), clock, keys)
+    }
 
     private val web = SessionsWebFactory()
 
@@ -46,7 +58,6 @@ public class SessionsWiring(
             platform.persistence.transactions,
             clock,
             keys,
-            lifetimes,
         )
     }
 
@@ -55,7 +66,29 @@ public class SessionsWiring(
     }
 
     private val authenticate: AuthenticateUseCase by lazy {
-        AuthenticateUseCase.Authenticate(storage.sessions(), platform.persistence.transactions, clock, keys, lifetimes)
+        AuthenticateUseCase.Authenticate(recognition, platform.persistence.transactions)
+    }
+
+    private val listDevices: ListDevicesUseCase by lazy {
+        ListDevicesUseCase.ListDevices(
+            recognition,
+            storage.sessions(),
+            storage.lifetimeVersions(),
+            platform.persistence.transactions,
+            clock,
+        )
+    }
+
+    private val revokeDevice: RevokeDeviceUseCase by lazy {
+        RevokeDeviceUseCase.RevokeDevice(recognition, storage.sessions(), platform.persistence.transactions)
+    }
+
+    private val renameDevice: RenameDeviceUseCase by lazy {
+        RenameDeviceUseCase.RenameDevice(recognition, storage.sessions(), platform.persistence.transactions)
+    }
+
+    private val signOutOthers: SignOutOthersUseCase by lazy {
+        SignOutOthersUseCase.SignOutOthers(recognition, storage.sessions(), platform.persistence.transactions)
     }
 
     /**
@@ -66,7 +99,22 @@ public class SessionsWiring(
     /**
      * The routes this module serves.
      */
-    public val routes: List<RouteModule> by lazy { listOf(web.open(open), web.signOut(signOut)) }
+    public val routes: List<RouteModule> by lazy {
+        listOf(
+            web.open(open),
+            web.signOut(signOut),
+            web.devices(listDevices),
+            web.deviceSignOut(revokeDevice),
+            web.deviceName(renameDevice),
+            web.otherDevicesSignOut(signOutOthers),
+        )
+    }
+
+    /**
+     * What this module answers when other modules say something happened: an account being deleted ends
+     * every session it had. The subscribers run in the transaction of whoever publishes (ADR-090).
+     */
+    public val subscribers: List<EventSubscriber<*>> by lazy { listOf(SessionsOfDeletedAccounts(storage.sessions())) }
 
     override fun toString(): String = "SessionsWiring"
 }
