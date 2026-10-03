@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Button } from "frontend-shared/ui/button";
 import { Menu } from "frontend-shared/ui/menu";
 import { useViewer } from "@/entities/viewer";
@@ -14,6 +15,7 @@ export function AccountMenu() {
         <Menu.Root>
             <Menu.Trigger render={<Button tone="ghost" size="sm" aria-label={t("menu")}>{viewer.label()}</Button>} />
             <Menu.Popup align="end">
+                <Menu.Item render={<Link href="/settings/devices" />}>{t("devices")}</Menu.Item>
                 <SignOutMenuItem />
             </Menu.Popup>
         </Menu.Root>
