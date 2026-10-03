@@ -283,6 +283,13 @@ classDiagram
         +forKind(kind) text
         +isComplete(kind) Boolean
     }
+    class RecoveryNotice {
+        <<entities.sign-in>>
+        -storage
+        +remember(codesLeft)
+        +pending() Count or undefined
+        +read()
+    }
     class FirstCode {
         <<features.enable-totp>>
         -text
@@ -346,6 +353,7 @@ The screens follow the diagrams. Where the code differs from them, or the plan s
 - **`FirstCode` next to `TypedCode`.** Turning TOTP on only ever takes six digits, so it has its own small class in `features/enable-totp` rather than reusing `TypedCode`, which also knows recovery codes. Features cannot import each other, so sharing was not an option anyway.
 - **`useCodeEntry`.** The field of the second step is split into a hook (what is typed, what is awaited, what the server said) and `SecondFactorForm` (what each of those looks like), to stay under the function size and complexity limits.
 - **A wrong code clears itself when the person types.** The design system's `Field` marks the control invalid while an error is shown, and the Base UI `Form` refuses to submit an invalid field, so without this a second try after a wrong code was silently not sent. Found by driving the screens in Chromium. The same goes for the first-code field when turning TOTP on.
+- **The recovery-code notice survives a reload.** The server forgets that a recovery code was used as soon as it is accepted (the attempt is then just complete), so the page keeps the number of codes left in this tab (`RecoveryNotice`, session storage, nothing secret) until the person has read the notice. Found in review.
 - **`StepUpDeclined` has its own file** (one class per file) and `Api.ResponseBody` now distributes over the success responses, so a call with a `204` or a `200` with a body types correctly.
 - **`Redirect` in `shared/navigation`.** The dispatcher and the verify page both need "go there, show a spinner meanwhile" from inside a render, which has to happen from an effect.
 - **`ConfirmStepUp keepOpen`.** In the confirmation window the code is asked in the same window, so after the confirmation the window must not close before the code step is done; the new prop lets the window decide.
