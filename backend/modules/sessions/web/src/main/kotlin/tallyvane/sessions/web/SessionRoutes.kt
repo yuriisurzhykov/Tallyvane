@@ -1,5 +1,6 @@
 package tallyvane.sessions.web
 
+import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.response.respond
@@ -11,6 +12,7 @@ import tallyvane.platform.http.Refused
 import tallyvane.platform.http.RouteModule
 import tallyvane.sessions.application.OpenSessionUseCase
 import tallyvane.sessions.application.Opened
+import tallyvane.sessions.domain.UserAgent
 
 /**
  * Exchanging a completed sign-in for a session.
@@ -18,6 +20,9 @@ import tallyvane.sessions.application.Opened
  * ```
  * POST /api/v1/sessions   the browser's `__Host-attempt` cookie, for a `__Host-session` cookie
  * ```
+ *
+ * The session keeps what the browser said about itself in `User-Agent` as the device it is on, to be shown
+ * in the list of devices (ADR-090).
  *
  * Answers `204`: the session is the cookie, and there is nothing in the body that a script could keep.
  * Public, because the person asking is not signed in yet; what they hold instead is a completed sign-in.
@@ -36,7 +41,12 @@ internal class SessionRoutes(
 
     override fun install(route: Route) {
         route.post {
-            when (val outcome = open.open(AttemptSecret().of(call))) {
+            when (
+                val outcome = open.open(
+                    AttemptSecret().of(call),
+                    UserAgent(call.request.headers[HttpHeaders.UserAgent]),
+                )
+            ) {
                 is Opened.Issued -> {
                     outcome.writeTo { secret, lasting -> session.give(call, secret, lasting) }
                     spent.clear(call)

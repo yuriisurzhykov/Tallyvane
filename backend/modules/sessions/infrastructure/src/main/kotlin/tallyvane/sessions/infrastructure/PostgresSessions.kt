@@ -5,6 +5,7 @@ import org.jetbrains.exposed.v1.core.JoinType
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.lessEq
+import org.jetbrains.exposed.v1.core.neq
 import org.jetbrains.exposed.v1.core.statements.StatementType
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insert
@@ -12,16 +13,23 @@ import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager
 import org.jetbrains.exposed.v1.jdbc.update
 import tallyvane.platform.kernel.Digest
-import tallyvane.platform.kernel.IdGenerator
 import tallyvane.sessions.application.port.Sessions
+import tallyvane.sessions.domain.Browser
+import tallyvane.sessions.domain.ClientType
+import tallyvane.sessions.domain.DeviceName
 import tallyvane.sessions.domain.Factor
+import tallyvane.sessions.domain.Platform
 import tallyvane.sessions.domain.Session
+import tallyvane.sessions.domain.SessionId
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
 private const val CLAIM_SESSION = """
-    insert into sessions.sessions (id, secret_digest, pepper_version, account_id, authenticated_at, last_active_at)
-    values (?, ?, ?, ?, ?, ?)
+    insert into sessions.sessions (
+        id, secret_digest, pepper_version, account_id, authenticated_at, last_active_at,
+        client_type, device_browser, device_platform, device_mobile, device_name
+    )
+    values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     on conflict (secret_digest) do nothing
     returning id
 """
@@ -35,41 +43,36 @@ private const val CLAIM_SESSION = """
  * kept is at least [Session.USE_GRAIN] before the moment noted. A request that does not qualify
  * matches no row, so it takes no row lock and writes nothing, which is what keeps a person who clicks
  * around from writing on every request. Two requests that do qualify at once simply queue on the row.
+ *
+ * ### Whose
+ *
+ * Every act on one session by its id also names the account, in the same `WHERE`: a session of another
+ * account matches no row, so the id alone is never enough to reach anyone's session.
  */
-internal class PostgresSessions(private val ids: IdGenerator) : Sessions {
-    private val words = StoredFactors()
+internal class PostgresSessions : Sessions {
+    private val factors = StoredFactors()
+    private val devices = StoredDevices()
+    private val restored = RestoredSessions(devices, factors)
 
     override fun find(key: Digest): Session? {
         val told = DigestColumns().also { key.writeTo(it) }
         // One statement, so one snapshot: a sign-out that commits meanwhile removes the session with its
         // factors or leaves both, and never the factors alone.
-        val rows = SessionsTable.join(SessionFactorsTable, JoinType.INNER) {
-            SessionsTable.id eq
-                SessionFactorsTable.sessionId
-        }
-            .selectAll()
+        val rows = joined()
             .where { (SessionsTable.secretDigest eq told.bytes()) and (SessionsTable.pepperVersion eq told.version()) }
             .toList()
-        val head = rows.firstOrNull() ?: return null
-        return Session.restore { record ->
-            record.session(
-                head[SessionsTable.accountId],
-                head[SessionsTable.authenticatedAt],
-                head[SessionsTable.lastActiveAt],
-            )
-            rows.forEach { record.proved(words.from(it[SessionFactorsTable.factor])) }
-        }
+        return rows.takeIf { it.isNotEmpty() }?.let(restored::from)
     }
 
     override fun add(key: Digest, session: Session) {
         val told = DigestColumns().also { key.writeTo(it) }
-        val id = ids.next()
-        val factors = mutableListOf<Factor>()
-        session.writeTo(Rows(id, told, factors))
-        factors.forEach { factor ->
+        val rows = Rows(told)
+        session.writeTo(rows)
+        rows.claim()
+        rows.factors().forEach { (id, factor) ->
             SessionFactorsTable.insert {
-                it[sessionId] = id
-                it[SessionFactorsTable.factor] = words.of(factor)
+                it[sessionId] = id.value
+                it[SessionFactorsTable.factor] = factors.of(factor)
             }
         }
     }
@@ -95,27 +98,84 @@ internal class PostgresSessions(private val ids: IdGenerator) : Sessions {
         }
     }
 
+    override fun ofAccount(account: Uuid): List<Session> = joined()
+        .where { SessionsTable.accountId eq account }
+        .toList()
+        .groupBy { it[SessionsTable.id] }
+        .values
+        .map(restored::from)
+
+    override fun revoke(account: Uuid, id: SessionId): Boolean =
+        SessionsTable.deleteWhere { (SessionsTable.id eq id.value) and (accountId eq account) } > 0
+
+    override fun revokeOthers(account: Uuid, keep: SessionId) {
+        SessionsTable.deleteWhere { (accountId eq account) and (SessionsTable.id neq keep.value) }
+    }
+
+    override fun revokeAll(account: Uuid) {
+        SessionsTable.deleteWhere { accountId eq account }
+    }
+
+    override fun rename(account: Uuid, id: SessionId, name: DeviceName): Boolean {
+        val text = mutableListOf<String>()
+        name.writeTo { text += it }
+        return SessionsTable.update({ (SessionsTable.id eq id.value) and (SessionsTable.accountId eq account) }) {
+            it[deviceName] = text.single()
+        } > 0
+    }
+
+    private fun joined() = SessionsTable
+        .join(SessionFactorsTable, JoinType.INNER) { SessionsTable.id eq SessionFactorsTable.sessionId }
+        .selectAll()
+
     override fun toString(): String = "PostgresSessions(schema=sessions)"
 
     /**
-     * Writes the session's row from what the session tells, and collects the factors for their own table.
+     * Collects what the session tells, to write its row and then the factors for their own table.
      */
-    private class Rows(
-        private val id: Uuid,
-        private val digest: DigestColumns,
-        private val factors: MutableList<Factor>,
-    ) : Session.Record {
-        override fun session(account: Uuid, authenticatedAt: Instant, lastActiveAt: Instant) {
+    private inner class Rows(private val digest: DigestColumns) : Session.Record {
+        private val sessions = mutableListOf<Told>()
+        private val devicesTold = mutableListOf<DeviceTold>()
+        private val proved = mutableListOf<Factor>()
+
+        override fun session(
+            id: SessionId,
+            account: Uuid,
+            client: ClientType,
+            authenticatedAt: Instant,
+            lastActiveAt: Instant,
+        ) {
+            sessions += Told(id, account, client, authenticatedAt, lastActiveAt)
+        }
+
+        override fun device(browser: Browser, platform: Platform, mobile: Boolean, name: String?) {
+            devicesTold += DeviceTold(browser, platform, mobile, name)
+        }
+
+        override fun proved(factor: Factor) {
+            proved += factor
+        }
+
+        fun factors(): List<Pair<SessionId, Factor>> = proved.map { sessions.single().id to it }
+
+        fun claim() {
+            val session = sessions.single()
+            val device = devicesTold.single()
             val table = SessionsTable
             val claimed = TransactionManager.current().exec(
                 CLAIM_SESSION,
                 listOf<Pair<IColumnType<*>, Any?>>(
-                    table.id.columnType to id,
+                    table.id.columnType to session.id.value,
                     table.secretDigest.columnType to digest.bytes(),
                     table.pepperVersion.columnType to digest.version(),
-                    table.accountId.columnType to account,
-                    table.authenticatedAt.columnType to authenticatedAt,
-                    table.lastActiveAt.columnType to lastActiveAt,
+                    table.accountId.columnType to session.account,
+                    table.authenticatedAt.columnType to session.authenticatedAt,
+                    table.lastActiveAt.columnType to session.lastActiveAt,
+                    table.clientType.columnType to devices.of(session.client),
+                    table.deviceBrowser.columnType to devices.of(device.browser),
+                    table.devicePlatform.columnType to devices.of(device.platform),
+                    table.deviceMobile.columnType to device.mobile,
+                    table.deviceName.columnType to device.name,
                 ),
                 // `returning` makes it a query to the driver, whatever word the statement starts with.
                 StatementType.SELECT,
@@ -125,9 +185,15 @@ internal class PostgresSessions(private val ids: IdGenerator) : Sessions {
                     "a generator that repeats itself."
             }
         }
-
-        override fun proved(factor: Factor) {
-            factors += factor
-        }
     }
+
+    private class Told(
+        val id: SessionId,
+        val account: Uuid,
+        val client: ClientType,
+        val authenticatedAt: Instant,
+        val lastActiveAt: Instant,
+    )
+
+    private class DeviceTold(val browser: Browser, val platform: Platform, val mobile: Boolean, val name: String?)
 }

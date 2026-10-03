@@ -19,8 +19,10 @@ import tallyvane.platform.persistence.PostgresFixture
 import tallyvane.platform.persistence.PostgresPersistence
 import tallyvane.server.config.Configuration
 import tallyvane.sessions.application.SessionKeys
+import tallyvane.sessions.domain.ClientType
 import tallyvane.sessions.domain.Factor
 import tallyvane.sessions.domain.Session
+import tallyvane.sessions.domain.UserAgent
 import tallyvane.sessions.infrastructure.SessionsStorageFactory
 import java.net.URI
 import java.net.http.HttpClient
@@ -79,12 +81,24 @@ private suspend fun signedUp(access: DatabaseAccess, settings: Configuration): S
         val keys = SessionKeys(
             SecretGenerator.Csprng(),
             Digests.Hmac(settings.signIn.tokenPepper, settings.signIn.pepperVersion),
+            IdGenerator.Uuid7(),
         )
         val issued = keys.issue()
         persistence.transactions.inTransaction {
             val account = checkNotNull(directory.withGoogle("google-1"))
-            SessionsStorageFactory(IdGenerator.Uuid7()).sessions()
-                .add(issued.key, Session.begin(account.value, setOf(Factor.Google), now, now))
+            SessionsStorageFactory().sessions()
+                .add(
+                    issued.key,
+                    Session.begin(
+                        issued.id,
+                        account.value,
+                        setOf(Factor.Google),
+                        ClientType.Browser,
+                        UserAgent(null).device(),
+                        now,
+                        now,
+                    ),
+                )
             Verdict.Commit(Unit)
         }
         return issued.secret

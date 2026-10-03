@@ -1,6 +1,5 @@
 package tallyvane.sessions.infrastructure
 
-import tallyvane.platform.kernel.IdGeneratorFake
 import tallyvane.platform.kernel.TransactionRunner
 import tallyvane.platform.persistence.PostgresFixture
 import tallyvane.platform.persistence.PostgresPersistence
@@ -23,7 +22,7 @@ class PostgresSessionsIntegrationSpec : SessionsConformance() {
     override suspend fun fresh(): Subject {
         val persistence = PostgresPersistence(PostgresFixture.migrated()).also { opened += it }
         return object : Subject {
-            override val sessions: Sessions = SessionsStorageFactory(IdGeneratorFake()).sessions()
+            override val sessions: Sessions = SessionsStorageFactory().sessions()
             override val transactions: TransactionRunner = persistence.transactions
         }
     }

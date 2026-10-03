@@ -1,8 +1,11 @@
 package tallyvane.sessions.application.port
 
 import tallyvane.platform.kernel.Digest
+import tallyvane.sessions.domain.DeviceName
 import tallyvane.sessions.domain.Session
+import tallyvane.sessions.domain.SessionId
 import kotlin.time.Instant
+import kotlin.uuid.Uuid
 
 /**
  * Where sessions are kept, each under the [Digest] of the secret its browser holds (ADR-079).
@@ -43,4 +46,32 @@ public interface Sessions {
      * nothing.
      */
     public fun saw(key: Digest, at: Instant)
+
+    /**
+     * Every session kept for [account], in no particular order. Sessions that are over are among them:
+     * what is over is for the caller to judge, under the lifetimes in force.
+     */
+    public fun ofAccount(account: Uuid): List<Session>
+
+    /**
+     * Forgets the session [id] of [account], which ends it at once. Returns whether there was one. A
+     * session of another account is not found by it, so whoever asks cannot end anyone else's.
+     */
+    public fun revoke(account: Uuid, id: SessionId): Boolean
+
+    /**
+     * Forgets every session of [account] except [keep], in one statement, so a sign-in that lands
+     * between a read and a delete is not lost.
+     */
+    public fun revokeOthers(account: Uuid, keep: SessionId)
+
+    /**
+     * Forgets every session of [account].
+     */
+    public fun revokeAll(account: Uuid)
+
+    /**
+     * Gives the session [id] of [account] the device name [name]. Returns whether there was one.
+     */
+    public fun rename(account: Uuid, id: SessionId, name: DeviceName): Boolean
 }

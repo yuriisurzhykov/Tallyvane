@@ -367,6 +367,115 @@ paths:
         default:
           $ref: "#/components/responses/Problem"
 
+  /devices:
+    get:
+      tags: [sessions]
+      operationId: listDevices
+      summary: The devices the person is signed in on
+      description: |
+        The live sessions of the signed-in person, the most recently used first, the one asking marked
+        `current`. A session past its lifetimes under the policy in force is not listed. Never cached.
+
+        A browser says its kind and its system and no more, so two of a person's browsers on the same
+        system look alike; `PUT /device-names/{id}` lets them tell the devices apart.
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: The devices.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+            traceparent:
+              $ref: "#/components/headers/Traceparent"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Devices"
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /device/{id}:
+    delete:
+      tags: [sessions]
+      operationId: signOutOnDevice
+      summary: Sign out on one device
+      description: |
+        Ends the session `id`, which `GET /devices` lists. It may be the one asking, which is then the same
+        as signing out here. `404` when `id` is not a session of the signed-in person: one that never was,
+        one that has ended, a stranger's and a value that is not an id all answer alike.
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: The session has ended.
+          headers:
+            traceparent:
+              $ref: "#/components/headers/Traceparent"
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /device-names/{id}:
+    put:
+      tags: [sessions]
+      operationId: nameDevice
+      summary: Give a device a name
+      description: |
+        Names the session `id` of the signed-in person. Naming twice leaves the last name. `422` names the
+        field: `name` (`name-invalid`). `404` as for `DELETE /device/{id}`.
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeviceNaming"
+      responses:
+        "204":
+          description: The device has the name.
+          headers:
+            traceparent:
+              $ref: "#/components/headers/Traceparent"
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /other-devices:
+    delete:
+      tags: [sessions]
+      operationId: signOutOnOtherDevices
+      summary: Sign out everywhere but here
+      description: |
+        Ends every session of the signed-in person except the one asking. `204` whether there was
+        another session or not.
+
+        Not yet asked to confirm with a fresh factor, which ADR-079 wants of this action: the confirmation
+        arrives with the second factor.
+      security:
+        - sessionCookie: []
+      responses:
+        "204":
+          description: Every other session has ended.
+          headers:
+            traceparent:
+              $ref: "#/components/headers/Traceparent"
+        default:
+          $ref: "#/components/responses/Problem"
+
 components:
   securitySchemes:
     attemptCookie:
@@ -382,8 +491,9 @@ components:
       name: __Host-session
       description: |
         A random secret held by the browser once the person has signed in. The database keeps only a keyed
-        digest of it, so reading the table does not let anyone act as the person. A session ends after a
-        day without use and after seven days whatever its use, or when the person signs out.
+        digest of it, so reading the table does not let anyone act as the person. A session ends after it has
+        gone unused for the idle lifetime and after the absolute lifetime whatever its use, both set by the
+        policy in force (a day and seven days to begin with), or when the person signs out.
     serviceToken:
       type: apiKey
       in: header
@@ -663,3 +773,57 @@ components:
           type: boolean
           default: false
           description: Whether the person agreed to the privacy policy. Without it nothing is created.
+
+    Devices:
+      type: object
+      additionalProperties: false
+      required: [devices]
+      properties:
+        devices:
+          type: array
+          items:
+            $ref: "#/components/schemas/Device"
+
+    Device:
+      type: object
+      additionalProperties: false
+      required: [id, browser, platform, mobile, signed_in_at, last_active_at, current]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: The session. Names it for `DELETE /device/{id}` and `PUT /device-names/{id}`; it is not a secret.
+        browser:
+          type: string
+          enum: [chrome, edge, firefox, opera, safari, other]
+          description: As far as the `User-Agent` of the request that began the session says.
+        platform:
+          type: string
+          enum: [windows, macos, linux, android, ios, chromeos, other]
+          description: The system, as far as the `User-Agent` says. Not the machine.
+        mobile:
+          type: boolean
+          description: A phone or a tablet.
+        name:
+          type: string
+          description: What the person called the device. Absent until they do.
+        signed_in_at:
+          type: string
+          format: date-time
+          description: When the person proved who they are.
+        last_active_at:
+          type: string
+          format: date-time
+          description: Kept to the minute.
+        current:
+          type: boolean
+          description: Whether this is the session asking.
+
+    DeviceNaming:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name:
+          type: string
+          description: 1 to 60 characters once trimmed, no control characters.

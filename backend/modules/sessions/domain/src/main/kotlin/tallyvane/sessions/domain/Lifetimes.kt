@@ -2,6 +2,7 @@ package tallyvane.sessions.domain
 
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 
 /**
@@ -10,10 +11,16 @@ import kotlin.time.Instant
  *
  * Applied to every request, not stored as a date on the session, so tightening them reaches the
  * sessions that already exist at their next request.
+ *
+ * The code sets the bounds and the policy sets the values (ADR-078): an idle limit of 15 minutes to 30
+ * days and an absolute limit of at most 90 days, never less than the idle limit. A value outside them
+ * cannot be built, so an administrator's mistake, or a captured admin API, cannot make a session live
+ * ten years.
  */
-public class Lifetimes(private val idle: Duration, private val absolute: Duration) {
+public class Lifetimes internal constructor(private val idle: Duration, private val absolute: Duration) {
     init {
-        require(idle.isPositive()) { "A session that may be idle for no time at all ends before it is used." }
+        require(idle in IDLE) { "A session may sit idle for $IDLE, not $idle." }
+        require(absolute <= LONGEST) { "A session may live at most $LONGEST, not $absolute." }
         require(absolute >= idle) {
             "A session may live at most $absolute, which is less than it may sit idle ($idle): " +
                 "the idle limit could never be reached."
@@ -32,11 +39,9 @@ public class Lifetimes(private val idle: Duration, private val absolute: Duratio
 
     override fun toString(): String = "Lifetimes(idle=$idle, absolute=$absolute)"
 
-    public companion object {
-        /**
-         * A browser's: a day unused, a week at most. Fixed in code until slice 4 reads them from the
-         * policy (ADR-079).
-         */
-        public fun forBrowser(): Lifetimes = Lifetimes(idle = 1.days, absolute = 7.days)
+    private companion object {
+        val IDLE: ClosedRange<Duration> = 15.minutes..30.days
+
+        val LONGEST: Duration = 90.days
     }
 }

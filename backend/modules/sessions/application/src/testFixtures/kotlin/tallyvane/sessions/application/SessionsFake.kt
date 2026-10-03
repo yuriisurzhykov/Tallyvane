@@ -2,8 +2,13 @@ package tallyvane.sessions.application
 
 import tallyvane.platform.kernel.Digest
 import tallyvane.sessions.application.port.Sessions
+import tallyvane.sessions.domain.Browser
+import tallyvane.sessions.domain.ClientType
+import tallyvane.sessions.domain.DeviceName
 import tallyvane.sessions.domain.Factor
+import tallyvane.sessions.domain.Platform
 import tallyvane.sessions.domain.Session
+import tallyvane.sessions.domain.SessionId
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
@@ -33,6 +38,28 @@ class SessionsFake : Sessions {
         }
     }
 
+    override fun ofAccount(account: Uuid): List<Session> = kept.values.filter { it.isOf(account) }
+
+    override fun revoke(account: Uuid, id: SessionId): Boolean {
+        val key = kept.entries.firstOrNull { (_, session) -> session.isOf(account) && session.isIdentifiedBy(id) }?.key
+        return key != null && kept.remove(key) != null
+    }
+
+    override fun revokeOthers(account: Uuid, keep: SessionId) {
+        kept.entries.removeAll { (_, session) -> session.isOf(account) && !session.isIdentifiedBy(keep) }
+    }
+
+    override fun revokeAll(account: Uuid) {
+        kept.entries.removeAll { (_, session) -> session.isOf(account) }
+    }
+
+    override fun rename(account: Uuid, id: SessionId, name: DeviceName): Boolean {
+        val key = kept.entries.firstOrNull { (_, session) -> session.isOf(account) && session.isIdentifiedBy(id) }?.key
+            ?: return false
+        kept[key] = kept.getValue(key).renamed(name)
+        return true
+    }
+
     /**
      * When each kept session was last used, for a test that wants to see what was noted.
      */
@@ -53,9 +80,17 @@ fun lastUseOf(session: Session): Instant {
     val told = mutableListOf<Instant>()
     session.writeTo(
         object : Session.Record {
-            override fun session(account: Uuid, authenticatedAt: Instant, lastActiveAt: Instant) {
+            override fun session(
+                id: SessionId,
+                account: Uuid,
+                client: ClientType,
+                authenticatedAt: Instant,
+                lastActiveAt: Instant,
+            ) {
                 told += lastActiveAt
             }
+
+            override fun device(browser: Browser, platform: Platform, mobile: Boolean, name: String?) = Unit
 
             override fun proved(factor: Factor) = Unit
         },

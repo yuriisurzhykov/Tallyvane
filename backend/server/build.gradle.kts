@@ -15,6 +15,7 @@ dependencies {
     // here anyway: a composition root that depends on a platform module only by accident of
     // someone else's `api` edge is a root whose dependencies are not reviewable.
     implementation(projects.platform.kernel)
+    implementation(projects.platform.events)
     implementation(projects.platform.idempotency)
     implementation(projects.platform.persistence)
     implementation(projects.platform.observability)

@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted.
+Accepted. The session lifetimes it describes are kept by `sessions`, not by the policy module (ADR-090).
 
 ## Context
 

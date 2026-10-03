@@ -4,16 +4,19 @@ import tallyvane.authentication.contract.Proof
 import tallyvane.identity.contract.AccountId
 import tallyvane.platform.kernel.Clock
 import tallyvane.platform.kernel.Digests
+import tallyvane.platform.kernel.IdGeneratorFake
 import tallyvane.platform.kernel.Secret
 import tallyvane.platform.kernel.SecretGeneratorFake
 import tallyvane.platform.kernel.TransactionRunnerFake
-import tallyvane.sessions.domain.Lifetimes
+import tallyvane.sessions.domain.SessionId
+import tallyvane.sessions.domain.UserAgent
 import kotlin.time.Duration
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
 /**
- * Everything the session use cases need, as fakes, with a browser's lifetimes in force.
+ * Everything the session use cases need, as fakes, with a browser's lifetimes in force, a day idle and a
+ * week at most, which a spec changes through [lifetimeVersions].
  *
  * A browser's cookie is the [Secret] a use case handed it; [SecretGeneratorFake] numbers them
  * `secret-1`, `secret-2`, ... in the order they are drawn.
@@ -22,12 +25,14 @@ class Harness {
     val sessions = SessionsFake()
     val signIns = SignInsStub()
     val clock = TickingClock(Instant.parse("2026-10-02T09:00:00Z"))
-    val lifetimes = Lifetimes.forBrowser()
+    val lifetimeVersions = LifetimeVersionsFake()
     private val transactions = TransactionRunnerFake()
     private val keys = SessionKeys(
         SecretGeneratorFake(),
         Digests.Hmac(Secret("a-pepper-only-the-tests-use-0123456789"), 1),
+        IdGeneratorFake(),
     )
+    private val recognition = Recognition(sessions, lifetimeVersions, clock, keys)
 
     val open: OpenSessionUseCase = OpenSessionUseCase.OpenSession(
         signIns,
@@ -35,13 +40,21 @@ class Harness {
         transactions,
         clock,
         keys,
-        lifetimes,
+        lifetimeVersions,
     )
 
-    val authenticate: AuthenticateUseCase =
-        AuthenticateUseCase.Authenticate(sessions, transactions, clock, keys, lifetimes)
+    val authenticate: AuthenticateUseCase = AuthenticateUseCase.Authenticate(recognition, transactions)
 
     val signOut: SignOutUseCase = SignOutUseCase.SignOut(sessions, transactions, keys)
+
+    val listDevices: ListDevicesUseCase =
+        ListDevicesUseCase.ListDevices(recognition, sessions, lifetimeVersions, transactions, clock)
+
+    val revokeDevice: RevokeDeviceUseCase = RevokeDeviceUseCase.RevokeDevice(recognition, sessions, transactions)
+
+    val renameDevice: RenameDeviceUseCase = RenameDeviceUseCase.RenameDevice(recognition, sessions, transactions)
+
+    val signOutOthers: SignOutOthersUseCase = SignOutOthersUseCase.SignOutOthers(recognition, sessions, transactions)
 
     /**
      * A person whose sign-in is complete, as the browser's `__Host-attempt` cookie.
@@ -58,7 +71,13 @@ class Harness {
     /**
      * A person who signed in: the secret of the session they were given.
      */
-    suspend fun signedIn(account: AccountId = ACCOUNT): Secret = secretOf(open.open(finishedSigningIn(account)))
+    suspend fun signedIn(
+        account: AccountId = ACCOUNT,
+        agent: UserAgent = CHROME_ON_WINDOWS,
+        attempt: Secret = Secret("attempt-${attempts++}"),
+    ): Secret = secretOf(open.open(finishedSigningIn(account, attempt = attempt), agent))
+
+    private var attempts = 1
 
     /**
      * The secret an issued session gave the browser.
@@ -74,7 +93,7 @@ class Harness {
      */
     suspend fun who(session: Secret?): String = authenticate.resolve(session).reportTo(
         object : Resolution.Report<String> {
-            override fun signedIn(account: AccountId): String = "signed in ${account.value}"
+            override fun signedIn(account: AccountId, session: SessionId): String = "signed in ${account.value}"
 
             override fun lapsed(): String = "lapsed"
 
@@ -95,5 +114,11 @@ class Harness {
 
     companion object {
         val ACCOUNT = AccountId(Uuid.parse("0199a000-0000-7000-8000-0000000000aa"))
+        val OTHER_ACCOUNT = AccountId(Uuid.parse("0199a000-0000-7000-8000-0000000000bb"))
+
+        val CHROME_ON_WINDOWS = UserAgent(
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) " +
+                "Chrome/130.0.0.0 Safari/537.36",
+        )
     }
 }
