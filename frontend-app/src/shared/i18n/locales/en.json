@@ -53,6 +53,33 @@
     },
     "account": {
         "menu": "Account menu",
-        "signOut": "Sign out"
+        "signOut": "Sign out",
+        "devices": "Devices"
+    },
+    "devices": {
+        "loading": "Loading your devices…",
+        "loadFailed": "We couldn't load your devices.",
+        "tryAgain": "Try again",
+        "actionFailed": "That didn't work. Try again in a moment.",
+        "thisDevice": "This device",
+        "rename": "Rename",
+        "namePlaceholder": "Name this device",
+        "nameInvalid": "A name is 1 to 60 characters, with no control characters.",
+        "nameFailed": "We couldn't save that name. Try again in a moment.",
+        "signOut": "Sign out",
+        "signOutOthers": "Sign out everywhere else",
+        "confirmOne": "Sign out the other device?",
+        "confirmMany": "Sign out {count} other devices?",
+        "confirmYes": "Sign out",
+        "confirmCancel": "Cancel",
+        "described": "{browser} on {system}",
+        "unknownDevice": "Unknown device",
+        "otherBrowser": "Other browser",
+        "unknownSystem": "unknown system",
+        "mobile": "mobile",
+        "signedInOn": "Signed in {date}",
+        "activeNow": "Active now",
+        "activeAgo": "Active {when}",
+        "lastActiveOn": "Last active {time}"
     }
 }
