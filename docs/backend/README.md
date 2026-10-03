@@ -13,7 +13,7 @@ before the module is built.
 
 - [02-authentication-slice-5.md](02-authentication-slice-5.md) — step-up (a fresh
   factor for dangerous actions) and TOTP: the flows, module dependencies and
-  classes the code of slice 5 is written from. In Russian, like the design notes.
+  classes the code of slice 5 is written from.
 
 ## Per capability
 
