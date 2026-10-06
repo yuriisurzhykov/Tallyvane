@@ -143,7 +143,7 @@ function KeyStep({ totpKey, mistake, working, onConfirm, onEdit, onCancel }: Key
                 <Text variant="bodyStrong">{t("scanTitle")}</Text>
                 <Text variant="small" color="secondary">{t("scanLead")}</Text>
             </Stack>
-            <QrCode value={totpKey.link()} label={t("qrLabel")} className="w-48" />
+            <QrCode value={totpKey.link()} label={t("qrLabel")} />
             <Stack gap="stack-tight">
                 <Text variant="small" color="secondary">{t("orType")}</Text>
                 <Text variant="numeric">{totpKey.spaced()}</Text>

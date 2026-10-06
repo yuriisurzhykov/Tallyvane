@@ -27,7 +27,6 @@ export const Default: Story = {
     args: {
         value: "otpauth://totp/Tallyvane?secret=JBSWY3DPEHPK3PXP&issuer=Tallyvane",
         label: "QR code for your authenticator app",
-        className: "w-48",
     },
     tags: ["no-visible-text"],
 };
