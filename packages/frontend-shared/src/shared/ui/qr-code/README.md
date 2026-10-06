@@ -20,7 +20,7 @@ It is always dark on light. A dark page would invert the usual `text-primary` on
 cannot scan an inverted code, so the element carries the `theme-light` class the theme provider already defines and
 takes its two colours from that theme's roles. No colour in the file is a literal.
 
-It has a size of its own, 15rem and never wider than its container: an SVG that has only a `viewBox` fills the width it
+It has a size of its own, the component token `qrCode.size` (18rem), and never wider than its container: an SVG that has only a `viewBox` fills the width it
 is given, and in the first version of the Security page that made the code as wide as the page, too big to see whole
 and awkward to scan. A QR code has no useful range of sizes, so the primitive owns it and `className` stays layout only.
 

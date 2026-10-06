@@ -14,11 +14,10 @@ export interface QrCodeProps {
 const QUIET_ZONE = 4;
 
 /**
- * How big it is drawn: 15rem (five control heights), so a phone camera reads it from an arm's length on a
- * laptop screen and it is still a code, not a wall, on a wide page; and never wider than its container.
- * An SVG with only a `viewBox` fills whatever width it is given, which is what a bare one did on a wide screen.
+ * How big it is drawn: `--ds-component-qr-code-size`, and never wider than its container. An SVG that has only a
+ * `viewBox` fills the width it is given, which is what a bare one did on a wide page.
  */
-const SIZE_CLASS = "w-[calc(var(--control-height-lg)*5)] max-w-full aspect-square";
+const SIZE_CLASS = "w-(--ds-component-qr-code-size) max-w-full aspect-square";
 
 /**
  * One path of unit squares, one per dark module. Rows are read left to right, and each `M x y h1 v1 h-1 z`
