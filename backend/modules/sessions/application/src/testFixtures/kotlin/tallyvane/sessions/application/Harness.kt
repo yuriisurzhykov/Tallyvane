@@ -2,6 +2,7 @@ package tallyvane.sessions.application
 
 import tallyvane.authentication.contract.Proof
 import tallyvane.identity.contract.AccountId
+import tallyvane.journal.contract.SecurityJournalRecorder
 import tallyvane.platform.kernel.Clock
 import tallyvane.platform.kernel.Digests
 import tallyvane.platform.kernel.IdGeneratorFake
@@ -27,6 +28,11 @@ class Harness {
     val signIns = SignInsStub()
     val clock = TickingClock(Instant.parse("2026-10-02T09:00:00Z"))
     val lifetimeVersions = LifetimeVersionsFake()
+
+    /**
+     * What the journal was told, which a spec reads to see that an act left its record.
+     */
+    val journal = SecurityJournalRecorder()
     private val transactions = TransactionRunnerFake()
     private val keys = SessionKeys(
         SecretGeneratorFake(),
@@ -38,6 +44,8 @@ class Harness {
     val open: OpenSessionUseCase = OpenSessionUseCase.OpenSession(
         signIns,
         sessions,
+        journal,
+        DeviceWords(),
         transactions,
         clock,
         keys,
@@ -54,7 +62,12 @@ class Harness {
 
     val renameDevice: RenameDeviceUseCase = RenameDeviceUseCase.RenameDevice(recognition, sessions, transactions)
 
-    val signOutOthers: SignOutOthersUseCase = SignOutOthersUseCase.SignOutOthers(recognition, sessions, transactions)
+    val signOutOthers: SignOutOthersUseCase = SignOutOthersUseCase.SignOutOthers(
+        recognition,
+        sessions,
+        journal,
+        transactions,
+    )
 
     val confirmStepUp: ConfirmStepUpUseCase =
         ConfirmStepUpUseCase.ConfirmStepUp(recognition, signIns, sessions, transactions, keys)

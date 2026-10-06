@@ -20,6 +20,9 @@ import tallyvane.authentication.application.AuthenticatorApp
 import tallyvane.platform.http.Caller
 import tallyvane.platform.http.Callers
 import tallyvane.platform.http.fromApp
+import kotlin.uuid.Uuid
+
+private val SESSION = Uuid.parse("0199a000-0000-7000-8000-0000000000e1")
 
 private var keys = 0
 
@@ -54,7 +57,7 @@ private suspend fun signedInAs(fresh: Boolean, body: suspend ApplicationTestBuil
     val served = Served()
     served.harness.accounts.knows("sub-1")
     val account = checkNotNull(served.harness.accounts.withGoogle("sub-1")).value
-    val callers = Callers { if (fresh) Caller.Confirmed(account) else Caller.Signed(account) }
+    val callers = Callers { if (fresh) Caller.Confirmed(account, SESSION) else Caller.Signed(account, SESSION) }
     testApplication {
         application { served.api(callers).install(this) }
         body(served)

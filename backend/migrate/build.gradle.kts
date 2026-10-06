@@ -13,6 +13,7 @@ dependencies {
     // be on this one. Nothing is called from it: this command only applies what it carries.
     runtimeOnly(projects.modules.authentication.infrastructure)
     runtimeOnly(projects.modules.identity.infrastructure)
+    runtimeOnly(projects.modules.journal.infrastructure)
     runtimeOnly(projects.modules.sessions.infrastructure)
     runtimeOnly(libs.postgresql)
     runtimeOnly(libs.flyway.database.postgresql)

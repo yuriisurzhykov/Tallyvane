@@ -29,6 +29,7 @@ import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
 private val PERSON = Uuid.parse("00000000-0000-7000-8000-00000000000a")
+private val SESSION = Uuid.parse("00000000-0000-7000-8000-0000000000e1")
 
 private const val KEY = "00000000-0000-0000-0000-000000000001"
 
@@ -82,9 +83,9 @@ private class Danger(val ran: AtomicInteger) : RouteModule {
 }
 
 private class Naming : Caller.Report<String> {
-    override fun signedIn(account: Uuid): String = "person $account"
+    override fun signedIn(account: Uuid, session: Uuid): String = "person $account"
 
-    override fun confirmed(account: Uuid): String = "confirmed person $account"
+    override fun confirmed(account: Uuid, session: Uuid): String = "confirmed person $account"
 
     override fun lapsed(): String = "lapsed"
 
@@ -98,8 +99,8 @@ private fun gated(ran: AtomicInteger = AtomicInteger()): Api = Api(
     ledger = LedgerFake(TransactionRunnerFake(), ClockFake(Instant.parse("2026-10-02T09:00:00Z"))),
     callers = Callers { call ->
         when (call.request.headers["X-Who"]) {
-            "person" -> Caller.Signed(PERSON)
-            "confirmed" -> Caller.Confirmed(PERSON)
+            "person" -> Caller.Signed(PERSON, SESSION)
+            "confirmed" -> Caller.Confirmed(PERSON, SESSION)
             "lapsed" -> Caller.Lapsed()
             else -> Caller.Anonymous()
         }

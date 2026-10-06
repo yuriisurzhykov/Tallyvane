@@ -10,7 +10,9 @@ import kotlin.uuid.Uuid
  * presented a credential, or from someone whose credential no longer works. The first reaches a
  * route; the other two are told apart only because the client must react differently (sign in, or
  * sign in again over the page it is on, ADR-084). The account is private to [Signed], and the one way
- * to read it is [reportTo], so a route that wants it must say what it does when there is none.
+ * to read it is [reportTo], so a route that wants it must say what it does when there is none. A signed-in
+ * caller also carries the reference of the session the request came from, which the modules that tell the
+ * security journal what a person did hand on without looking inside it (ADR-095).
  */
 public sealed interface Caller {
     /**
@@ -27,9 +29,9 @@ public sealed interface Caller {
      * What a [Caller] says about itself, one method per case.
      */
     public interface Report<out T> {
-        public fun signedIn(account: Uuid): T
+        public fun signedIn(account: Uuid, session: Uuid): T
 
-        public fun confirmed(account: Uuid): T
+        public fun confirmed(account: Uuid, session: Uuid): T
 
         public fun lapsed(): T
 
@@ -40,14 +42,15 @@ public sealed interface Caller {
      * A person the request proved to be, who has not proved it again recently: enough for everything but
      * the acts behind [Access.SignedFresh].
      */
-    public class Signed(private val account: Uuid) : Caller {
-        override fun <T> reportTo(report: Report<T>): T = report.signedIn(account)
+    public class Signed(private val account: Uuid, private val session: Uuid) : Caller {
+        override fun <T> reportTo(report: Report<T>): T = report.signedIn(account, session)
 
         override fun owner(): Owner = Owner.subject(account)
 
-        override fun equals(other: Any?): Boolean = other is Signed && other.account == account
+        override fun equals(other: Any?): Boolean =
+            other is Signed && other.account == account && other.session == session
 
-        override fun hashCode(): Int = account.hashCode()
+        override fun hashCode(): Int = 31 * account.hashCode() + session.hashCode()
 
         override fun toString(): String = "Signed"
     }
@@ -56,14 +59,15 @@ public sealed interface Caller {
      * A person the request proved to be, who also proved it again recently enough for a dangerous act
      * (ADR-092). What "recently enough" means is the issuer of credentials' to say; the edge only asks.
      */
-    public class Confirmed(private val account: Uuid) : Caller {
-        override fun <T> reportTo(report: Report<T>): T = report.confirmed(account)
+    public class Confirmed(private val account: Uuid, private val session: Uuid) : Caller {
+        override fun <T> reportTo(report: Report<T>): T = report.confirmed(account, session)
 
         override fun owner(): Owner = Owner.subject(account)
 
-        override fun equals(other: Any?): Boolean = other is Confirmed && other.account == account
+        override fun equals(other: Any?): Boolean =
+            other is Confirmed && other.account == account && other.session == session
 
-        override fun hashCode(): Int = account.hashCode() + 1
+        override fun hashCode(): Int = 31 * account.hashCode() + session.hashCode() + 1
 
         override fun toString(): String = "Confirmed"
     }

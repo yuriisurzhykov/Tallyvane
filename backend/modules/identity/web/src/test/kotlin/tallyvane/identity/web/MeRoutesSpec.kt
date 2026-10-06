@@ -27,6 +27,7 @@ import kotlin.uuid.Uuid
 
 private val AT = Instant.parse("2026-10-02T09:00:00Z")
 private val FIRST = Uuid.parse("00000000-0000-7000-8000-000000000001")
+private val SESSION = Uuid.parse("00000000-0000-7000-8000-0000000000e1")
 
 private fun api(callers: Callers, kept: KeptAccountsFake): Api = Api(
     routes = listOf(IdentityRoutesFactory().me(WhoAmIUseCase.WhoAmI(kept, TransactionRunnerFake()))),
@@ -47,7 +48,7 @@ class MeRoutesSpec :
             "tells a signed-in person who they are, and is never cached" {
                 testApplication {
                     val kept = keptWithAda()
-                    application { api(Callers { Caller.Signed(FIRST) }, kept).install(this) }
+                    application { api(Callers { Caller.Signed(FIRST, SESSION) }, kept).install(this) }
 
                     val answer = client.get("/api/v1/me")
 
@@ -81,7 +82,7 @@ class MeRoutesSpec :
 
             "tells a person whose account is gone that their session ended" {
                 testApplication {
-                    application { api(Callers { Caller.Signed(FIRST) }, KeptAccountsFake()).install(this) }
+                    application { api(Callers { Caller.Signed(FIRST, SESSION) }, KeptAccountsFake()).install(this) }
 
                     val answer = client.get("/api/v1/me")
 

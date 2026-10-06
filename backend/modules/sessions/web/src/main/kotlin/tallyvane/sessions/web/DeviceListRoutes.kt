@@ -10,6 +10,7 @@ import tallyvane.platform.http.BasePath
 import tallyvane.platform.http.Refused
 import tallyvane.platform.http.RouteModule
 import tallyvane.sessions.application.DeviceOutcome
+import tallyvane.sessions.application.DeviceWords
 import tallyvane.sessions.application.ListDevicesUseCase
 
 /**

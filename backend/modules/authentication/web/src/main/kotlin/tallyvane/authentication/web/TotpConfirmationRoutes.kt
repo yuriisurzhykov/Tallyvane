@@ -37,7 +37,8 @@ internal class TotpConfirmationRoutes(
         route.post {
             call.response.header(HttpHeaders.CacheControl, "no-store")
             val first = call.receive<FirstCode>()
-            when (val outcome = confirm.confirm(AccountId(Requester(call).account()), first.code)) {
+            val requester = Requester(call)
+            when (val outcome = confirm.confirm(AccountId(requester.account()), requester.session(), first.code)) {
                 is TotpConfirmed.Confirmed -> {
                     SecretAnswer(call).withheldFromReplay()
                     call.respond(issuedBy(outcome))

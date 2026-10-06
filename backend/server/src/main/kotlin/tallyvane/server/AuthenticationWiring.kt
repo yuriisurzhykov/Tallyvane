@@ -28,6 +28,7 @@ import tallyvane.authentication.infrastructure.AuthenticationStorageFactory
 import tallyvane.authentication.infrastructure.GoogleAccessFactory
 import tallyvane.authentication.web.AuthenticationRoutesFactory
 import tallyvane.authentication.web.SecondFactorRoutesFactory
+import tallyvane.journal.contract.SecurityJournal
 import tallyvane.platform.http.RouteModule
 import tallyvane.platform.kernel.Clock
 import tallyvane.platform.kernel.Digests
@@ -43,6 +44,7 @@ import tallyvane.server.config.SignInConfiguration
 public class AuthenticationWiring(
     private val platform: PlatformWiring,
     identity: IdentityWiring,
+    private val journal: SecurityJournal,
     private val settings: SignInConfiguration,
 ) {
     // Opens the keyset now, so a variable that does not hold one stops the server at start and not at the
@@ -131,6 +133,7 @@ public class AuthenticationWiring(
             transactions = platform.persistence.transactions,
             clock = clock,
             keys = keys,
+            journal = journal,
         )
     }
 
@@ -146,12 +149,13 @@ public class AuthenticationWiring(
             words,
             digests,
             platform.persistence.transactions,
+            journal,
             clock,
         )
     }
 
     private val disableTotp: DisableTotpUseCase by lazy {
-        DisableTotpUseCase.DisableTotp(totp, platform.persistence.transactions)
+        DisableTotpUseCase.DisableTotp(totp, journal, platform.persistence.transactions)
     }
 
     private val regenerateRecoveryCodes: RegenerateRecoveryCodesUseCase by lazy {
@@ -161,6 +165,7 @@ public class AuthenticationWiring(
             mint,
             words,
             digests,
+            journal,
             platform.persistence.transactions,
         )
     }

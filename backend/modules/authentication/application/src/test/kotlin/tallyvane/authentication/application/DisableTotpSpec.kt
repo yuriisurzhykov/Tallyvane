@@ -9,7 +9,9 @@ class DisableTotpSpec :
                 withAccount { harness, account ->
                     harness.enableTotp("sub-1")
 
-                    harness.disableTotp.disable(account) shouldBe TotpDisabled.Disabled()
+                    harness.disableTotp.disable(account, harness.session) shouldBe TotpDisabled.Disabled()
+
+                    harness.journal.told().last() shouldBe "totpTurnedOff $account ${harness.session}"
 
                     shownAs(harness.showSecondFactor.show(account)) shouldBe "off"
                     harness.secondFactors.of(account) shouldBe null
@@ -20,10 +22,11 @@ class DisableTotpSpec :
 
             "turning off what is not on is refused, and a begun enrolment can be abandoned" {
                 withAccount { harness, account ->
-                    harness.disableTotp.disable(account) shouldBe TotpDisabled.Failed.NotEnabled()
+                    harness.disableTotp.disable(account, harness.session) shouldBe TotpDisabled.Failed.NotEnabled()
+                    harness.journal.told() shouldBe emptyList()
 
                     harness.beginTotp.begin(account)
-                    harness.disableTotp.disable(account) shouldBe TotpDisabled.Disabled()
+                    harness.disableTotp.disable(account, harness.session) shouldBe TotpDisabled.Disabled()
                 }
             }
         },

@@ -23,6 +23,9 @@ before the module is built.
   of TOTP in the console: the sign-in and confirmation flows, the Security card, module
   dependencies and classes of slice 5c.
 
+- [05-authentication-slice-6-journal.md](05-authentication-slice-6-journal.md) — the security journal:
+  how an entry is written and read, module dependencies, classes and the table of slice 6.
+
 ## Per capability
 
 None yet. [ARCHITECTURE.md](../../ARCHITECTURE.md) sections 4 through 9 hold the

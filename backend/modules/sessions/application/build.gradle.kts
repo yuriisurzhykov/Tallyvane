@@ -13,11 +13,14 @@ dependencies {
     api(projects.modules.authentication.contract)
     // `api`: a signed-in caller is named by `identity`'s `AccountId`.
     api(projects.modules.identity.contract)
+    // The use cases tell the journal what they did, in their own transaction (ADR-095).
+    api(projects.modules.journal.contract)
     implementation(projects.platform.kernel)
     // Not used yet; `modules.yaml` requires the edge on every application layer.
     implementation(projects.platform.events)
 
     testFixturesApi(projects.platform.kernel)
+    testFixturesApi(testFixtures(projects.modules.journal.contract))
     testFixturesImplementation(testFixtures(projects.platform.kernel))
     testFixturesImplementation(libs.kotest.runner.junit5)
     testFixturesImplementation(libs.kotest.assertions.core)

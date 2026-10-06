@@ -58,6 +58,9 @@ tags:
       (ADR-079, ADR-080).
   - name: identity
     description: Who the signed-in person is.
+  - name: journal
+    description: |
+      What happened to a person's security, kept for them to read (ADR-083, ADR-095).
 
 paths:
   /health:
@@ -685,6 +688,44 @@ paths:
         default:
           $ref: "#/components/responses/Problem"
 
+  /security-activity:
+    get:
+      tags: [journal]
+      operationId: showSecurityActivity
+      summary: The signed-in person's security journal
+      description: |
+        Their entries, the newest first, thirty at a time. A page that has more after it carries `next`,
+        which is passed back as `before` to ask for the following page; the last page has none.
+        `400` when `before` is not a positive whole number, which is all a cursor is: the position after which to continue. Nobody's entries but the signed-in person's are
+        ever shown, and nothing here lets them change one. Never cached.
+
+        A device is the one the entry happened on, as it was then: renaming or signing out a device later
+        does not change what the journal says. An entry has no device when the session it came from began
+        before the journal existed.
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: before
+          in: query
+          required: false
+          schema:
+            type: string
+          description: The `next` of the page before, to continue after it. Absent for the newest entries.
+      responses:
+        "200":
+          description: The page.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+            traceparent:
+              $ref: "#/components/headers/Traceparent"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SecurityActivity"
+        default:
+          $ref: "#/components/responses/Problem"
+
   /devices:
     get:
       tags: [sessions]
@@ -1199,6 +1240,68 @@ components:
           type: boolean
           default: false
           description: Whether the person agreed to the privacy policy. Without it nothing is created.
+
+    SecurityActivity:
+      type: object
+      additionalProperties: false
+      required: [entries]
+      properties:
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/SecurityEntry"
+        next:
+          type: string
+          description: The cursor of the next page. Absent on the last one. Opaque to a client.
+
+    SecurityEntry:
+      type: object
+      additionalProperties: false
+      required: [kind, occurred_at, first_from_device]
+      properties:
+        kind:
+          type: string
+          enum:
+            - signed_in
+            - totp_turned_on
+            - totp_turned_off
+            - recovery_code_spent
+            - recovery_codes_reissued
+            - other_devices_signed_out
+            - guessing_stopped
+          description: What happened. A client branches on it.
+        occurred_at:
+          type: string
+          format: date-time
+        device:
+          $ref: "#/components/schemas/SecurityEntryDevice"
+          description: Where it happened, when that is known. A recovery code spent and a guess stopped happen before any session exists, so they have none.
+        first_from_device:
+          type: boolean
+          description: |
+            Only on `signed_in`: the account had no earlier sign-in from the same browser, system and class
+            (phone or not). A hint, not a protection: the name does not count, and a second browser of the same
+            kind on the same system is not told apart.
+        codes_left:
+          type: integer
+          description: How many recovery codes are left. Only on `recovery_code_spent`.
+
+    SecurityEntryDevice:
+      type: object
+      additionalProperties: false
+      required: [browser, platform, mobile]
+      properties:
+        browser:
+          type: string
+          enum: [chrome, edge, firefox, opera, safari, other]
+        platform:
+          type: string
+          enum: [windows, macos, linux, android, ios, chromeos, other]
+        mobile:
+          type: boolean
+        name:
+          type: string
+          description: The name the person had given the device when it happened. Absent when they had given none.
 
     Devices:
       type: object

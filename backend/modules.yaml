@@ -53,17 +53,25 @@ modules:
     layers: [contract, domain, application, infrastructure, web]
     reads: []
     publishes: [AccountDeleted]
+  # What happened to an account's security, kept for the person to read (ADR-083, ADR-095). The modules that
+  # cause an entry call its contract inside their own transaction, so it reads nobody but `identity`'s
+  # `AccountId`, and its `web` serves `GET /security-activity`.
+  journal:
+    layers: [contract, domain, application, infrastructure, web]
+    reads: [identity]
+    publishes: []
   authentication:
     layers: [contract, domain, application, infrastructure, web]
-    # Finds the account a Google sign-in proved, and creates it at registration (ADR-076).
-    reads: [identity]
+    # Finds the account a Google sign-in proved, and creates it at registration (ADR-076). Tells the journal
+    # what the second factor did (ADR-095).
+    reads: [identity, journal]
     publishes: []
 
   # What a person was given once they proved who they are (ADR-076, ADR-079). It redeems a completed
   # sign-in through the contract of `authentication` and names the account by `identity`'s `AccountId`.
   sessions:
     layers: [domain, application, infrastructure, web]
-    reads: [authentication, identity]
+    reads: [authentication, identity, journal]
     publishes: []
 
 # Modules that are designed but not yet created. Listed here so the intended

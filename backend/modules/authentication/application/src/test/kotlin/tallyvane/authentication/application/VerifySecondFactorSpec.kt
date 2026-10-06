@@ -59,6 +59,11 @@ private suspend fun withTotp(body: suspend (Harness, Harness.TotpSetUp) -> Unit)
     body(harness, harness.enableTotp("sub-1"))
 }
 
+/**
+ * What the journal was told since TOTP was turned on, which a sign-in is all there is to say about here.
+ */
+private fun Harness.aboutSignIn(): List<String> = journal.told().filterNot { it.startsWith("totpTurnedOn ") }
+
 class VerifySecondFactorSpec :
     StringSpec(
         {
@@ -137,6 +142,23 @@ class VerifySecondFactorSpec :
                 }
             }
 
+            "the wrong code that ends the attempt tells the journal once, and the ones before it nothing" {
+                withTotp { harness, _ ->
+                    val attempt = harness.signedInWithGoogle("sub-1")
+                    (1..4).forEach {
+                        harness.clock.passes(20.seconds)
+                        harness.code(attempt, "000000")
+                    }
+                    harness.aboutSignIn() shouldBe emptyList()
+
+                    harness.clock.passes(20.seconds)
+                    harness.code(attempt, "000000") shouldBe "Closed"
+                    harness.code(attempt, "000000") shouldBe "Closed"
+
+                    harness.aboutSignIn().map { it.substringBefore(' ') } shouldBe listOf("guessingStopped")
+                }
+            }
+
             "the account remembers wrong codes across attempts, so a new attempt starts with its pause" {
                 withTotp { harness, setup ->
                     val first = harness.signedInWithGoogle("sub-1")
@@ -178,6 +200,30 @@ class VerifySecondFactorSpec :
                     harness.standing(later) shouldBe "awaiting [RecoveryCode]"
                     harness.code(later, setup.app.codeAt(harness.clock.now())) shouldBe "NotWanted"
                     harness.standing(later) shouldBe "awaiting [RecoveryCode]"
+                }
+            }
+
+            "a recovery code that is spent tells the journal how many are left, and a wrong one nothing" {
+                withTotp { harness, setup ->
+                    val attempt = harness.signedInWithGoogle("sub-1")
+                    harness.recovery(attempt, "NOTACODE-1234")
+                    harness.aboutSignIn() shouldBe emptyList()
+
+                    harness.recovery(harness.signedInWithGoogle("sub-1"), setup.recoveryCodes.first())
+
+                    val line = harness.aboutSignIn().single()
+                    line.startsWith("recoveryCodeSpent ") shouldBe true
+                    line.endsWith(" 9") shouldBe true
+                }
+            }
+
+            "a right code tells the journal nothing, since the sign-in is told when the session opens" {
+                withTotp { harness, setup ->
+                    val attempt = harness.signedInWithGoogle("sub-1")
+
+                    harness.code(attempt, setup.app.codeAt(harness.clock.now())) shouldBe "verified by code"
+
+                    harness.aboutSignIn() shouldBe emptyList()
                 }
             }
 
