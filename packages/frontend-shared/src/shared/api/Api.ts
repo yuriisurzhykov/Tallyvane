@@ -15,8 +15,16 @@ type SuccessResponse<Op> = Op extends { responses: infer R }
     ? R[Extract<keyof R, 200 | 201 | 202 | 204>]
     : never;
 
-/** What the server answers with on success: the JSON the specification names, or nothing. */
-type ResponseBody<Op> = SuccessResponse<Op> extends { content: { "application/json": infer Body } } ? Body : undefined;
+/**
+ * What the server answers with on success: the JSON the specification names, or nothing. An operation that
+ * can succeed in more than one way (`200` with a body, `204` without) is the union of its answers, because
+ * the check is made on each success response in turn.
+ */
+type ResponseBody<Op> = SuccessResponse<Op> extends infer Success
+    ? Success extends { content: { "application/json": infer Body } }
+        ? Body
+        : undefined
+    : never;
 
 type RequestBody<Op> = Op extends { requestBody: { content: { "application/json": infer Body } } } ? Body : never;
 

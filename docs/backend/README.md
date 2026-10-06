@@ -19,6 +19,10 @@ before the module is built.
   routes, the sign-in, enabling and recovery-code flows, module dependencies,
   classes and tables of slice 5b, with what changed while it was built.
 
+- [04-authentication-slice-5c-totp-screens.md](04-authentication-slice-5c-totp-screens.md) — the screens
+  of TOTP in the console: the sign-in and confirmation flows, the Security card, module
+  dependencies and classes of slice 5c.
+
 ## Per capability
 
 None yet. [ARCHITECTURE.md](../../ARCHITECTURE.md) sections 4 through 9 hold the

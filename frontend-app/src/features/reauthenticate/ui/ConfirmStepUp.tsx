@@ -11,11 +11,17 @@ import { ConfirmationSignal } from "../model/ConfirmationSignal";
 
 type Outcome = "working" | "done" | "failed" | "other-account";
 
+export interface ConfirmStepUpProps {
+    /** Leave the window open once done, because it has something more to tell the person. */
+    readonly keepOpen?: boolean;
+}
+
 /**
- * Google has sent the person back from confirming a dangerous act: hand the confirmation to the session,
- * tell the page that waits, and close this window. Sent exactly once even when React runs effects twice.
+ * Google has sent the person back from confirming a dangerous act (and a code, if they use an authenticator,
+ * has been given): hand the confirmation to the session, tell the page that waits, and close this window.
+ * Sent exactly once even when React runs effects twice.
  */
-export function ConfirmStepUp() {
+export function ConfirmStepUp({ keepOpen = false }: ConfirmStepUpProps) {
     const t = useStrings("stepUpContinue");
     const api = useApi();
     const sent = useRef(false);
@@ -30,13 +36,15 @@ export function ConfirmStepUp() {
             () => {
                 new ConfirmationSignal().announce();
                 setOutcome("done");
-                window.close();
+                if (!keepOpen) {
+                    window.close();
+                }
             },
             (failure: unknown) => {
                 setOutcome(failure instanceof ProblemError && failure.hasStatus(403) ? "other-account" : "failed");
             },
         );
-    }, [api]);
+    }, [api, keepOpen]);
 
     switch (outcome) {
         case "working":

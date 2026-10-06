@@ -69,6 +69,9 @@ export const resolved = {
             },
             "fileDrop": {
                 "filenameMaxWidth": "16rem"
+            },
+            "qrCode": {
+                "size": "18rem"
             }
         },
         "composite": {
@@ -223,6 +226,9 @@ export const resolved = {
             },
             "fileDrop": {
                 "filenameMaxWidth": "16rem"
+            },
+            "qrCode": {
+                "size": "18rem"
             }
         },
         "composite": {

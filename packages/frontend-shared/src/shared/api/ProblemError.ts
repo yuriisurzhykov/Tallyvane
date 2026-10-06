@@ -15,6 +15,8 @@ export type ProblemKind =
     | "step-up-required"
     | "not-found"
     | "conflict"
+    | "gone"
+    | "slow-down"
     | "unavailable"
     | "internal"
     | "other";
@@ -28,6 +30,8 @@ const KINDS: readonly ProblemKind[] = [
     "step-up-required",
     "not-found",
     "conflict",
+    "gone",
+    "slow-down",
     "unavailable",
     "internal",
 ];
@@ -39,9 +43,9 @@ const KINDS: readonly ProblemKind[] = [
  */
 export class ProblemError extends Error {
     private readonly problem: Problem;
-    private readonly retryAfter: boolean;
+    private readonly retryAfter: string | null;
 
-    private constructor(problem: Problem, retryAfter: boolean) {
+    private constructor(problem: Problem, retryAfter: string | null) {
         super(problem.title);
         this.name = "ProblemError";
         this.problem = problem;
@@ -49,10 +53,7 @@ export class ProblemError extends Error {
     }
 
     public static from(response: ApiResponse): ProblemError {
-        return new ProblemError(
-            ProblemError.read(response),
-            response.headers.get("retry-after") !== null,
-        );
+        return new ProblemError(ProblemError.read(response), response.headers.get("retry-after"));
     }
 
     private static read(response: ApiResponse): Problem {
@@ -87,7 +88,23 @@ export class ProblemError extends Error {
 
     /** A `409` without `Retry-After` means the work was carried out and its answer cannot be given again (ADR-086). */
     public isAnsweredBefore(): boolean {
-        return this.hasStatus(409) && !this.retryAfter;
+        return this.hasStatus(409) && this.retryAfter === null;
+    }
+
+    /**
+     * How many whole seconds the server asks the caller to wait (`Retry-After`), or `undefined` when it asks
+     * for nothing, or in a form this client does not count (an HTTP date).
+     */
+    public retryAfterSeconds(): number | undefined {
+        if (this.retryAfter === null || !/^\d+$/.test(this.retryAfter.trim())) {
+            return undefined;
+        }
+        return Number(this.retryAfter.trim());
+    }
+
+    /** A code was checked and was wrong (`422`, field `code`). */
+    public isWrongCode(): boolean {
+        return this.hasStatus(422) && this.fieldCode("code") === "wrong-code";
     }
 
     /** What is wrong with one field of a `422`, or `undefined` when that field is fine. */
