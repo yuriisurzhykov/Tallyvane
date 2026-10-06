@@ -510,7 +510,7 @@ export interface paths {
          * The signed-in person's security journal
          * @description Their entries, the newest first, thirty at a time. A page that has more after it carries `next`,
          *     which is passed back as `before` to ask for the following page; the last page has none.
-         *     `400` when `before` is not a cursor a page gave. Nobody's entries but the signed-in person's are
+         *     `400` when `before` is not a positive whole number, which is all a cursor is: the position after which to continue. Nobody's entries but the signed-in person's are
          *     ever shown, and nothing here lets them change one. Never cached.
          *
          *     A device is the one the entry happened on, as it was then: renaming or signing out a device later

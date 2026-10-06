@@ -41,7 +41,7 @@ public sealed interface ActivityOutcome {
         ActivityOutcome,
         Failure {
         /**
-         * The cursor is not one a page of the journal gave.
+         * The cursor is not a positive whole number.
          */
         public class UnknownCursor internal constructor() : Failed {
             override fun equals(other: Any?): Boolean = other is UnknownCursor

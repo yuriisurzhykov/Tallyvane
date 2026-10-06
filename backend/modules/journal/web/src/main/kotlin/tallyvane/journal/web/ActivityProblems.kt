@@ -10,7 +10,7 @@ import tallyvane.platform.http.status.Answers
  */
 internal class ActivityProblems : Problems<ActivityOutcome.Failed> {
     override fun Answers.of(failure: ActivityOutcome.Failed): Problem = when (failure) {
-        is ActivityOutcome.Failed.UnknownCursor -> malformed("The cursor is not one a page of the journal gave.")
+        is ActivityOutcome.Failed.UnknownCursor -> malformed("The cursor must be a positive whole number.")
     }
 
     override fun toString(): String = "ActivityProblems"
