@@ -1284,7 +1284,7 @@ components:
             kind on the same system is not told apart.
         codes_left:
           type: integer
-          description: Only on `recovery_code_spent`: how many recovery codes are left.
+          description: How many recovery codes are left. Only on `recovery_code_spent`.
 
     SecurityEntryDevice:
       type: object

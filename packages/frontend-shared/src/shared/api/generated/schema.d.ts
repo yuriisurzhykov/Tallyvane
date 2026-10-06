@@ -499,6 +499,33 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/security-activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The signed-in person's security journal
+         * @description Their entries, the newest first, thirty at a time. A page that has more after it carries `next`,
+         *     which is passed back as `before` to ask for the following page; the last page has none.
+         *     `400` when `before` is not a cursor a page gave. Nobody's entries but the signed-in person's are
+         *     ever shown, and nothing here lets them change one. Never cached.
+         *
+         *     A device is the one the entry happened on, as it was then: renaming or signing out a device later
+         *     does not change what the journal says. An entry has no device when the session it came from began
+         *     before the journal existed.
+         */
+        get: operations["showSecurityActivity"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/devices": {
         parameters: {
             query?: never;
@@ -793,6 +820,39 @@ export interface components {
              * @default false
              */
             agreed: boolean;
+        };
+        SecurityActivity: {
+            entries: components["schemas"]["SecurityEntry"][];
+            /** @description The cursor of the next page. Absent on the last one. Opaque to a client. */
+            next?: string;
+        };
+        SecurityEntry: {
+            /**
+             * @description What happened. A client branches on it.
+             * @enum {string}
+             */
+            kind: "signed_in" | "totp_turned_on" | "totp_turned_off" | "recovery_code_spent" | "recovery_codes_reissued" | "other_devices_signed_out" | "guessing_stopped";
+            /** Format: date-time */
+            occurred_at: string;
+            /** @description Where it happened, when that is known. A recovery code spent and a guess stopped happen before any session exists, so they have none. */
+            device?: components["schemas"]["SecurityEntryDevice"];
+            /**
+             * @description Only on `signed_in`: the account had no earlier sign-in from the same browser, system and class
+             *     (phone or not). A hint, not a protection: the name does not count, and a second browser of the same
+             *     kind on the same system is not told apart.
+             */
+            first_from_device: boolean;
+            /** @description How many recovery codes are left. Only on `recovery_code_spent`. */
+            codes_left?: number;
+        };
+        SecurityEntryDevice: {
+            /** @enum {string} */
+            browser: "chrome" | "edge" | "firefox" | "opera" | "safari" | "other";
+            /** @enum {string} */
+            platform: "windows" | "macos" | "linux" | "android" | "ios" | "chromeos" | "other";
+            mobile: boolean;
+            /** @description The name the person had given the device when it happened. Absent when they had given none. */
+            name?: string;
         };
         Devices: {
             devices: components["schemas"]["Device"][];
@@ -1373,6 +1433,32 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Me"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    showSecurityActivity: {
+        parameters: {
+            query?: {
+                /** @description The `next` of the page before, to continue after it. Absent for the newest entries. */
+                before?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The page. */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    traceparent: components["headers"]["Traceparent"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SecurityActivity"];
                 };
             };
             default: components["responses"]["Problem"];
