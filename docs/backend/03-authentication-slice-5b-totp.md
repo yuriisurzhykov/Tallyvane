@@ -1,7 +1,7 @@
 # Slice 5b. TOTP on the backend
 
 > Layers: `platform:http`, `authentication`, `server`
-> Status: plan accepted by Yurii on 2026-10-03 as part of slice 5 (all four recommendations). **5b is implemented**: the diagrams below are brought in line with the code (see "What changed while implementing" at the end). If the code departs from a diagram again, the same PR changes the diagram.
+> Status: plan accepted by Yurii on 2026-10-03 as part of slice 5 (all four recommendations). **5b is implemented**: the diagrams below are brought in line with the code (see "What changed while implementing" at the end). If the code departs from a diagram again, the same PR changes the diagram. Setting TOTP up again over a retired seed was fixed afterwards (see the end of section 5, the `TotpStanding` class in section 7, and the last item in section 11).
 > The decision is recorded in [ADR-093](../adr/ADR-093-totp-is-an-enrolment-with-a-standing-and-recovery-codes-retire-it.md).
 > Parent documents: [02-authentication-slice-5.md](02-authentication-slice-5.md) (the slice plan and 5a), [ADR-078](../adr/ADR-078-factors-attempts-and-versioned-policies.md), [ADR-082](../adr/ADR-082-second-factor-operations.md), [ADR-092](../adr/ADR-092-a-dangerous-act-asks-for-a-fresh-proof-and-the-session-remembers-it.md)
 
@@ -25,7 +25,7 @@ Decided while planning 5b, without a new fork:
 - **TOTP parameters.** HMAC-SHA1, 6 digits, 30-second step, the current step and one neighbour on each side are accepted. A step is accepted once: after an accepted code only strictly later steps are accepted. The three candidate codes are compared in constant time.
 - **The seed.** 20 random bytes, written as base32, encrypted in the database with Tink AES-256-GCM under a keyset from a new environment variable `TALLYVANE_TOTP_KEYSET`. The ciphertext carries Tink's own key id, so a rotated keyset can still open older rows. The domain object holds the seed as a `Secret` and tells it to the store through a record; the store seals it on the way down and opens it on the way up, so no domain class ever meets a cipher.
 - **Recovery codes.** Ten codes of ten characters from a 32-letter alphabet without look-alikes (`ABCDE-FGHJK` when shown), 50 bits each, kept as keyed digests under the same pepper as attempts, each valid once. Typing ignores case, dashes and spaces.
-- **Standing of an enrolment.** `Pending` (begun, not confirmed, counts for nothing), `Active`, `Retired` (the seed no longer works, the remaining recovery codes do). Beginning while `Active` is a conflict; beginning while `Pending` or `Retired` starts over. Confirming replaces the whole set of recovery codes.
+- **Standing of an enrolment.** `Pending` (begun, not confirmed, counts for nothing), `Active`, `Retired` (the seed no longer works, the remaining recovery codes do). Beginning while `Active` is a conflict; beginning while `Pending` or `Retired` starts over. Confirming replaces the whole set of recovery codes. What the settings screen is told (`off`, `active`, `retired`) is read by `TotpStanding` from the enrolment and the recovery codes together: a `Pending` enrolment with a set of recovery codes kept beside it is `retired`, because that set exists only once a first code was confirmed.
 - **What counts as enrolled.** TOTP is enrolled while the standing is `Active`. A recovery code is enrolled while at least one is unspent. So the second step applies to a person with an active seed or with unspent codes. When a `Retired` person spends their last code nothing is enrolled any more and Google alone signs them in, the same as for a person who disabled TOTP. The alternative, a second step nobody can pass, is the account lockout ADR-082 refuses.
 - **Any accepted recovery code retires the seed**, at sign-in and at confirmation alike.
 - **One pass through the policy.** The attempt already tells its Google subject through `Attempt.writeTo`, so `ActivePolicies` reads the subject from there, finds the account, builds the real `Enrollment` and asks the policy once. This replaces "compute progress twice" from the slice plan: the answer is the same and there is no intermediate `Progress` to take a subject from.
@@ -111,6 +111,30 @@ sequenceDiagram
     end
 ```
 
+### Setting up again after a recovery-code sign-in
+
+A recovery-code sign-in retires the seed but leaves the unspent recovery codes. Beginning again replaces the retired row with a `Pending` one, so the row alone no longer says that the person had TOTP. `ShowSecondFactor` therefore asks `TotpStanding`, which reads the row and the recovery codes together.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant P as Person
+    participant API as authentication (routes)
+    participant B as BeginTotp
+    participant S as ShowSecondFactor
+    participant DB as totp_enrollments and recovery_codes
+    Note over DB: standing retired, 7 unspent recovery codes
+    P->>API: POST /totp-enrollments (Set up again)
+    API->>B: begin(account)
+    B->>DB: keep(Pending, new seed)
+    B-->>P: key and otpauth address, the person leaves without confirming
+    P->>API: GET /second-factor (later)
+    API->>S: show(account)
+    S->>DB: find(totp) and of(codes)
+    DB-->>S: Pending, a set of recovery codes exists, 7 unspent
+    S-->>P: retired, 7 codes (before the fix: off, 0 codes)
+```
+
 ## 6. Backend module dependencies
 
 The `modules.yaml` rules do not change: `sessions → authentication → identity`, with no arrow back. The new arrows are inside `authentication`, plus the platform edges named below.
@@ -125,7 +149,7 @@ flowchart TB
         aweb["web<br/>SignInStateRoutes, SecondFactorCodeRoutes, SecondFactorRoutes,<br/>TotpEnrollmentRoutes, TotpConfirmationRoutes, TotpRemovalRoutes, RecoveryCodeRoutes,<br/>SecondFactorRoutesFactory"]
         aapp["application<br/>VerifySecondFactor, ShowSignIn, ShowSecondFactor, BeginTotp, ConfirmTotp,<br/>DisableTotp, RegenerateRecoveryCodes, ActivePolicies, Enrollments"]
         acon["contract<br/>SignIns.redeem, SignIns.redeemStepUp"]
-        adom["domain<br/>TotpEnrollment, RecoveryCodes, AccountGuesses, Enrollment, Rfc6238Totp, Base32"]
+        adom["domain<br/>TotpEnrollment, RecoveryCodes, AccountGuesses, Enrollment, TotpStanding, Rfc6238Totp, Base32"]
         ainf["infrastructure<br/>PostgresTotpEnrollments, PostgresRecoveryCodeSets, PostgresAccountFailures,<br/>TinkSecretCipher"]
     end
     subgraph ident [identity]
@@ -196,6 +220,12 @@ classDiagram
         +includes(kind) Boolean
         +of(TotpEnrollment, RecoveryCodes) Enrollment
     }
+    class TotpStanding {
+        <<authentication.domain>>
+        -totp TotpEnrollment
+        -codes RecoveryCodes
+        +reportTo(Report) T
+    }
     class Rfc6238Totp {
         <<internal>>
         +matchingStep(secret, code, now, tolerance, after) Step
@@ -211,6 +241,8 @@ classDiagram
     RecoveryCodes --> SpendVerdict
     Enrollment ..> TotpEnrollment
     Enrollment ..> RecoveryCodes
+    TotpStanding ..> TotpEnrollment
+    TotpStanding ..> RecoveryCodes
 ```
 
 Then the application, with its ports and the use cases that carry the transaction boundaries:
@@ -233,6 +265,10 @@ classDiagram
     class ConfirmTotpUseCase {
         <<application>>
         +confirm(account, code) TotpConfirmed
+    }
+    class ShowSecondFactorUseCase {
+        <<application>>
+        +show(account) SecondFactorShown
     }
     class DisableTotpUseCase {
         <<application>>
@@ -299,6 +335,8 @@ classDiagram
     ConfirmTotpUseCase --> TotpEnrollments
     ConfirmTotpUseCase --> RecoveryCodeSets
     ConfirmTotpUseCase --> RecoveryCodeMint
+    ShowSecondFactorUseCase --> TotpEnrollments
+    ShowSecondFactorUseCase --> RecoveryCodeSets
     DisableTotpUseCase --> TotpEnrollments
     DisableTotpUseCase --> RecoveryCodeSets
     RegenerateRecoveryCodesUseCase --> TotpEnrollments
@@ -358,3 +396,4 @@ The flows and the module arrows above are as planned. These are the places where
 - **First beginnings take turns.** `for update` cannot lock a row that does not exist yet, so `PostgresTotpEnrollments.lock` first takes a transaction-scoped advisory lock named after the account. Two first-time `POST /totp-enrollments` at once then run one after the other (the second starts over, as for any `Pending` enrolment) instead of one of them failing on the primary key. Found in review.
 - **Pepper rotation.** Recovery codes are digests under the token pepper and `Digests` knows one pepper only, as it does for sessions and attempts, so ADR-079's "old digests are checked with the version they were made with" is not yet true anywhere. Rotating `TOKEN_PEPPER` would make every unspent recovery code fail until that exists; it is a platform change and is left to its own slice.
 - **Open point for the owner.** A `Retired` person who has spent every recovery code is signed in by Google alone again (`Enrollment.of`, one line). That follows ADR-082's no-lockout rule; making them set TOTP up again first is a decision for slice 7 (forced setup).
+- **Setting up again over a retired seed** (found in the review of the 5c screens). `BeginTotp` replaces a `Retired` row with a `Pending` one, and `ShowSecondFactor` only knew `Active` and `Retired`, so a person who pressed "Set up again" and left was told `off` with no recovery codes while their unspent codes still worked. Signing in was never affected, since `Enrollment.of` counts a `Pending` seed for nothing and the codes still pass; the settings screen hid the controls and said there was no protection. `TotpStanding` now reads the enrolment and the recovery codes together: a `Pending` enrolment with a set of recovery codes beside it is `retired`. That holds because the only way a set comes to exist is `ConfirmTotp`, and `forget` removes the set with the enrolment. No migration and no change to the API or the frontend; the answer is still `off`, `active` or `retired`.
