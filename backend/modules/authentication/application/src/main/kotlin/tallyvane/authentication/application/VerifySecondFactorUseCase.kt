@@ -15,6 +15,7 @@ import tallyvane.authentication.domain.SpendVerdict
 import tallyvane.authentication.domain.TotpEnrollment
 import tallyvane.authentication.domain.VerifiedFactor
 import tallyvane.identity.contract.AccountId
+import tallyvane.journal.contract.SecurityJournal
 import tallyvane.platform.kernel.Clock
 import tallyvane.platform.kernel.Digest
 import tallyvane.platform.kernel.Digests
@@ -32,7 +33,8 @@ import kotlin.time.Instant
  * answer is recorded in the attempt as the factor it proves; a wrong one is recorded in the attempt and,
  * for a code from the authenticator, in the account's own count, in a transaction that commits although
  * the answer is a refusal. A recovery code is spent, and spending one retires the TOTP seed, so a lost
- * phone stops mattering at once.
+ * phone stops mattering at once. The journal is told when a recovery code is spent and when an attempt is
+ * closed by its wrong answers (ADR-095).
  */
 public interface VerifySecondFactorUseCase : UseCase {
     /**
@@ -52,6 +54,7 @@ public interface VerifySecondFactorUseCase : UseCase {
         private val transactions: TransactionRunner,
         private val clock: Clock,
         private val keys: SignInKeys,
+        private val journal: SecurityJournal,
     ) : VerifySecondFactorUseCase {
         override suspend fun verify(attempt: Secret?, submission: Submission): Verification {
             val key = attempt?.let(keys::keyOf) ?: return Verification.Failed.Closed()
@@ -134,13 +137,20 @@ public interface VerifySecondFactorUseCase : UseCase {
                     }
                     val standing = policies.progressOf(later, purpose, now).reportTo(Waiting(kind))
                     val wait = maxOf(standing.waitAfterWrong(now), accountPause())
-                    return keep(
-                        if (standing is Standing.Closed) {
-                            Verification.Failed.Closed()
-                        } else {
-                            Verification.Failed.WrongCode(wait.takeIf { it > Duration.ZERO })
-                        },
-                    )
+                    return if (standing is Standing.Closed) {
+                        stopped()
+                    } else {
+                        keep(Verification.Failed.WrongCode(wait.takeIf { it > Duration.ZERO }))
+                    }
+                }
+
+                /**
+                 * The wrong answer that closed the attempt: the journal is told, so the person can see that
+                 * someone got past Google and failed the code.
+                 */
+                private fun stopped(): Ruling {
+                    journal.guessingStopped(account)
+                    return keep(Verification.Failed.Closed())
                 }
 
                 private inner class TotpChecked : CodeVerdict.Report<Ruling> {
@@ -156,6 +166,7 @@ public interface VerifySecondFactorUseCase : UseCase {
                     SpendVerdict.Report<Ruling> {
                     override fun spent(next: RecoveryCodes): Ruling {
                         codes.keep(account, next)
+                        journal.recoveryCodeSpent(account, next.remaining())
                         enrollment?.let { totp.keep(account, it.retired()) }
                         return proved(FactorKind.RecoveryCode, next.remaining())
                     }

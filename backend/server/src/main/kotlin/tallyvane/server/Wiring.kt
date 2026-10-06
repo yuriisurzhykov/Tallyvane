@@ -36,9 +36,11 @@ public class Wiring(private val platform: PlatformWiring, private val configurat
 
     private val identity = IdentityWiring(platform)
 
-    private val authentication = AuthenticationWiring(platform, identity, configuration.signIn)
+    private val journal = JournalWiring(platform)
 
-    private val sessions = SessionsWiring(platform, authentication.signIns, configuration.signIn)
+    private val authentication = AuthenticationWiring(platform, identity, journal.contract, configuration.signIn)
+
+    private val sessions = SessionsWiring(platform, authentication.signIns, journal.contract, configuration.signIn)
 
     /**
      * Tells every module's subscribers that something happened. Nothing publishes yet, because the only
@@ -63,7 +65,7 @@ public class Wiring(private val platform: PlatformWiring, private val configurat
                     reporter = HealthReporter.OverChecks(checks),
                     token = ServiceToken(configuration.healthToken.revealed()),
                 ),
-            ) + authentication.routes + sessions.routes + identity.routes,
+            ) + authentication.routes + sessions.routes + journal.routes + identity.routes,
             failures = FailureTranslator.Chained(emptyList()),
             trace = TraceHeader(platform.ids),
             ledger = platform.persistence.ledger,

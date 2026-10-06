@@ -4,16 +4,20 @@ import tallyvane.authentication.contract.Proof
 import tallyvane.authentication.contract.Redemption
 import tallyvane.authentication.contract.SignIns
 import tallyvane.identity.contract.AccountId
+import tallyvane.journal.contract.DeviceFacts
+import tallyvane.journal.contract.SecurityJournal
 import tallyvane.platform.kernel.Clock
 import tallyvane.platform.kernel.Secret
 import tallyvane.platform.kernel.TransactionRunner
 import tallyvane.platform.kernel.UseCase
 import tallyvane.platform.kernel.Verdict
 import tallyvane.sessions.application.port.Sessions
+import tallyvane.sessions.domain.Browser
 import tallyvane.sessions.domain.ClientType
 import tallyvane.sessions.domain.Device
 import tallyvane.sessions.domain.Factor
 import tallyvane.sessions.domain.Lifetimes
+import tallyvane.sessions.domain.Platform
 import tallyvane.sessions.domain.Session
 import tallyvane.sessions.domain.UserAgent
 import kotlin.time.Instant
@@ -24,7 +28,8 @@ import kotlin.time.Instant
  * Takes the completed sign-in from `authentication` and keeps a session under a secret nobody has seen
  * before, in one transaction: either the sign-in is gone and the session exists, or neither happened. A
  * secret that is new, never the sign-in's own, is what keeps someone who planted a known secret before
- * the sign-in from holding the session afterwards (ADR-079).
+ * the sign-in from holding the session afterwards (ADR-079). The journal is told in the same transaction
+ * (ADR-095).
  */
 public interface OpenSessionUseCase : UseCase {
     /**
@@ -36,6 +41,8 @@ public interface OpenSessionUseCase : UseCase {
     public class OpenSession(
         private val signIns: SignIns,
         private val sessions: Sessions,
+        private val journal: SecurityJournal,
+        private val words: DeviceWords,
         private val transactions: TransactionRunner,
         private val clock: Clock,
         private val keys: SessionKeys,
@@ -68,10 +75,27 @@ public interface OpenSessionUseCase : UseCase {
                         now,
                     ),
                 )
+                journal.signedIn(account, issued.id.value, FactsOf().of(device))
                 return Opened.Issued(issued.secret, Lifetimes.LONGEST)
             }
 
             override fun nothingToRedeem(): Opened = Opened.Failed.NothingToOpen()
+        }
+
+        /**
+         * A device as the journal is told of it: in the words the API uses.
+         */
+        private inner class FactsOf : Device.Record {
+            private val told = mutableListOf<DeviceFacts>()
+
+            override fun device(browser: Browser, platform: Platform, mobile: Boolean, name: String?) {
+                told += DeviceFacts(words.of(browser), words.of(platform), mobile, name)
+            }
+
+            fun of(device: Device): DeviceFacts {
+                device.writeTo(this)
+                return told.single()
+            }
         }
 
         private fun factorOf(proof: Proof): Factor = when (proof) {

@@ -1,6 +1,7 @@
 package tallyvane.server
 
 import tallyvane.authentication.contract.SignIns
+import tallyvane.journal.contract.SecurityJournal
 import tallyvane.platform.events.EventSubscriber
 import tallyvane.platform.http.Callers
 import tallyvane.platform.http.RouteModule
@@ -10,6 +11,7 @@ import tallyvane.platform.kernel.SecretGenerator
 import tallyvane.server.config.SignInConfiguration
 import tallyvane.sessions.application.AuthenticateUseCase
 import tallyvane.sessions.application.ConfirmStepUpUseCase
+import tallyvane.sessions.application.DeviceWords
 import tallyvane.sessions.application.ListDevicesUseCase
 import tallyvane.sessions.application.OpenSessionUseCase
 import tallyvane.sessions.application.Recognition
@@ -34,6 +36,7 @@ import tallyvane.sessions.web.SessionsWebFactory
 public class SessionsWiring(
     private val platform: PlatformWiring,
     private val signIns: SignIns,
+    private val journal: SecurityJournal,
     settings: SignInConfiguration,
 ) {
     private val storage = SessionsStorageFactory()
@@ -56,6 +59,8 @@ public class SessionsWiring(
         OpenSessionUseCase.OpenSession(
             signIns,
             storage.sessions(),
+            journal,
+            DeviceWords(),
             platform.persistence.transactions,
             clock,
             keys,
@@ -99,7 +104,7 @@ public class SessionsWiring(
     }
 
     private val signOutOthers: SignOutOthersUseCase by lazy {
-        SignOutOthersUseCase.SignOutOthers(recognition, storage.sessions(), platform.persistence.transactions)
+        SignOutOthersUseCase.SignOutOthers(recognition, storage.sessions(), journal, platform.persistence.transactions)
     }
 
     /**

@@ -21,8 +21,8 @@ internal class SessionCallers(private val authenticate: AuthenticateUseCase, pri
 
     private class Naming : Resolution.Report<Caller> {
         override fun signedIn(account: AccountId, session: SessionId, freshness: Freshness): Caller = when (freshness) {
-            Freshness.Fresh -> Caller.Confirmed(account.value)
-            Freshness.Stale -> Caller.Signed(account.value)
+            Freshness.Fresh -> Caller.Confirmed(account.value, session.value)
+            Freshness.Stale -> Caller.Signed(account.value, session.value)
         }
 
         override fun lapsed(): Caller = Caller.Lapsed()

@@ -119,10 +119,10 @@ internal class Gate(routes: List<RouteModule>, private val callers: Callers, pri
      * Where the route is a dangerous act, a person who has not confirmed recently is told to.
      */
     private class Admitting(private val demandsFreshness: Boolean) : Caller.Report<AccessFailure?> {
-        override fun signedIn(account: kotlin.uuid.Uuid): AccessFailure? =
+        override fun signedIn(account: kotlin.uuid.Uuid, session: kotlin.uuid.Uuid): AccessFailure? =
             if (demandsFreshness) AccessFailure.StepUpRequired else null
 
-        override fun confirmed(account: kotlin.uuid.Uuid): AccessFailure? = null
+        override fun confirmed(account: kotlin.uuid.Uuid, session: kotlin.uuid.Uuid): AccessFailure? = null
 
         override fun lapsed(): AccessFailure = AccessFailure.SessionExpired
 

@@ -31,7 +31,8 @@ internal class TotpRemovalRoutes(private val disable: DisableTotpUseCase, privat
 
     override fun install(route: Route) {
         route.delete {
-            when (val outcome = disable.disable(AccountId(Requester(call).account()))) {
+            val requester = Requester(call)
+            when (val outcome = disable.disable(AccountId(requester.account()), requester.session())) {
                 is TotpDisabled.Disabled -> call.respond(HttpStatusCode.NoContent)
                 is TotpDisabled.Failed -> call.respond(Refused(outcome, problems))
             }

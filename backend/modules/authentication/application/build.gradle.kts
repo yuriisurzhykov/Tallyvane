@@ -13,6 +13,8 @@ dependencies {
     api(projects.modules.authentication.contract)
     // `Accounts` is how a Google subject becomes an account (slice 3).
     api(projects.modules.identity.contract)
+    // The use cases tell the journal what they did, in their own transaction (ADR-095).
+    api(projects.modules.journal.contract)
 
     // Not used yet. `modules.yaml` requires every application layer to name `platform:events` (a
     // declared edge that goes unused is an error, ARCHITECTURE.md 15.2), and the security journal of
@@ -24,6 +26,7 @@ dependencies {
     // The fakes of the ports are fixtures, not test code: the web layer's tests drive the use cases
     // with them, and `src/test` is not visible across a project boundary (ADR-046).
     testFixturesApi(projects.modules.identity.contract)
+    testFixturesApi(testFixtures(projects.modules.journal.contract))
     testFixturesImplementation(libs.kotest.runner.junit5)
     testFixturesImplementation(libs.kotest.assertions.core)
     testFixturesImplementation(libs.kotlinx.coroutines.core)

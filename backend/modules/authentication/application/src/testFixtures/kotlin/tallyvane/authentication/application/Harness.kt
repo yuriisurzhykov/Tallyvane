@@ -5,6 +5,7 @@ import tallyvane.authentication.contract.SignIns
 import tallyvane.authentication.domain.FactorKind
 import tallyvane.authentication.domain.Progress
 import tallyvane.authentication.domain.Purpose
+import tallyvane.journal.contract.SecurityJournalRecorder
 import tallyvane.platform.kernel.Clock
 import tallyvane.platform.kernel.Digests
 import tallyvane.platform.kernel.Secret
@@ -13,6 +14,7 @@ import tallyvane.platform.kernel.TransactionRunnerFake
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
+import kotlin.uuid.Uuid
 
 /**
  * Everything the sign-in use cases need, as fakes, with the policies of ADR-078 in force.
@@ -33,6 +35,16 @@ class Harness {
         }
     }
     val secondFactors = SecondFactorsFake()
+
+    /**
+     * What the journal was told, which a spec reads to see that an act left its record.
+     */
+    val journal = SecurityJournalRecorder()
+
+    /**
+     * The session the requests of the acts that need one come from.
+     */
+    val session: Uuid = Uuid.parse("00000000-0000-4000-8000-0000000000a1")
     private val accountFailures = AccountFailuresFake()
     private val policies = ActivePolicies(versions, AttemptOwners(accounts), Enrollments(secondFactors, secondFactors))
     private val keys = SignInKeys(
@@ -75,18 +87,19 @@ class Harness {
         transactions = transactions,
         clock = clock,
         keys = keys,
+        journal = journal,
     )
 
     val beginTotp: BeginTotpUseCase =
         BeginTotpUseCase.BeginTotp(secondFactors, SeedSourceFake(), "Tallyvane", transactions)
 
     val confirmTotp: ConfirmTotpUseCase =
-        ConfirmTotpUseCase.ConfirmTotp(secondFactors, secondFactors, mint, words, digests, transactions, clock)
+        ConfirmTotpUseCase.ConfirmTotp(secondFactors, secondFactors, mint, words, digests, transactions, journal, clock)
 
-    val disableTotp: DisableTotpUseCase = DisableTotpUseCase.DisableTotp(secondFactors, transactions)
+    val disableTotp: DisableTotpUseCase = DisableTotpUseCase.DisableTotp(secondFactors, journal, transactions)
 
     val regenerateRecoveryCodes: RegenerateRecoveryCodesUseCase = RegenerateRecoveryCodesUseCase
-        .RegenerateRecoveryCodes(secondFactors, secondFactors, mint, words, digests, transactions)
+        .RegenerateRecoveryCodes(secondFactors, secondFactors, mint, words, digests, journal, transactions)
 
     val showSecondFactor: ShowSecondFactorUseCase =
         ShowSecondFactorUseCase.ShowSecondFactor(secondFactors, secondFactors, transactions)
@@ -117,6 +130,7 @@ class Harness {
         transactions = transactions,
         clock = clock,
         keys = keys,
+        journal = journal,
     )
 
     /**
@@ -157,7 +171,7 @@ class Harness {
         (beginTotp.begin(account) as TotpBegun.Started).writeTo { key, _ -> keys += key.revealed() }
         val app = AuthenticatorApp(keys.single())
         val shown = mutableListOf<String>()
-        (confirmTotp.confirm(account, app.codeAt(clock.now())) as TotpConfirmed.Confirmed)
+        (confirmTotp.confirm(account, session, app.codeAt(clock.now())) as TotpConfirmed.Confirmed)
             .writeTo { codes -> shown += codes.map { it.revealed() } }
         clock.passes(STEP)
         return TotpSetUp(app, shown)

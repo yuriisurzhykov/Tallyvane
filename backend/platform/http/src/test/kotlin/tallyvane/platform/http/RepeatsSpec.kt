@@ -54,6 +54,7 @@ private const val KEY_1 = "00000000-0000-0000-0000-000000000001"
 
 private const val KEY_2 = "00000000-0000-0000-0000-000000000002"
 
+private val SESSION = Uuid.parse("00000000-0000-0000-0000-0000000000e1")
 private val PERSON_A = Uuid.parse("00000000-0000-0000-0000-0000000000a1")
 
 private val PERSON_B = Uuid.parse("00000000-0000-0000-0000-0000000000b2")
@@ -141,7 +142,7 @@ private class Rig(
         trace = TraceHeader(IdGeneratorFake()),
         ledger = seen,
         callers = Callers { call ->
-            call.request.headers["X-Person"]?.let { Caller.Signed(Uuid.parse(it)) } ?: Caller.Anonymous()
+            call.request.headers["X-Person"]?.let { Caller.Signed(Uuid.parse(it), SESSION) } ?: Caller.Anonymous()
         },
         appOrigin = APP_ORIGIN,
     )

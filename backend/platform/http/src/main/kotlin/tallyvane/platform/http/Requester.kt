@@ -26,14 +26,23 @@ public class Requester(private val call: ApplicationCall) {
      *
      * @throws IllegalStateException when the request does not come from a signed-in person.
      */
-    public fun account(): Uuid = caller().reportTo(Requiring())
+    public fun account(): Uuid = caller().reportTo(Requiring { account, _ -> account })
+
+    /**
+     * The reference of the session this request came from, for a route that is not [Access.Public]. It says
+     * nothing about the session but which one it is, and is handed on, whole, to whoever has to say which device
+     * an act was done from (ADR-095).
+     *
+     * @throws IllegalStateException when the request does not come from a signed-in person.
+     */
+    public fun session(): Uuid = caller().reportTo(Requiring { _, session -> session })
 
     override fun toString(): String = "Requester"
 
-    private class Requiring : Caller.Report<Uuid> {
-        override fun signedIn(account: Uuid): Uuid = account
+    private class Requiring(private val pick: (account: Uuid, session: Uuid) -> Uuid) : Caller.Report<Uuid> {
+        override fun signedIn(account: Uuid, session: Uuid): Uuid = pick(account, session)
 
-        override fun confirmed(account: Uuid): Uuid = account
+        override fun confirmed(account: Uuid, session: Uuid): Uuid = pick(account, session)
 
         override fun lapsed(): Uuid = error(MISTAKE)
 

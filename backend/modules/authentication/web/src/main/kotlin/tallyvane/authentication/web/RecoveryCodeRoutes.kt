@@ -37,7 +37,8 @@ internal class RecoveryCodeRoutes(
     override fun install(route: Route) {
         route.post {
             call.response.header(HttpHeaders.CacheControl, "no-store")
-            when (val outcome = regenerate.regenerate(AccountId(Requester(call).account()))) {
+            val requester = Requester(call)
+            when (val outcome = regenerate.regenerate(AccountId(requester.account()), requester.session())) {
                 is CodesRegenerated.Regenerated -> {
                     SecretAnswer(call).withheldFromReplay()
                     call.respond(issuedBy(outcome))

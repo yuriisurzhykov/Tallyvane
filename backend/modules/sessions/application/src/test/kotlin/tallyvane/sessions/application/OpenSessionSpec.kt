@@ -18,6 +18,25 @@ class OpenSessionSpec :
                 harness.who(session) shouldBe "signed in ${Harness.ACCOUNT.value}"
             }
 
+            "the journal is told of the sign-in with the device the browser said it is" {
+                val harness = Harness()
+
+                harness.signedIn()
+
+                val line = harness.journal.told().single()
+                line.startsWith("signedIn ${Harness.ACCOUNT} ") shouldBe true
+                line.endsWith("DeviceFacts(chrome on windows)") shouldBe true
+            }
+
+            "a sign-in that opens nothing tells the journal nothing" {
+                val harness = Harness()
+
+                harness.open.open(null, Harness.CHROME_ON_WINDOWS)
+                harness.open.open(Secret("attempt-nobody-completed"), Harness.CHROME_ON_WINDOWS)
+
+                harness.journal.told() shouldBe emptyList()
+            }
+
             "the session's secret is a new one, never the sign-in's own" {
                 val harness = Harness()
                 val attempt = harness.finishedSigningIn()
