@@ -45,31 +45,31 @@ class TotpStandingSpec :
     StringSpec(
         {
             "an account with nothing set up is off" {
-                told(TotpStanding.of(null, null)) shouldBe "off"
+                told(TotpStanding(null, null)) shouldBe "off"
             }
 
             "a first seed that was begun and never confirmed is off" {
-                told(TotpStanding.of(pending(), null)) shouldBe "off"
+                told(TotpStanding(pending(), null)) shouldBe "off"
             }
 
             "a seed that works is active with the codes it has left" {
-                told(TotpStanding.of(active(), codes(10))) shouldBe "active, 10"
+                told(TotpStanding(active(), codes(10))) shouldBe "active, 10"
             }
 
             "a retired seed is retired with the codes it has left" {
-                told(TotpStanding.of(active().retired(), codes(7))) shouldBe "retired, 7"
+                told(TotpStanding(active().retired(), codes(7))) shouldBe "retired, 7"
             }
 
             "a retired seed with every code spent is still retired, with none left" {
-                told(TotpStanding.of(active().retired(), spentAll(codes(2), 2))) shouldBe "retired, 0"
+                told(TotpStanding(active().retired(), spentAll(codes(2), 2))) shouldBe "retired, 0"
             }
 
             "a seed begun again over a retired one is retired, not off, while codes are kept beside it" {
-                told(TotpStanding.of(pending(), codes(7))) shouldBe "retired, 7"
+                told(TotpStanding(pending(), codes(7))) shouldBe "retired, 7"
             }
 
             "a seed begun again after every code was spent is retired with none left" {
-                told(TotpStanding.of(pending(), spentAll(codes(2), 2))) shouldBe "retired, 0"
+                told(TotpStanding(pending(), spentAll(codes(2), 2))) shouldBe "retired, 0"
             }
         },
     )

@@ -222,9 +222,8 @@ classDiagram
     }
     class TotpStanding {
         <<authentication.domain>>
-        -kind Off, Active, Retired
-        -codesLeft
-        +of(TotpEnrollment, RecoveryCodes) TotpStanding
+        -totp TotpEnrollment
+        -codes RecoveryCodes
         +reportTo(Report) T
     }
     class Rfc6238Totp {

@@ -10,21 +10,25 @@ package tallyvane.authentication.domain
  * `Pending` enrolment that has a set kept beside it was begun again over a seed that worked once. That
  * person has recovery codes and no working app, which is what [Report.retired] says, and not "off".
  *
- * Not a `data class`: nothing outside decides a standing, it comes from [of] only.
+ * @param totp The account's enrolment, or null when it has none.
+ * @param codes The account's recovery codes, or null when it was never given any.
  */
-public class TotpStanding private constructor(private val kind: Kind, private val codesLeft: Int) {
+public class TotpStanding(private val totp: TotpEnrollment?, private val codes: RecoveryCodes?) {
     /**
      * Tells [report] which case this is, with the recovery codes still unspent where that matters.
      */
-    public fun <T> reportTo(report: Report<T>): T = when (kind) {
-        Kind.Off -> report.off()
-        Kind.Active -> report.active(codesLeft)
-        Kind.Retired -> report.retired(codesLeft)
+    public fun <T> reportTo(report: Report<T>): T {
+        val left = codes?.remaining() ?: 0
+        return when {
+            totp == null -> report.off()
+            totp.isActive() -> report.active(left)
+            totp.isRetired() -> report.retired(left)
+            codes != null -> report.retired(left)
+            else -> report.off()
+        }
     }
 
-    override fun toString(): String = "TotpStanding($kind)"
-
-    private enum class Kind { Off, Active, Retired }
+    override fun toString(): String = "TotpStanding(totp=$totp, codes=$codes)"
 
     /**
      * A reader of [TotpStanding], one method per case.
@@ -45,21 +49,5 @@ public class TotpStanding private constructor(private val kind: Kind, private va
          * seed begun again and not yet confirmed; [codesLeft] recovery codes are unspent.
          */
         public fun retired(codesLeft: Int): T
-    }
-
-    public companion object {
-        /**
-         * The standing of an account with [totp] and [codes], either of which it may not have.
-         */
-        public fun of(totp: TotpEnrollment?, codes: RecoveryCodes?): TotpStanding {
-            val left = codes?.remaining() ?: 0
-            return when {
-                totp == null -> TotpStanding(Kind.Off, 0)
-                totp.isActive() -> TotpStanding(Kind.Active, left)
-                totp.isRetired() -> TotpStanding(Kind.Retired, left)
-                codes != null -> TotpStanding(Kind.Retired, left)
-                else -> TotpStanding(Kind.Off, 0)
-            }
-        }
     }
 }

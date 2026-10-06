@@ -20,11 +20,11 @@ public interface ShowSecondFactorUseCase : UseCase {
         private val transactions: TransactionRunner,
     ) : ShowSecondFactorUseCase {
         override suspend fun show(account: AccountId): SecondFactorShown = transactions.inTransaction {
-            val standing = TotpStanding.of(enrollments.find(account), codes.of(account))
-            Verdict.Commit(standing.reportTo(Showing))
+            val standing = TotpStanding(enrollments.find(account), codes.of(account))
+            Verdict.Commit(standing.reportTo(Showing()))
         }
 
-        private object Showing : TotpStanding.Report<SecondFactorShown> {
+        private class Showing : TotpStanding.Report<SecondFactorShown> {
             override fun off(): SecondFactorShown = SecondFactorShown(SecondFactorShown.Standing.Off, 0)
 
             override fun active(codesLeft: Int): SecondFactorShown =

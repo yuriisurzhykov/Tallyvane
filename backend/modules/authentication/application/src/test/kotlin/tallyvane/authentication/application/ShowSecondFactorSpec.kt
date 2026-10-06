@@ -45,8 +45,8 @@ class ShowSecondFactorSpec :
                     harness.verify.verify(attempt, Submission.RecoveryCode(setup.recoveryCodes.first()))
                     val app = AuthenticatorApp(keyOf(harness.beginTotp.begin(account)))
 
-                    (harness.confirmTotp.confirm(account, app.codeAt(harness.clock.now())) is TotpConfirmed.Confirmed) shouldBe
-                        true
+                    val confirmed = harness.confirmTotp.confirm(account, app.codeAt(harness.clock.now()))
+                    (confirmed is TotpConfirmed.Confirmed) shouldBe true
 
                     shownAs(harness.showSecondFactor.show(account)) shouldBe "active, 10 codes"
                 }
