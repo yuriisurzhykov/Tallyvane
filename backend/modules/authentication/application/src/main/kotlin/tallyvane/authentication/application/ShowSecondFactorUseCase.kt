@@ -2,6 +2,7 @@ package tallyvane.authentication.application
 
 import tallyvane.authentication.application.port.RecoveryCodeSets
 import tallyvane.authentication.application.port.TotpEnrollments
+import tallyvane.authentication.domain.TotpStanding
 import tallyvane.identity.contract.AccountId
 import tallyvane.platform.kernel.TransactionRunner
 import tallyvane.platform.kernel.UseCase
@@ -19,15 +20,18 @@ public interface ShowSecondFactorUseCase : UseCase {
         private val transactions: TransactionRunner,
     ) : ShowSecondFactorUseCase {
         override suspend fun show(account: AccountId): SecondFactorShown = transactions.inTransaction {
-            val enrollment = enrollments.find(account)
-            val left = codes.of(account)?.remaining() ?: 0
-            Verdict.Commit(
-                when {
-                    enrollment?.isActive() == true -> SecondFactorShown(SecondFactorShown.Standing.Active, left)
-                    enrollment?.isRetired() == true -> SecondFactorShown(SecondFactorShown.Standing.Retired, left)
-                    else -> SecondFactorShown(SecondFactorShown.Standing.Off, 0)
-                },
-            )
+            val standing = TotpStanding(enrollments.find(account), codes.of(account))
+            Verdict.Commit(standing.reportTo(Showing()))
+        }
+
+        private class Showing : TotpStanding.Report<SecondFactorShown> {
+            override fun off(): SecondFactorShown = SecondFactorShown(SecondFactorShown.Standing.Off, 0)
+
+            override fun active(codesLeft: Int): SecondFactorShown =
+                SecondFactorShown(SecondFactorShown.Standing.Active, codesLeft)
+
+            override fun retired(codesLeft: Int): SecondFactorShown =
+                SecondFactorShown(SecondFactorShown.Standing.Retired, codesLeft)
         }
     }
 }

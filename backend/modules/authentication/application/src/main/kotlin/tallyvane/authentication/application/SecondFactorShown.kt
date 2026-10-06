@@ -37,8 +37,8 @@ public class SecondFactorShown internal constructor(
         public fun active(recoveryCodesLeft: Int): T
 
         /**
-         * The seed was retired because a recovery code was spent; this many recovery codes are unspent. The
-         * person turns TOTP on again.
+         * The seed does not work, because a recovery code was spent or because a new one was begun over it and
+         * not confirmed; this many recovery codes are unspent. The person turns TOTP on again.
          */
         public fun retired(recoveryCodesLeft: Int): T
     }

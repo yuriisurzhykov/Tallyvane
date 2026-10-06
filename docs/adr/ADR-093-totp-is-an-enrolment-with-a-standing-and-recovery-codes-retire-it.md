@@ -27,6 +27,8 @@ while `Active` is a conflict; beginning while `Pending` or `Retired` starts over
 enrolment `Active` and issues a whole new set of recovery codes, replacing any older one. Disabling removes the enrolment
 and, with it, the codes.
 
+**What the settings screen is told is read from the enrolment and the recovery codes together** (`TotpStanding`). A `Pending` enrolment with a set of recovery codes beside it is shown as `retired`, not `off`: the set exists only after a first code was confirmed, so that seed replaced one that worked once, and the person still holds recovery codes. This keeps the stored states as they are and adds no migration.
+
 **The parameters are the ones every authenticator app speaks.** HMAC-SHA1, six digits, thirty-second steps; the
 current step and one on each side are accepted, to forgive a slow hand and a clock that is a little off. The three
 candidate codes are compared in constant time. **A step is accepted once:** the enrolment remembers the step of the last
