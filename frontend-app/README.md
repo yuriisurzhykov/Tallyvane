@@ -44,7 +44,9 @@ the real server and database, use the stand in `ops/local/` (see `ops/README.md`
 the server component that asks who is visiting needs `TALLYVANE_API_INTERNAL_URL`.
 
 Turning two-step sign-in on and off, and the recovery codes, are on
-`/settings/security` (slice 5c, `docs/backend/04-authentication-slice-5c-totp-screens.md`).
+`/settings/security` (slice 5c, `docs/backend/04-authentication-slice-5c-totp-screens.md`). What has happened to the
+account's security (sign-ins, second-factor changes) is on `/settings/activity` (slice 6b,
+`docs/backend/06-authentication-slice-6b-activity-page.md`).
 
 ## What's shared with the sibling apps, and how
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { components } from "frontend-shared/api";
-import { Device, type DeviceWords } from "./Device";
+import { Device } from "./Device";
+import type { DeviceWords } from "./DeviceLabel";
 
 type Wire = components["schemas"]["Device"];
 
@@ -32,18 +33,8 @@ function agoFrom(lastActiveAt: string): string {
 }
 
 describe("Device.description", () => {
-    it.each<[Partial<Wire>, string]>([
-        [{ browser: "chrome", platform: "windows" }, "Chrome on Windows"],
-        [{ browser: "safari", platform: "ios", mobile: true }, "Safari on iOS · mobile"],
-        [{ browser: "edge", platform: "macos" }, "Edge on macOS"],
-        [{ browser: "firefox", platform: "linux" }, "Firefox on Linux"],
-        [{ browser: "opera", platform: "chromeos" }, "Opera on ChromeOS"],
-        [{ browser: "other", platform: "android" }, "Other browser on Android"],
-        [{ browser: "chrome", platform: "other" }, "Chrome on unknown system"],
-        [{ browser: "other", platform: "other" }, "Unknown device"],
-        [{ browser: "other", platform: "other", mobile: true }, "Unknown device · mobile"],
-    ])("calls %j %s", (parts, expected) => {
-        expect(device(parts).description(WORDS)).toBe(expected);
+    it("names the device the way a label does, mobile included", () => {
+        expect(device({ browser: "safari", platform: "ios", mobile: true }).description(WORDS)).toBe("Safari on iOS · mobile");
     });
 });
 

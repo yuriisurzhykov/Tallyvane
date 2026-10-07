@@ -1,33 +1,7 @@
 import type { components } from "frontend-shared/api";
+import { DeviceLabel, type DeviceWords } from "./DeviceLabel";
 
 type Wire = components["schemas"]["Device"];
-
-/** The words of a description that are not proper names, so that the screen's own language supplies them. */
-export interface DeviceWords {
-    readonly unknownDevice: string;
-    readonly otherBrowser: string;
-    readonly unknownSystem: string;
-    readonly mobile: string;
-    /** "Chrome on Windows": the two parts joined the way the language joins them. */
-    readonly described: (browser: string, system: string) => string;
-}
-
-const BROWSERS: Readonly<Record<Exclude<Wire["browser"], "other">, string>> = {
-    chrome: "Chrome",
-    edge: "Edge",
-    firefox: "Firefox",
-    opera: "Opera",
-    safari: "Safari",
-};
-
-const PLATFORMS: Readonly<Record<Exclude<Wire["platform"], "other">, string>> = {
-    windows: "Windows",
-    macos: "macOS",
-    linux: "Linux",
-    android: "Android",
-    ios: "iOS",
-    chromeos: "ChromeOS",
-};
 
 const MINUTE_MS = 60_000;
 const HOUR_MS = 60 * MINUTE_MS;
@@ -42,9 +16,11 @@ const ACTIVE_NOW_MS = 2 * MINUTE_MS;
  */
 export class Device {
     private readonly wire: Wire;
+    private readonly label: DeviceLabel;
 
     public constructor(wire: Wire) {
         this.wire = wire;
+        this.label = new DeviceLabel(wire.browser, wire.platform, wire.mobile);
     }
 
     /** What names this device to the server, and to React among its siblings. It is not a secret. */
@@ -63,12 +39,7 @@ export class Device {
 
     /** "Chrome on Windows", with "mobile" after it for a phone or tablet. */
     public description(words: DeviceWords): string {
-        const browser = this.wire.browser === "other" ? undefined : BROWSERS[this.wire.browser];
-        const system = this.wire.platform === "other" ? undefined : PLATFORMS[this.wire.platform];
-        const kind = browser === undefined && system === undefined
-            ? words.unknownDevice
-            : words.described(browser ?? words.otherBrowser, system ?? words.unknownSystem);
-        return this.wire.mobile ? `${kind} · ${words.mobile}` : kind;
+        return this.label.describe(words);
     }
 
     public signedInOn(locale: string): string {

@@ -75,7 +75,8 @@
         "menu": "Account menu",
         "signOut": "Sign out",
         "devices": "Devices",
-        "security": "Security"
+        "security": "Security",
+        "activity": "Activity"
     },
     "devices": {
         "loading": "Loading your devices…",
@@ -103,6 +104,34 @@
         "activeNow": "Active now",
         "activeAgo": "Active {when}",
         "lastActiveOn": "Last active {time}"
+    },
+    "activity": {
+        "page": "Activity",
+        "lead": "Sign-ins and changes to your security, newest first. If something here wasn't you, sign out your other devices on the Devices page.",
+        "loading": "Loading your activity…",
+        "loadFailed": "We couldn't load your activity.",
+        "tryAgain": "Try again",
+        "empty": "Nothing here yet",
+        "emptyHint": "Sign-ins and changes to your security will show up here.",
+        "showMore": "Show more",
+        "moreFailed": "We couldn't load more entries.",
+        "signedIn": "Signed in",
+        "totpTurnedOn": "Two-step sign-in turned on",
+        "totpTurnedOff": "Two-step sign-in turned off",
+        "recoveryCodeSpent": "Recovery code used to sign in",
+        "recoveryCodesReissued": "New recovery codes issued",
+        "otherDevicesSignedOut": "Signed out on all other devices",
+        "guessingStopped": "Wrong codes were entered after Google sign-in, and the attempt was closed",
+        "withCodesLeft": "{title} · {count} left",
+        "named": "{name} · {device}",
+        "newDevice": "New device",
+        "securityChange": "Security change",
+        "stopped": "Stopped",
+        "described": "{browser} on {system}",
+        "unknownDevice": "Unknown device",
+        "otherBrowser": "Other browser",
+        "unknownSystem": "unknown system",
+        "mobile": "mobile"
     },
     "verify": {
         "title": "Enter your code",

@@ -17,6 +17,7 @@ export function AccountMenu() {
             <Menu.Popup align="end">
                 <Menu.Item render={<Link href="/settings/security" />}>{t("security")}</Menu.Item>
                 <Menu.Item render={<Link href="/settings/devices" />}>{t("devices")}</Menu.Item>
+                <Menu.Item render={<Link href="/settings/activity" />}>{t("activity")}</Menu.Item>
                 <SignOutMenuItem />
             </Menu.Popup>
         </Menu.Root>

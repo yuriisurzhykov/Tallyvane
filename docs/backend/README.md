@@ -26,6 +26,9 @@ before the module is built.
 - [05-authentication-slice-6-journal.md](05-authentication-slice-6-journal.md) — the security journal:
   how an entry is written and read, module dependencies, classes and the table of slice 6.
 
+- [06-authentication-slice-6b-activity-page.md](06-authentication-slice-6b-activity-page.md) — the Activity
+  page of the console: how the journal is read a page at a time, module dependencies and classes of slice 6b.
+
 ## Per capability
 
 None yet. [ARCHITECTURE.md](../../ARCHITECTURE.md) sections 4 through 9 hold the
