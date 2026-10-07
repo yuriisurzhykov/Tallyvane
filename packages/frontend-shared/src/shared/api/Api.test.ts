@@ -62,6 +62,19 @@ describe("Api", () => {
         });
     });
 
+    it("sends the query the operation names, escaped, and nothing for a name left out", async () => {
+        const wire = new ScriptedTransport(ok({ entries: [] }), ok({ entries: [] }));
+        const api = new Api(wire);
+
+        await api.get("/security-activity");
+        await api.get("/security-activity", { query: { before: "1 2&3" } });
+
+        expect(wire.requests.map((sent) => sent.path)).toEqual([
+            "/security-activity",
+            "/security-activity?before=1+2%263",
+        ]);
+    });
+
     it("refuses to send a path whose segment has no value", async () => {
         const wire = new ScriptedTransport();
         const api = new Api(wire);

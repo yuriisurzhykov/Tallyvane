@@ -41,7 +41,14 @@ type Options<Op> = [PathParams<Op>] extends [never]
     ? [options?: CallOptions]
     : [options: CallOptions & { readonly params: PathParams<Op> }];
 
+/** The query names the operation takes. An operation with none cannot be given a `query` at all. */
+type QueryParams<Op> = Op extends { parameters: { query?: infer Named } } ? NonNullable<Named> : never;
+
+/** What follows the path of a `GET`: a `query` only for an operation that has one, and it is optional because every parameter is. */
+type ReadOptions<Op> = [QueryParams<Op>] extends [never] ? [] : [options?: { readonly query?: QueryParams<Op> }];
+
 type Params = Readonly<Record<string, string>>;
+type Query = Readonly<Record<string, string | number | boolean | undefined>>;
 
 type BodiedPostPaths = {
     [P in PathsWith<"post">]: [RequestBody<Operation<P, "post">>] extends [never] ? never : P;
@@ -61,8 +68,11 @@ export class Api {
         this.transport = transport;
     }
 
-    public get<P extends PathsWith<"get">>(path: P): Promise<ResponseBody<Operation<P, "get">>> {
-        return this.call("GET", path, undefined, undefined);
+    public get<P extends PathsWith<"get">>(
+        path: P,
+        ...options: ReadOptions<Operation<P, "get">>
+    ): Promise<ResponseBody<Operation<P, "get">>> {
+        return this.call("GET", path, undefined, options[0]);
     }
 
     public post<P extends BodiedPostPaths>(
@@ -100,15 +110,27 @@ export class Api {
         method: HttpMethod,
         path: string,
         body: unknown,
-        options: (CallOptions & { readonly params?: Params }) | undefined,
+        options: (CallOptions & { readonly params?: Params; readonly query?: Query }) | undefined,
     ): Promise<Body> {
         const request: ApiRequest = {
             method,
-            path: Api.filled(path, options?.params ?? {}),
+            path: Api.queried(Api.filled(path, options?.params ?? {}), options?.query ?? {}),
             ...(body !== undefined ? { body } : {}),
             headers: options?.idempotencyKey !== undefined ? { [IDEMPOTENCY_KEY_HEADER]: options.idempotencyKey } : {},
         };
         return (await this.transport.send(request)).body as Body;
+    }
+
+    /** Appends the names that have a value, escaped, as the query of the path. A name left `undefined` is not sent. */
+    private static queried(path: string, query: Query): string {
+        const search = new URLSearchParams();
+        for (const [name, value] of Object.entries(query)) {
+            if (value !== undefined) {
+                search.append(name, String(value));
+            }
+        }
+        const text = search.toString();
+        return text === "" ? path : `${path}?${text}`;
     }
 
     /** Puts each value, escaped, where the specification's path has its `{name}`. A segment nobody gave a value is a bug, not a request. */
