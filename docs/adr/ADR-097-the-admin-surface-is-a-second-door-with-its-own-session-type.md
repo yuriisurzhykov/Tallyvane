@@ -32,7 +32,9 @@ redirect URI Google is given and trades the code against, and the page the brows
 attempt begun on one door cannot be continued on the other.
 
 **The administrator's session is its own `ClientType`, `Admin`.** It has lifetimes of its own, versioned like the
-browser's (ADR-090): by default one hour idle, eight hours absolute, five minutes of freshness. The server compares the type
+browser's (ADR-090): by default one hour idle, eight hours absolute, five minutes of freshness. Those defaults are carried
+by the code, not seeded as a row, because the release that rolls out alongside cannot read an unknown kind (ADR-066); the
+first row is added with the versions API (slice 7b). The server compares the type
 of a session with the door of the request, so an `Admin` session does not work on `app.` and a `Browser` session does
 not work on `admin.` even if the secret is carried across by hand; a session that does not fit is answered like an ended
 one and is not deleted. `OpenSession` for the `Admin` door redeems only an `admin_login` sign-in

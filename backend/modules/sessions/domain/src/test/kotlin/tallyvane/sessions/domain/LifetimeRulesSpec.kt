@@ -60,8 +60,8 @@ class LifetimeRulesSpec :
                 shouldThrow<IllegalStateException> { LifetimeRules.restore { } }
             }
 
-            "refuses rules that leave the administrators without lifetimes" {
-                shouldThrow<IllegalStateException> {
+            "judges the administrators by their starting lifetimes while no version of theirs is kept" {
+                shouldNotThrowAny {
                     LifetimeRules.restore { it.lifetimes(ClientType.Browser, 1.days, 7.days, 5.minutes) }
                 }
             }
