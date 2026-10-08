@@ -608,3 +608,23 @@ one it cannot parse. Make it once with `tinkey create-keyset --key-template AES2
 with the other secrets: a keyset that cannot open a stored seed makes that person's TOTP unusable until they turn it
 off and on again. To rotate, add a key and make it primary, so the old key still opens what it sealed. `ops/local/env.example`
 carries one for a laptop only.
+
+## 2026-10-07 — administrators: a second redirect URI and `grant-admin.sh`
+
+`admin.<domain>` now serves the same sign-in routes as `app.`, and what it issues is an administrator's session
+(ADR-097). Three things are needed outside the code:
+
+- **A second redirect URI at Google.** Add `https://admin.<domain>/api/v1/google-return` next to the console's in the
+  OAuth client. Without it Google refuses the administrator's sign-in with `redirect_uri_mismatch`.
+- **`ADMIN_ORIGIN`** in the server's `.env`, only when the administrators' host is not `admin.<DOMAIN>`. The server
+  refuses to start if it names the same host as `APP_ORIGIN`.
+- **The right itself.** Nobody becomes an administrator through the API. Sign in once on `app.` with the Google account
+  and turn TOTP on (the administrators' sign-in demands it of everyone), then on the server:
+
+      ops/grant-admin.sh you@example.com            # give the right
+      ops/grant-admin.sh --revoke you@example.com   # take it away; works from the next request
+
+  The script finds the account by its address and does nothing if two accounts report the same one.
+
+Cloudflare Access stays the first door and is not checked by the server (ADR-097). On a laptop (`ops/local/`) the
+administrators' site is not reachable: Google accepts only `localhost` as a plain-http redirect URI.

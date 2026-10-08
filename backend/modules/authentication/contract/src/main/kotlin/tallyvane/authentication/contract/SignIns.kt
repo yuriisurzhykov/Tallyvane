@@ -25,6 +25,15 @@ public interface SignIns {
     public fun redeem(secret: Secret): Redemption
 
     /**
+     * Takes the completed sign-in of an administrator the browser's [secret] belongs to (ADR-097).
+     *
+     * An administrator's sign-in is a purpose of its own, `admin_login`, with a policy of its own, and it is
+     * redeemed only here: [redeem] never takes it and this never takes an ordinary sign-in, so neither kind of
+     * session can be had with the other's proof. Everything else is as for [redeem].
+     */
+    public fun redeemAdminLogin(secret: Secret): Redemption
+
+    /**
      * Takes the completed confirmation the browser's [secret] belongs to: a person who is already signed in
      * proved who they are again (ADR-092).
      *

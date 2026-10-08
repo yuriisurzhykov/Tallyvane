@@ -12,7 +12,9 @@ import tallyvane.authentication.application.TurnBack
 import tallyvane.platform.http.Access
 import tallyvane.platform.http.BasePath
 import tallyvane.platform.http.RouteModule
+import tallyvane.platform.http.Surfaces
 import tallyvane.platform.kernel.Secret
+import tallyvane.platform.kernel.Surface
 
 /**
  * Where Google sends the browser back to.
@@ -26,12 +28,15 @@ import tallyvane.platform.kernel.Secret
  * person to `/welcome` with a new cookie, one confirming a dangerous act to `/step-up/continue`, and
  * anyone else back to `/login` with a reason.
  *
- * This is the one address registered with Google as the redirect URI.
+ * It is served on both hosts, and the host it was reached on says which door the person is on (ADR-097): the
+ * pages they are sent to are on that host. `/google-return` on each of the two hosts is registered with
+ * Google as a redirect URI.
  */
 internal class GoogleReturnRoutes(
     private val continueWith: ContinueWithGoogleUseCase,
     private val cookie: AttemptCookie,
     private val pages: ReturnPages,
+    private val surfaces: Surfaces,
 ) : RouteModule {
     override val basePath: BasePath = BasePath("/google-return")
 
@@ -42,8 +47,9 @@ internal class GoogleReturnRoutes(
             val code = call.request.queryParameters["code"]
             val state = call.request.queryParameters["state"]
             val reply = if (code != null && state != null) GoogleReply.Granted(code, state) else GoogleReply.Declined()
-            val returned = continueWith.continueWith(cookie.secretIn(call), reply)
-            call.respondRedirect(returned.reportTo(Landing(call, cookie, pages)))
+            val surface = surfaces.of(call)
+            val returned = continueWith.continueWith(cookie.secretIn(call), reply, surface)
+            call.respondRedirect(returned.reportTo(Landing(call, cookie, pages, surface)))
         }
     }
 
@@ -56,19 +62,20 @@ internal class GoogleReturnRoutes(
         private val call: ApplicationCall,
         private val cookie: AttemptCookie,
         private val pages: ReturnPages,
+        private val surface: Surface,
     ) : GoogleReturn.Report<String> {
-        override fun verified(): String = pages.afterVerified()
+        override fun verified(): String = pages.afterVerified(surface)
 
-        override fun steppedUp(): String = pages.afterSteppedUp()
+        override fun steppedUp(): String = pages.afterSteppedUp(surface)
 
         override fun registering(attempt: Secret): String {
             cookie.give(call, attempt)
-            return pages.afterRegistering()
+            return pages.afterRegistering(surface)
         }
 
         override fun turnedBack(reason: TurnBack): String {
             cookie.clear(call)
-            return pages.afterTurnedBack(reason)
+            return pages.afterTurnedBack(surface, reason)
         }
     }
 }

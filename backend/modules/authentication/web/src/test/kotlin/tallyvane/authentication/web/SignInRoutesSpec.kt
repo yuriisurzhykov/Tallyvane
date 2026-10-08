@@ -11,6 +11,7 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.testing.testApplication
 import tallyvane.platform.http.fromApp
+import tallyvane.platform.kernel.Secret
 
 class SignInRoutesSpec :
     StringSpec(
@@ -43,6 +44,37 @@ class SignInRoutesSpec :
                     application { Served().api().install(this) }
 
                     client.post("/api/v1/google-sign-in") { fromApp() }.status shouldBe HttpStatusCode.BadRequest
+                }
+            }
+
+            "an administrator's sign-in is begun on the administrators' host, with that door's own origin" {
+                testApplication {
+                    val served = Served()
+                    served.harness.accounts.knows("sub-1")
+                    application { served.api().install(this) }
+
+                    val answer = client.post("/api/v1/google-sign-in") {
+                        header(HttpHeaders.Host, "admin.example.test")
+                        header(HttpHeaders.Origin, ADMIN)
+                        header("Idempotency-Key", "0199a000-0000-7000-8000-000000000002")
+                    }
+
+                    answer.status shouldBe HttpStatusCode.OK
+                    val attempt = answer.headers.getAll(HttpHeaders.SetCookie).orEmpty().single()
+                        .substringAfter("__Host-attempt=").substringBefore(";")
+                    served.harness.standing(Secret(attempt)) shouldBe "awaiting [Google]"
+                }
+            }
+
+            "the console's origin is refused on the administrators' host" {
+                testApplication {
+                    application { Served().api().install(this) }
+
+                    client.post("/api/v1/google-sign-in") {
+                        header(HttpHeaders.Host, "admin.example.test")
+                        fromApp()
+                        header("Idempotency-Key", "0199a000-0000-7000-8000-000000000003")
+                    }.status shouldBe HttpStatusCode.Forbidden
                 }
             }
         },

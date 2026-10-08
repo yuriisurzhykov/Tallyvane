@@ -20,8 +20,8 @@ import io.ktor.util.pipeline.PipelineContext
  * Two interceptors do it, both installed by `Api` itself and ahead of the idempotency claim, so no
  * route can opt out and a refused request leaves nothing behind:
  *
- * 1. **Forgery.** An unsafe request must come from the application's own origin, exactly: its `Origin`
- *    header names it, or, where the browser sent none, `Sec-Fetch-Site` says `same-origin`. A request
+ * 1. **Forgery.** An unsafe request must come from the origin of the door it came through, exactly: its
+ *    `Origin` header names it, or, where the browser sent none, `Sec-Fetch-Site` says `same-origin`. A request
  *    with neither is refused. A body must be `application/json`, which an HTML form cannot send.
  * 2. **Identity.** [Callers] says who the request comes from, once, and the answer is kept on the call.
  *    A route that is not [Access.Public] then lets only a signed-in person through, and one that is
@@ -36,7 +36,7 @@ import io.ktor.util.pipeline.PipelineContext
  * through on a stale proof only when it plainly names no dangerous route, so an odd spelling cannot
  * reach one without the confirmation.
  */
-internal class Gate(routes: List<RouteModule>, private val callers: Callers, private val appOrigin: String) {
+internal class Gate(routes: List<RouteModule>, private val callers: Callers, private val surfaces: Surfaces) {
     private val problems = AccessProblems()
 
     private val openPrefixes = routes.filter { it.access == Access.Public }.map { "$VERSIONED${it.basePath.value}" }
@@ -69,7 +69,7 @@ internal class Gate(routes: List<RouteModule>, private val callers: Callers, pri
     private fun fromOurOrigin(call: PipelineCall): Boolean {
         val origin = call.request.headers[HttpHeaders.Origin]
         return if (origin != null) {
-            origin == appOrigin
+            origin == surfaces.originOf(surfaces.of(call))
         } else {
             call.request.headers[SEC_FETCH_SITE] == SAME_ORIGIN
         }

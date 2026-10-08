@@ -12,6 +12,7 @@ import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
 import tallyvane.authentication.application.GoogleAnswer
 import tallyvane.authentication.application.GoogleProfile
+import tallyvane.platform.kernel.Surface
 
 private fun ApplicationTestBuilder.browser(): HttpClient = createClient { followRedirects = false }
 
@@ -88,6 +89,57 @@ class GoogleReturnRoutesSpec :
                     val answer = browser().get("/api/v1/google-return?code=any&state=any&$evil")
 
                     answer.headers[HttpHeaders.Location]!!.startsWith("$APP/") shouldBe true
+                }
+            }
+
+            "a person who comes back on the administrators' host lands on the administrators' pages" {
+                testApplication {
+                    val served = Served()
+                    served.harness.accounts.knows("sub-1")
+                    application { served.api().install(this) }
+                    val pressed = served.harness.pressSignIn(Surface.Admin)
+                    val code = served.harness.google.arrange(pressed.state, vouched())
+
+                    val answer = browser().get("/api/v1/google-return?code=$code&state=${pressed.state}") {
+                        header(HttpHeaders.Host, "admin.example.test")
+                        header(HttpHeaders.Cookie, "__Host-attempt=${pressed.attempt.revealed()}")
+                    }
+
+                    answer.headers[HttpHeaders.Location] shouldBe "$ADMIN/login/continue"
+                }
+            }
+
+            "a stranger to the administrators' site is sent back to its sign-in page, refused, and not registered" {
+                testApplication {
+                    val served = Served()
+                    application { served.api().install(this) }
+                    val pressed = served.harness.pressSignIn(Surface.Admin)
+                    val code = served.harness.google.arrange(pressed.state, vouched())
+
+                    val answer = browser().get("/api/v1/google-return?code=$code&state=${pressed.state}") {
+                        header(HttpHeaders.Host, "admin.example.test")
+                        header(HttpHeaders.Cookie, "__Host-attempt=${pressed.attempt.revealed()}")
+                    }
+
+                    answer.headers[HttpHeaders.Location] shouldBe "$ADMIN/login?problem=refused"
+                    served.harness.accounts.knowing("sub-1") shouldBe false
+                }
+            }
+
+            "a return through the other host than the one the sign-in left from is turned back" {
+                testApplication {
+                    val served = Served()
+                    served.harness.accounts.knows("sub-1")
+                    application { served.api().install(this) }
+                    val pressed = served.harness.pressSignIn(Surface.App)
+                    val code = served.harness.google.arrange(pressed.state, vouched())
+
+                    val answer = browser().get("/api/v1/google-return?code=$code&state=${pressed.state}") {
+                        header(HttpHeaders.Host, "admin.example.test")
+                        header(HttpHeaders.Cookie, "__Host-attempt=${pressed.attempt.revealed()}")
+                    }
+
+                    answer.headers[HttpHeaders.Location] shouldBe "$ADMIN/login?problem=refused"
                 }
             }
         },

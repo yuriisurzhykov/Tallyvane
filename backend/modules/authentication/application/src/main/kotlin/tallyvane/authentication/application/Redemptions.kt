@@ -33,6 +33,8 @@ public class Redemptions(
 ) : SignIns {
     override fun redeem(secret: Secret): Redemption = redeemFor(secret, SIGN_INS)
 
+    override fun redeemAdminLogin(secret: Secret): Redemption = redeemFor(secret, ADMIN_SIGN_INS)
+
     override fun redeemStepUp(secret: Secret): Redemption = redeemFor(secret, STEP_UPS)
 
     private fun redeemFor(secret: Secret, redeemable: List<Purpose>): Redemption {
@@ -88,6 +90,11 @@ public class Redemptions(
          * The purposes whose completion is a session: signing in, and registering, which ends signed in.
          */
         val SIGN_INS = listOf(Purpose.Login, Purpose.Registration)
+
+        /**
+         * The purpose whose completion is an administrator's session (ADR-097).
+         */
+        val ADMIN_SIGN_INS = listOf(Purpose.AdminLogin)
 
         /**
          * The purpose whose completion is a confirmation of a session that already exists (ADR-092).

@@ -2,6 +2,7 @@ package tallyvane.sessions.web
 
 import tallyvane.platform.http.Callers
 import tallyvane.platform.http.RouteModule
+import tallyvane.platform.http.Surfaces
 import tallyvane.sessions.application.AuthenticateUseCase
 import tallyvane.sessions.application.ConfirmStepUpUseCase
 import tallyvane.sessions.application.ListDevicesUseCase
@@ -20,14 +21,14 @@ public class SessionsWebFactory {
     /**
      * `POST /sessions`: exchanging a completed sign-in for a session.
      */
-    public fun open(open: OpenSessionUseCase): RouteModule =
-        SessionRoutes(open, SessionCookie(), SpentAttemptCookie(), SessionProblems())
+    public fun open(open: OpenSessionUseCase, surfaces: Surfaces): RouteModule =
+        SessionRoutes(open, SessionCookie(), SpentAttemptCookie(), SessionProblems(), surfaces)
 
     /**
      * `POST /step-ups`: proving who the person is again, for a dangerous act.
      */
-    public fun stepUp(confirm: ConfirmStepUpUseCase): RouteModule =
-        ConfirmationRoutes(confirm, SessionCookie(), SpentAttemptCookie(), ConfirmationProblems())
+    public fun stepUp(confirm: ConfirmStepUpUseCase, surfaces: Surfaces): RouteModule =
+        ConfirmationRoutes(confirm, SessionCookie(), SpentAttemptCookie(), ConfirmationProblems(), surfaces)
 
     /**
      * `DELETE /session`: signing out.
@@ -59,9 +60,11 @@ public class SessionsWebFactory {
         OtherDevicesSignOutRoutes(signOutOthers, SessionCookie(), DeviceProblems())
 
     /**
-     * How every request is recognised: by its session cookie.
+     * How every request is recognised: by its session cookie, if that session is one of the door the request
+     * came through (ADR-097).
      */
-    public fun callers(authenticate: AuthenticateUseCase): Callers = SessionCallers(authenticate, SessionCookie())
+    public fun callers(authenticate: AuthenticateUseCase, surfaces: Surfaces): Callers =
+        SessionCallers(authenticate, SessionCookie(), surfaces)
 
     override fun toString(): String = "SessionsWebFactory"
 }

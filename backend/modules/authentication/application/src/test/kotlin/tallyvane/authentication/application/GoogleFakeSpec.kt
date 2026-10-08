@@ -1,5 +1,7 @@
 package tallyvane.authentication.application
 
+import tallyvane.platform.kernel.Surface
+
 /**
  * The fake held to the suite every [tallyvane.authentication.application.port.Google] must pass.
  */
@@ -8,8 +10,13 @@ class GoogleFakeSpec : GoogleConformance() {
         private val fake = GoogleFake()
         override val google = fake
 
-        override suspend fun codeFor(handshake: GoogleHandshake, subject: String, name: String, email: String): String =
-            fake.arrange(stateOf(handshake), GoogleAnswer.Vouched(subject, GoogleProfile(name, email)))
+        override suspend fun codeFor(
+            handshake: GoogleHandshake,
+            subject: String,
+            name: String,
+            email: String,
+            surface: Surface,
+        ): String = fake.arrange(stateOf(handshake), GoogleAnswer.Vouched(subject, GoogleProfile(name, email)), surface)
 
         override suspend fun unverifiedCodeFor(handshake: GoogleHandshake, subject: String): String =
             fake.arrange(stateOf(handshake), GoogleAnswer.EmailUnverified())

@@ -243,7 +243,7 @@ public interface VerifySecondFactorUseCase : UseCase {
             /**
              * The purposes that end in a second step: signing in, and confirming a dangerous act.
              */
-            val PURPOSES = listOf(Purpose.Login, Purpose.StepUp)
+            val PURPOSES = listOf(Purpose.Login, Purpose.AdminLogin, Purpose.StepUp)
         }
     }
 }

@@ -40,6 +40,7 @@ private fun complete(): MutableMap<String, String> = mutableMapOf(
     EnvironmentConfiguration.GOOGLE_CLIENT_SECRET to CLIENT_SECRET_VALUE,
     EnvironmentConfiguration.APP_ORIGIN to "https://app.example.test",
     EnvironmentConfiguration.API_ORIGIN to "https://api.example.test",
+    EnvironmentConfiguration.ADMIN_ORIGIN to "https://admin.example.test",
     EnvironmentConfiguration.TOKEN_PEPPER to PEPPER_VALUE,
     EnvironmentConfiguration.TOTP_KEYSET to KEYSET_VALUE,
 )
@@ -170,7 +171,9 @@ class EnvironmentConfigurationSpec :
                 signIn.googleClientId shouldBe "client-id"
                 signIn.googleClientSecret shouldBe Secret(CLIENT_SECRET_VALUE)
                 signIn.appOrigin shouldBe "https://app.example.test"
-                signIn.redirectUri() shouldBe "https://api.example.test/api/v1/google-return"
+                signIn.adminOrigin shouldBe "https://admin.example.test"
+                signIn.appRedirectUri() shouldBe "https://api.example.test/api/v1/google-return"
+                signIn.adminRedirectUri() shouldBe "https://admin.example.test/api/v1/google-return"
                 signIn.tokenPepper shouldBe Secret(PEPPER_VALUE)
                 signIn.pepperVersion shouldBe 1
                 signIn.totpKeyset shouldBe Secret(KEYSET_VALUE)
@@ -183,6 +186,7 @@ class EnvironmentConfigurationSpec :
                         remove(EnvironmentConfiguration.GOOGLE_CLIENT_SECRET)
                         remove(EnvironmentConfiguration.TOKEN_PEPPER)
                         remove(EnvironmentConfiguration.TOTP_KEYSET)
+                        remove(EnvironmentConfiguration.ADMIN_ORIGIN)
                         put(EnvironmentConfiguration.APP_ORIGIN, "https://app.example.test/with/a/path/")
                     },
                 )
@@ -192,7 +196,17 @@ class EnvironmentConfigurationSpec :
                 said shouldContain EnvironmentConfiguration.TOKEN_PEPPER
                 said shouldContain EnvironmentConfiguration.TOTP_KEYSET
                 said shouldContain EnvironmentConfiguration.APP_ORIGIN
+                said shouldContain EnvironmentConfiguration.ADMIN_ORIGIN
                 said shouldNotContain "with/a/path"
+            }
+
+            "refuses to start when the administrators' site is at the console's own address" {
+                val said = refusal(
+                    complete().apply { put(EnvironmentConfiguration.ADMIN_ORIGIN, "https://app.example.test") },
+                )
+
+                said shouldContain EnvironmentConfiguration.ADMIN_ORIGIN
+                said shouldContain "differ"
             }
 
             "refuses a pepper under the floor without quoting it" {

@@ -6,6 +6,7 @@ import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.string.shouldNotContain
 import tallyvane.authentication.application.port.Google
 import tallyvane.platform.kernel.Secret
+import tallyvane.platform.kernel.Surface
 
 private fun handshake(word: String) =
     GoogleHandshake(Secret("state-$word"), Secret("nonce-$word"), Secret("verifier-$word"))
@@ -50,10 +51,16 @@ abstract class GoogleConformance : StringSpec() {
         val google: Google
 
         /**
-         * A code Google would send to [handshake]'s redirect after [subject], called [name] with the
-         * verified address [email], signed in.
+         * A code Google would send to [handshake]'s redirect on [surface] after [subject], called [name] with
+         * the verified address [email], signed in.
          */
-        suspend fun codeFor(handshake: GoogleHandshake, subject: String, name: String, email: String): String
+        suspend fun codeFor(
+            handshake: GoogleHandshake,
+            subject: String,
+            name: String,
+            email: String,
+            surface: Surface = Surface.App,
+        ): String
 
         /**
          * The same, for a person whose address Google has not verified.
@@ -61,14 +68,17 @@ abstract class GoogleConformance : StringSpec() {
         suspend fun unverifiedCodeFor(handshake: GoogleHandshake, subject: String): String
     }
 
-    private suspend fun Subject.exchange(code: String, handshake: GoogleHandshake): String =
-        google.exchange(code, handshake).reportTo(Line())
+    private suspend fun Subject.exchange(
+        code: String,
+        handshake: GoogleHandshake,
+        surface: Surface = Surface.App,
+    ): String = google.exchange(code, handshake, surface).reportTo(Line())
 
     init {
         "sends the person to an address that carries this handshake's state and no other's" {
             val subject = fresh()
 
-            val address = subject.google.addressFor(handshake("a"))
+            val address = subject.google.addressFor(handshake("a"), Surface.App)
 
             address shouldContain stateOf(handshake("a"))
             address shouldNotContain stateOf(handshake("b"))
@@ -90,6 +100,20 @@ abstract class GoogleConformance : StringSpec() {
             val code = subject.codeFor(handshake("a"), "sub-1", "Ann Example", "ann@example.com")
 
             subject.exchange(code, handshake("b")) shouldBe "refused"
+        }
+
+        "refuses a code that is traded against the other door's address than the one it was sent to" {
+            val subject = fresh()
+            val code = subject.codeFor(handshake("a"), "sub-1", "Ann Example", "ann@example.com", Surface.Admin)
+
+            subject.exchange(code, handshake("a"), Surface.App) shouldBe "refused"
+        }
+
+        "vouches for the person on the administrators' door when the code was sent to that door" {
+            val subject = fresh()
+            val code = subject.codeFor(handshake("a"), "sub-1", "Ann Example", "ann@example.com", Surface.Admin)
+
+            subject.exchange(code, handshake("a"), Surface.Admin) shouldBe "vouched sub-1 Ann Example <ann@example.com>"
         }
 
         "refuses a code the second time" {

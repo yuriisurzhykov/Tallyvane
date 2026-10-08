@@ -21,6 +21,7 @@ import tallyvane.platform.http.Api
 import tallyvane.platform.http.BasePath
 import tallyvane.platform.http.Callers
 import tallyvane.platform.http.RouteModule
+import tallyvane.platform.http.Surfaces
 import tallyvane.platform.http.TraceHeader
 import tallyvane.platform.http.problems.FailureTranslator
 import tallyvane.platform.kernel.TransactionRunner
@@ -83,7 +84,7 @@ private class Served(private val access: DatabaseAccess) : AutoCloseable {
             trace = TraceHeader(platform.ids),
             ledger = platform.persistence.ledger,
             callers = Callers.Anonymous(),
-            appOrigin = ORIGIN,
+            surfaces = Surfaces(ORIGIN, "https://admin.example.test"),
         ).install(this)
     }.also { it.start(wait = false) }
 

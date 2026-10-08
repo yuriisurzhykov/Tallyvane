@@ -16,6 +16,7 @@ import tallyvane.authentication.application.GoogleAnswer
 import tallyvane.authentication.application.GoogleHandshake
 import tallyvane.authentication.application.port.Google
 import tallyvane.platform.kernel.Secret
+import tallyvane.platform.kernel.Surface
 import java.io.IOException
 import java.security.MessageDigest
 import java.util.Base64
@@ -37,11 +38,11 @@ internal class GoogleOverHttp(
 ) : Google {
     private val tokens = GoogleIdTokens(client.id(), endpoints)
 
-    override fun addressFor(handshake: GoogleHandshake): String {
+    override fun addressFor(handshake: GoogleHandshake, surface: Surface): String {
         val told = Told().also { handshake.writeTo(it) }
         return URLBuilder(endpoints.authorization).apply {
             parameters.append("client_id", client.id())
-            parameters.append("redirect_uri", client.redirectUri())
+            parameters.append("redirect_uri", client.redirectUri(surface))
             parameters.append("response_type", "code")
             parameters.append("scope", "openid email profile")
             parameters.append("state", told.state())
@@ -52,10 +53,10 @@ internal class GoogleOverHttp(
         }.buildString()
     }
 
-    override suspend fun exchange(code: String, handshake: GoogleHandshake): GoogleAnswer {
+    override suspend fun exchange(code: String, handshake: GoogleHandshake, surface: Surface): GoogleAnswer {
         val told = Told().also { handshake.writeTo(it) }
         val response = try {
-            http.submitForm(endpoints.token, formFor(code, told))
+            http.submitForm(endpoints.token, formFor(code, told, surface))
         } catch (@Suppress("SwallowedException") unreachable: IOException) {
             return GoogleAnswer.Unreachable()
         }
@@ -70,11 +71,11 @@ internal class GoogleOverHttp(
         else -> GoogleAnswer.Unreachable()
     }
 
-    private fun formFor(code: String, told: Told): Parameters = Parameters.build {
+    private fun formFor(code: String, told: Told, surface: Surface): Parameters = Parameters.build {
         append("code", code)
         append("client_id", client.id())
         append("client_secret", client.secret())
-        append("redirect_uri", client.redirectUri())
+        append("redirect_uri", client.redirectUri(surface))
         append("grant_type", "authorization_code")
         append("code_verifier", told.verifier())
     }

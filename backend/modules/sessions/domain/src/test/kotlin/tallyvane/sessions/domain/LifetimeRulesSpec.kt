@@ -10,7 +10,10 @@ import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 private fun rules(idle: Duration, absolute: Duration, freshness: Duration = 5.minutes): LifetimeRules =
-    LifetimeRules.restore { it.lifetimes(ClientType.Browser, idle, absolute, freshness) }
+    LifetimeRules.restore {
+        it.lifetimes(ClientType.Browser, idle, absolute, freshness)
+        it.lifetimes(ClientType.Admin, 1.hours, 8.hours, 5.minutes)
+    }
 
 class LifetimeRulesSpec :
     StringSpec(
@@ -57,10 +60,17 @@ class LifetimeRulesSpec :
                 shouldThrow<IllegalStateException> { LifetimeRules.restore { } }
             }
 
+            "refuses rules that leave the administrators without lifetimes" {
+                shouldThrow<IllegalStateException> {
+                    LifetimeRules.restore { it.lifetimes(ClientType.Browser, 1.days, 7.days, 5.minutes) }
+                }
+            }
+
             "refuses rules that give a kind of client two pairs" {
                 shouldThrow<IllegalStateException> {
                     LifetimeRules.restore {
                         it.lifetimes(ClientType.Browser, 1.days, 7.days, 5.minutes)
+                        it.lifetimes(ClientType.Admin, 1.hours, 8.hours, 5.minutes)
                         it.lifetimes(ClientType.Browser, 2.days, 7.days, 5.minutes)
                     }
                 }

@@ -6,6 +6,7 @@ import io.ktor.http.HttpHeaders
 import tallyvane.platform.http.APP_ORIGIN
 import tallyvane.platform.http.Api
 import tallyvane.platform.http.RouteModule
+import tallyvane.platform.http.Surfaces
 import tallyvane.platform.http.TraceHeader
 import tallyvane.platform.http.problems.FailureTranslator
 import tallyvane.platform.idempotency.LedgerFake
@@ -23,10 +24,12 @@ import kotlin.time.Instant
 class Served(val harness: Harness = Harness()) {
     private val routes = SessionsWebFactory()
 
+    private val surfaces = Surfaces(APP_ORIGIN, "https://admin.example.test")
+
     fun api(extra: List<RouteModule> = emptyList()): Api = Api(
         routes = listOf(
-            routes.open(harness.open),
-            routes.stepUp(harness.confirmStepUp),
+            routes.open(harness.open, surfaces),
+            routes.stepUp(harness.confirmStepUp, surfaces),
             routes.signOut(harness.signOut),
             routes.devices(harness.listDevices),
             routes.deviceSignOut(harness.revokeDevice),
@@ -36,8 +39,8 @@ class Served(val harness: Harness = Harness()) {
         failures = FailureTranslator.Chained(emptyList()),
         trace = TraceHeader(IdGeneratorFake()),
         ledger = LedgerFake(TransactionRunnerFake(), ClockFake(Instant.parse("2026-10-02T09:00:00Z"))),
-        callers = routes.callers(harness.authenticate),
-        appOrigin = APP_ORIGIN,
+        callers = routes.callers(harness.authenticate, surfaces),
+        surfaces = surfaces,
     )
 
     override fun toString(): String = "Served"

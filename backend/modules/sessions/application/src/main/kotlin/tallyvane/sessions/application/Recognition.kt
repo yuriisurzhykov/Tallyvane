@@ -4,10 +4,12 @@ import tallyvane.identity.contract.AccountId
 import tallyvane.platform.kernel.Clock
 import tallyvane.platform.kernel.Digest
 import tallyvane.platform.kernel.Secret
+import tallyvane.platform.kernel.Surface
 import tallyvane.sessions.application.port.LifetimeVersions
 import tallyvane.sessions.application.port.Sessions
 import tallyvane.sessions.domain.Factor
 import tallyvane.sessions.domain.Freshness
+import tallyvane.sessions.domain.Session
 import tallyvane.sessions.domain.SessionId
 import tallyvane.sessions.domain.Standing
 import kotlin.time.Instant
@@ -37,12 +39,21 @@ public class Recognition(
     /**
      * Who [secret] speaks for, noting the use of a live session and forgetting one that is over.
      */
-    public fun of(secret: Secret?): Resolution {
+    public fun of(secret: Secret?): Resolution = resolve(secret) { true }
+
+    /**
+     * Who [secret] speaks for on [surface], which is the door the request came through: a session of the
+     * other door is not good here and is answered as one that ended, but is left alone, because it is good
+     * where it belongs (ADR-097).
+     */
+    public fun of(secret: Secret?, surface: Surface): Resolution = resolve(secret) { it.isHeldOn(surface) }
+
+    private fun resolve(secret: Secret?, belongsHere: (Session) -> Boolean): Resolution {
         val presented = secret ?: return Resolution.Anonymous()
         val key = keys.keyOf(presented)
         val now = clock.now()
         // The lifetimes are read only for a secret that names a session: a stranger costs one lookup.
-        val standing = sessions.find(key)?.standingAt(now, lifetimes.active())
+        val standing = sessions.find(key)?.takeIf(belongsHere)?.standingAt(now, lifetimes.active())
         return standing?.reportTo(Judging(key, now)) ?: Resolution.Lapsed()
     }
 

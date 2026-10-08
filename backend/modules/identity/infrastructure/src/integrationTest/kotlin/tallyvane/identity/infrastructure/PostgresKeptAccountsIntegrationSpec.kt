@@ -1,10 +1,13 @@
 package tallyvane.identity.infrastructure
 
+import org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager
 import tallyvane.identity.application.KeptAccountsConformance
 import tallyvane.identity.application.port.KeptAccounts
 import tallyvane.platform.kernel.TransactionRunner
+import tallyvane.platform.kernel.Verdict
 import tallyvane.platform.persistence.PostgresFixture
 import tallyvane.platform.persistence.PostgresPersistence
+import kotlin.uuid.Uuid
 
 /**
  * The adapter over Postgres, judged by the suite the fake already passes (ADR-046).
@@ -24,6 +27,15 @@ class PostgresKeptAccountsIntegrationSpec : KeptAccountsConformance() {
         return object : Subject {
             override val accounts: KeptAccounts = IdentityStorageFactory().accounts()
             override val transactions: TransactionRunner = persistence.transactions
+
+            override suspend fun grantAdministrator(id: Uuid) {
+                transactions.inTransaction {
+                    TransactionManager.current().exec(
+                        "insert into identity.admins (account_id, granted_at) values ('$id', now())",
+                    )
+                    Verdict.Commit(Unit)
+                }
+            }
         }
     }
 }

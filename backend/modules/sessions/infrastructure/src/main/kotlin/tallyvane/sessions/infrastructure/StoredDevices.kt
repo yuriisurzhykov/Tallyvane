@@ -14,6 +14,7 @@ import tallyvane.sessions.domain.Platform
 internal class StoredDevices {
     fun of(client: ClientType): String = when (client) {
         ClientType.Browser -> "browser"
+        ClientType.Admin -> "admin"
     }
 
     fun clientFrom(word: String): ClientType = ClientType.entries.firstOrNull { of(it) == word }

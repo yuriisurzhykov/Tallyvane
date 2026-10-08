@@ -44,5 +44,18 @@ public sealed interface Opened {
 
             override fun toString(): String = "NothingToOpen"
         }
+
+        /**
+         * The sign-in was an administrator's and complete, but the account is not one (ADR-097): somebody
+         * who signed in with Google and a second factor on the administrators' site without being given the
+         * right. The sign-in is not spent, so it ends where it would have anyway.
+         */
+        public class NotAnAdministrator : Failed {
+            override fun equals(other: Any?): Boolean = other is NotAnAdministrator
+
+            override fun hashCode(): Int = NotAnAdministrator::class.hashCode()
+
+            override fun toString(): String = "NotAnAdministrator"
+        }
     }
 }

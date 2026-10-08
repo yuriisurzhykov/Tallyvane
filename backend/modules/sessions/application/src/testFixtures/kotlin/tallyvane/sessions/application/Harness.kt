@@ -8,6 +8,7 @@ import tallyvane.platform.kernel.Digests
 import tallyvane.platform.kernel.IdGeneratorFake
 import tallyvane.platform.kernel.Secret
 import tallyvane.platform.kernel.SecretGeneratorFake
+import tallyvane.platform.kernel.Surface
 import tallyvane.platform.kernel.TransactionRunnerFake
 import tallyvane.sessions.domain.Freshness
 import tallyvane.sessions.domain.SessionId
@@ -26,6 +27,7 @@ import kotlin.uuid.Uuid
 class Harness {
     val sessions = SessionsFake()
     val signIns = SignInsStub()
+    val admins = AdminsStub()
     val clock = TickingClock(Instant.parse("2026-10-02T09:00:00Z"))
     val lifetimeVersions = LifetimeVersionsFake()
 
@@ -43,6 +45,7 @@ class Harness {
 
     val open: OpenSessionUseCase = OpenSessionUseCase.OpenSession(
         signIns,
+        admins,
         sessions,
         journal,
         DeviceWords(),
@@ -85,13 +88,37 @@ class Harness {
     }
 
     /**
+     * An administrator whose sign-in is complete, as the browser's `__Host-attempt` cookie.
+     */
+    fun finishedSigningInAsAdmin(
+        account: AccountId = ACCOUNT,
+        proofs: Set<Proof> = setOf(Proof.Google, Proof.Totp),
+        attempt: Secret = Secret("admin-attempt-1"),
+    ): Secret {
+        signIns.completeAdmin(attempt, account, proofs, clock.now())
+        return attempt
+    }
+
+    /**
      * A person who signed in: the secret of the session they were given.
      */
     suspend fun signedIn(
         account: AccountId = ACCOUNT,
         agent: UserAgent = CHROME_ON_WINDOWS,
         attempt: Secret = Secret("attempt-${attempts++}"),
-    ): Secret = secretOf(open.open(finishedSigningIn(account, attempt = attempt), agent))
+    ): Secret = secretOf(open.open(finishedSigningIn(account, attempt = attempt), agent, Surface.App))
+
+    /**
+     * An administrator who signed in on the administrators' site: the secret of the session they were given.
+     */
+    suspend fun signedInAsAdmin(
+        account: AccountId = ACCOUNT,
+        agent: UserAgent = CHROME_ON_WINDOWS,
+        attempt: Secret = Secret("admin-attempt-${attempts++}"),
+    ): Secret {
+        admins.grant(account)
+        return secretOf(open.open(finishedSigningInAsAdmin(account, attempt = attempt), agent, Surface.Admin))
+    }
 
     private var attempts = 1
 
@@ -107,30 +134,33 @@ class Harness {
     /**
      * Who a browser holding [session] is, as one line.
      */
-    suspend fun who(session: Secret?): String = authenticate.resolve(session).reportTo(
-        object : Resolution.Report<String> {
-            override fun signedIn(account: AccountId, session: SessionId, freshness: Freshness): String =
-                "signed in ${account.value}"
+    suspend fun who(session: Secret?, surface: Surface = Surface.App): String =
+        authenticate.resolve(session, surface).reportTo(
+            object : Resolution.Report<String> {
+                override fun signedIn(account: AccountId, session: SessionId, freshness: Freshness): String =
+                    "signed in ${account.value}"
 
-            override fun lapsed(): String = "lapsed"
+                override fun lapsed(): String = "lapsed"
 
-            override fun anonymous(): String = "anonymous"
-        },
-    )
+                override fun anonymous(): String = "anonymous"
+            },
+        )
 
     /**
      * Whether a browser holding [session] proved who it is recently enough for a dangerous act, or null
      * when the session speaks for nobody.
      */
-    suspend fun freshnessOf(session: Secret?): Freshness? = authenticate.resolve(session).reportTo(
-        object : Resolution.Report<Freshness?> {
-            override fun signedIn(account: AccountId, session: SessionId, freshness: Freshness): Freshness = freshness
+    suspend fun freshnessOf(session: Secret?, surface: Surface = Surface.App): Freshness? =
+        authenticate.resolve(session, surface).reportTo(
+            object : Resolution.Report<Freshness?> {
+                override fun signedIn(account: AccountId, session: SessionId, freshness: Freshness): Freshness =
+                    freshness
 
-            override fun lapsed(): Freshness? = null
+                override fun lapsed(): Freshness? = null
 
-            override fun anonymous(): Freshness? = null
-        },
-    )
+                override fun anonymous(): Freshness? = null
+            },
+        )
 
     /**
      * A person who confirmed in a window of their own: the cookie their finished confirmation is kept under.

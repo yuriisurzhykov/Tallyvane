@@ -10,31 +10,37 @@ import tallyvane.authentication.application.GoogleConformance
 import tallyvane.authentication.application.GoogleHandshake
 import tallyvane.authentication.application.port.Google
 import tallyvane.platform.kernel.Secret
+import tallyvane.platform.kernel.Surface
 import java.net.URLEncoder
 
 private val HANDSHAKE = GoogleHandshake(Secret("state-a"), Secret("nonce-a"), Secret("verifier-a"))
 
 private fun googleAt(stub: StubGoogle, endpoints: GoogleEndpoints = stub.endpoints()): Google = GoogleOverHttp(
     HttpClient(CIO),
-    GoogleClient(StubGoogle.CLIENT_ID, StubGoogle.CLIENT_SECRET, StubGoogle.REDIRECT_URI),
+    GoogleClient(
+        StubGoogle.CLIENT_ID,
+        StubGoogle.CLIENT_SECRET,
+        mapOf(Surface.App to StubGoogle.REDIRECT_URI, Surface.Admin to StubGoogle.ADMIN_REDIRECT_URI),
+    ),
     endpoints,
 )
 
-private suspend fun Google.answerTo(code: String): String = exchange(code, HANDSHAKE).reportTo(
-    object : GoogleAnswer.Report<String> {
-        override fun vouched(subject: String, profile: tallyvane.authentication.application.GoogleProfile): String {
-            val told = mutableListOf<String>()
-            profile.writeTo { name, email -> told += "$name <$email>" }
-            return "vouched $subject ${told.single()}"
-        }
+private suspend fun Google.answerTo(code: String, surface: Surface = Surface.App): String =
+    exchange(code, HANDSHAKE, surface).reportTo(
+        object : GoogleAnswer.Report<String> {
+            override fun vouched(subject: String, profile: tallyvane.authentication.application.GoogleProfile): String {
+                val told = mutableListOf<String>()
+                profile.writeTo { name, email -> told += "$name <$email>" }
+                return "vouched $subject ${told.single()}"
+            }
 
-        override fun emailUnverified(): String = "email unverified"
+            override fun emailUnverified(): String = "email unverified"
 
-        override fun refused(): String = "refused"
+            override fun refused(): String = "refused"
 
-        override fun unreachable(): String = "unreachable"
-    },
-)
+            override fun unreachable(): String = "unreachable"
+        },
+    )
 
 /**
  * The adapter over HTTP, judged by the suite the fake already passes (ADR-046), against a provider of
@@ -55,7 +61,7 @@ class GoogleOverHttpSpec : GoogleConformance() {
                 java.security.MessageDigest.getInstance("SHA-256").digest("verifier-a".toByteArray()),
             )
 
-            val address = googleAt(stub).addressFor(HANDSHAKE)
+            val address = googleAt(stub).addressFor(HANDSHAKE, Surface.App)
 
             address shouldStartWith stub.endpoints().authorization
             address shouldContain "state=state-a"
@@ -65,6 +71,27 @@ class GoogleOverHttpSpec : GoogleConformance() {
             address shouldContain "client_id=${StubGoogle.CLIENT_ID}"
             address shouldContain "redirect_uri=" + URLEncoder.encode(StubGoogle.REDIRECT_URI, Charsets.UTF_8)
             (address.contains("verifier-a")) shouldBe false
+        }
+
+        "sends an administrator back to the administrators' redirect address, and trades the code against it" {
+            val stub = StubGoogle().also { stubs += it }
+            val google = googleAt(stub)
+
+            google.addressFor(HANDSHAKE, Surface.Admin) shouldContain
+                "redirect_uri=" + URLEncoder.encode(StubGoogle.ADMIN_REDIRECT_URI, Charsets.UTF_8)
+            google.answerTo(
+                stub.codeFor(HANDSHAKE, "sub-1", "Ann", "ann@example.com", true, Surface.Admin),
+                Surface.Admin,
+            ) shouldBe "vouched sub-1 Ann <ann@example.com>"
+        }
+
+        "refuses a code that was sent to the console's address when traded against the administrators'" {
+            val stub = StubGoogle().also { stubs += it }
+
+            googleAt(stub).answerTo(
+                stub.codeFor(HANDSHAKE, "sub-1", "Ann", "ann@example.com", true, Surface.App),
+                Surface.Admin,
+            ) shouldBe "refused"
         }
 
         "refuses a token minted for another trip's nonce" {
@@ -129,7 +156,8 @@ class GoogleOverHttpSpec : GoogleConformance() {
                 subject: String,
                 name: String,
                 email: String,
-            ): String = stub.codeFor(handshake, subject, name, email, verified = true)
+                surface: Surface,
+            ): String = stub.codeFor(handshake, subject, name, email, verified = true, surface = surface)
 
             override suspend fun unverifiedCodeFor(handshake: GoogleHandshake, subject: String): String =
                 stub.codeFor(handshake, subject, "Unverified", "unverified@example.com", verified = false)

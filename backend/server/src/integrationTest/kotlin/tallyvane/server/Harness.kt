@@ -44,6 +44,7 @@ internal fun settings(access: DatabaseAccess, port: Int = free(), pool: Int = DE
             googleClientId = "client-id",
             googleClientSecret = Secret("client-secret"),
             appOrigin = ORIGIN,
+            adminOrigin = "https://admin.example.test",
             apiOrigin = "https://api.example.test",
             tokenPepper = Secret("a-pepper-only-the-tests-use-0123456789"),
             pepperVersion = 1,

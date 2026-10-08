@@ -51,6 +51,7 @@ private fun settings(port: Int, level: Level = Level.INFO): Configuration = Conf
         googleClientId = "client-id",
         googleClientSecret = Secret("client-secret"),
         appOrigin = "https://app.example.test",
+        adminOrigin = "https://admin.example.test",
         apiOrigin = "https://api.example.test",
         tokenPepper = Secret("a-pepper-only-the-tests-use-0123456789"),
         pepperVersion = 1,

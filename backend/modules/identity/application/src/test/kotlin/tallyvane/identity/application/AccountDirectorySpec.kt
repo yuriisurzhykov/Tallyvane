@@ -68,4 +68,6 @@ private class RacedAccounts(private val winner: Uuid) : tallyvane.identity.appli
     override fun profileOf(id: Uuid): Profile? = null
 
     override fun add(account: tallyvane.identity.domain.Account): AccountAdded = AccountAdded.SubjectTaken
+
+    override fun isAdministrator(id: Uuid): Boolean = false
 }

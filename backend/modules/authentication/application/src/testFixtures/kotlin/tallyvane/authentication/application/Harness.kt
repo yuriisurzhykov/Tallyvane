@@ -10,6 +10,7 @@ import tallyvane.platform.kernel.Clock
 import tallyvane.platform.kernel.Digests
 import tallyvane.platform.kernel.Secret
 import tallyvane.platform.kernel.SecretGeneratorFake
+import tallyvane.platform.kernel.Surface
 import tallyvane.platform.kernel.TransactionRunnerFake
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
@@ -30,7 +31,7 @@ class Harness {
     val clock = TickingClock(Instant.parse("2026-10-02T09:00:00Z"))
     private val transactions = TransactionRunnerFake()
     private val versions = PolicyVersionsFake().also { versions ->
-        listOf(Purpose.Login, Purpose.Registration, Purpose.StepUp).forEach { purpose ->
+        Purpose.entries.forEach { purpose ->
             versions.activate(versions.add(CheckedPolicy(purpose).policy(), clock.now()), clock.now())
         }
     }
@@ -141,23 +142,24 @@ class Harness {
     private fun trips() = GoogleTrips(store, store, store, accounts, transactions)
 
     /**
-     * Presses "Sign in with Google": the cookie the browser keeps, and the state Google was sent.
+     * Presses "Sign in with Google" on the door [surface]: the cookie the browser keeps, and the state Google was
+     * sent.
      */
-    suspend fun pressSignIn(): Pressed {
+    suspend fun pressSignIn(surface: Surface = Surface.App): Pressed {
         val told = mutableListOf<Pair<Secret, String>>()
-        begin.begin().writeTo { attempt, address -> told += attempt to address }
+        begin.begin(surface).writeTo { attempt, address -> told += attempt to address }
         val (attempt, address) = told.single()
-        return Pressed(attempt, address.substringAfter("state="))
+        return Pressed(attempt, address.substringAfter("state=").substringBefore("&"), surface)
     }
 
     /**
      * Starts confirming a dangerous act: the cookie the browser keeps, and the state Google was sent.
      */
-    suspend fun pressStepUp(): Pressed {
+    suspend fun pressStepUp(surface: Surface = Surface.App): Pressed {
         val told = mutableListOf<Pair<Secret, String>>()
-        beginStepUp.begin().writeTo { attempt, address -> told += attempt to address }
+        beginStepUp.begin(surface).writeTo { attempt, address -> told += attempt to address }
         val (attempt, address) = told.single()
-        return Pressed(attempt, address.substringAfter("state="))
+        return Pressed(attempt, address.substringAfter("state=").substringBefore("&"), surface)
     }
 
     /**
@@ -220,8 +222,16 @@ class Harness {
     /**
      * Comes back from Google with a code Google arranged for [pressed] to be worth [answer].
      */
-    suspend fun returnWith(pressed: Pressed, answer: GoogleAnswer, cookie: Secret? = pressed.attempt): GoogleReturn =
-        continueWith.continueWith(cookie, GoogleReply.Granted(google.arrange(pressed.state, answer), pressed.state))
+    suspend fun returnWith(
+        pressed: Pressed,
+        answer: GoogleAnswer,
+        cookie: Secret? = pressed.attempt,
+        surface: Surface = pressed.surface,
+    ): GoogleReturn = continueWith.continueWith(
+        cookie,
+        GoogleReply.Granted(google.arrange(pressed.state, answer), pressed.state),
+        surface,
+    )
 
     /**
      * What a return told, as one line.
@@ -241,7 +251,7 @@ class Harness {
     /**
      * A sign-in or a confirmation pressed: the secret in the cookie and the `state` in the address.
      */
-    class Pressed(val attempt: Secret, val state: String)
+    class Pressed(val attempt: Secret, val state: String, val surface: Surface = Surface.App)
 
     /**
      * A clock the specs move.

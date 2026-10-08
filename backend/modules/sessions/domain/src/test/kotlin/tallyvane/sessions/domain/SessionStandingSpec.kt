@@ -19,7 +19,10 @@ private fun session(): Session =
     Session.begin(ID, ACCOUNT, setOf(Factor.Google), ClientType.Browser, UserAgent(null).device(), START, START)
 
 private fun rules(idle: Duration, absolute: Duration, freshness: Duration = 5.minutes): LifetimeRules =
-    LifetimeRules.restore { it.lifetimes(ClientType.Browser, idle, absolute, freshness) }
+    LifetimeRules.restore {
+        it.lifetimes(ClientType.Browser, idle, absolute, freshness)
+        it.lifetimes(ClientType.Admin, 1.hours, 8.hours, 5.minutes)
+    }
 
 private fun Standing.kind(): String = reportTo(
     object : Standing.Report<String> {

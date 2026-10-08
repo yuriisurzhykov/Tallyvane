@@ -16,6 +16,7 @@ import tallyvane.platform.http.APP_ORIGIN
 import tallyvane.platform.http.Api
 import tallyvane.platform.http.Caller
 import tallyvane.platform.http.Callers
+import tallyvane.platform.http.Surfaces
 import tallyvane.platform.http.TraceHeader
 import tallyvane.platform.http.problems.FailureTranslator
 import tallyvane.platform.idempotency.LedgerFake
@@ -35,7 +36,7 @@ private fun api(callers: Callers, kept: KeptAccountsFake): Api = Api(
     trace = TraceHeader(IdGeneratorFake()),
     ledger = LedgerFake(TransactionRunnerFake(), ClockFake(AT)),
     callers = callers,
-    appOrigin = APP_ORIGIN,
+    surfaces = Surfaces(APP_ORIGIN, "https://admin.example.test"),
 )
 
 private suspend fun keptWithAda(): KeptAccountsFake = KeptAccountsFake().also {

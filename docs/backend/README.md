@@ -52,3 +52,7 @@ the decisions taken while designing it, with the rejected alternatives.
 
 The order matters: the contract is written before the internals, because what a
 module shows the outside world is the part that is expensive to change.
+
+- [07-authentication-slice-7-admin.md](07-authentication-slice-7-admin.md) — the administrator: signing in on the
+  admin site, and editing the sign-in policy and the session lifetimes: flows, module dependencies and classes of
+  slice 7.

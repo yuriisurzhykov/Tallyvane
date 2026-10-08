@@ -3,6 +3,7 @@ package tallyvane.identity.application
 import tallyvane.identity.application.port.KeptAccounts
 import tallyvane.identity.contract.AccountId
 import tallyvane.identity.contract.Accounts
+import tallyvane.identity.contract.Admins
 import tallyvane.identity.contract.NameRefused
 import tallyvane.identity.contract.Registered
 import tallyvane.identity.contract.Registrant
@@ -14,12 +15,16 @@ import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
 /**
- * How `identity` answers [Accounts]: through the accounts it keeps, with the rules of its domain.
+ * How `identity` answers [Accounts] and [Admins]: through the accounts it keeps, with the rules of its domain.
  *
  * Opens no transaction, as the contract promises; the caller's is the one everything runs in.
  */
-public class AccountDirectory(private val kept: KeptAccounts, private val ids: IdGenerator) : Accounts {
+public class AccountDirectory(private val kept: KeptAccounts, private val ids: IdGenerator) :
+    Accounts,
+    Admins {
     override fun withGoogle(subject: String): AccountId? = kept.withGoogle(subject)?.let(::AccountId)
+
+    override fun isAdmin(account: AccountId): Boolean = kept.isAdministrator(account.value)
 
     override fun register(registrant: Registrant): Registration {
         val told = Told().also { registrant.writeTo(it) }

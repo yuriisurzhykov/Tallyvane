@@ -3,6 +3,7 @@ package tallyvane.server
 import tallyvane.identity.application.AccountDirectory
 import tallyvane.identity.application.WhoAmIUseCase
 import tallyvane.identity.contract.Accounts
+import tallyvane.identity.contract.Admins
 import tallyvane.identity.infrastructure.IdentityStorageFactory
 import tallyvane.identity.web.IdentityRoutesFactory
 import tallyvane.platform.http.RouteModule
@@ -14,9 +15,16 @@ import tallyvane.platform.http.RouteModule
  * Nothing here touches a database; the adapter runs inside the transaction of whoever asks.
  */
 public class IdentityWiring(private val platform: PlatformWiring) {
-    public val accounts: Accounts by lazy {
+    private val directory: AccountDirectory by lazy {
         AccountDirectory(IdentityStorageFactory().accounts(), platform.ids)
     }
+
+    public val accounts: Accounts get() = directory
+
+    /**
+     * Who may administer (ADR-097).
+     */
+    public val admins: Admins get() = directory
 
     private val whoAmI: WhoAmIUseCase by lazy {
         WhoAmIUseCase.WhoAmI(IdentityStorageFactory().accounts(), platform.persistence.transactions)

@@ -105,8 +105,11 @@ private fun gated(ran: AtomicInteger = AtomicInteger()): Api = Api(
             else -> Caller.Anonymous()
         }
     },
-    appOrigin = APP_ORIGIN,
+    surfaces = Surfaces(APP_ORIGIN, ADMIN_ORIGIN),
 )
+
+private const val ADMIN_HOST = "admin.example.test"
+private const val ADMIN_ORIGIN = "https://$ADMIN_HOST"
 
 private suspend fun HttpClient.enter(block: io.ktor.client.request.HttpRequestBuilder.() -> Unit): HttpResponse =
     post("/api/v1/lobby/enter") {
@@ -135,6 +138,48 @@ class GateSpec :
                     application { gated(ran).install(this) }
 
                     val answer = client.enter { header(HttpHeaders.Origin, "https://evil.example") }
+
+                    answer.status shouldBe HttpStatusCode.Forbidden
+                    ran.get() shouldBe 0
+                }
+            }
+
+            "an unsafe request to the administrators' host from their own origin runs" {
+                val ran = AtomicInteger()
+                testApplication {
+                    application { gated(ran).install(this) }
+
+                    val answer = client.enter {
+                        header(HttpHeaders.Host, ADMIN_HOST)
+                        header(HttpHeaders.Origin, ADMIN_ORIGIN)
+                    }
+
+                    answer.status shouldBe HttpStatusCode.OK
+                    ran.get() shouldBe 1
+                }
+            }
+
+            "the console's origin is not accepted on the administrators' host" {
+                val ran = AtomicInteger()
+                testApplication {
+                    application { gated(ran).install(this) }
+
+                    val answer = client.enter {
+                        header(HttpHeaders.Host, ADMIN_HOST)
+                        fromApp()
+                    }
+
+                    answer.status shouldBe HttpStatusCode.Forbidden
+                    ran.get() shouldBe 0
+                }
+            }
+
+            "the administrators' origin is not accepted on the console's host" {
+                val ran = AtomicInteger()
+                testApplication {
+                    application { gated(ran).install(this) }
+
+                    val answer = client.enter { header(HttpHeaders.Origin, ADMIN_ORIGIN) }
 
                     answer.status shouldBe HttpStatusCode.Forbidden
                     ran.get() shouldBe 0

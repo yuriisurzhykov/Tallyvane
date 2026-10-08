@@ -144,7 +144,7 @@ private class Rig(
         callers = Callers { call ->
             call.request.headers["X-Person"]?.let { Caller.Signed(Uuid.parse(it), SESSION) } ?: Caller.Anonymous()
         },
-        appOrigin = APP_ORIGIN,
+        surfaces = Surfaces(APP_ORIGIN, "https://admin.example.test"),
     )
 }
 

@@ -10,6 +10,7 @@ import tallyvane.platform.http.Access
 import tallyvane.platform.http.BasePath
 import tallyvane.platform.http.Refused
 import tallyvane.platform.http.RouteModule
+import tallyvane.platform.http.Surfaces
 import tallyvane.sessions.application.OpenSessionUseCase
 import tallyvane.sessions.application.Opened
 import tallyvane.sessions.domain.UserAgent
@@ -22,7 +23,9 @@ import tallyvane.sessions.domain.UserAgent
  * ```
  *
  * The session keeps what the browser said about itself in `User-Agent` as the device it is on, to be shown
- * in the list of devices (ADR-090).
+ * in the list of devices (ADR-090). The door the request came through decides whose sign-in is taken and
+ * which kind of session is kept: on the administrators' site only an administrator's sign-in is taken, for an
+ * account that holds the right (ADR-097).
  *
  * Answers `204`: the session is the cookie, and there is nothing in the body that a script could keep.
  * Public, because the person asking is not signed in yet; what they hold instead is a completed sign-in.
@@ -34,6 +37,7 @@ internal class SessionRoutes(
     private val session: SessionCookie,
     private val spent: SpentAttemptCookie,
     private val problems: SessionProblems,
+    private val surfaces: Surfaces,
 ) : RouteModule {
     override val basePath: BasePath = BasePath("/sessions")
 
@@ -45,6 +49,7 @@ internal class SessionRoutes(
                 val outcome = open.open(
                     AttemptSecret().of(call),
                     UserAgent(call.request.headers[HttpHeaders.UserAgent]),
+                    surfaces.of(call),
                 )
             ) {
                 is Opened.Issued -> {

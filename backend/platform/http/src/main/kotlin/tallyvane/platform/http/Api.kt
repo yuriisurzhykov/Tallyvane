@@ -75,7 +75,8 @@ import tallyvane.platform.observability.log.TraceContext
  * there before it runs (ADR-086).
  * @param callers who a request comes from; asked once, before the idempotency claim, and the answer is
  * whose `Idempotency-Key` it is (ADR-086, ADR-088).
- * @param appOrigin the one origin, such as `https://app.tallyvane.com`, unsafe requests must come from.
+ * @param surfaces the application's two doors; an unsafe request must come from the origin of the door it came
+ * through, such as `https://app.tallyvane.com` (ADR-080, ADR-097).
  */
 public class Api(
     private val routes: List<RouteModule>,
@@ -83,9 +84,9 @@ public class Api(
     private val trace: TraceHeader,
     ledger: Ledger,
     callers: Callers,
-    appOrigin: String,
+    surfaces: Surfaces,
 ) {
-    private val gate = Gate(routes, callers, appOrigin)
+    private val gate = Gate(routes, callers, surfaces)
 
     private val repeats = Repeats(ledger)
 

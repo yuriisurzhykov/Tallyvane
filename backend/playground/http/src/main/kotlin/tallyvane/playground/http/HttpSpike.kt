@@ -15,6 +15,7 @@ import io.ktor.server.routing.post
 import kotlinx.serialization.Serializable
 import org.slf4j.LoggerFactory
 import org.slf4j.event.Level
+import tallyvane.platform.http.Surfaces
 import tallyvane.platform.http.status.Answers
 import tallyvane.platform.http.Api
 import tallyvane.platform.http.Callers
@@ -194,7 +195,7 @@ fun main() {
             // a body echo, and keeps no state worth protecting.
             ledger = LedgerFake(TransactionRunnerFake(), Clock.Wall()),
             callers = Callers.Anonymous(),
-            appOrigin = "http://localhost:$port",
+            surfaces = Surfaces("http://localhost:$port", "https://admin.example.test"),
         )
     menu()
     // The check above closes the common case; this closes the race between it and here, so a

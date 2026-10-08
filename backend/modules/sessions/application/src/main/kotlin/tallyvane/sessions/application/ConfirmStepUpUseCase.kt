@@ -5,6 +5,7 @@ import tallyvane.authentication.contract.Redemption
 import tallyvane.authentication.contract.SignIns
 import tallyvane.identity.contract.AccountId
 import tallyvane.platform.kernel.Secret
+import tallyvane.platform.kernel.Surface
 import tallyvane.platform.kernel.TransactionRunner
 import tallyvane.platform.kernel.UseCase
 import tallyvane.platform.kernel.Verdict
@@ -29,8 +30,9 @@ public interface ConfirmStepUpUseCase : UseCase {
     /**
      * @param session The secret from the browser's `__Host-session` cookie, or null when it sent none.
      * @param attempt The secret from the browser's `__Host-attempt` cookie, or null when it sent none.
+     * @param surface The door the request came through: a session of the other door confirms nothing here.
      */
-    public suspend fun confirm(session: Secret?, attempt: Secret?): Confirmed
+    public suspend fun confirm(session: Secret?, attempt: Secret?, surface: Surface): Confirmed
 
     public class ConfirmStepUp(
         private val recognition: Recognition,
@@ -39,11 +41,12 @@ public interface ConfirmStepUpUseCase : UseCase {
         private val transactions: TransactionRunner,
         private val keys: SessionKeys,
     ) : ConfirmStepUpUseCase {
-        override suspend fun confirm(session: Secret?, attempt: Secret?): Confirmed = transactions.inTransaction {
-            // Always committed: a confirmation of another account is spent and must stay spent, and a
-            // session found to be over is forgotten by the recognition.
-            Verdict.Commit(recognition.of(session).reportTo(Presenting(session, attempt)))
-        }
+        override suspend fun confirm(session: Secret?, attempt: Secret?, surface: Surface): Confirmed =
+            transactions.inTransaction {
+                // Always committed: a confirmation of another account is spent and must stay spent, and a
+                // session found to be over is forgotten by the recognition.
+                Verdict.Commit(recognition.of(session, surface).reportTo(Presenting(session, attempt)))
+            }
 
         /**
          * Each way a session can be: one in use takes the confirmation, any other has none to take it.

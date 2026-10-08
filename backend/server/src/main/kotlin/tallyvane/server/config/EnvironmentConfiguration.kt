@@ -83,15 +83,25 @@ public class EnvironmentConfiguration(private val environment: Environment) {
         }
     }
 
-    private fun signIn(faults: MutableList<String>): SignInConfiguration = SignInConfiguration(
-        googleClientId = text(GOOGLE_CLIENT_ID, faults),
-        googleClientSecret = Secret(text(GOOGLE_CLIENT_SECRET, faults)),
-        appOrigin = origin(APP_ORIGIN, faults),
-        apiOrigin = origin(API_ORIGIN, faults),
-        tokenPepper = pepper(faults),
-        pepperVersion = number(TOKEN_PEPPER_VERSION, 1, 1..MAX_PEPPER_VERSION, faults),
-        totpKeyset = Secret(text(TOTP_KEYSET, faults)),
-    )
+    private fun signIn(faults: MutableList<String>): SignInConfiguration {
+        val appOrigin = origin(APP_ORIGIN, faults)
+        val adminOrigin = origin(ADMIN_ORIGIN, faults)
+        if (appOrigin.isNotEmpty() && hostOf(appOrigin) == hostOf(adminOrigin)) {
+            faults += "$ADMIN_ORIGIN must differ from $APP_ORIGIN in its host"
+        }
+        return SignInConfiguration(
+            googleClientId = text(GOOGLE_CLIENT_ID, faults),
+            googleClientSecret = Secret(text(GOOGLE_CLIENT_SECRET, faults)),
+            appOrigin = appOrigin,
+            apiOrigin = origin(API_ORIGIN, faults),
+            adminOrigin = adminOrigin,
+            tokenPepper = pepper(faults),
+            pepperVersion = number(TOKEN_PEPPER_VERSION, 1, 1..MAX_PEPPER_VERSION, faults),
+            totpKeyset = Secret(text(TOTP_KEYSET, faults)),
+        )
+    }
+
+    private fun hostOf(origin: String): String = origin.substringAfter("://").substringBefore(":")
 
     /**
      * A mandatory origin: scheme and host, no path and no trailing slash, so `"$origin/path"` is
@@ -148,6 +158,8 @@ public class EnvironmentConfiguration(private val environment: Environment) {
         public const val APP_ORIGIN: String = "TALLYVANE_APP_ORIGIN"
 
         public const val API_ORIGIN: String = "TALLYVANE_API_ORIGIN"
+
+        public const val ADMIN_ORIGIN: String = "TALLYVANE_ADMIN_ORIGIN"
 
         public const val TOKEN_PEPPER: String = "TALLYVANE_TOKEN_PEPPER"
 
