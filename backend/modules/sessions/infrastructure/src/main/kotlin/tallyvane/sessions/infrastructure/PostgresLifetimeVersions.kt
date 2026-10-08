@@ -16,7 +16,8 @@ import kotlin.time.Duration.Companion.milliseconds
  * One statement reads the version in force for every kind of client: the last activation of each, joined
  * to its version, so a request pays one query however many kinds there are. The rules come back through
  * [LifetimeRules.restore], so what is kept is checked against the bounds the code sets today, and a row
- * that falls outside them fails here and not in a request's judgement of a session.
+ * that falls outside them fails here and not in a request's judgement of a session. A kind of client with
+ * no version kept is judged by its starting lifetimes, and a kind this release does not know is left out.
  */
 internal class PostgresLifetimeVersions : LifetimeVersions {
     private val words = StoredDevices()
@@ -38,13 +39,16 @@ internal class PostgresLifetimeVersions : LifetimeVersions {
             .where { LifetimeActivationsTable.id inSubQuery inForce }
             .toList()
         return LifetimeRules.restore { record ->
-            rows.forEach {
-                record.lifetimes(
-                    words.clientFrom(it[LifetimeVersionsTable.clientType]),
-                    it[LifetimeVersionsTable.idleMillis].milliseconds,
-                    it[LifetimeVersionsTable.absoluteMillis].milliseconds,
-                    it[LifetimeVersionsTable.freshnessMillis].milliseconds,
-                )
+            rows.forEach { row ->
+                // A kind this release does not know belongs to a newer one; it is not this one's to judge.
+                words.clientOrNull(row[LifetimeVersionsTable.clientType])?.let { client ->
+                    record.lifetimes(
+                        client,
+                        row[LifetimeVersionsTable.idleMillis].milliseconds,
+                        row[LifetimeVersionsTable.absoluteMillis].milliseconds,
+                        row[LifetimeVersionsTable.freshnessMillis].milliseconds,
+                    )
+                }
             }
         }
     }

@@ -45,10 +45,10 @@ public interface ShowSignInUseCase : UseCase {
 
         private companion object {
             /**
-             * The purposes a page follows step by step: signing in, and confirming a dangerous act. A
-             * registration has its own screen.
+             * The purposes a page follows step by step: signing in (to the console or the administrators'
+             * site), and confirming a dangerous act. A registration has its own screen.
              */
-            val PURPOSES = listOf(Purpose.Login, Purpose.StepUp)
+            val PURPOSES = listOf(Purpose.Login, Purpose.AdminLogin, Purpose.StepUp)
         }
     }
 }

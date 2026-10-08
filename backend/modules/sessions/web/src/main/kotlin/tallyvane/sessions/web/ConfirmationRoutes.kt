@@ -8,6 +8,7 @@ import io.ktor.server.routing.post
 import tallyvane.platform.http.BasePath
 import tallyvane.platform.http.Refused
 import tallyvane.platform.http.RouteModule
+import tallyvane.platform.http.Surfaces
 import tallyvane.sessions.application.ConfirmStepUpUseCase
 import tallyvane.sessions.application.Confirmed
 
@@ -28,12 +29,13 @@ internal class ConfirmationRoutes(
     private val session: SessionCookie,
     private val spent: SpentAttemptCookie,
     private val problems: ConfirmationProblems,
+    private val surfaces: Surfaces,
 ) : RouteModule {
     override val basePath: BasePath = BasePath("/step-ups")
 
     override fun install(route: Route) {
         route.post {
-            val outcome = confirm.confirm(session.secretIn(call), AttemptSecret().of(call))
+            val outcome = confirm.confirm(session.secretIn(call), AttemptSecret().of(call), surfaces.of(call))
             spent.clear(call)
             when (outcome) {
                 is Confirmed.Done -> call.respond(HttpStatusCode.NoContent)

@@ -4,10 +4,12 @@ import tallyvane.authentication.contract.Proof
 import tallyvane.authentication.contract.Redemption
 import tallyvane.authentication.contract.SignIns
 import tallyvane.identity.contract.AccountId
+import tallyvane.identity.contract.Admins
 import tallyvane.journal.contract.DeviceFacts
 import tallyvane.journal.contract.SecurityJournal
 import tallyvane.platform.kernel.Clock
 import tallyvane.platform.kernel.Secret
+import tallyvane.platform.kernel.Surface
 import tallyvane.platform.kernel.TransactionRunner
 import tallyvane.platform.kernel.UseCase
 import tallyvane.platform.kernel.Verdict
@@ -35,11 +37,14 @@ public interface OpenSessionUseCase : UseCase {
     /**
      * @param attempt The secret from the browser's `__Host-attempt` cookie, or null when it sent none.
      * @param agent What the browser said about itself, which the session keeps as the device it is on.
+     * @param surface The door the request came through. It decides which sign-in is taken, the person's own
+     * or an administrator's, and which kind of session is kept (ADR-097).
      */
-    public suspend fun open(attempt: Secret?, agent: UserAgent): Opened
+    public suspend fun open(attempt: Secret?, agent: UserAgent, surface: Surface): Opened
 
     public class OpenSession(
         private val signIns: SignIns,
+        private val admins: Admins,
         private val sessions: Sessions,
         private val journal: SecurityJournal,
         private val words: DeviceWords,
@@ -47,21 +52,31 @@ public interface OpenSessionUseCase : UseCase {
         private val clock: Clock,
         private val keys: SessionKeys,
     ) : OpenSessionUseCase {
-        override suspend fun open(attempt: Secret?, agent: UserAgent): Opened {
+        override suspend fun open(attempt: Secret?, agent: UserAgent, surface: Surface): Opened {
             val secret = attempt ?: return Opened.Failed.NothingToOpen()
+            val client = ClientType.on(surface)
             return transactions.inTransaction {
-                val outcome = signIns.redeem(secret).reportTo(Beginning(clock.now(), agent.device()))
+                val outcome = redeemed(secret, surface).reportTo(Beginning(clock.now(), agent.device(), client))
                 if (outcome is Opened.Issued) Verdict.Commit(outcome) else Verdict.Rollback(outcome)
             }
         }
 
+        private fun redeemed(secret: Secret, surface: Surface): Redemption = when (surface) {
+            Surface.App -> signIns.redeem(secret)
+            Surface.Admin -> signIns.redeemAdminLogin(secret)
+        }
+
         /**
          * What to do with each answer `authentication` can give: keep a session for a sign-in, and
-         * for nothing, nothing.
+         * for nothing, nothing. An administrator's session is kept only for an account that holds the right.
          */
-        private inner class Beginning(private val now: Instant, private val device: Device) :
-            Redemption.Report<Opened> {
+        private inner class Beginning(
+            private val now: Instant,
+            private val device: Device,
+            private val client: ClientType,
+        ) : Redemption.Report<Opened> {
             override fun redeemed(account: AccountId, proofs: Set<Proof>, authenticatedAt: Instant): Opened {
+                if (client == ClientType.Admin && !admins.isAdmin(account)) return Opened.Failed.NotAnAdministrator()
                 val issued = keys.issue()
                 sessions.add(
                     issued.key,
@@ -69,7 +84,7 @@ public interface OpenSessionUseCase : UseCase {
                         issued.id,
                         account.value,
                         proofs.mapTo(mutableSetOf(), ::factorOf),
-                        ClientType.Browser,
+                        client,
                         device,
                         authenticatedAt,
                         now,

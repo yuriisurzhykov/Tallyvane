@@ -8,6 +8,7 @@ import tallyvane.authentication.application.BeginStepUpUseCase
 import tallyvane.platform.http.Access
 import tallyvane.platform.http.BasePath
 import tallyvane.platform.http.RouteModule
+import tallyvane.platform.http.Surfaces
 
 /**
  * Starting a confirmation of a dangerous act, as a person who is signed in (ADR-092).
@@ -20,8 +21,11 @@ import tallyvane.platform.http.RouteModule
  * itself and can be begun by anyone. It matters only when the session that holds the finished attempt
  * takes it (`POST /step-ups`), and that route is closed to everyone but a signed-in person.
  */
-internal class StepUpRoutes(private val begin: BeginStepUpUseCase, private val cookie: AttemptCookie) :
-    RouteModule {
+internal class StepUpRoutes(
+    private val begin: BeginStepUpUseCase,
+    private val cookie: AttemptCookie,
+    private val surfaces: Surfaces,
+) : RouteModule {
     override val basePath: BasePath = BasePath("/google-step-up")
 
     override val access: Access = Access.Public
@@ -29,7 +33,7 @@ internal class StepUpRoutes(private val begin: BeginStepUpUseCase, private val c
     override fun install(route: Route) {
         route.post {
             val told = mutableListOf<String>()
-            begin.begin().writeTo { attempt, address ->
+            begin.begin(surfaces.of(call)).writeTo { attempt, address ->
                 cookie.give(call, attempt)
                 told += address
             }

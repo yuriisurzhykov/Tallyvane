@@ -14,10 +14,17 @@ import tallyvane.sessions.domain.Platform
 internal class StoredDevices {
     fun of(client: ClientType): String = when (client) {
         ClientType.Browser -> "browser"
+        ClientType.Admin -> "admin"
     }
 
-    fun clientFrom(word: String): ClientType = ClientType.entries.firstOrNull { of(it) == word }
+    fun clientFrom(word: String): ClientType = clientOrNull(word)
         ?: error("A session was kept for a '$word' client, which the sessions schema does not accept.")
+
+    /**
+     * The kind of client [word] names, or null for one this release does not know: a newer release may keep
+     * lifetimes for a kind that arrives after this one, and reading them must not stop this one serving.
+     */
+    fun clientOrNull(word: String): ClientType? = ClientType.entries.firstOrNull { of(it) == word }
 
     fun of(browser: Browser): String = when (browser) {
         Browser.Chrome -> "chrome"

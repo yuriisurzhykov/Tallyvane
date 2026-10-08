@@ -1,5 +1,6 @@
 package tallyvane.sessions.domain
 
+import tallyvane.platform.kernel.Surface
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
@@ -72,6 +73,11 @@ public class Session private constructor(
      */
     public fun renamed(name: DeviceName): Session =
         Session(id, account, factors, client, device.named(name), authenticatedAt, confirmedAt, lastActiveAt)
+
+    /**
+     * Whether this session is good on [surface]: the door its kind of client uses, and no other (ADR-097).
+     */
+    public fun isHeldOn(surface: Surface): Boolean = client.isOn(surface)
 
     /**
      * Whether this is [other], for whoever keeps sessions and has to find one.

@@ -11,6 +11,7 @@ import com.sun.net.httpserver.HttpExchange
 import com.sun.net.httpserver.HttpServer
 import tallyvane.authentication.application.GoogleHandshake
 import tallyvane.platform.kernel.Secret
+import tallyvane.platform.kernel.Surface
 import java.net.InetSocketAddress
 import java.net.URLDecoder
 import java.security.KeyPairGenerator
@@ -56,9 +57,17 @@ class StubGoogle : AutoCloseable {
     internal fun endpoints(): GoogleEndpoints = GoogleEndpoints("$base/auth", "$base/token", "$base/keys", ISSUER)
 
     /**
-     * A code for the person [subject], called [name], that only [handshake] can trade.
+     * A code for the person [subject], called [name], that only [handshake] can trade, at the redirect address
+     * of [surface].
      */
-    fun codeFor(handshake: GoogleHandshake, subject: String, name: String, email: String, verified: Boolean): String {
+    fun codeFor(
+        handshake: GoogleHandshake,
+        subject: String,
+        name: String,
+        email: String,
+        verified: Boolean,
+        surface: Surface = Surface.App,
+    ): String {
         val told = mutableListOf<Triple<String, String, String>>()
         handshake.writeTo { state, nonce, verifier ->
             told +=
@@ -67,7 +76,7 @@ class StubGoogle : AutoCloseable {
         val (_, nonce, verifier) = told.single()
         sequence += 1
         val code = "stub-code-$sequence"
-        issued[code] = Issued(challengeOf(verifier), nonce, subject, name, email, verified)
+        issued[code] = Issued(challengeOf(verifier), nonce, subject, name, email, verified, redirectOf(surface))
         return code
     }
 
@@ -87,7 +96,7 @@ class StubGoogle : AutoCloseable {
                 answer(exchange, 400, """{"error":"invalid_grant"}""")
             form["client_id"] != CLIENT_ID ||
                 form["client_secret"] != CLIENT_SECRET.revealed() ||
-                form["redirect_uri"] != REDIRECT_URI -> answer(exchange, 401, """{"error":"invalid_client"}""")
+                form["redirect_uri"] != granted.redirectUri -> answer(exchange, 401, """{"error":"invalid_client"}""")
             else -> answer(exchange, 200, """{"id_token":"${tokenFor(granted)}","access_token":"unused"}""")
         }
     }
@@ -142,6 +151,7 @@ class StubGoogle : AutoCloseable {
         val name: String,
         val email: String,
         val verified: Boolean,
+        val redirectUri: String,
     ) {
         override fun toString(): String = "Issued"
     }
@@ -150,6 +160,12 @@ class StubGoogle : AutoCloseable {
         const val CLIENT_ID = "stub-client.apps.googleusercontent.com"
         val CLIENT_SECRET = Secret("stub-client-secret")
         const val REDIRECT_URI = "https://app.example.test/callback"
+        const val ADMIN_REDIRECT_URI = "https://admin.example.test/callback"
+
+        fun redirectOf(surface: Surface): String = when (surface) {
+            Surface.App -> REDIRECT_URI
+            Surface.Admin -> ADMIN_REDIRECT_URI
+        }
         private const val ISSUER = "https://accounts.google.com"
         private const val KEY_ID = "stub-key-1"
         private const val RSA_KEY_SIZE = 2048

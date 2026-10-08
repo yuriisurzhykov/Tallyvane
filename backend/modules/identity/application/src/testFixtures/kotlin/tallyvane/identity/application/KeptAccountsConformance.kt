@@ -30,6 +30,12 @@ abstract class KeptAccountsConformance : StringSpec() {
     interface Subject {
         val accounts: KeptAccounts
         val transactions: TransactionRunner
+
+        /**
+         * Gives the account [id] the right to administer, the way an operator does: from outside the keeper,
+         * because nothing in the system gives it.
+         */
+        suspend fun grantAdministrator(id: Uuid)
     }
 
     private suspend fun <T> Subject.inOwnTransaction(call: KeptAccounts.() -> T): T =
@@ -77,6 +83,27 @@ abstract class KeptAccountsConformance : StringSpec() {
             subject.inOwnTransaction { add(account(SECOND, "google-2")) }
 
             subject.inOwnTransaction { withGoogle("google-2") } shouldBe SECOND
+        }
+
+        "knows an administrator by the right it was given" {
+            val subject = fresh()
+            subject.inOwnTransaction { add(account(FIRST, "google-1")) }
+            subject.grantAdministrator(FIRST)
+
+            subject.inOwnTransaction { isAdministrator(FIRST) } shouldBe true
+        }
+
+        "does not take an account for an administrator that was not given the right" {
+            val subject = fresh()
+            subject.inOwnTransaction { add(account(FIRST, "google-1")) }
+            subject.inOwnTransaction { add(account(SECOND, "google-2")) }
+            subject.grantAdministrator(FIRST)
+
+            subject.inOwnTransaction { isAdministrator(SECOND) } shouldBe false
+        }
+
+        "does not take an account nobody registered for an administrator" {
+            fresh().inOwnTransaction { isAdministrator(FIRST) } shouldBe false
         }
     }
 }

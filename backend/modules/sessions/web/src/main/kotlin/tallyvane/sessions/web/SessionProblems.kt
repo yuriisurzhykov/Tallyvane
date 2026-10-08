@@ -11,6 +11,7 @@ import tallyvane.sessions.application.Opened
 internal class SessionProblems : Problems<Opened.Failed> {
     override fun Answers.of(failure: Opened.Failed): Problem = when (failure) {
         is Opened.Failed.NothingToOpen -> missing("There is no completed sign-in to start a session from.")
+        is Opened.Failed.NotAnAdministrator -> forbidden("This account is not an administrator.")
     }
 
     override fun toString(): String = "SessionProblems"

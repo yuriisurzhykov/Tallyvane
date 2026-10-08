@@ -5,6 +5,7 @@ import tallyvane.platform.events.EventPublisher
 import tallyvane.platform.health.HealthRoutes
 import tallyvane.platform.health.ServiceToken
 import tallyvane.platform.http.Api
+import tallyvane.platform.http.Surfaces
 import tallyvane.platform.http.TraceHeader
 import tallyvane.platform.http.problems.FailureTranslator
 import tallyvane.platform.observability.health.HealthCheck
@@ -38,9 +39,19 @@ public class Wiring(private val platform: PlatformWiring, private val configurat
 
     private val journal = JournalWiring(platform)
 
-    private val authentication = AuthenticationWiring(platform, identity, journal.contract, configuration.signIn)
+    private val surfaces = Surfaces(configuration.signIn.appOrigin, configuration.signIn.adminOrigin)
 
-    private val sessions = SessionsWiring(platform, authentication.signIns, journal.contract, configuration.signIn)
+    private val authentication =
+        AuthenticationWiring(platform, identity, journal.contract, configuration.signIn, surfaces)
+
+    private val sessions = SessionsWiring(
+        platform,
+        authentication.signIns,
+        identity.admins,
+        journal.contract,
+        configuration.signIn,
+        surfaces,
+    )
 
     /**
      * Tells every module's subscribers that something happened. Nothing publishes yet, because the only
@@ -70,7 +81,7 @@ public class Wiring(private val platform: PlatformWiring, private val configurat
             trace = TraceHeader(platform.ids),
             ledger = platform.persistence.ledger,
             callers = sessions.callers,
-            appOrigin = configuration.signIn.appOrigin,
+            surfaces = surfaces,
         )
     }
 

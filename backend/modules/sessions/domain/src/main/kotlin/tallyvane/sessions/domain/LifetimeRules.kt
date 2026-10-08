@@ -7,7 +7,8 @@ import kotlin.time.Duration
  *
  * Read as a whole, with one query, so a request pays once however many kinds of client there are, and
  * a session picks its own kind's. Whether each kind has lifetimes is checked when the rules are built,
- * so no session can meet a kind that has none.
+ * so no session can meet a kind that has none: a kind with no version in force is judged by its starting
+ * lifetimes if it has any, and the rules cannot be built if it has not.
  */
 public class LifetimeRules private constructor(private val byClient: Map<ClientType, Lifetimes>) {
     internal fun of(client: ClientType): Lifetimes = byClient.getValue(client)
@@ -42,8 +43,11 @@ public class LifetimeRules private constructor(private val byClient: Map<ClientT
 
         fun rules(): LifetimeRules {
             val missing = ClientType.entries - told.keys
-            check(missing.isEmpty()) { "No lifetimes are in force for $missing." }
-            return LifetimeRules(told.toMap())
+            val starting = missing.mapNotNull { client -> client.lifetimesUntilVersioned()?.let { client to it } }
+            check(missing.size == starting.size) {
+                "No lifetimes are in force for ${missing.filter { it.lifetimesUntilVersioned() == null }}."
+            }
+            return LifetimeRules(told.toMap() + starting)
         }
     }
 }

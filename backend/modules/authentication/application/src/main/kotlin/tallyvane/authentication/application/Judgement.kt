@@ -27,10 +27,11 @@ internal class Judgement(private val policies: ActivePolicies, private val now: 
 
     private companion object {
         /**
-         * The purposes that begin with a trip to Google and come back to this callback: signing in, and
-         * confirming a dangerous act. Registration is never begun; a sign-in becomes one on the way back.
+         * The purposes that begin with a trip to Google and come back to this callback: signing in to the
+         * console or to the administrators' site, and confirming a dangerous act. Registration is never
+         * begun; a sign-in becomes one on the way back.
          */
-        val THROUGH_GOOGLE = listOf(Purpose.Login, Purpose.StepUp)
+        val THROUGH_GOOGLE = listOf(Purpose.Login, Purpose.AdminLogin, Purpose.StepUp)
     }
 
     /**

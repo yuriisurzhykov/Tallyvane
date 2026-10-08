@@ -108,7 +108,7 @@ private fun api(): Api = Api(
     trace = TraceHeader(IdGeneratorFake()),
     ledger = LedgerFake(TransactionRunnerFake(), ClockFake(Instant.parse("2026-10-01T12:00:00Z"))),
     callers = Callers.Anonymous(),
-    appOrigin = APP_ORIGIN,
+    surfaces = Surfaces(APP_ORIGIN, "https://admin.example.test"),
 )
 
 class ApiSpec :

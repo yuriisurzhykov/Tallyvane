@@ -51,6 +51,9 @@ x-server: &server-defaults
     # must equal on every unsafe request, and the base of the redirect URI given to Google.
     TALLYVANE_APP_ORIGIN: ${APP_ORIGIN:-https://app.${DOMAIN:?DOMAIN must be set}}
     TALLYVANE_API_ORIGIN: ${APP_ORIGIN:-https://app.${DOMAIN:?DOMAIN must be set}}
+    # The administrators' site: its own host behind Cloudflare Access (ADR-032, ADR-097). Its address is also
+    # the base of the second redirect URI registered with Google, `<origin>/api/v1/google-return`.
+    TALLYVANE_ADMIN_ORIGIN: ${ADMIN_ORIGIN:-https://admin.${DOMAIN:?DOMAIN must be set}}
     TALLYVANE_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:?GOOGLE_CLIENT_ID must be set}
     TALLYVANE_GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:?GOOGLE_CLIENT_SECRET must be set}
     TALLYVANE_TOKEN_PEPPER: ${TOKEN_PEPPER:?TOKEN_PEPPER must be set}

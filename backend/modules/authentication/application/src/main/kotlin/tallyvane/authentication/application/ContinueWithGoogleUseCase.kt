@@ -3,6 +3,7 @@ package tallyvane.authentication.application
 import tallyvane.authentication.application.port.Google
 import tallyvane.platform.kernel.Clock
 import tallyvane.platform.kernel.Secret
+import tallyvane.platform.kernel.Surface
 import tallyvane.platform.kernel.UseCase
 
 /**
@@ -15,8 +16,9 @@ import tallyvane.platform.kernel.UseCase
 public interface ContinueWithGoogleUseCase : UseCase {
     /**
      * @param attempt The secret from the browser's `__Host-attempt` cookie, or null when it sent none.
+     * @param surface The door the browser came back through, whose redirect address the code is traded against.
      */
-    public suspend fun continueWith(attempt: Secret?, reply: GoogleReply): GoogleReturn
+    public suspend fun continueWith(attempt: Secret?, reply: GoogleReply, surface: Surface): GoogleReturn
 
     public class ContinueWithGoogle(
         private val trips: GoogleTrips,
@@ -25,11 +27,15 @@ public interface ContinueWithGoogleUseCase : UseCase {
         private val clock: Clock,
         private val keys: SignInKeys,
     ) : ContinueWithGoogleUseCase {
-        override suspend fun continueWith(attempt: Secret?, reply: GoogleReply): GoogleReturn {
+        override suspend fun continueWith(attempt: Secret?, reply: GoogleReply, surface: Surface): GoogleReturn {
             val key = attempt?.let(keys::keyOf) ?: return GoogleReturn.TurnedBack(TurnBack.Restart)
             return when (val arrival = trips.arrive(key, reply, Judgement(policies, clock.now()))) {
                 is Arrival.Stopped -> GoogleReturn.TurnedBack(arrival.reason)
-                is Arrival.Ready -> arrival.trip.exchangeWith(google, arrival.code).reportTo(Heard(arrival.trip))()
+                is Arrival.Ready -> arrival.trip.exchangeWith(
+                    google,
+                    arrival.code,
+                    surface,
+                ).reportTo(Heard(arrival.trip))()
             }
         }
 

@@ -22,6 +22,12 @@ public interface KeptAccounts {
     public fun profileOf(id: Uuid): Profile?
 
     /**
+     * Whether the account [id] was given the right to administer (ADR-097). False for an account that was
+     * not, and for one that is not kept.
+     */
+    public fun isAdministrator(id: Uuid): Boolean
+
+    /**
      * Keeps [account], unless an account for the same Google subject is already kept, in which case
      * nothing changes and the answer is [AccountAdded.SubjectTaken]. Two registrations of one person
      * that race each other end with one account, not with an error.

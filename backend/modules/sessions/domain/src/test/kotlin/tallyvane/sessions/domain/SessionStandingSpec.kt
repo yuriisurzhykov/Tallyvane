@@ -19,7 +19,13 @@ private fun session(): Session =
     Session.begin(ID, ACCOUNT, setOf(Factor.Google), ClientType.Browser, UserAgent(null).device(), START, START)
 
 private fun rules(idle: Duration, absolute: Duration, freshness: Duration = 5.minutes): LifetimeRules =
-    LifetimeRules.restore { it.lifetimes(ClientType.Browser, idle, absolute, freshness) }
+    LifetimeRules.restore {
+        it.lifetimes(ClientType.Browser, idle, absolute, freshness)
+        it.lifetimes(ClientType.Admin, 1.hours, 8.hours, 5.minutes)
+    }
+
+private fun rulesWithoutAdministrators(): LifetimeRules =
+    LifetimeRules.restore { it.lifetimes(ClientType.Browser, 1.days, 7.days, 5.minutes) }
 
 private fun Standing.kind(): String = reportTo(
     object : Standing.Report<String> {
@@ -168,6 +174,25 @@ class SessionStandingSpec :
                         record.proved(Factor.Google)
                     }
                 }
+            }
+
+            "an administrator's session lives by an hour idle while no version of theirs is kept" {
+                val administrators = LifetimeRules.restore {
+                    it.lifetimes(ClientType.Browser, 1.days, 7.days, 5.minutes)
+                }
+                val admin =
+                    Session.begin(
+                        ID,
+                        ACCOUNT,
+                        setOf(Factor.Google),
+                        ClientType.Admin,
+                        UserAgent(null).device(),
+                        START,
+                        START,
+                    )
+
+                admin.standingAt(START + 59.minutes, administrators).kind() shouldBe "live ${ID.value}"
+                admin.standingAt(START + 1.hours, administrators).kind() shouldBe "idle"
             }
         },
     )

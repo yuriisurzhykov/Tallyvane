@@ -22,6 +22,7 @@ import tallyvane.platform.http.BasePath
 import tallyvane.platform.http.RouteModule
 import tallyvane.platform.http.fromApp
 import tallyvane.platform.kernel.Secret
+import tallyvane.sessions.application.Harness
 
 private class Probe : RouteModule {
     override val basePath: BasePath = BasePath("/probe")
@@ -42,6 +43,23 @@ private suspend fun ApplicationTestBuilder.exchange(attempt: Secret?) = client.p
 private suspend fun ApplicationTestBuilder.probe(session: Secret?) = client.get("/api/v1/probe") {
     session?.let { withCookie("__Host-session", it) }
 }
+
+private const val ADMIN_HOST = "admin.example.test"
+
+private suspend fun ApplicationTestBuilder.exchangeAsAdmin(attempt: Secret?) = client.post("/api/v1/sessions") {
+    header(HttpHeaders.Host, ADMIN_HOST)
+    header(HttpHeaders.Origin, "https://$ADMIN_HOST")
+    header("Idempotency-Key", "0199a000-0000-7000-8000-000000000011")
+    attempt?.let { withCookie("__Host-attempt", it) }
+}
+
+private suspend fun ApplicationTestBuilder.probeAsAdmin(session: Secret?) = client.get("/api/v1/probe") {
+    header(HttpHeaders.Host, ADMIN_HOST)
+    session?.let { withCookie("__Host-session", it) }
+}
+
+private fun HttpResponse.sessionSecret(): Secret =
+    Secret(setCookies().single { it.startsWith("__Host-session=") }.substringAfter("=").substringBefore(";"))
 
 class SessionRoutesSpec :
     StringSpec(
@@ -168,6 +186,70 @@ class SessionRoutesSpec :
                     }.status shouldBe HttpStatusCode.Forbidden
 
                     served.harness.who(secret).shouldStartWith("signed in")
+                }
+            }
+
+            "exchanges an administrator's completed sign-in on the administrators' host for a session good only there" {
+                testApplication {
+                    val served = Served()
+                    served.harness.admins.grant(Harness.ACCOUNT)
+                    application { served.api(listOf(Probe())).install(this) }
+
+                    val answer = exchangeAsAdmin(served.harness.finishedSigningInAsAdmin())
+
+                    answer.status shouldBe HttpStatusCode.NoContent
+                    val secret = answer.sessionSecret()
+                    probeAsAdmin(secret).status shouldBe HttpStatusCode.OK
+                    probe(secret).status shouldBe HttpStatusCode.Unauthorized
+                }
+            }
+
+            "a console session carried to the administrators' host is not good there" {
+                testApplication {
+                    val served = Served()
+                    application { served.api(listOf(Probe())).install(this) }
+                    val secret = served.harness.signedIn()
+
+                    probeAsAdmin(secret).status shouldBe HttpStatusCode.Unauthorized
+                    probe(secret).status shouldBe HttpStatusCode.OK
+                }
+            }
+
+            "refuses a person who is not an administrator on the administrators' host, with no cookie" {
+                testApplication {
+                    val served = Served()
+                    application { served.api().install(this) }
+
+                    val answer = exchangeAsAdmin(served.harness.finishedSigningInAsAdmin())
+
+                    answer.status shouldBe HttpStatusCode.Forbidden
+                    answer.headers[HttpHeaders.ContentType] shouldStartWith "application/problem+json"
+                    answer.setCookies() shouldHaveSize 0
+                }
+            }
+
+            "an administrator's sign-in is not taken on the console's host" {
+                testApplication {
+                    val served = Served()
+                    served.harness.admins.grant(Harness.ACCOUNT)
+                    application { served.api().install(this) }
+
+                    exchange(served.harness.finishedSigningInAsAdmin()).status shouldBe HttpStatusCode.NotFound
+                }
+            }
+
+            "refuses the console's origin on the administrators' host" {
+                testApplication {
+                    val served = Served()
+                    served.harness.admins.grant(Harness.ACCOUNT)
+                    application { served.api().install(this) }
+
+                    client.post("/api/v1/sessions") {
+                        header(HttpHeaders.Host, ADMIN_HOST)
+                        fromApp()
+                        header("Idempotency-Key", "0199a000-0000-7000-8000-000000000012")
+                        withCookie("__Host-attempt", served.harness.finishedSigningInAsAdmin())
+                    }.status shouldBe HttpStatusCode.Forbidden
                 }
             }
         },

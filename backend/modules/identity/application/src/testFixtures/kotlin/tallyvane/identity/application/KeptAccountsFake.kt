@@ -12,8 +12,18 @@ import kotlin.uuid.Uuid
 class KeptAccountsFake : KeptAccounts {
     private val bySubject = mutableMapOf<String, Uuid>()
     private val profiles = mutableMapOf<Uuid, Profile>()
+    private val administrators = mutableSetOf<Uuid>()
+
+    /**
+     * Gives the account [id] the right to administer, as an operator's script does in the database.
+     */
+    fun grantAdministrator(id: Uuid) {
+        administrators += id
+    }
 
     override fun withGoogle(subject: String): Uuid? = bySubject[subject]
+
+    override fun isAdministrator(id: Uuid): Boolean = id in administrators
 
     override fun profileOf(id: Uuid): Profile? = profiles[id]
 

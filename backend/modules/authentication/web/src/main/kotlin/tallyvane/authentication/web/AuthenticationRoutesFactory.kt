@@ -6,6 +6,7 @@ import tallyvane.authentication.application.ContinueWithGoogleUseCase
 import tallyvane.authentication.application.RegisterUseCase
 import tallyvane.authentication.application.ShowRegistrationUseCase
 import tallyvane.platform.http.RouteModule
+import tallyvane.platform.http.Surfaces
 
 /**
  * Hands out the routes this module serves, for the composition root to mount. The route classes are
@@ -14,21 +15,24 @@ import tallyvane.platform.http.RouteModule
  */
 public class AuthenticationRoutesFactory {
     /**
-     * `POST /google-sign-in`: starting a sign-in.
+     * `POST /google-sign-in`: starting a sign-in, for the door [surfaces] says the request came through.
      */
-    public fun signIn(begin: BeginSignInUseCase): RouteModule = SignInRoutes(begin, AttemptCookie())
+    public fun signIn(begin: BeginSignInUseCase, surfaces: Surfaces): RouteModule =
+        SignInRoutes(begin, AttemptCookie(), surfaces)
 
     /**
      * `POST /google-step-up`: starting a confirmation of a dangerous act.
      */
-    public fun stepUp(begin: BeginStepUpUseCase): RouteModule = StepUpRoutes(begin, AttemptCookie())
+    public fun stepUp(begin: BeginStepUpUseCase, surfaces: Surfaces): RouteModule =
+        StepUpRoutes(begin, AttemptCookie(), surfaces)
 
     /**
      * `GET /google-return`: where Google sends the browser back to, which sends it on to the
-     * pages of the application at [appOrigin], such as `https://app.tallyvane.com`.
+     * pages of the application at the origin of the door the request came through, as [surfaces] knows
+     * them.
      */
-    public fun googleReturn(continueWith: ContinueWithGoogleUseCase, appOrigin: String): RouteModule =
-        GoogleReturnRoutes(continueWith, AttemptCookie(), ReturnPages(appOrigin))
+    public fun googleReturn(continueWith: ContinueWithGoogleUseCase, surfaces: Surfaces): RouteModule =
+        GoogleReturnRoutes(continueWith, AttemptCookie(), ReturnPages(surfaces), surfaces)
 
     /**
      * `GET /welcome`: what the welcome form starts from.

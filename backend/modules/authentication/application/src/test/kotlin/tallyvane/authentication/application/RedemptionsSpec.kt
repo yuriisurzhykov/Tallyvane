@@ -8,6 +8,7 @@ import tallyvane.authentication.contract.Redemption
 import tallyvane.identity.contract.AccountId
 import tallyvane.platform.kernel.Digest
 import tallyvane.platform.kernel.Secret
+import tallyvane.platform.kernel.Surface
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 
@@ -43,6 +44,38 @@ class RedemptionsSpec :
 
                 told(harness.redemptions.redeem(pressed.attempt)) shouldBe
                     "redeemed 00000000-0000-7000-8000-000000000001 [Google] 2026-10-02T09:00:00Z"
+            }
+
+            "hands the completed sign-in of an administrator over as an administrator's, never as a person's" {
+                val harness = Harness()
+                harness.accounts.knows("sub-1")
+                val totp = harness.enableTotp("sub-1")
+                val pressed = harness.pressSignIn(Surface.Admin)
+                harness.returnWith(pressed, vouched("sub-1"))
+                harness.verify.verify(pressed.attempt, Submission.TotpCode(totp.app.codeAt(harness.clock.now())))
+
+                told(harness.redemptions.redeem(pressed.attempt)) shouldBe "nothing"
+                told(harness.redemptions.redeemAdminLogin(pressed.attempt)).startsWith("redeemed") shouldBe true
+            }
+
+            "a person's sign-in cannot be taken as an administrator's" {
+                val harness = Harness()
+                harness.accounts.knows("sub-1")
+                val pressed = harness.pressSignIn()
+                harness.returnWith(pressed, vouched("sub-1"))
+
+                told(harness.redemptions.redeemAdminLogin(pressed.attempt)) shouldBe "nothing"
+                told(harness.redemptions.redeem(pressed.attempt)).startsWith("redeemed") shouldBe true
+            }
+
+            "an administrator who has not turned TOTP on has nothing to hand over, and the sign-in stays kept" {
+                val harness = Harness()
+                harness.accounts.knows("sub-1")
+                val pressed = harness.pressSignIn(Surface.Admin)
+                harness.returnWith(pressed, vouched("sub-1"))
+
+                told(harness.redemptions.redeemAdminLogin(pressed.attempt)) shouldBe "nothing"
+                harness.standing(pressed.attempt) shouldBe "restricted [Totp, RecoveryCode]"
             }
 
             "hands a sign-in over once" {

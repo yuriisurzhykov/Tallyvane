@@ -1,6 +1,7 @@
 package tallyvane.authentication.application
 
 import tallyvane.authentication.domain.Purpose
+import tallyvane.platform.kernel.Surface
 import tallyvane.platform.kernel.UseCase
 
 /**
@@ -12,9 +13,9 @@ import tallyvane.platform.kernel.UseCase
  * this confirmation proves with the session's own when it takes the confirmation.
  */
 public interface BeginStepUpUseCase : UseCase {
-    public suspend fun begin(): SignInBegun
+    public suspend fun begin(surface: Surface): SignInBegun
 
     public class BeginStepUp(private val departures: Departures) : BeginStepUpUseCase {
-        override suspend fun begin(): SignInBegun = departures.begin(Purpose.StepUp)
+        override suspend fun begin(surface: Surface): SignInBegun = departures.begin(Purpose.StepUp, surface)
     }
 }

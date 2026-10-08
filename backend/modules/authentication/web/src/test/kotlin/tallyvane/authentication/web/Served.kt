@@ -6,6 +6,7 @@ import tallyvane.authentication.application.Harness
 import tallyvane.platform.http.Api
 import tallyvane.platform.http.Callers
 import tallyvane.platform.http.RouteModule
+import tallyvane.platform.http.Surfaces
 import tallyvane.platform.http.TraceHeader
 import tallyvane.platform.http.problems.FailureTranslator
 import tallyvane.platform.idempotency.LedgerFake
@@ -16,6 +17,7 @@ import tallyvane.platform.kernel.TransactionRunnerFake
 import kotlin.time.Instant
 
 const val APP = "https://app.example.test"
+const val ADMIN = "https://admin.example.test"
 
 /**
  * The module's routes over the real use cases and fakes of every port, behind the real edge.
@@ -23,6 +25,7 @@ const val APP = "https://app.example.test"
 class Served(val harness: Harness = Harness()) {
     private val routes = AuthenticationRoutesFactory()
     private val secondFactor = SecondFactorRoutesFactory()
+    private val surfaces = Surfaces(APP, ADMIN)
 
     fun api(callers: Callers = Callers.Anonymous()): Api = Api(
         routes = modules(),
@@ -30,7 +33,7 @@ class Served(val harness: Harness = Harness()) {
         trace = TraceHeader(IdGeneratorFake()),
         ledger = LedgerFake(TransactionRunnerFake(), ClockFake(Instant.parse("2026-10-02T09:00:00Z"))),
         callers = callers,
-        appOrigin = APP,
+        surfaces = surfaces,
     )
 
     /**
@@ -44,9 +47,9 @@ class Served(val harness: Harness = Harness()) {
     }
 
     private fun modules(): List<RouteModule> = listOf(
-        routes.signIn(harness.begin),
-        routes.stepUp(harness.beginStepUp),
-        routes.googleReturn(harness.continueWith, APP),
+        routes.signIn(harness.begin, surfaces),
+        routes.stepUp(harness.beginStepUp, surfaces),
+        routes.googleReturn(harness.continueWith, surfaces),
         routes.welcome(harness.show),
         routes.registration(harness.register),
         secondFactor.signInState(harness.showSignIn),

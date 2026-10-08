@@ -1,10 +1,12 @@
 package tallyvane.server
 
 import tallyvane.authentication.contract.SignIns
+import tallyvane.identity.contract.Admins
 import tallyvane.journal.contract.SecurityJournal
 import tallyvane.platform.events.EventSubscriber
 import tallyvane.platform.http.Callers
 import tallyvane.platform.http.RouteModule
+import tallyvane.platform.http.Surfaces
 import tallyvane.platform.kernel.Clock
 import tallyvane.platform.kernel.Digests
 import tallyvane.platform.kernel.SecretGenerator
@@ -36,8 +38,10 @@ import tallyvane.sessions.web.SessionsWebFactory
 public class SessionsWiring(
     private val platform: PlatformWiring,
     private val signIns: SignIns,
+    private val admins: Admins,
     private val journal: SecurityJournal,
     settings: SignInConfiguration,
+    private val surfaces: Surfaces,
 ) {
     private val storage = SessionsStorageFactory()
 
@@ -58,6 +62,7 @@ public class SessionsWiring(
     private val open: OpenSessionUseCase by lazy {
         OpenSessionUseCase.OpenSession(
             signIns,
+            admins,
             storage.sessions(),
             journal,
             DeviceWords(),
@@ -110,15 +115,15 @@ public class SessionsWiring(
     /**
      * How every request is recognised.
      */
-    public val callers: Callers by lazy { web.callers(authenticate) }
+    public val callers: Callers by lazy { web.callers(authenticate, surfaces) }
 
     /**
      * The routes this module serves.
      */
     public val routes: List<RouteModule> by lazy {
         listOf(
-            web.open(open),
-            web.stepUp(confirmStepUp),
+            web.open(open, surfaces),
+            web.stepUp(confirmStepUp, surfaces),
             web.signOut(signOut),
             web.devices(listDevices),
             web.deviceSignOut(revokeDevice),

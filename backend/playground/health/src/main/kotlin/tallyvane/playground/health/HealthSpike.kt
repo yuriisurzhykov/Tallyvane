@@ -11,6 +11,7 @@ import tallyvane.platform.health.HealthRoutes
 import tallyvane.platform.health.ServiceToken
 import tallyvane.platform.http.Api
 import tallyvane.platform.http.Callers
+import tallyvane.platform.http.Surfaces
 import tallyvane.platform.http.problems.FailureTranslator
 import tallyvane.platform.http.TraceHeader
 import tallyvane.platform.kernel.IdGenerator
@@ -224,7 +225,7 @@ fun main(): Unit =
                     trace = TraceHeader(IdGenerator.Uuid7()),
                     ledger = persistence.ledger,
                     callers = Callers.Anonymous(),
-                    appOrigin = "http://localhost:$port",
+                    surfaces = Surfaces("http://localhost:$port", "https://admin.example.test"),
                 )
             menu()
             try {

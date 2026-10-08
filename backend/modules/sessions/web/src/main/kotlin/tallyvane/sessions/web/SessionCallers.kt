@@ -4,18 +4,23 @@ import io.ktor.server.application.ApplicationCall
 import tallyvane.identity.contract.AccountId
 import tallyvane.platform.http.Caller
 import tallyvane.platform.http.Callers
+import tallyvane.platform.http.Surfaces
 import tallyvane.sessions.application.AuthenticateUseCase
 import tallyvane.sessions.application.Resolution
 import tallyvane.sessions.domain.Freshness
 import tallyvane.sessions.domain.SessionId
 
 /**
- * Recognises a person by the session cookie their browser sends (ADR-079).
+ * Recognises a person by the session cookie their browser sends (ADR-079), if the session is one of the
+ * door the request came through (ADR-097).
  */
-internal class SessionCallers(private val authenticate: AuthenticateUseCase, private val session: SessionCookie) :
-    Callers {
+internal class SessionCallers(
+    private val authenticate: AuthenticateUseCase,
+    private val session: SessionCookie,
+    private val surfaces: Surfaces,
+) : Callers {
     override suspend fun of(call: ApplicationCall): Caller =
-        authenticate.resolve(session.secretIn(call)).reportTo(Naming())
+        authenticate.resolve(session.secretIn(call), surfaces.of(call)).reportTo(Naming())
 
     override fun toString(): String = "SessionCallers"
 

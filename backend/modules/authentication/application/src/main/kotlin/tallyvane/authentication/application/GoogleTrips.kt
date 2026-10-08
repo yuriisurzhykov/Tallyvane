@@ -69,13 +69,27 @@ public class GoogleTrips(
      * A confirmation never becomes a registration: someone who is signed in and confirms with a Google
      * account nobody here knows is recorded like anyone else, and the module that grants sessions finds
      * it is not their account when it takes the confirmation (ADR-092).
+     *
+     * Nor does anyone register through the administrators' site: a Google account nobody here knows is
+     * turned back there, and its attempt is forgotten (ADR-097).
      */
     internal suspend fun land(trip: Trip, person: Identified, fresh: IssuedKey): GoogleReturn =
         transactions.inTransaction {
             val known = person.accountIn(accounts) != null
             val confirming = trip.attempt.isFor(Purpose.StepUp)
-            Verdict.Commit(if (known || confirming) verified(trip, person) else registering(trip, person, fresh))
+            Verdict.Commit(
+                when {
+                    known || confirming -> verified(trip, person)
+                    trip.attempt.isFor(Purpose.AdminLogin) -> turnedBackAsStranger(trip)
+                    else -> registering(trip, person, fresh)
+                },
+            )
         }
+
+    private fun turnedBackAsStranger(trip: Trip): GoogleReturn {
+        attempts.forget(trip.key)
+        return GoogleReturn.TurnedBack(TurnBack.Refused)
+    }
 
     private fun verified(trip: Trip, person: Identified): GoogleReturn =
         when (attempts.save(trip.key, trip.attempt.withVerified(person.factor()))) {

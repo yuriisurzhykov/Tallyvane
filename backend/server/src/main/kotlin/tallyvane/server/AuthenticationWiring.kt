@@ -30,6 +30,7 @@ import tallyvane.authentication.web.AuthenticationRoutesFactory
 import tallyvane.authentication.web.SecondFactorRoutesFactory
 import tallyvane.journal.contract.SecurityJournal
 import tallyvane.platform.http.RouteModule
+import tallyvane.platform.http.Surfaces
 import tallyvane.platform.kernel.Clock
 import tallyvane.platform.kernel.Digests
 import tallyvane.platform.kernel.SecretGenerator
@@ -46,6 +47,7 @@ public class AuthenticationWiring(
     identity: IdentityWiring,
     private val journal: SecurityJournal,
     private val settings: SignInConfiguration,
+    private val surfaces: Surfaces,
 ) {
     // Opens the keyset now, so a variable that does not hold one stops the server at start and not at the
     // first person who turns TOTP on.
@@ -58,7 +60,12 @@ public class AuthenticationWiring(
     private val keys = SignInKeys(SecretGenerator.Csprng(), digests)
 
     private val google: Google by lazy {
-        GoogleAccessFactory().google(settings.googleClientId, settings.googleClientSecret, settings.redirectUri())
+        GoogleAccessFactory().google(
+            settings.googleClientId,
+            settings.googleClientSecret,
+            settings.appRedirectUri(),
+            settings.adminRedirectUri(),
+        )
     }
 
     private val totp = storage.totpEnrollments()
@@ -188,9 +195,9 @@ public class AuthenticationWiring(
         val web = AuthenticationRoutesFactory()
         val secondFactor = SecondFactorRoutesFactory()
         listOf(
-            web.signIn(begin),
-            web.stepUp(beginStepUp),
-            web.googleReturn(continueWith, settings.appOrigin),
+            web.signIn(begin, surfaces),
+            web.stepUp(beginStepUp, surfaces),
+            web.googleReturn(continueWith, surfaces),
             web.welcome(show),
             web.registration(register),
             secondFactor.signInState(showSignIn),

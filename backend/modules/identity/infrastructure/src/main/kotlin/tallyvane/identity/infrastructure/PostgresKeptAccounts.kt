@@ -39,6 +39,9 @@ internal class PostgresKeptAccounts : KeptAccounts {
         .singleOrNull()
         ?.get(ExternalIdentitiesTable.accountId)
 
+    override fun isAdministrator(id: Uuid): Boolean =
+        !AdminsTable.selectAll().where { AdminsTable.accountId eq id }.empty()
+
     override fun profileOf(id: Uuid): Profile? = AccountsTable.selectAll()
         .where { AccountsTable.id eq id }
         .singleOrNull()

@@ -3,6 +3,7 @@ package tallyvane.sessions.application
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.shouldBe
 import tallyvane.platform.kernel.Secret
+import tallyvane.platform.kernel.Surface
 import tallyvane.sessions.domain.Session
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
@@ -106,6 +107,53 @@ class AuthenticateSpec :
                 harness.who(session)
 
                 harness.sessions.lastUses().single() shouldBe begun
+            }
+
+            "an administrator's session speaks for them on the administrators' door" {
+                val harness = Harness()
+                val session = harness.signedInAsAdmin()
+
+                harness.who(session, Surface.Admin) shouldBe "signed in ${Harness.ACCOUNT.value}"
+            }
+
+            "an administrator's session does not speak on the console's door, and is left where it is good" {
+                val harness = Harness()
+                val session = harness.signedInAsAdmin()
+
+                harness.who(session, Surface.App) shouldBe "lapsed"
+                harness.who(session, Surface.Admin) shouldBe "signed in ${Harness.ACCOUNT.value}"
+            }
+
+            "a console session does not speak on the administrators' door, and is left where it is good" {
+                val harness = Harness()
+                val session = harness.signedIn()
+
+                harness.who(session, Surface.Admin) shouldBe "lapsed"
+                harness.who(session, Surface.App) shouldBe "signed in ${Harness.ACCOUNT.value}"
+            }
+
+            "an administrator's session lives by the lifetimes of administrators, an hour unused" {
+                val harness = Harness()
+                val session = harness.signedInAsAdmin()
+
+                harness.clock.advance(59.minutes)
+                harness.who(session, Surface.Admin) shouldBe "signed in ${Harness.ACCOUNT.value}"
+
+                harness.clock.advance(1.hours)
+                harness.who(session, Surface.Admin) shouldBe "lapsed"
+            }
+
+            "an administrator's session is over after eight hours however it is used" {
+                val harness = Harness()
+                val session = harness.signedInAsAdmin()
+
+                repeat(8) {
+                    harness.clock.advance(59.minutes)
+                    harness.who(session, Surface.Admin) shouldBe "signed in ${Harness.ACCOUNT.value}"
+                }
+                harness.clock.advance(59.minutes)
+
+                harness.who(session, Surface.Admin) shouldBe "lapsed"
             }
         },
     )

@@ -3,6 +3,7 @@ package tallyvane.authentication.application
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.shouldBe
 import tallyvane.platform.kernel.Secret
+import tallyvane.platform.kernel.Surface
 import kotlin.time.Duration.Companion.minutes
 
 private fun vouched(subject: String) = GoogleAnswer.Vouched(subject, GoogleProfile("Ann Example", "ann@example.com"))
@@ -16,6 +17,33 @@ class ContinueWithGoogleSpec :
                 val pressed = harness.pressSignIn()
 
                 harness.line(harness.returnWith(pressed, vouched("sub-1"))) shouldBe "verified"
+            }
+
+            "a person with an account goes on with their sign-in on the administrators' door too" {
+                val harness = Harness()
+                harness.accounts.knows("sub-1")
+                val pressed = harness.pressSignIn(Surface.Admin)
+
+                harness.line(harness.returnWith(pressed, vouched("sub-1"))) shouldBe "verified"
+            }
+
+            "a person without an account is turned back on the administrators' door, and nobody is registered" {
+                val harness = Harness()
+                val pressed = harness.pressSignIn(Surface.Admin)
+
+                harness.line(harness.returnWith(pressed, vouched("sub-1"))) shouldBe "turned back: Refused"
+
+                harness.accounts.knowing("sub-1") shouldBe false
+                harness.line(harness.returnWith(pressed, vouched("sub-1"))) shouldBe "turned back: Restart"
+            }
+
+            "a reply that comes back through the other door than the one it left from is refused by Google" {
+                val harness = Harness()
+                harness.accounts.knows("sub-1")
+                val pressed = harness.pressSignIn(Surface.App)
+
+                harness.line(harness.returnWith(pressed, vouched("sub-1"), surface = Surface.Admin)) shouldBe
+                    "turned back: Refused"
             }
 
             "a person without an account gets a registration under a new secret, and the old one stops working" {
@@ -65,6 +93,7 @@ class ContinueWithGoogleSpec :
                 val forged = harness.continueWith.continueWith(
                     pressed.attempt,
                     GoogleReply.Granted(code, "other-state"),
+                    Surface.App,
                 )
 
                 harness.line(forged) shouldBe "turned back: Restart"
@@ -75,7 +104,9 @@ class ContinueWithGoogleSpec :
                 val harness = Harness()
                 val pressed = harness.pressSignIn()
 
-                harness.line(harness.continueWith.continueWith(pressed.attempt, GoogleReply.Declined())) shouldBe
+                harness.line(
+                    harness.continueWith.continueWith(pressed.attempt, GoogleReply.Declined(), Surface.App),
+                ) shouldBe
                     "turned back: Cancelled"
             }
 
