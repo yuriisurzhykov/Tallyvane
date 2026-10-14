@@ -87,6 +87,7 @@ public class AuthenticationWiring(
         handshakes = storage.googleHandshakes(),
         profiles = storage.googleProfiles(),
         accounts = identity.accounts,
+        admins = identity.admins,
         transactions = platform.persistence.transactions,
     )
 

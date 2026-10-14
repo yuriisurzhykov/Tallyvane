@@ -33,7 +33,7 @@ class BeginSignInSpec :
 
             "on the administrators' door the attempt is an administrator's, which asks everyone for TOTP" {
                 val harness = Harness()
-                harness.accounts.knows("sub-1")
+                harness.knowsAdministrator("sub-1")
                 val pressed = harness.pressSignIn(Surface.Admin)
                 harness.returnWith(
                     pressed,

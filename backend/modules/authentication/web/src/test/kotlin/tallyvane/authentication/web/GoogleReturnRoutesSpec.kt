@@ -92,10 +92,10 @@ class GoogleReturnRoutesSpec :
                 }
             }
 
-            "a person who comes back on the administrators' host lands on the administrators' pages" {
+            "an administrator who comes back on the administrators' host lands on the administrators' pages" {
                 testApplication {
                     val served = Served()
-                    served.harness.accounts.knows("sub-1")
+                    served.harness.knowsAdministrator("sub-1")
                     application { served.api().install(this) }
                     val pressed = served.harness.pressSignIn(Surface.Admin)
                     val code = served.harness.google.arrange(pressed.state, vouched())
@@ -123,6 +123,23 @@ class GoogleReturnRoutesSpec :
 
                     answer.headers[HttpHeaders.Location] shouldBe "$ADMIN/login?problem=refused"
                     served.harness.accounts.knowing("sub-1") shouldBe false
+                }
+            }
+
+            "a person without the right is sent back to the administrators' sign-in page, refused, as a stranger is" {
+                testApplication {
+                    val served = Served()
+                    served.harness.accounts.knows("sub-1")
+                    application { served.api().install(this) }
+                    val pressed = served.harness.pressSignIn(Surface.Admin)
+                    val code = served.harness.google.arrange(pressed.state, vouched())
+
+                    val answer = browser().get("/api/v1/google-return?code=$code&state=${pressed.state}") {
+                        header(HttpHeaders.Host, "admin.example.test")
+                        header(HttpHeaders.Cookie, "__Host-attempt=${pressed.attempt.revealed()}")
+                    }
+
+                    answer.headers[HttpHeaders.Location] shouldBe "$ADMIN/login?problem=refused"
                 }
             }
 

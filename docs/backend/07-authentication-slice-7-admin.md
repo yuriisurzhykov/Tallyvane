@@ -19,7 +19,7 @@ Read it in this order: what we get and how it is cut into pull requests, which f
 
 | PR | What is inside |
 |---|---|
-| **7-0** `frontend-app` and a new package | The sign-in flow moves from `frontend-app` into a shared package `auth-kit`, behaviour unchanged. |
+| **7-0** `frontend-app` and a new package | The sign-in flow moves from `frontend-app` into a shared package `auth-kit`, behaviour unchanged ([the plan](../frontend/03-auth-kit.md), [ADR-100](../adr/ADR-100-the-sign-in-flow-is-a-package-the-apps-give-their-words-and-frame.md)). The same PR changes one thing in `authentication`: see section 6. |
 | **7a** backend | Who an administrator is, the second door (`admin.`), the `admin_login` sign-in, the session type `Admin` with its own lifetimes. |
 | **7b** backend | Versions of policies and of lifetimes: list, create, preview, activate and roll back, with author and comment. |
 | **7c** `frontend-admin` | Sign-in on `auth-kit`, the gate, the two screens. |
@@ -43,7 +43,7 @@ Decided without a fork:
 - **Both hosts are served by the same routes.** Which door a request came through is read from its `Host` (`Surfaces`), never from a path or a body. The door decides the purpose of an attempt (`login` or `admin_login`), the redirect URI sent to Google, the page the browser is sent back to and the type of the session issued.
 - **A session belongs to one door.** The server compares the type of the session with the door of the request: an `Admin` session does not work on `app.` and a `Browser` session does not work on `admin.`, even if the secret is carried over by hand. A session that does not fit is answered like an ended one, and is not deleted.
 - **An unsafe request must come from the origin of its own door.** The `Origin` is compared with the origin of the door the `Host` names, so the origin of `admin.` is not accepted on `app.`.
-- **An unknown Google account is not registered on `admin.`.** The browser is sent back to `/login?problem=refused`.
+- **An unknown Google account is not registered on `admin.`, and a known one without the right to administer is not let go on.** Both are answered alike, right after Google's return: the browser is sent back to `/login?problem=refused` and the attempt is forgotten, so an ordinary person is never asked for a code and is not told that the door exists. `OpenSession` still refuses a non-administrator with `403 forbidden`, as the second line.
 - **A person without TOTP is not let into `admin.`.** `GET /sign-in` says `restricted`; the page tells them to turn on two-step sign-in on `app.` and come back (no session is issued for it).
 - **Admin routes answer only on `admin.`** and every use case checks that the account is still an administrator; taking the right away works from the next request (7b).
 - **A new version needs no confirmation, its activation does.** A version in the list changes nothing until it is made active. A rollback is the activation of an earlier version.
@@ -73,7 +73,11 @@ sequenceDiagram
     K-->>A: Google address and the __Host-attempt cookie
     A->>G: signs in at Google
     G-->>K: GET /google-return (Host admin.)
-    K-->>A: redirect to admin./login/continue
+    alt the account is unknown or holds no right to administer
+        K-->>A: redirect to admin./login?problem=refused, the attempt forgotten
+    else an administrator
+        K-->>A: redirect to admin./login/continue
+    end
     F->>K: GET /sign-in
     alt the account has no TOTP
         K-->>F: restricted
@@ -83,9 +87,9 @@ sequenceDiagram
         A->>F: enters the TOTP code
         F->>K: POST /second-factor-codes
         F->>K: POST /sessions
-        alt the account is not an administrator
+        alt the right was taken away since Google's return (the second line)
             K-->>F: 403 forbidden
-            F-->>A: This account has no access
+            F-->>A: the generic "could not finish signing you in"
         else an administrator
             K-->>A: __Host-session cookie, client Admin
         end
@@ -282,6 +286,7 @@ Slice 7a is built. The diagrams above are the ones it was written from; this is 
 - **The refusal of a non-administrator keeps the sign-in.** `OpenSession` rolls back when `Admins` says no, so the completed sign-in is still kept and ends on its own. The answer is `403 forbidden`, not a code of its own.
 - **Configuration.** `TALLYVANE_ADMIN_ORIGIN` is mandatory and must have another host than `TALLYVANE_APP_ORIGIN`; the server refuses to start otherwise, naming the variable. `ops/docker-compose.yml` defaults it to `https://admin.<DOMAIN>`.
 - **No `admin` lifetime row is seeded (ADR-066).** The previous release reads every lifetime row it finds and does not know the word `admin`, so a row added by the migration would make it fail while the two colours run side by side. Instead `ClientType.Admin` carries starting lifetimes (an hour idle, eight hours absolute, five minutes of freshness) that `LifetimeRules` uses while no version of the administrators' lifetimes is kept, and the reading of the lifetime versions skips a kind it does not know. The first version row is added by the versions API of slice 7b, in a release after this one. The same tolerance lets a later release add a kind of client without stopping this one.
+- **A person without the right is turned back before the code (changed with slice 7-0, at the owner's request).** In 7a only an unknown Google account was refused on `admin.`; a known account without the right went on to the code and was refused with `403 forbidden` when the session was opened. `GoogleTrips.land` now asks `Admins` for an `admin_login` attempt and turns an account without the right back exactly like a stranger (`/login?problem=refused`, attempt forgotten), so nobody who may not administer reaches the code screen. `OpenSession` keeps its check as the second line. `GoogleTrips` takes `Admins` for this; the composition root passes `identity.admins`.
 - **Not verified here.** A real Google sign-in on `admin.`, Cloudflare Access in front of it, and the deploy steps (the second redirect URI at Google, `TALLYVANE_ADMIN_ORIGIN`, `ops/grant-admin.sh`). The integration tests ran against PostgreSQL 16, not the 17 image of the fixture.
 
 ### Deploy checklist for 7a
