@@ -27,7 +27,7 @@ class ContinueWithGoogleSpec :
                 harness.line(harness.returnWith(pressed, vouched("sub-1"))) shouldBe "verified"
             }
 
-            "a person with an account but without the right is turned back on the administrators' door, as a stranger is" {
+            "a person with an account but without the right is turned back on the administrators' door" {
                 val harness = Harness()
                 harness.accounts.knows("sub-1")
                 val pressed = harness.pressSignIn(Surface.Admin)
