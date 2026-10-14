@@ -79,6 +79,15 @@ export class ProblemError extends Error {
         return this.problem.status === status;
     }
 
+    /**
+     * The server read the request and turned it down (a `4xx` other than "try again": `408`, `409`, `429`), so
+     * nothing was carried out and the intention is over. Any other failure leaves it open: the work may have been done.
+     */
+    public wasRefused(): boolean {
+        const status = this.problem.status;
+        return status >= 400 && status < 500 && ![408, 409, 429].includes(status);
+    }
+
     public isSessionExpired(): boolean {
         return this.kind() === "session-expired";
     }

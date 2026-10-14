@@ -1,4 +1,5 @@
 import type { Api } from "frontend-shared/api";
+import type { IntentionKey } from "@/shared/idempotency";
 import { PolicyConsequences } from "../model/PolicyConsequences";
 import type { Purpose } from "../model/PolicyForm";
 
@@ -7,11 +8,13 @@ export class PolicyActivation {
     private readonly api: Api;
     private readonly purpose: Purpose;
     private readonly number: number;
+    private readonly intention: IntentionKey;
 
-    public constructor(api: Api, purpose: Purpose, number: number) {
+    public constructor(api: Api, purpose: Purpose, number: number, intention: IntentionKey) {
         this.api = api;
         this.purpose = purpose;
         this.number = number;
+        this.intention = intention;
     }
 
     public async preview(): Promise<PolicyConsequences> {
@@ -21,6 +24,9 @@ export class PolicyActivation {
     }
 
     public async confirm(comment: string): Promise<void> {
-        await this.api.post("/policy-activations", { purpose: this.purpose, number: this.number, comment });
+        const request = { purpose: this.purpose, number: this.number, comment };
+        await this.intention.send(request, (idempotencyKey) =>
+            this.api.post("/policy-activations", request, { idempotencyKey }),
+        );
     }
 }

@@ -57,6 +57,14 @@ describe("ProblemTransport", () => {
         expect(ProblemError.from(problem("conflict", 409, { "retry-after": "3" })).isAnsweredBefore()).toBe(false);
     });
 
+    it("calls a request refused only when a 4xx says nothing was carried out and it is not worth repeating as it is", () => {
+        expect(ProblemError.from(problem("validation-failed", 422)).wasRefused()).toBe(true);
+        expect(ProblemError.from(problem("forbidden", 403)).wasRefused()).toBe(true);
+        expect(ProblemError.from(problem("conflict", 409)).wasRefused()).toBe(false);
+        expect(ProblemError.from(problem("slow-down", 429)).wasRefused()).toBe(false);
+        expect(ProblemError.from(problem("other", 503)).wasRefused()).toBe(false);
+    });
+
     it("reads Retry-After in seconds, and says nothing when it is absent or not a count", () => {
         expect(ProblemError.from(problem("slow-down", 429, { "retry-after": "4" })).retryAfterSeconds()).toBe(4);
         expect(ProblemError.from(problem("slow-down", 429)).retryAfterSeconds()).toBeUndefined();

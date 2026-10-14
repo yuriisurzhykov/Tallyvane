@@ -91,7 +91,7 @@ function Body({ purpose, from, onClose, onSaved }: BodyProps) {
                 state={state}
                 comment={comment}
                 onComment={setComment}
-                onSave={() => { save(() => new PolicyVersions(api).add(purpose, form, comment)); }}
+                onSave={() => { save((intention) => new PolicyVersions(api).add(purpose, form, comment, intention)); }}
                 onCancel={onClose}
                 messages={messages}
                 {...optionally("commentError", near("comment"))}

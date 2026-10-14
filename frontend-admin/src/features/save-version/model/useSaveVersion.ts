@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { IntentionKey } from "@/shared/idempotency";
 import { Rejection } from "@/shared/rejection";
 
 export type SavingState =
@@ -14,8 +15,11 @@ export type SavingState =
 
 export interface SaveVersion {
     readonly state: SavingState;
-    /** Runs the attempt, which keeps the version and says its number, and follows it through. */
-    readonly save: (attempt: () => Promise<number>) => void;
+    /**
+     * Runs the attempt, which keeps the version and says its number, and follows it through. The attempt is given
+     * the intention of this form: trying again the same form after a failure is the same intention, not a second one.
+     */
+    readonly save: (attempt: (intention: IntentionKey) => Promise<number>) => void;
 }
 
 /**
@@ -24,11 +28,12 @@ export interface SaveVersion {
  */
 export function useSaveVersion(onSaved: (number: number) => void): SaveVersion {
     const [state, setState] = useState<SavingState>({ status: "idle" });
+    const [intention] = useState(() => new IntentionKey());
 
     const save = useCallback(
-        (attempt: () => Promise<number>) => {
+        (attempt: (intention: IntentionKey) => Promise<number>) => {
             setState({ status: "saving" });
-            attempt().then(
+            attempt(intention).then(
                 (number) => {
                     setState({ status: "saved", number });
                     onSaved(number);
@@ -39,7 +44,7 @@ export function useSaveVersion(onSaved: (number: number) => void): SaveVersion {
                 },
             );
         },
-        [onSaved],
+        [onSaved, intention],
     );
 
     return { state, save };

@@ -111,7 +111,7 @@ function Body({ client, from, onClose, onSaved }: BodyProps) {
                 state={state}
                 comment={comment}
                 onComment={setComment}
-                onSave={() => { save(() => new LifetimeVersions(api).add(client, form, comment)); }}
+                onSave={() => { save((intention) => new LifetimeVersions(api).add(client, form, comment, intention)); }}
                 onCancel={onClose}
                 messages={messages}
                 {...optionally("commentError", near("comment"))}
