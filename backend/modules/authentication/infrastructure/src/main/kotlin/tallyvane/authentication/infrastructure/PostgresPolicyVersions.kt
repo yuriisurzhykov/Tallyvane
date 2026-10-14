@@ -39,6 +39,13 @@ import kotlin.time.Instant
  * therefore takes a transaction-scoped advisory lock named after the purpose first, so the second
  * waits for the first to commit and then counts past it. The primary key on `(purpose, number)` is
  * what would still refuse a duplicate if the lock were ever left out.
+ *
+ * ### Two administrators activating at once
+ *
+ * The version in force is the one with the greatest activation identity, and the identity is drawn when the row is
+ * inserted, not when it commits. [activate] takes the same lock, so an activation that returns has committed before
+ * any other activation of the purpose is inserted, and the version it asked for was in force until a later one
+ * replaced it.
  */
 internal class PostgresPolicyVersions : PolicyVersions {
     private val words = StoredWords()
@@ -86,7 +93,7 @@ internal class PostgresPolicyVersions : PolicyVersions {
 
     override fun add(policy: SignInPolicy, change: Change, at: Instant): PolicyVersion {
         val purposeWord = words.of(PurposeHeard().of(policy))
-        lockCountingOf(purposeWord)
+        lockWritesOf(purposeWord)
         val highest = PolicyVersionsTable.select(PolicyVersionsTable.number.max())
             .where { PolicyVersionsTable.purpose eq purposeWord }
             .single()[PolicyVersionsTable.number.max()] ?: 0
@@ -111,6 +118,7 @@ internal class PostgresPolicyVersions : PolicyVersions {
                 "active handed out, not one built to look like it."
         }
         val told = ChangeHeard().also { change.writeTo(it) }
+        lockWritesOf(purposeWord)
         PolicyActivationsTable.insert {
             it[purpose] = purposeWord
             it[number] = heard.number()
@@ -123,9 +131,10 @@ internal class PostgresPolicyVersions : PolicyVersions {
     override fun toString(): String = "PostgresPolicyVersions(schema=authentication)"
 
     /**
-     * Makes concurrent adds for one purpose take turns, until the transaction ends.
+     * Makes concurrent adds and activations for one purpose take turns, until the transaction ends: the activation
+     * that is last by its identity is the one in force, so it must also be the one that commits last.
      */
-    private fun lockCountingOf(purposeWord: String) {
+    private fun lockWritesOf(purposeWord: String) {
         TransactionManager.current().exec(
             "select pg_advisory_xact_lock(hashtext(?))",
             listOf(TextColumnType() to "authentication.policy_versions.$purposeWord"),

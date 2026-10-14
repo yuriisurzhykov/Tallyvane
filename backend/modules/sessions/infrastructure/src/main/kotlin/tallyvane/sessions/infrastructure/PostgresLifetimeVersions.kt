@@ -42,6 +42,13 @@ import kotlin.time.Instant
  * transaction-scoped advisory lock named after the kind of client first, so the second waits for the first to commit
  * and then counts past it. The primary key on `(client_type, number)` is what would still refuse a duplicate if the
  * lock were ever left out.
+ *
+ * ### Two administrators activating at once
+ *
+ * The version in force is the one with the greatest activation identity, and the identity is drawn when the row is
+ * inserted, not when it commits. [activate] takes the same lock, so an activation that returns has committed before
+ * any other activation of the kind of client is inserted, and the version it asked for was in force until a later one
+ * replaced it.
  */
 internal class PostgresLifetimeVersions : LifetimeVersions {
     private val words = StoredDevices()
@@ -111,7 +118,7 @@ internal class PostgresLifetimeVersions : LifetimeVersions {
     override fun add(lifetimes: ClientLifetimes, change: Change, at: Instant): LifetimeVersion {
         val heard = Heard().also { lifetimes.writeTo(it) }
         val clientWord = words.of(heard.client())
-        lockCountingOf(clientWord)
+        lockWritesOf(clientWord)
         val highest = LifetimeVersionsTable.select(LifetimeVersionsTable.number.max())
             .where { LifetimeVersionsTable.clientType eq clientWord }
             .single()[LifetimeVersionsTable.number.max()] ?: 0
@@ -155,6 +162,7 @@ internal class PostgresLifetimeVersions : LifetimeVersions {
                 "history handed out, not one built to look like it."
         }
         val told = ChangeHeard().also { change.writeTo(it) }
+        lockWritesOf(clientWord)
         LifetimeActivationsTable.insert {
             it[clientType] = clientWord
             it[number] = heard.number()
@@ -167,9 +175,10 @@ internal class PostgresLifetimeVersions : LifetimeVersions {
     override fun toString(): String = "PostgresLifetimeVersions(schema=sessions)"
 
     /**
-     * Makes concurrent adds for one kind of client take turns, until the transaction ends.
+     * Makes concurrent adds and activations for one kind of client take turns, until the transaction ends: the
+     * activation that is last by its identity is the one in force, so it must also be the one that commits last.
      */
-    private fun lockCountingOf(clientWord: String) {
+    private fun lockWritesOf(clientWord: String) {
         TransactionManager.current().exec(
             "select pg_advisory_xact_lock(hashtext(?))",
             listOf(TextColumnType() to "sessions.lifetime_versions.$clientWord"),
