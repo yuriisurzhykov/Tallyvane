@@ -62,6 +62,7 @@ private const val ADD_FACTOR = """
  * Every act on one session by its id also names the account, in the same `WHERE`: a session of another
  * account matches no row, so the id alone is never enough to reach anyone's session.
  */
+@Suppress("TooManyFunctions") // One function per act of [Sessions], and the acts are a decision of that port.
 internal class PostgresSessions : Sessions {
     private val factors = StoredFactors()
     private val devices = StoredDevices()
@@ -113,6 +114,13 @@ internal class PostgresSessions : Sessions {
 
     override fun ofAccount(account: Uuid): List<Session> = restored.rows()
         .where { SessionsTable.accountId eq account }
+        .toList()
+        .groupBy { it[SessionsTable.id] }
+        .values
+        .map(restored::from)
+
+    override fun ofClient(client: ClientType): List<Session> = restored.rows()
+        .where { SessionsTable.clientType eq devices.of(client) }
         .toList()
         .groupBy { it[SessionsTable.id] }
         .values

@@ -19,5 +19,7 @@ class AdminsStub : Admins {
 
     override fun isAdmin(account: AccountId): Boolean = account in holders
 
+    override fun all(): List<AccountId> = holders.toList()
+
     override fun toString(): String = "AdminsStub(${holders.size})"
 }

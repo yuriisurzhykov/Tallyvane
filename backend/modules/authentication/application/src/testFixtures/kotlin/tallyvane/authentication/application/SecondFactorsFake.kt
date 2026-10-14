@@ -39,5 +39,10 @@ class SecondFactorsFake :
 
     override fun of(account: AccountId): RecoveryCodes? = sets[account]
 
+    /**
+     * The accounts that have an enrolment kept, for the census that counts them.
+     */
+    fun accounts(): List<AccountId> = enrollments.keys.toList()
+
     override fun toString(): String = "SecondFactorsFake(${enrollments.size})"
 }

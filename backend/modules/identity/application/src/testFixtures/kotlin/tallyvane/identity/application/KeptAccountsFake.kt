@@ -25,6 +25,10 @@ class KeptAccountsFake : KeptAccounts {
 
     override fun isAdministrator(id: Uuid): Boolean = id in administrators
 
+    override fun administrators(): List<Uuid> = administrators.toList()
+
+    override fun count(): Int = profiles.size
+
     override fun profileOf(id: Uuid): Profile? = profiles[id]
 
     override fun add(account: Account): AccountAdded {

@@ -80,6 +80,11 @@ public class Session private constructor(
     public fun isHeldOn(surface: Surface): Boolean = client.isOn(surface)
 
     /**
+     * Whether this session is held by the kind of client [kind].
+     */
+    public fun isHeldBy(kind: ClientType): Boolean = client == kind
+
+    /**
      * Whether this is [other], for whoever keeps sessions and has to find one.
      */
     public fun isIdentifiedBy(other: SessionId): Boolean = id == other

@@ -47,6 +47,17 @@ class AccountDirectorySpec :
                 kept.withGoogle("google-1") shouldBe null
             }
 
+            "the administrators are the accounts that were given the right, and the accounts are counted" {
+                val kept = KeptAccountsFake()
+                val directory = AccountDirectory(kept, IdGeneratorFake())
+                directory.register(registrant())
+                directory.register(registrant(subject = "google-2"))
+                kept.grantAdministrator(FIRST_ID.value)
+
+                directory.all() shouldBe listOf(FIRST_ID)
+                directory.count() shouldBe 2
+            }
+
             "a registration that loses a race to the same person's other one answers with the winner's account" {
                 val winner = Uuid.parse("0199a000-0000-7000-8000-00000000000a")
                 val kept = RacedAccounts(winner)
@@ -70,4 +81,8 @@ private class RacedAccounts(private val winner: Uuid) : tallyvane.identity.appli
     override fun add(account: tallyvane.identity.domain.Account): AccountAdded = AccountAdded.SubjectTaken
 
     override fun isAdministrator(id: Uuid): Boolean = false
+
+    override fun administrators(): List<Uuid> = emptyList()
+
+    override fun count(): Int = 0
 }

@@ -34,6 +34,8 @@ class AccountsFake : Accounts {
         }
     }
 
+    override fun count(): Int = bySubject.size
+
     private fun nextId() = AccountId(Uuid.parse("00000000-0000-7000-8000-%012d".format(++sequence)))
 
     override fun toString(): String = "AccountsFake(${bySubject.size})"

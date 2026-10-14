@@ -13,6 +13,9 @@ import kotlin.time.Duration
 public class LifetimeRules private constructor(private val byClient: Map<ClientType, Lifetimes>) {
     internal fun of(client: ClientType): Lifetimes = byClient.getValue(client)
 
+    internal fun with(client: ClientType, lifetimes: Lifetimes): LifetimeRules =
+        LifetimeRules(byClient + (client to lifetimes))
+
     override fun toString(): String = "LifetimeRules($byClient)"
 
     /**
