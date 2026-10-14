@@ -19,10 +19,28 @@ class ContinueWithGoogleSpec :
                 harness.line(harness.returnWith(pressed, vouched("sub-1"))) shouldBe "verified"
             }
 
-            "a person with an account goes on with their sign-in on the administrators' door too" {
+            "an administrator goes on with their sign-in on the administrators' door" {
+                val harness = Harness()
+                harness.knowsAdministrator("sub-1")
+                val pressed = harness.pressSignIn(Surface.Admin)
+
+                harness.line(harness.returnWith(pressed, vouched("sub-1"))) shouldBe "verified"
+            }
+
+            "a person with an account but without the right is turned back on the administrators' door" {
                 val harness = Harness()
                 harness.accounts.knows("sub-1")
                 val pressed = harness.pressSignIn(Surface.Admin)
+
+                harness.line(harness.returnWith(pressed, vouched("sub-1"))) shouldBe "turned back: Refused"
+
+                harness.line(harness.returnWith(pressed, vouched("sub-1"))) shouldBe "turned back: Restart"
+            }
+
+            "a person with an account but without the right still signs in on their own door" {
+                val harness = Harness()
+                harness.accounts.knows("sub-1")
+                val pressed = harness.pressSignIn()
 
                 harness.line(harness.returnWith(pressed, vouched("sub-1"))) shouldBe "verified"
             }

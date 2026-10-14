@@ -44,6 +44,8 @@ class SessionsFake : Sessions {
 
     override fun ofAccount(account: Uuid): List<Session> = kept.values.filter { it.isOf(account) }
 
+    override fun ofClient(client: ClientType): List<Session> = kept.values.filter { it.isHeldBy(client) }
+
     override fun revoke(account: Uuid, id: SessionId): Boolean {
         val key = kept.entries.firstOrNull { (_, session) -> session.isOf(account) && session.isIdentifiedBy(id) }?.key
         return key != null && kept.remove(key) != null

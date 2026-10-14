@@ -55,6 +55,9 @@ function routesPolicy(layers) {
 const WEB_LAYERS = ["views", "app"];
 const CONSOLE_LAYERS = ["entities", "features", "widgets", "views", "app"];
 const ADMIN_LAYERS = ["features", "widgets", "views", "app"];
+// auth-kit is a package, so it has no routing directory and no composition root of its own: the apps
+// compose it. It holds the layers the sign-in flow is made of, and nothing above `views`.
+const AUTH_KIT_LAYERS = ["entities", "features", "views"];
 
 const TS_FILES = ["**/*.ts", "**/*.tsx", "**/*.mts"];
 
@@ -305,6 +308,16 @@ export default [
     // ---------------------------------------------------------------------
     appBoundariesBlock("frontend-admin", ADMIN_LAYERS),
 
+    // ---------------------------------------------------------------------
+    // AUTH-KIT — the sign-in flow the apps share (slice 7-0)
+    // ---------------------------------------------------------------------
+    appBoundariesBlock("packages/auth-kit", AUTH_KIT_LAYERS),
+    {
+        // The Next plugin looks for a pages directory to check links against; a package has none.
+        files: ["packages/auth-kit/**/*.{ts,tsx}"],
+        rules: { "@next/next/no-html-link-for-pages": "off" },
+    },
+
     // Design-token governance. Scoped to where markup lives, because these
     // rules are about literals written into JSX and inline styles.
     {
@@ -317,6 +330,7 @@ export default [
             // content block it will hold renders real markup — the same
             // token discipline has to hold there once it does.
             "packages/content-kit/**/*.tsx",
+            "packages/auth-kit/**/*.tsx",
         ],
         ignores: [
             // The one place literal colours and dimensions ARE the content.
@@ -362,6 +376,7 @@ export default [
             "frontend-admin/src/**/*.tsx",
             "packages/frontend-shared/src/shared/**/*.tsx",
             "packages/content-kit/src/**/*.tsx",
+            "packages/auth-kit/src/**/*.tsx",
         ],
         ignores: [
             // Where the primitives are actually implemented — the one place
@@ -391,6 +406,7 @@ export default [
             "frontend-app/src/**/*.{ts,tsx}",
             "frontend-admin/src/**/*.{ts,tsx}",
             "packages/content-kit/src/**/*.{ts,tsx}",
+            "packages/auth-kit/src/**/*.{ts,tsx}",
         ],
         rules: {
             "no-restricted-imports": ["error", {

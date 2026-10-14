@@ -2,6 +2,7 @@ package tallyvane.authentication.infrastructure
 
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.shouldBe
+import tallyvane.authentication.application.HistoryStory
 import tallyvane.authentication.application.VersionStory
 import tallyvane.authentication.domain.Purpose
 import tallyvane.platform.kernel.Verdict
@@ -44,6 +45,27 @@ class InitialPoliciesIntegrationSpec :
                         }
 
                         VersionStory(checkNotNull(inForce)).told() shouldBe expected[purpose]
+                    } finally {
+                        persistence.close()
+                    }
+                }
+            }
+
+            Purpose.entries.forEach { purpose ->
+                "the history of $purpose says that nobody made version 1 and nobody put it in force" {
+                    val persistence = PostgresPersistence(PostgresFixture.migrated())
+                    try {
+                        val history = persistence.transactions.inTransaction {
+                            Verdict.Commit(storageForTests().policyVersions().history(purpose))
+                        }
+
+                        val told = HistoryStory(history).told()
+                        told.first().startsWith("kept by null because 'null' at ") shouldBe true
+                        told[1].let {
+                            it.startsWith("in force since ") && it.endsWith("by null because 'null'")
+                        } shouldBe
+                            true
+                        told.drop(2) shouldBe expected.getValue(purpose)
                     } finally {
                         persistence.close()
                     }

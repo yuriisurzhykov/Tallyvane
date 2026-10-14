@@ -1,1 +1,1 @@
-export { ConsoleGate as default } from "@/widgets/console-gate";
+export { ConsoleRoute as default } from "@/app/routes";

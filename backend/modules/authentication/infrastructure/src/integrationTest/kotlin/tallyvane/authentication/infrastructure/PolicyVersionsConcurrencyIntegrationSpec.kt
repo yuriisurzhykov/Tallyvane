@@ -5,13 +5,16 @@ import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import tallyvane.authentication.application.CheckedPolicy
+import tallyvane.authentication.application.SampleChange
 import tallyvane.authentication.application.VersionStory
 import tallyvane.authentication.domain.PolicyVersion
 import tallyvane.authentication.domain.Purpose
 import tallyvane.platform.kernel.Verdict
 import tallyvane.platform.persistence.PostgresFixture
 import tallyvane.platform.persistence.PostgresPersistence
+import java.util.concurrent.atomic.AtomicLong
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Instant
 
@@ -43,20 +46,62 @@ class PolicyVersionsConcurrencyIntegrationSpec :
                     val added = coroutineScope {
                         val first = async {
                             persistence.transactions.inTransaction {
-                                val version = versions.add(policy, NOW)
+                                val version = versions.add(policy, SampleChange().change(), NOW)
                                 delay(500.milliseconds)
                                 Verdict.Commit(version)
                             }
                         }
                         val second = async {
                             delay(100.milliseconds)
-                            persistence.transactions.inTransaction { Verdict.Commit(versions.add(policy, NOW)) }
+                            persistence.transactions.inTransaction {
+                                Verdict.Commit(versions.add(policy, SampleChange().change(), NOW))
+                            }
                         }
                         first.await() to second.await()
                     }
 
                     VersionStory(added.first) shouldBe VersionStory(PolicyVersion(FIRST_ADDED, policy))
                     VersionStory(added.second) shouldBe VersionStory(PolicyVersion(SECOND_ADDED, policy))
+                } finally {
+                    persistence.close()
+                }
+            }
+
+            "an activation waits for the one before it to commit, so the last to return is the one in force" {
+                val persistence = PostgresPersistence(PostgresFixture.migrated())
+                try {
+                    val versions = storageForTests().policyVersions()
+                    val policy = CheckedPolicy(Purpose.Login).policy()
+                    val kept = (1..2).map {
+                        persistence.transactions.inTransaction {
+                            Verdict.Commit(versions.add(policy, SampleChange().change(), NOW))
+                        }
+                    }
+                    val firstEnded = AtomicLong()
+                    val secondReturned = AtomicLong()
+
+                    coroutineScope {
+                        launch {
+                            persistence.transactions.inTransaction {
+                                versions.activate(kept[0], SampleChange().change(), NOW)
+                                delay(500.milliseconds)
+                                firstEnded.set(System.nanoTime())
+                                Verdict.Commit(Unit)
+                            }
+                        }
+                        launch {
+                            delay(100.milliseconds)
+                            persistence.transactions.inTransaction {
+                                versions.activate(kept[1], SampleChange().change(), NOW)
+                                secondReturned.set(System.nanoTime())
+                                Verdict.Commit(Unit)
+                            }
+                        }
+                    }
+
+                    (secondReturned.get() >= firstEnded.get()) shouldBe true
+                    persistence.transactions.inTransaction { Verdict.Commit(versions.active(Purpose.Login)) }
+                        ?.let { VersionStory(it) } shouldBe VersionStory(kept[1])
                 } finally {
                     persistence.close()
                 }

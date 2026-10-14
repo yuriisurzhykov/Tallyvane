@@ -39,7 +39,7 @@ import tallyvane.platform.observability.log.TraceContext
  * touches the pipeline. That is deliberate: every guarantee below holds because there is exactly
  * one place where it is arranged, so no route can omit it and no future route can forget it.
  *
- * Eight guarantees, in the order a request meets them:
+ * Nine guarantees, in the order a request meets them:
  *
  * 1. **Every call runs under a trace.** Continued from `traceparent` if a valid one arrived,
  *    fresh otherwise, and carried in the coroutine context so every log line of that call has
@@ -63,7 +63,10 @@ import tallyvane.platform.observability.log.TraceContext
  * 7. **A request that changes anything comes from our own pages, and a closed route is for signed-in people.**
  *    Both are decided before the idempotency claim, so a refused request leaves nothing behind. A route
  *    is closed unless its module says [Access.Public] (ADR-088, [Gate]).
- * 8. **An unsafe request is carried out once per `Idempotency-Key`.** `POST`, `PUT`, `PATCH` and
+ * 8. **A route that belongs to one door is not there at the other.** A module that names its [RouteModule.door]
+ *    is answered `404` for a request that came through the other one, decided by routing, ahead of the rest of
+ *    the call (ADR-098).
+ * 9. **An unsafe request is carried out once per `Idempotency-Key`.** `POST`, `PUT`, `PATCH` and
  *    `DELETE` need the header; a repeat is answered from what the first left, and one that is mid-flight
  *    waits for it. No route says anything about it (ADR-086, [Repeats]).
  *
@@ -84,7 +87,7 @@ public class Api(
     private val trace: TraceHeader,
     ledger: Ledger,
     callers: Callers,
-    surfaces: Surfaces,
+    private val surfaces: Surfaces,
 ) {
     private val gate = Gate(routes, callers, surfaces)
 
@@ -214,7 +217,15 @@ public class Api(
         application.routing {
             route(VERSIONED) {
                 routes.forEach { module ->
-                    route(module.basePath.value) { module.install(this) }
+                    route(module.basePath.value) {
+                        module.door?.let { door ->
+                            install(DoorOnly) {
+                                this.door = door
+                                this.surfaces = this@Api.surfaces
+                            }
+                        }
+                        module.install(this)
+                    }
                 }
             }
         }

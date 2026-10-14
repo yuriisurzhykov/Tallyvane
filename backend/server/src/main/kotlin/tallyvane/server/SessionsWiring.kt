@@ -11,11 +11,17 @@ import tallyvane.platform.kernel.Clock
 import tallyvane.platform.kernel.Digests
 import tallyvane.platform.kernel.SecretGenerator
 import tallyvane.server.config.SignInConfiguration
+import tallyvane.sessions.application.ActivateLifetimeVersionUseCase
+import tallyvane.sessions.application.AddLifetimeVersionUseCase
 import tallyvane.sessions.application.AuthenticateUseCase
 import tallyvane.sessions.application.ConfirmStepUpUseCase
 import tallyvane.sessions.application.DeviceWords
+import tallyvane.sessions.application.Endings
+import tallyvane.sessions.application.LifetimeWords
 import tallyvane.sessions.application.ListDevicesUseCase
+import tallyvane.sessions.application.ListLifetimeVersionsUseCase
 import tallyvane.sessions.application.OpenSessionUseCase
+import tallyvane.sessions.application.PreviewLifetimeVersionUseCase
 import tallyvane.sessions.application.Recognition
 import tallyvane.sessions.application.RenameDeviceUseCase
 import tallyvane.sessions.application.RevokeDeviceUseCase
@@ -24,6 +30,7 @@ import tallyvane.sessions.application.SessionsOfDeletedAccounts
 import tallyvane.sessions.application.SignOutOthersUseCase
 import tallyvane.sessions.application.SignOutUseCase
 import tallyvane.sessions.infrastructure.SessionsStorageFactory
+import tallyvane.sessions.web.LifetimeRoutesFactory
 import tallyvane.sessions.web.SessionsWebFactory
 
 /**
@@ -112,6 +119,47 @@ public class SessionsWiring(
         SignOutOthersUseCase.SignOutOthers(recognition, storage.sessions(), journal, platform.persistence.transactions)
     }
 
+    private val lifetimeWords = LifetimeWords()
+
+    private val listLifetimeVersions: ListLifetimeVersionsUseCase by lazy {
+        ListLifetimeVersionsUseCase.ListLifetimeVersions(
+            admins,
+            storage.lifetimeVersions(),
+            lifetimeWords,
+            platform.persistence.transactions,
+        )
+    }
+
+    private val addLifetimeVersion: AddLifetimeVersionUseCase by lazy {
+        AddLifetimeVersionUseCase.AddLifetimeVersion(
+            admins,
+            storage.lifetimeVersions(),
+            lifetimeWords,
+            platform.persistence.transactions,
+            clock,
+        )
+    }
+
+    private val previewLifetimeVersion: PreviewLifetimeVersionUseCase by lazy {
+        PreviewLifetimeVersionUseCase.PreviewLifetimeVersion(
+            admins,
+            storage.lifetimeVersions(),
+            Endings(storage.sessions(), storage.lifetimeVersions(), clock),
+            lifetimeWords,
+            platform.persistence.transactions,
+        )
+    }
+
+    private val activateLifetimeVersion: ActivateLifetimeVersionUseCase by lazy {
+        ActivateLifetimeVersionUseCase.ActivateLifetimeVersion(
+            admins,
+            storage.lifetimeVersions(),
+            lifetimeWords,
+            platform.persistence.transactions,
+            clock,
+        )
+    }
+
     /**
      * How every request is recognised.
      */
@@ -121,6 +169,7 @@ public class SessionsWiring(
      * The routes this module serves.
      */
     public val routes: List<RouteModule> by lazy {
+        val lifetimes = LifetimeRoutesFactory()
         listOf(
             web.open(open, surfaces),
             web.stepUp(confirmStepUp, surfaces),
@@ -129,6 +178,10 @@ public class SessionsWiring(
             web.deviceSignOut(revokeDevice),
             web.deviceName(renameDevice),
             web.otherDevicesSignOut(signOutOthers),
+            lifetimes.history(listLifetimeVersions),
+            lifetimes.versions(addLifetimeVersion),
+            lifetimes.previews(previewLifetimeVersion),
+            lifetimes.activations(activateLifetimeVersion),
         )
     }
 

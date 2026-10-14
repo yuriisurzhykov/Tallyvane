@@ -32,6 +32,7 @@ COPY frontend-admin/package.json frontend-admin/
 COPY packages/design-tokens/package.json packages/design-tokens/
 COPY packages/frontend-shared/package.json packages/frontend-shared/
 COPY packages/content-kit/package.json packages/content-kit/
+COPY packages/auth-kit/package.json packages/auth-kit/
 COPY packages/test-kit/package.json packages/test-kit/
 COPY packages/storybook/package.json packages/storybook/
 # The pnpm store lives in a BuildKit cache mount, outside every layer: when a manifest change

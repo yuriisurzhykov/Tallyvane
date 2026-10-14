@@ -25,4 +25,10 @@ public interface Accounts {
      * subject: a person who submits the welcome form twice has one account.
      */
     public fun register(registrant: Registrant): Registration
+
+    /**
+     * How many accounts exist. Asked by whoever must say how many people a change to what sign-in demands
+     * reaches (ADR-098).
+     */
+    public fun count(): Int
 }

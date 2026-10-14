@@ -4,7 +4,8 @@ import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.datetime.timestamp
 
 /**
- * `authentication.policy_versions`: the numbers of one version of one purpose's policy.
+ * `authentication.policy_versions`: the numbers of one version of one purpose's policy and, when a person made it,
+ * who and why.
  */
 internal object PolicyVersionsTable : Table("authentication.policy_versions") {
     val purpose = text("purpose")
@@ -13,6 +14,8 @@ internal object PolicyVersionsTable : Table("authentication.policy_versions") {
     val maxFailures = integer("max_failures")
     val firstDelayMillis = long("first_delay_millis")
     val createdAt = timestamp("created_at")
+    val madeBy = uuid("made_by").nullable()
+    val comment = text("comment").nullable()
 
     override val primaryKey = PrimaryKey(purpose, number)
 }

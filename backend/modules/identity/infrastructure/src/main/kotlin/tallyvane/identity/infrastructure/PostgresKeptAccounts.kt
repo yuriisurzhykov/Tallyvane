@@ -42,6 +42,10 @@ internal class PostgresKeptAccounts : KeptAccounts {
     override fun isAdministrator(id: Uuid): Boolean =
         !AdminsTable.selectAll().where { AdminsTable.accountId eq id }.empty()
 
+    override fun administrators(): List<Uuid> = AdminsTable.selectAll().map { it[AdminsTable.accountId] }
+
+    override fun count(): Int = AccountsTable.selectAll().count().toInt()
+
     override fun profileOf(id: Uuid): Profile? = AccountsTable.selectAll()
         .where { AccountsTable.id eq id }
         .singleOrNull()

@@ -622,6 +622,239 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/policy-history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The versions of the sign-in policy of one purpose
+         * @description Every version kept for `purpose` (`registration`, `login`, `admin_login`, `step_up`), newest first, with who
+         *     made it and why, and which one is in force and since when (ADR-098). A version a migration made has no
+         *     `made_by` and no `comment`. Never cached.
+         *
+         *     Served on the administrators' site only: on the application's own site the route does not exist (`404`).
+         *     Only an administrator may read it (`403` otherwise), and the right is checked again on every request.
+         *     `422` names the field: `purpose` (`unknown`).
+         */
+        get: operations["listPolicyVersions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/policy-versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Keep a new version of a sign-in policy
+         * @description Keeps the policy as the next version of its purpose. It changes nothing for anyone until it is put in
+         *     force with `POST /policy-activations`. The author is the signed-in administrator.
+         *
+         *     The bounds are in the code, and a version outside them is not kept: `422` lists every error at once, each
+         *     with its `field` and a `code`, and a `detail` in words fit to show.
+         *
+         *     | field | code | when |
+         *     |---|---|---|
+         *     | `purpose` | `unknown` | the word names no purpose |
+         *     | `steps[i].accepts` | `empty` | step `i` (counting from 0) accepts no factor |
+         *     | `steps` | `nothing-identifies-the-account` | no step applies to everyone with no setup, such as Google, so the account is never learned |
+         *     | `steps` | `below-the-floor` | a purpose that always demanded a second factor would stop demanding it |
+         *     | `steps` | `would-lock-people-out` | a step demands a second factor from everyone, for a purpose other than `admin_login`, where a person without one could not sign in to set it up |
+         *     | `attempt_lifetime_millis`, `max_failures`, `first_delay_millis` | `out-of-bounds` | outside the range the code sets |
+         *     | `comment` | `comment-invalid` | empty, longer than 500 characters or with a control character once trimmed |
+         *
+         *     Served on the administrators' site only, to an administrator only.
+         */
+        post: operations["addPolicyVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/policy-previews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What putting a kept policy version in force would do
+         * @description For the kept version `number` of `purpose`: how many people the purpose applies to and how many of them
+         *     could not get to the end of a sign-in under it. The same for a new version and for a rollback; there is no
+         *     draft on the server. Writes nothing. Never cached.
+         *
+         *     `404` when no such version is kept, and for a `number` that is missing or is not a whole number. `422`
+         *     names the field: `purpose` (`unknown`). Served on the administrators' site only, to an administrator only.
+         */
+        get: operations["previewPolicyVersion"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/policy-activations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Put a kept policy version in force
+         * @description Makes the version `number` of `purpose` the one that judges every step from now on, including a sign-in
+         *     already begun (ADR-078), and records who did it and why. Putting an earlier version in force is the
+         *     rollback.
+         *
+         *     A dangerous act: it asks for a recent proof of who the person is (ADR-092). A person whose last proof is
+         *     older is answered `403` with the problem type `step-up-required`, and goes on after `POST /step-ups`.
+         *
+         *     - `404` no such version is kept.
+         *     - `422` names the field: `purpose` (`unknown`), `comment` (`comment-invalid`), and `number`
+         *       (`would-lock-out-every-administrator`) when the version is for `admin_login` and no administrator could
+         *       get to the end of it. It is `422` and not `409`: the request is well formed and the data it names is what
+         *       is wrong, as for a version outside the bounds.
+         *
+         *     Served on the administrators' site only, to an administrator only.
+         */
+        post: operations["activatePolicyVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/lifetime-history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The versions of the session lifetimes of one kind of client
+         * @description Every version kept for `client` (`browser`, `admin`), newest first, with who made it and why, and which
+         *     one is in force and since when (ADR-098). A version a migration made has no `made_by` and no `comment`.
+         *     Never cached.
+         *
+         *     Served on the administrators' site only, to an administrator only. `422` names the field: `client`
+         *     (`unknown`).
+         */
+        get: operations["listLifetimeVersions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/lifetime-versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Keep a new version of the session lifetimes
+         * @description Keeps the lifetimes as the next version of their client. It changes nothing for anyone until it is put in
+         *     force with `POST /lifetime-activations`. The author is the signed-in administrator.
+         *
+         *     `422` lists every error at once, each with its `field` and a `code`.
+         *
+         *     | field | code | when |
+         *     |---|---|---|
+         *     | `client` | `unknown` | the word names no kind of client |
+         *     | `idle_millis`, `freshness_millis` | `out-of-bounds` | outside the range the code sets |
+         *     | `absolute_millis` | `out-of-bounds` | longer than the code allows |
+         *     | `absolute_millis` | `below-idle` | shorter than `idle_millis`, so the idle limit could never be reached |
+         *     | `comment` | `comment-invalid` | empty, longer than 500 characters or with a control character once trimmed |
+         *
+         *     Served on the administrators' site only, to an administrator only.
+         */
+        post: operations["addLifetimeVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/lifetime-previews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What putting a kept lifetimes version in force would do
+         * @description For the kept version `number` of `client`: how many sessions of that kind of client are live now, and how
+         *     many of them the version would end at once (a session past a limit of the version stops working at the
+         *     next request). Sessions that are over already are in neither count. Writes nothing. Never cached.
+         *
+         *     `404` when no such version is kept, and for a `number` that is missing or is not a whole number. `422`
+         *     names the field: `client` (`unknown`). Served on the administrators' site only, to an administrator only.
+         */
+        get: operations["previewLifetimeVersion"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/lifetime-activations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Put a kept lifetimes version in force
+         * @description Makes the version `number` of `client` the one every session of that kind of client is judged by from the
+         *     next request, and records who did it and why. Putting an earlier version in force is the rollback. There is
+         *     no bound that can lock people out: a session that is ended by a tighter version is signed in again.
+         *
+         *     A dangerous act: it asks for a recent proof of who the person is (ADR-092). A person whose last proof is
+         *     older is answered `403` with the problem type `step-up-required`, and goes on after `POST /step-ups`.
+         *
+         *     - `404` no such version is kept.
+         *     - `422` names the field: `client` (`unknown`), `comment` (`comment-invalid`).
+         *
+         *     Served on the administrators' site only, to an administrator only.
+         */
+        post: operations["activateLifetimeVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -893,6 +1126,151 @@ export interface components {
         DeviceNaming: {
             /** @description 1 to 60 characters once trimmed, no control characters. */
             name: string;
+        };
+        PolicyHistory: {
+            purpose: string;
+            /** @description Newest first. */
+            versions: components["schemas"]["PolicyVersion"][];
+        };
+        PolicyVersion: {
+            number: number;
+            /**
+             * Format: uuid
+             * @description The account that made it. Absent for a version a migration made.
+             */
+            made_by?: string;
+            /** Format: date-time */
+            made_at: string;
+            /** @description Why. Absent for a version a migration made. */
+            comment?: string;
+            /** @description Present on the one version that is in force, and on no other. */
+            in_force?: components["schemas"]["InForce"];
+            steps: components["schemas"]["PolicyStep"][];
+            /**
+             * Format: int64
+             * @description How long a sign-in attempt stays open.
+             */
+            attempt_lifetime_millis: number;
+            /** @description The wrong answers after which an attempt is over. */
+            max_failures: number;
+            /**
+             * Format: int64
+             * @description The pause after the first wrong answer; each next one doubles it.
+             */
+            first_delay_millis: number;
+        };
+        PolicyStep: {
+            /** @description The step is satisfied by any one of these. */
+            accepts: ("google" | "totp" | "recovery_code")[];
+            /**
+             * @description `when_enrolled` applies only to a person who has set one of the factors up. `always` applies to
+             *     everyone.
+             * @enum {string}
+             */
+            necessity: "always" | "when_enrolled";
+        };
+        InForce: {
+            /** Format: date-time */
+            since: string;
+            /**
+             * Format: uuid
+             * @description Who put it in force. Absent for an activation a migration made.
+             */
+            by?: string;
+            /** @description Why. Absent for an activation a migration made. */
+            reason?: string;
+        };
+        PolicyProposal: {
+            /** @enum {string} */
+            purpose: "registration" | "login" | "admin_login" | "step_up";
+            steps: components["schemas"]["PolicyStep"][];
+            /** Format: int64 */
+            attempt_lifetime_millis: number;
+            max_failures: number;
+            /** Format: int64 */
+            first_delay_millis: number;
+            /** @description Why, 1 to 500 characters once trimmed, no control characters. */
+            comment: string;
+        };
+        PolicyVersionMade: {
+            purpose: string;
+            number: number;
+        };
+        PolicyPreview: {
+            /** @description How many people the purpose applies to (all accounts, or the administrators for `admin_login`). */
+            people: number;
+            /** @description How many of them could not get to the end of a sign-in under the version. */
+            cannot_pass: number;
+        };
+        PolicyActivation: {
+            /** @enum {string} */
+            purpose: "registration" | "login" | "admin_login" | "step_up";
+            number: number;
+            /** @description Why, 1 to 500 characters once trimmed, no control characters. */
+            comment: string;
+        };
+        LifetimeHistory: {
+            client: string;
+            /** @description Newest first. */
+            versions: components["schemas"]["LifetimeVersion"][];
+        };
+        LifetimeVersion: {
+            number: number;
+            /**
+             * Format: uuid
+             * @description The account that made it. Absent for a version a migration made.
+             */
+            made_by?: string;
+            /** Format: date-time */
+            made_at: string;
+            /** @description Why. Absent for a version a migration made. */
+            comment?: string;
+            /** @description Present on the one version that is in force, and on no other. */
+            in_force?: components["schemas"]["InForce"];
+            /**
+             * Format: int64
+             * @description How long a session may go unused.
+             */
+            idle_millis: number;
+            /**
+             * Format: int64
+             * @description How long a session may live, however much it is used.
+             */
+            absolute_millis: number;
+            /**
+             * Format: int64
+             * @description How long a proof of who the person is stays fresh for a dangerous act.
+             */
+            freshness_millis: number;
+        };
+        LifetimeProposal: {
+            /** @enum {string} */
+            client: "browser" | "admin";
+            /** Format: int64 */
+            idle_millis: number;
+            /** Format: int64 */
+            absolute_millis: number;
+            /** Format: int64 */
+            freshness_millis: number;
+            /** @description Why, 1 to 500 characters once trimmed, no control characters. */
+            comment: string;
+        };
+        LifetimeVersionMade: {
+            client: string;
+            number: number;
+        };
+        LifetimePreview: {
+            /** @description Sessions of the kind of client that are live now. */
+            sessions: number;
+            /** @description How many of them the version would end at once. */
+            would_end: number;
+        };
+        LifetimeActivation: {
+            /** @enum {string} */
+            client: "browser" | "admin";
+            number: number;
+            /** @description Why, 1 to 500 characters once trimmed, no control characters. */
+            comment: string;
         };
     };
     responses: {
@@ -1545,6 +1923,208 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Every other session has ended. */
+            204: {
+                headers: {
+                    traceparent: components["headers"]["Traceparent"];
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listPolicyVersions: {
+        parameters: {
+            query: {
+                purpose: "registration" | "login" | "admin_login" | "step_up";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The versions. */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    traceparent: components["headers"]["Traceparent"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PolicyHistory"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    addPolicyVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PolicyProposal"];
+            };
+        };
+        responses: {
+            /** @description The version is kept, and is not in force. */
+            201: {
+                headers: {
+                    traceparent: components["headers"]["Traceparent"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PolicyVersionMade"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    previewPolicyVersion: {
+        parameters: {
+            query: {
+                purpose: "registration" | "login" | "admin_login" | "step_up";
+                number: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The consequences. */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    traceparent: components["headers"]["Traceparent"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PolicyPreview"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    activatePolicyVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PolicyActivation"];
+            };
+        };
+        responses: {
+            /** @description The version is in force. */
+            204: {
+                headers: {
+                    traceparent: components["headers"]["Traceparent"];
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listLifetimeVersions: {
+        parameters: {
+            query: {
+                client: "browser" | "admin";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The versions. */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    traceparent: components["headers"]["Traceparent"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LifetimeHistory"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    addLifetimeVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LifetimeProposal"];
+            };
+        };
+        responses: {
+            /** @description The version is kept, and is not in force. */
+            201: {
+                headers: {
+                    traceparent: components["headers"]["Traceparent"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LifetimeVersionMade"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    previewLifetimeVersion: {
+        parameters: {
+            query: {
+                client: "browser" | "admin";
+                number: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The consequences. */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    traceparent: components["headers"]["Traceparent"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LifetimePreview"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    activateLifetimeVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LifetimeActivation"];
+            };
+        };
+        responses: {
+            /** @description The version is in force. */
             204: {
                 headers: {
                     traceparent: components["headers"]["Traceparent"];

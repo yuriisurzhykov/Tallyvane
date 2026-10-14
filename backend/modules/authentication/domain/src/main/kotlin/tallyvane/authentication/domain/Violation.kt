@@ -80,6 +80,16 @@ public sealed interface Violation {
     }
 
     /**
+     * The policy demands a second factor from everyone, and an account that has not set one up could not sign in:
+     * there is no session that lets a person in only to set it up (ADR-097, ADR-098). Only the administrators'
+     * sign-in may demand it, because an administrator sets TOTP up on the console before being given the right.
+     */
+    @ConsistentCopyVisibility
+    public data class WouldLockPeopleOut internal constructor(private val purpose: Purpose) : Violation {
+        override fun <T> reportTo(report: Report<T>): T = report.wouldLockPeopleOut(purpose)
+    }
+
+    /**
      * A reader of [Violation], one method per case.
      */
     public interface Report<out T> {
@@ -94,5 +104,7 @@ public sealed interface Violation {
         public fun nothingIdentifiesTheAccount(): T
 
         public fun belowTheFloor(purpose: Purpose): T
+
+        public fun wouldLockPeopleOut(purpose: Purpose): T
     }
 }

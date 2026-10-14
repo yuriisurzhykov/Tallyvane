@@ -15,4 +15,11 @@ public interface Admins {
      * works from the next request and not from the end of a session.
      */
     public fun isAdmin(account: AccountId): Boolean
+
+    /**
+     * Every account that holds the right now, in no particular order. A short list: an operator gives the
+     * right by hand (ADR-097). Asked by whoever must know whether a change would leave nobody able to sign in
+     * as one (ADR-098).
+     */
+    public fun all(): List<AccountId>
 }

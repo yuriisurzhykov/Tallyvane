@@ -75,6 +75,40 @@ class Harness {
     val confirmStepUp: ConfirmStepUpUseCase =
         ConfirmStepUpUseCase.ConfirmStepUp(recognition, signIns, sessions, transactions, keys)
 
+    private val lifetimeWords = LifetimeWords()
+
+    val listLifetimeVersions: ListLifetimeVersionsUseCase = ListLifetimeVersionsUseCase.ListLifetimeVersions(
+        admins,
+        lifetimeVersions,
+        lifetimeWords,
+        transactions,
+    )
+
+    val addLifetimeVersion: AddLifetimeVersionUseCase = AddLifetimeVersionUseCase.AddLifetimeVersion(
+        admins,
+        lifetimeVersions,
+        lifetimeWords,
+        transactions,
+        clock,
+    )
+
+    val previewLifetimeVersion: PreviewLifetimeVersionUseCase = PreviewLifetimeVersionUseCase.PreviewLifetimeVersion(
+        admins,
+        lifetimeVersions,
+        Endings(sessions, lifetimeVersions, clock),
+        lifetimeWords,
+        transactions,
+    )
+
+    val activateLifetimeVersion: ActivateLifetimeVersionUseCase =
+        ActivateLifetimeVersionUseCase.ActivateLifetimeVersion(
+            admins,
+            lifetimeVersions,
+            lifetimeWords,
+            transactions,
+            clock,
+        )
+
     /**
      * A person whose sign-in is complete, as the browser's `__Host-attempt` cookie.
      */
@@ -121,6 +155,11 @@ class Harness {
     }
 
     private var attempts = 1
+
+    /**
+     * How the transactions so far ended, which a spec reads to see that a refusal rolled back.
+     */
+    fun endings(): List<TransactionRunnerFake.Ending> = transactions.endings
 
     /**
      * The secret an issued session gave the browser.

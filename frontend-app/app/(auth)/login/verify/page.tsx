@@ -1,1 +1,1 @@
-export { LoginVerifyPage as default } from "@/views/login-verify";
+export { LoginVerifyRoute as default } from "@/app/routes";
