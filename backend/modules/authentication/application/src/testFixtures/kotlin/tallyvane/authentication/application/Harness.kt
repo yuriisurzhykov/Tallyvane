@@ -28,6 +28,7 @@ class Harness {
     val store = SignInsFake()
     val google = GoogleFake()
     val accounts = AccountsFake()
+    val admins = AdminsFake()
     val clock = TickingClock(Instant.parse("2026-10-02T09:00:00Z"))
     private val transactions = TransactionRunnerFake()
     private val versions = PolicyVersionsFake().also { versions ->
@@ -140,7 +141,15 @@ class Harness {
      */
     fun endings(): List<TransactionRunnerFake.Ending> = transactions.endings
 
-    private fun trips() = GoogleTrips(store, store, store, accounts, transactions)
+    /**
+     * Gives [subject] an account that holds the right to administer, as an operator does outside the API.
+     */
+    fun knowsAdministrator(subject: String) {
+        accounts.knows(subject)
+        admins.grant(checkNotNull(accounts.withGoogle(subject)) { "$subject has no account." })
+    }
+
+    private fun trips() = GoogleTrips(store, store, store, accounts, admins, transactions)
 
     /**
      * Presses "Sign in with Google" on the door [surface]: the cookie the browser keeps, and the state Google was

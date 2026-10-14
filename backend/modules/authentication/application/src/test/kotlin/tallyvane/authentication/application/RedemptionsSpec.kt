@@ -48,7 +48,7 @@ class RedemptionsSpec :
 
             "hands the completed sign-in of an administrator over as an administrator's, never as a person's" {
                 val harness = Harness()
-                harness.accounts.knows("sub-1")
+                harness.knowsAdministrator("sub-1")
                 val totp = harness.enableTotp("sub-1")
                 val pressed = harness.pressSignIn(Surface.Admin)
                 harness.returnWith(pressed, vouched("sub-1"))
@@ -70,7 +70,7 @@ class RedemptionsSpec :
 
             "an administrator who has not turned TOTP on has nothing to hand over, and the sign-in stays kept" {
                 val harness = Harness()
-                harness.accounts.knows("sub-1")
+                harness.knowsAdministrator("sub-1")
                 val pressed = harness.pressSignIn(Surface.Admin)
                 harness.returnWith(pressed, vouched("sub-1"))
 

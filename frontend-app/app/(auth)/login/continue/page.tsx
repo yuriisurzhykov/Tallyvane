@@ -1,1 +1,1 @@
-export { LoginContinuePage as default } from "@/views/login-continue";
+export { LoginContinueRoute as default } from "@/app/routes";

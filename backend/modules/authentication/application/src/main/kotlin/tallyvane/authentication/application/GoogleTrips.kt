@@ -5,7 +5,9 @@ import tallyvane.authentication.application.port.GoogleHandshakes
 import tallyvane.authentication.application.port.GoogleProfiles
 import tallyvane.authentication.domain.Attempt
 import tallyvane.authentication.domain.Purpose
+import tallyvane.identity.contract.AccountId
 import tallyvane.identity.contract.Accounts
+import tallyvane.identity.contract.Admins
 import tallyvane.platform.kernel.Digest
 import tallyvane.platform.kernel.TransactionRunner
 import tallyvane.platform.kernel.Verdict
@@ -23,6 +25,7 @@ public class GoogleTrips(
     private val handshakes: GoogleHandshakes,
     private val profiles: GoogleProfiles,
     private val accounts: Accounts,
+    private val admins: Admins,
     private val transactions: TransactionRunner,
 ) {
     /**
@@ -70,23 +73,28 @@ public class GoogleTrips(
      * account nobody here knows is recorded like anyone else, and the module that grants sessions finds
      * it is not their account when it takes the confirmation (ADR-092).
      *
-     * Nor does anyone register through the administrators' site: a Google account nobody here knows is
-     * turned back there, and its attempt is forgotten (ADR-097).
+     * Nor does anyone register through the administrators' site, and nobody goes further on it who may not
+     * administer: a Google account nobody here knows, and one that holds no right to administer, are turned
+     * back there alike, and the attempt is forgotten, so that a person without the right is never asked for
+     * a code and is not told that the door exists (ADR-097).
      */
     internal suspend fun land(trip: Trip, person: Identified, fresh: IssuedKey): GoogleReturn =
         transactions.inTransaction {
-            val known = person.accountIn(accounts) != null
-            val confirming = trip.attempt.isFor(Purpose.StepUp)
+            val account = person.accountIn(accounts)
             Verdict.Commit(
                 when {
-                    known || confirming -> verified(trip, person)
-                    trip.attempt.isFor(Purpose.AdminLogin) -> turnedBackAsStranger(trip)
+                    trip.attempt.isFor(Purpose.StepUp) -> verified(trip, person)
+                    trip.attempt.isFor(Purpose.AdminLogin) -> onAdministratorsDoor(trip, person, account)
+                    account != null -> verified(trip, person)
                     else -> registering(trip, person, fresh)
                 },
             )
         }
 
-    private fun turnedBackAsStranger(trip: Trip): GoogleReturn {
+    private fun onAdministratorsDoor(trip: Trip, person: Identified, account: AccountId?): GoogleReturn =
+        if (account != null && admins.isAdmin(account)) verified(trip, person) else turnedBackFromAdministration(trip)
+
+    private fun turnedBackFromAdministration(trip: Trip): GoogleReturn {
         attempts.forget(trip.key)
         return GoogleReturn.TurnedBack(TurnBack.Refused)
     }

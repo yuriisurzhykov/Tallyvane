@@ -1,0 +1,47 @@
+{
+  "name": "auth-kit",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The sign-in flow shared by the apps that have a person sign in (slice 7-0): the viewer, the attempt and its second step, the screens for signing in, entering a code and confirming a dangerous act, and the prompt that asks to sign in again. It knows nothing about either app: words, the page the screens are drawn in and the page a finished sign-in lands on all arrive as parameters, and what the sign-in asks for is decided by the server per purpose.",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "exports": {
+    "./entities/viewer": "./src/entities/viewer/index.ts",
+    "./features/open-session": "./src/features/open-session/index.ts",
+    "./features/reauthenticate": "./src/features/reauthenticate/index.ts",
+    "./views/login": "./src/views/login/index.ts",
+    "./views/login-continue": "./src/views/login-continue/index.ts",
+    "./views/login-verify": "./src/views/login-verify/index.ts",
+    "./views/step-up-continue": "./src/views/step-up-continue/index.ts",
+    "./texts": "./src/shared/texts/index.ts",
+    "./return-path-proxy": "./src/shared/return-path/index.ts",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "arch": "pnpm run arch:fsd && pnpm run arch:graph",
+    "arch:fsd": "steiger ./src",
+    "arch:graph": "depcruise src --config .dependency-cruiser.cjs"
+  },
+  "//": "next is a peer dependency: the screens navigate with next/navigation and the return-path helper is a Next proxy, so the package only makes sense inside a Next app, which already has it. frontend-shared is a regular dependency, as in content-kit: its design system and api client ARE the runtime of these screens.",
+  "dependencies": {
+    "frontend-shared": "workspace:*",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "peerDependencies": {
+    "next": "^16.3.1"
+  },
+  "devDependencies": {
+    "@feature-sliced/steiger-plugin": "^0.7.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "dependency-cruiser": "^18.2.0",
+    "steiger": "^0.6.0",
+    "typescript": "^5",
+    "vitest": "^4.1.10"
+  }
+}

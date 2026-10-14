@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Button } from "frontend-shared/ui/button";
 import { Menu } from "frontend-shared/ui/menu";
-import { useViewer } from "@/entities/viewer";
+import { useViewer } from "auth-kit/entities/viewer";
 import { SignOutMenuItem } from "@/features/sign-out";
 import { useStrings } from "@/shared/i18n";
 

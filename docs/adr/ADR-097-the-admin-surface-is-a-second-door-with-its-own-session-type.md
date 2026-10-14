@@ -43,8 +43,10 @@ one and is not deleted. `OpenSession` for the `Admin` door redeems only an `admi
 **Forgery is refused per door.** An unsafe request must carry the `Origin` of the door its `Host` names, so the origin of
 `admin.` is not accepted on `app.` and the other way round (ADR-080 held one origin).
 
-**Nobody registers through `admin.`.** A Google account unknown here is sent back to `/login?problem=refused` and no
-registration is begun.
+**Nobody registers through `admin.`, and nobody goes on who may not administer.** A Google account unknown here, and one
+that holds no right to administer, are sent back to `/login?problem=refused` right after Google's return, and no
+registration is begun (added on 2026-10-14 at the owner's request: an ordinary person must not get as far as a code
+screen or a refusal after it, and is not told that the door exists). `OpenSession` keeps its own check as the second line.
 
 **A person without TOTP is not let in, and nobody is locked out by a policy.** `admin_login` demands a second factor from
 everyone, so an administrator without one gets the `restricted` state from `GET /sign-in` and is told to turn it on at
