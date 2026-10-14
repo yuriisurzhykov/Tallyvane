@@ -14,6 +14,7 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
+import kotlin.uuid.Uuid
 
 private val NOW = Instant.parse("2026-10-01T09:00:00Z")
 
@@ -46,10 +47,22 @@ abstract class PolicyVersionsConformance : StringSpec() {
         transactions.inTransaction { Verdict.Commit(versions.call()) }
 
     private suspend fun Subject.added(policy: CheckedPolicy, at: Instant = NOW): PolicyVersion =
-        inOwnTransaction { add(policy.policy(), at) }
+        inOwnTransaction { add(policy.policy(), SampleChange().change(), at) }
 
     private suspend fun Subject.inForce(purpose: Purpose): VersionStory? =
         inOwnTransaction { active(purpose) }?.let { VersionStory(it) }
+
+    private suspend fun Subject.historyOf(purpose: Purpose): HistoryStory =
+        HistoryStory(inOwnTransaction { history(purpose) })
+
+    private suspend fun Subject.addedBy(policy: CheckedPolicy, change: SampleChange, at: Instant): PolicyVersion =
+        inOwnTransaction { add(policy.policy(), change.change(), at) }
+
+    private fun kept(change: SampleChange, at: Instant): String =
+        "kept by ${change.author()} because '${change.comment()}' at $at"
+
+    private fun inForceSince(change: SampleChange, at: Instant): String =
+        "in force since $at by ${change.author()} because '${change.comment()}'"
 
     init {
         "has no version in force for any purpose before one is activated" {
@@ -108,7 +121,7 @@ abstract class PolicyVersionsConformance : StringSpec() {
             )
             val version = subject.added(policy)
 
-            subject.inOwnTransaction { activate(version, NOW) }
+            subject.inOwnTransaction { activate(version, SampleChange().change(), NOW) }
 
             subject.inForce(Purpose.AdminLogin) shouldBe VersionStory(version)
         }
@@ -116,11 +129,14 @@ abstract class PolicyVersionsConformance : StringSpec() {
         "keeps steps with several kinds in the order they apply, and what each applies to" {
             val subject = fresh()
             val version = subject.added(
-                CheckedPolicy(Purpose.Login, steps = listOf(GOOGLE, SECOND_FACTOR_IF_ENABLED, SECOND_FACTOR_ALWAYS)),
+                CheckedPolicy(
+                    Purpose.AdminLogin,
+                    steps = listOf(GOOGLE, SECOND_FACTOR_IF_ENABLED, SECOND_FACTOR_ALWAYS),
+                ),
             )
-            subject.inOwnTransaction { activate(version, NOW) }
+            subject.inOwnTransaction { activate(version, SampleChange().change(), NOW) }
 
-            subject.inForce(Purpose.Login) shouldBe VersionStory(version)
+            subject.inForce(Purpose.AdminLogin) shouldBe VersionStory(version)
         }
 
         "keeps limits to the millisecond" {
@@ -131,7 +147,7 @@ abstract class PolicyVersionsConformance : StringSpec() {
                 firstDelay = 1500.milliseconds,
             )
             val version = subject.added(policy)
-            subject.inOwnTransaction { activate(version, NOW) }
+            subject.inOwnTransaction { activate(version, SampleChange().change(), NOW) }
 
             subject.inForce(Purpose.Registration) shouldBe VersionStory(PolicyVersion(1, policy.policy()))
         }
@@ -140,7 +156,9 @@ abstract class PolicyVersionsConformance : StringSpec() {
             val subject = fresh()
             val neverKept = PolicyVersion(1, CheckedPolicy(Purpose.Login).policy())
 
-            shouldThrow<IllegalStateException> { subject.inOwnTransaction { activate(neverKept, NOW) } }
+            shouldThrow<IllegalStateException> {
+                subject.inOwnTransaction { activate(neverKept, SampleChange().change(), NOW) }
+            }
 
             subject.inForce(Purpose.Login) shouldBe null
         }
@@ -148,10 +166,12 @@ abstract class PolicyVersionsConformance : StringSpec() {
         "refuses to put in force a version built to look like a kept one, with another policy under its number" {
             val subject = fresh()
             val kept = subject.added(CheckedPolicy(Purpose.Login, attemptLifetime = 5.minutes))
-            subject.inOwnTransaction { activate(kept, NOW) }
+            subject.inOwnTransaction { activate(kept, SampleChange().change(), NOW) }
             val lookalike = PolicyVersion(1, CheckedPolicy(Purpose.Login, attemptLifetime = 4.minutes).policy())
 
-            shouldThrow<IllegalStateException> { subject.inOwnTransaction { activate(lookalike, NOW + 1.minutes) } }
+            shouldThrow<IllegalStateException> {
+                subject.inOwnTransaction { activate(lookalike, SampleChange().change(), NOW + 1.minutes) }
+            }
 
             subject.inForce(Purpose.Login) shouldBe VersionStory(kept)
         }
@@ -161,14 +181,14 @@ abstract class PolicyVersionsConformance : StringSpec() {
             val first = subject.added(CheckedPolicy(Purpose.Login, attemptLifetime = 5.minutes))
             val second = subject.added(CheckedPolicy(Purpose.Login, attemptLifetime = 4.minutes))
 
-            subject.inOwnTransaction { activate(first, NOW) }
-            subject.inOwnTransaction { activate(second, NOW + 1.minutes) }
+            subject.inOwnTransaction { activate(first, SampleChange().change(), NOW) }
+            subject.inOwnTransaction { activate(second, SampleChange().change(), NOW + 1.minutes) }
             subject.inForce(Purpose.Login) shouldBe VersionStory(second)
 
-            subject.inOwnTransaction { activate(first, NOW + 2.minutes) }
+            subject.inOwnTransaction { activate(first, SampleChange().change(), NOW + 2.minutes) }
             subject.inForce(Purpose.Login) shouldBe VersionStory(first)
 
-            subject.inOwnTransaction { activate(second, NOW + 3.minutes) }
+            subject.inOwnTransaction { activate(second, SampleChange().change(), NOW + 3.minutes) }
             subject.inForce(Purpose.Login) shouldBe VersionStory(second)
         }
 
@@ -177,8 +197,8 @@ abstract class PolicyVersionsConformance : StringSpec() {
             val first = subject.added(CheckedPolicy(Purpose.Login, attemptLifetime = 5.minutes))
             val second = subject.added(CheckedPolicy(Purpose.Login, attemptLifetime = 4.minutes))
 
-            subject.inOwnTransaction { activate(first, NOW) }
-            subject.inOwnTransaction { activate(second, NOW) }
+            subject.inOwnTransaction { activate(first, SampleChange().change(), NOW) }
+            subject.inOwnTransaction { activate(second, SampleChange().change(), NOW) }
 
             subject.inForce(Purpose.Login) shouldBe VersionStory(second)
         }
@@ -188,8 +208,8 @@ abstract class PolicyVersionsConformance : StringSpec() {
             val login = subject.added(CheckedPolicy(Purpose.Login))
             val registration = subject.added(CheckedPolicy(Purpose.Registration, maxFailures = 3))
 
-            subject.inOwnTransaction { activate(login, NOW) }
-            subject.inOwnTransaction { activate(registration, NOW) }
+            subject.inOwnTransaction { activate(login, SampleChange().change(), NOW) }
+            subject.inOwnTransaction { activate(registration, SampleChange().change(), NOW) }
 
             subject.inForce(Purpose.Login) shouldBe VersionStory(login)
             subject.inForce(Purpose.Registration) shouldBe VersionStory(registration)
@@ -199,11 +219,85 @@ abstract class PolicyVersionsConformance : StringSpec() {
         "adding a version does not disturb the one in force" {
             val subject = fresh()
             val inForce = subject.added(CheckedPolicy(Purpose.Login))
-            subject.inOwnTransaction { activate(inForce, NOW) }
+            subject.inOwnTransaction { activate(inForce, SampleChange().change(), NOW) }
 
             subject.added(CheckedPolicy(Purpose.Login, attemptLifetime = 4.minutes))
 
             subject.inForce(Purpose.Login) shouldBe VersionStory(inForce)
+        }
+
+        "has an empty history before anything is added" {
+            val subject = fresh()
+
+            Purpose.entries.forEach { subject.historyOf(it).told() shouldBe emptyList() }
+        }
+
+        "lists the versions newest first, each with who made it, when and why" {
+            val subject = fresh()
+            val ann = SampleChange(Uuid.parse("00000000-0000-4000-8000-00000000000a"), "First thoughts")
+            val bob = SampleChange(Uuid.parse("00000000-0000-4000-8000-00000000000b"), "Shorter attempts")
+            val first = subject.addedBy(CheckedPolicy(Purpose.Login, attemptLifetime = 5.minutes), ann, NOW)
+            val second = subject.addedBy(
+                CheckedPolicy(Purpose.Login, attemptLifetime = 4.minutes),
+                bob,
+                NOW + 1.minutes,
+            )
+
+            subject.historyOf(Purpose.Login).told() shouldBe
+                listOf(kept(bob, NOW + 1.minutes)) + VersionStory(second).told() +
+                listOf(kept(ann, NOW)) + VersionStory(first).told()
+        }
+
+        "marks the version in force with since when, by whom and why, and no other" {
+            val subject = fresh()
+            val ann = SampleChange(Uuid.parse("00000000-0000-4000-8000-00000000000a"), "First thoughts")
+            val bob = SampleChange(Uuid.parse("00000000-0000-4000-8000-00000000000b"), "Go live")
+            val first = subject.addedBy(CheckedPolicy(Purpose.Login, attemptLifetime = 5.minutes), ann, NOW)
+            val second = subject.addedBy(
+                CheckedPolicy(Purpose.Login, attemptLifetime = 4.minutes),
+                ann,
+                NOW + 1.minutes,
+            )
+
+            subject.inOwnTransaction { activate(first, bob.change(), NOW + 2.minutes) }
+
+            subject.historyOf(Purpose.Login).told() shouldBe
+                listOf(kept(ann, NOW + 1.minutes)) + VersionStory(second).told() +
+                listOf(kept(ann, NOW), inForceSince(bob, NOW + 2.minutes)) + VersionStory(first).told()
+        }
+
+        "moves the mark when a later activation rolls back or forward" {
+            val subject = fresh()
+            val ann = SampleChange(Uuid.parse("00000000-0000-4000-8000-00000000000a"), "Roll forward")
+            val bob = SampleChange(Uuid.parse("00000000-0000-4000-8000-00000000000b"), "Roll back")
+            val first = subject.addedBy(CheckedPolicy(Purpose.Login, attemptLifetime = 5.minutes), ann, NOW)
+            val second = subject.addedBy(CheckedPolicy(Purpose.Login, attemptLifetime = 4.minutes), ann, NOW)
+            subject.inOwnTransaction { activate(second, ann.change(), NOW + 1.minutes) }
+            subject.inOwnTransaction { activate(first, bob.change(), NOW + 2.minutes) }
+
+            subject.historyOf(Purpose.Login).told() shouldBe
+                listOf(kept(ann, NOW)) + VersionStory(second).told() +
+                listOf(kept(ann, NOW), inForceSince(bob, NOW + 2.minutes)) + VersionStory(first).told()
+        }
+
+        "keeps the history of each purpose on its own" {
+            val subject = fresh()
+            val ann = SampleChange()
+            val login = subject.addedBy(CheckedPolicy(Purpose.Login), ann, NOW)
+            subject.addedBy(CheckedPolicy(Purpose.StepUp), ann, NOW)
+
+            subject.historyOf(Purpose.Login).told() shouldBe listOf(kept(ann, NOW)) + VersionStory(login).told()
+            subject.historyOf(Purpose.Registration).told() shouldBe emptyList()
+        }
+
+        "finds a version by its number in the history, and none for a number never kept" {
+            val subject = fresh()
+            val first = subject.added(CheckedPolicy(Purpose.Login, attemptLifetime = 5.minutes))
+            subject.added(CheckedPolicy(Purpose.Login, attemptLifetime = 4.minutes))
+            val history = subject.inOwnTransaction { history(Purpose.Login) }
+
+            history.numbered(1)?.let { VersionStory(it) } shouldBe VersionStory(first)
+            history.numbered(3) shouldBe null
         }
     }
 }

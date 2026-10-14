@@ -2,7 +2,7 @@
 
 > Layers: `platform:kernel`, `platform:http`, `identity`, `authentication`, `sessions`, `server`, `ops` (7a); the same plus `docs/openapi.yaml` (7b); `frontend-admin` and a shared sign-in package (7-0, 7c)
 > Status: plan accepted by Yurii on 2026-10-07. The diagrams below are the ones the code is written from. If the code departs from a diagram, the same PR changes the diagram.
-> The decisions are recorded in [ADR-097](../adr/ADR-097-the-admin-surface-is-a-second-door-with-its-own-session-type.md) (7a); the records for 7b and 7c are added with their PRs.
+> The decisions are recorded in [ADR-097](../adr/ADR-097-the-admin-surface-is-a-second-door-with-its-own-session-type.md) (7a) and [ADR-098](../adr/ADR-098-policies-and-lifetimes-are-edited-as-kept-versions-through-an-admin-only-api.md) (7b); the record for 7c is added with its PR.
 > Parent documents: [ADR-078](../adr/ADR-078-factors-attempts-and-versioned-policies.md) (policies, bounds, floors), [ADR-079](../adr/ADR-079-server-side-opaque-sessions.md) (sessions), [ADR-090](../adr/ADR-090-devices-are-sessions-and-lifetimes-are-versions-owned-by-sessions.md) (lifetimes as versions), [ADR-092](../adr/ADR-092-a-dangerous-act-asks-for-a-fresh-proof-and-the-session-remembers-it.md) (fresh proof), [ADR-032](../adr/ADR-032-subdomain-split-and-admin-isolation.md) (the admin host)
 
 Read it in this order: what we get and how it is cut into pull requests, which forks were answered, how an administrator signs in and changes a policy, who depends on whom, which classes it is made of.
@@ -48,7 +48,7 @@ Decided without a fork:
 - **Admin routes answer only on `admin.`** and every use case checks that the account is still an administrator; taking the right away works from the next request (7b).
 - **A new version needs no confirmation, its activation does.** A version in the list changes nothing until it is made active. A rollback is the activation of an earlier version.
 - **A preview is of a kept version** (`GET /policy-previews?purpose=…&number=…`), the same for a new version and for a rollback; there is no draft on the server.
-- **An activation that would leave no administrator able to sign in is refused** (`409 would-lock-out-every-administrator`). An emergency way, a row of SQL that adds an activation of the previous version, goes into the ops runbook.
+- **An activation that would leave no administrator able to sign in is refused** (`422 would-lock-out-every-administrator`, not the `409` first drawn; see section 7). An emergency way, a row of SQL that adds an activation of the previous version, goes into the ops runbook.
 - **Lifetimes of the administrator by default:** idle one hour, absolute eight hours, freshness five minutes. They are values, changed on the new screen.
 - **Deploy.** A second redirect URI is registered with Google, `https://admin.<domain>/api/v1/google-return`, and the server gets `TALLYVANE_ADMIN_ORIGIN`.
 - **Strings** on the screens are English, in the translations of the shared package or of the app.
@@ -289,3 +289,36 @@ Slice 7a is built. The diagrams above are the ones it was written from; this is 
 1. Register `https://admin.<domain>/api/v1/google-return` as a second authorised redirect URI of the Google OAuth client.
 2. Set `ADMIN_ORIGIN` in the server's `.env` if the admin host is not `admin.<DOMAIN>`.
 3. After the deploy, sign in once on `app.` with the administrator's Google account, turn TOTP on, then run `ops/grant-admin.sh <email>` on the server.
+
+## 7. Slice 7b: the versions API
+
+Slice 7b is built. The diagrams above are the ones it was written from; this section is where the code differs from them and the contract the screens of 7c are written against. The wire shapes are in `docs/openapi.yaml`; this is the summary.
+
+### Routes
+
+All eight are served on the administrators' site only (`RouteModule.door = Surface.Admin`; on `app.` they answer `404`), only to an administrator (`403` otherwise, checked again by every use case), and none is cached. A `POST` takes an `Idempotency-Key`. The two activations need a fresh proof (`403 step-up-required`, then `POST /step-ups`).
+
+| Route | Answer |
+|---|---|
+| `GET /policy-history?purpose=` | `200 {purpose, versions[]}`, newest first. A version: `number`, `made_by?`, `made_at`, `comment?`, `in_force? {since, by?, reason?}`, `steps[{accepts[], necessity}]`, `attempt_lifetime_millis`, `max_failures`, `first_delay_millis`. |
+| `POST /policy-versions` | `201 {purpose, number}`; `422` with every violation at once. |
+| `GET /policy-previews?purpose=&number=` | `200 {people, cannot_pass}`; `404` for a version nobody kept. |
+| `POST /policy-activations` | `204`; `404` no such version; `422` on `number` with `would-lock-out-every-administrator`. |
+| `GET /lifetime-history?client=` | `200 {client, versions[]}`: `number`, `made_by?`, `made_at`, `comment?`, `in_force?`, `idle_millis`, `absolute_millis`, `freshness_millis`. |
+| `POST /lifetime-versions` | `201 {client, number}`; `422` with every violation at once. |
+| `GET /lifetime-previews?client=&number=` | `200 {sessions, would_end}`; `404` for a version nobody kept. |
+| `POST /lifetime-activations` | `204`; `404` no such version. |
+
+A `422` is the usual problem body with `errors[{field, code}]` and a `detail` of the sentences fit to show. Codes: `purpose|client/unknown`; `comment/comment-invalid`; for a policy `steps/would-lock-people-out`, `steps/below-the-floor`, `steps/nothing-identifies-the-account`, `steps[i].accepts/empty`, `attempt_lifetime_millis|max_failures|first_delay_millis/out-of-bounds`; for lifetimes `idle_millis|freshness_millis/out-of-bounds`, `absolute_millis/out-of-bounds|below-idle`.
+
+### Where the code differs from the plan
+
+- **Eight routes, not six.** The plan named the routes that write and preview; a screen also has to read the versions it edits, so each of the two screens has a history route as well. The names are plural nouns (`policy-versions`, `policy-activations`) because the arch rules take one noun per route file.
+- **The lock-out is `422`, not `409`.** The request is well formed and the data it names is what is wrong, the same as for a version outside the bounds, so a client reads one shape: `errors` on a field (`number`).
+- **The door is enforced at the edge.** The plan said admin routes answer only on `admin.`. `RouteModule.door` and the route-scoped plugin `DoorOnly` in `platform:http` do that for any module, by the surface the `Host` names. The `Gate` still runs first, so an anonymous request for such a route on `app.` is answered `401` and not `404`.
+- **`Change` and `Fault` exist once in `authentication` and once in `sessions`.** Neither module may read the other's application layer, and a shared kernel type for two small values was not worth a new dependency.
+- **The administrators' lifetimes become version 1 in a migration.** 7a left the row to the code; the 7b migration inserts it with its activation, with the same numbers (an hour, eight hours, five minutes), now that the release before it knows the word `admin`. A version a migration made has no author and no comment.
+- **A preview is of a kept version**, as decided; the screen adds the version first and previews it by number. A rollback preview is the same call.
+- **What `cannot_pass` counts.** Everyone in `people` who could not get to the end of the policy with the factors they have set up: for `admin_login` the administrators; for the other purposes all accounts, and a policy within the bounds cannot shut anyone out of them, so the count is `0` there.
+- **`Admins.all()` arrives** (the plan showed it in diagram 3) with `Accounts.count()` and the `EnrollmentCensus` port, which counts accounts by the factors they have set up in one grouped query.
+- **Not verified here.** The Postgres integration tests ran against PostgreSQL 16, not the 17 image of the fixture. The emergency rollback SQL for the ops runbook is not written yet.

@@ -211,6 +211,23 @@ abstract class SessionsConformance : StringSpec() {
                 setOf(told(session()), told(session(id = SECOND_ID)))
         }
 
+        "lists the sessions of a kind of client and no others, whoever they belong to" {
+            val subject = fresh()
+            val admin =
+                Session.begin(SECOND_ID, OTHER_ACCOUNT, setOf(Factor.Google), ClientType.Admin, DEVICE, START, START)
+            subject.inOwnTransaction { add(FIRST, session()) }
+            subject.inOwnTransaction { add(SECOND, admin) }
+            subject.inOwnTransaction { add(THIRD, session(id = THIRD_ID, account = OTHER_ACCOUNT)) }
+
+            subject.inOwnTransaction { ofClient(ClientType.Admin) }.map(::told) shouldBe listOf(told(admin))
+            subject.inOwnTransaction { ofClient(ClientType.Browser) }.map(::told).toSet() shouldBe
+                setOf(told(session()), told(session(id = THIRD_ID, account = OTHER_ACCOUNT)))
+        }
+
+        "lists nothing for a kind of client that has no session" {
+            fresh().inOwnTransaction { ofClient(ClientType.Admin) } shouldBe emptyList()
+        }
+
         "lists nothing for an account that has no session" {
             fresh().inOwnTransaction { ofAccount(ACCOUNT) } shouldBe emptyList()
         }

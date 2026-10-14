@@ -1,6 +1,8 @@
 package tallyvane.server
 
+import tallyvane.authentication.application.ActivatePolicyVersionUseCase
 import tallyvane.authentication.application.ActivePolicies
+import tallyvane.authentication.application.AddPolicyVersionUseCase
 import tallyvane.authentication.application.AttemptOwners
 import tallyvane.authentication.application.BeginSignInUseCase
 import tallyvane.authentication.application.BeginStepUpUseCase
@@ -11,6 +13,10 @@ import tallyvane.authentication.application.Departures
 import tallyvane.authentication.application.DisableTotpUseCase
 import tallyvane.authentication.application.Enrollments
 import tallyvane.authentication.application.GoogleTrips
+import tallyvane.authentication.application.ListPolicyVersionsUseCase
+import tallyvane.authentication.application.PolicyWords
+import tallyvane.authentication.application.PreviewPolicyVersionUseCase
+import tallyvane.authentication.application.Reach
 import tallyvane.authentication.application.RecoveryCodeWords
 import tallyvane.authentication.application.Redemptions
 import tallyvane.authentication.application.RegenerateRecoveryCodesUseCase
@@ -27,6 +33,7 @@ import tallyvane.authentication.contract.SignIns
 import tallyvane.authentication.infrastructure.AuthenticationStorageFactory
 import tallyvane.authentication.infrastructure.GoogleAccessFactory
 import tallyvane.authentication.web.AuthenticationRoutesFactory
+import tallyvane.authentication.web.PolicyRoutesFactory
 import tallyvane.authentication.web.SecondFactorRoutesFactory
 import tallyvane.journal.contract.SecurityJournal
 import tallyvane.platform.http.RouteModule
@@ -74,7 +81,9 @@ public class AuthenticationWiring(
 
     private val owners = AttemptOwners(identity.accounts)
 
-    private val policies = ActivePolicies(storage.policyVersions(), owners, Enrollments(totp, recoveryCodes))
+    private val enrollments = Enrollments(totp, recoveryCodes)
+
+    private val policies = ActivePolicies(storage.policyVersions(), owners, enrollments)
 
     private val words = RecoveryCodeWords()
 
@@ -181,6 +190,50 @@ public class AuthenticationWiring(
         ShowSecondFactorUseCase.ShowSecondFactor(totp, recoveryCodes, platform.persistence.transactions)
     }
 
+    private val policyWords = PolicyWords()
+
+    private val reach by lazy { Reach(identity.admins, identity.accounts, enrollments, storage.enrollmentCensus()) }
+
+    private val listPolicyVersions: ListPolicyVersionsUseCase by lazy {
+        ListPolicyVersionsUseCase.ListPolicyVersions(
+            identity.admins,
+            storage.policyVersions(),
+            policyWords,
+            platform.persistence.transactions,
+        )
+    }
+
+    private val addPolicyVersion: AddPolicyVersionUseCase by lazy {
+        AddPolicyVersionUseCase.AddPolicyVersion(
+            identity.admins,
+            storage.policyVersions(),
+            policyWords,
+            platform.persistence.transactions,
+            clock,
+        )
+    }
+
+    private val previewPolicyVersion: PreviewPolicyVersionUseCase by lazy {
+        PreviewPolicyVersionUseCase.PreviewPolicyVersion(
+            identity.admins,
+            storage.policyVersions(),
+            reach,
+            policyWords,
+            platform.persistence.transactions,
+        )
+    }
+
+    private val activatePolicyVersion: ActivatePolicyVersionUseCase by lazy {
+        ActivatePolicyVersionUseCase.ActivatePolicyVersion(
+            identity.admins,
+            storage.policyVersions(),
+            reach,
+            policyWords,
+            platform.persistence.transactions,
+            clock,
+        )
+    }
+
     /**
      * Completed sign-ins and confirmations, as `sessions` takes them.
      */
@@ -194,6 +247,7 @@ public class AuthenticationWiring(
     public val routes: List<RouteModule> by lazy {
         val web = AuthenticationRoutesFactory()
         val secondFactor = SecondFactorRoutesFactory()
+        val policy = PolicyRoutesFactory(policyWords)
         listOf(
             web.signIn(begin, surfaces),
             web.stepUp(beginStepUp, surfaces),
@@ -207,6 +261,10 @@ public class AuthenticationWiring(
             secondFactor.totpConfirmations(confirmTotp),
             secondFactor.totpEnrollment(disableTotp),
             secondFactor.recoveryCodes(regenerateRecoveryCodes),
+            policy.history(listPolicyVersions),
+            policy.versions(addPolicyVersion),
+            policy.previews(previewPolicyVersion),
+            policy.activations(activatePolicyVersion),
         )
     }
 

@@ -6,6 +6,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import tallyvane.authentication.application.CheckedPolicy
+import tallyvane.authentication.application.SampleChange
 import tallyvane.authentication.application.VersionStory
 import tallyvane.authentication.domain.PolicyVersion
 import tallyvane.authentication.domain.Purpose
@@ -43,14 +44,16 @@ class PolicyVersionsConcurrencyIntegrationSpec :
                     val added = coroutineScope {
                         val first = async {
                             persistence.transactions.inTransaction {
-                                val version = versions.add(policy, NOW)
+                                val version = versions.add(policy, SampleChange().change(), NOW)
                                 delay(500.milliseconds)
                                 Verdict.Commit(version)
                             }
                         }
                         val second = async {
                             delay(100.milliseconds)
-                            persistence.transactions.inTransaction { Verdict.Commit(versions.add(policy, NOW)) }
+                            persistence.transactions.inTransaction {
+                                Verdict.Commit(versions.add(policy, SampleChange().change(), NOW))
+                            }
                         }
                         first.await() to second.await()
                     }

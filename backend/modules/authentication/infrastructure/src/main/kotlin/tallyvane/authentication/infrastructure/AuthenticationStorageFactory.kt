@@ -2,6 +2,7 @@ package tallyvane.authentication.infrastructure
 
 import tallyvane.authentication.application.port.AccountFailures
 import tallyvane.authentication.application.port.Attempts
+import tallyvane.authentication.application.port.EnrollmentCensus
 import tallyvane.authentication.application.port.GoogleHandshakes
 import tallyvane.authentication.application.port.GoogleProfiles
 import tallyvane.authentication.application.port.PolicyVersions
@@ -58,6 +59,11 @@ public class AuthenticationStorageFactory(private val ids: IdGenerator, totpKeys
      * Where the wrong TOTP codes typed for each account are kept.
      */
     public fun accountFailures(): AccountFailures = PostgresAccountFailures()
+
+    /**
+     * How many accounts have set up each combination of second factors.
+     */
+    public fun enrollmentCensus(): EnrollmentCensus = PostgresEnrollmentCensus()
 
     override fun toString(): String = "AuthenticationStorageFactory(schema=authentication)"
 }

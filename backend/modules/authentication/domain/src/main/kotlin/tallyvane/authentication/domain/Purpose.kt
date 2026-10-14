@@ -26,6 +26,14 @@ public enum class Purpose(private val floor: Floor) {
     }
 
     /**
+     * Whether a policy made of [steps] would shut out an account that has set nothing up: it demands a second
+     * factor from everyone, and this purpose is not one whose people were told to set it up beforehand. No session
+     * exists that lets a person in only to set a factor up (ADR-098), so such a policy is not allowed.
+     */
+    internal fun isLockedOutBy(steps: List<Step>): Boolean =
+        floor != Floor.MandatorySecondFactor && steps.any { it.demandsSecondFactorFromEveryone() }
+
+    /**
      * The least a policy must demand.
      */
     public enum class Floor {

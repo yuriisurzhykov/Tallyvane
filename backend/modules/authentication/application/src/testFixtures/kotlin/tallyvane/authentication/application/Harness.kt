@@ -32,7 +32,8 @@ class Harness {
     private val transactions = TransactionRunnerFake()
     private val versions = PolicyVersionsFake().also { versions ->
         Purpose.entries.forEach { purpose ->
-            versions.activate(versions.add(CheckedPolicy(purpose).policy(), clock.now()), clock.now())
+            val change = SampleChange().change()
+            versions.activate(versions.add(CheckedPolicy(purpose).policy(), change, clock.now()), change, clock.now())
         }
     }
     val secondFactors = SecondFactorsFake()

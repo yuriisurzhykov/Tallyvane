@@ -9,12 +9,15 @@ import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager
+import tallyvane.authentication.application.Change
+import tallyvane.authentication.application.KeptVersions
 import tallyvane.authentication.application.port.PolicyVersions
 import tallyvane.authentication.domain.FactorKind
 import tallyvane.authentication.domain.PolicyVersion
 import tallyvane.authentication.domain.Purpose
 import tallyvane.authentication.domain.SignInPolicy
 import tallyvane.authentication.domain.Step
+import tallyvane.identity.contract.AccountId
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Instant
@@ -50,17 +53,48 @@ internal class PostgresPolicyVersions : PolicyVersions {
         return versionOf(purposeWord, latest[PolicyActivationsTable.number])
     }
 
-    override fun add(policy: SignInPolicy, at: Instant): PolicyVersion {
+    override fun history(purpose: Purpose): KeptVersions {
+        val purposeWord = words.of(purpose)
+        val made = PolicyVersionsTable.selectAll()
+            .where { PolicyVersionsTable.purpose eq purposeWord }
+            .orderBy(PolicyVersionsTable.number, SortOrder.DESC)
+            .map { head ->
+                KeptVersions.Entry(
+                    versionOf(purposeWord, head[PolicyVersionsTable.number]),
+                    head[PolicyVersionsTable.madeBy]?.let(::AccountId),
+                    head[PolicyVersionsTable.comment],
+                    head[PolicyVersionsTable.createdAt],
+                )
+            }
+        val latest = PolicyActivationsTable.selectAll()
+            .where { PolicyActivationsTable.purpose eq purposeWord }
+            .orderBy(PolicyActivationsTable.id, SortOrder.DESC)
+            .limit(1)
+            .singleOrNull()
+        return KeptVersions(
+            made,
+            latest?.let {
+                KeptVersions.InForce(
+                    it[PolicyActivationsTable.number],
+                    it[PolicyActivationsTable.activatedBy]?.let(::AccountId),
+                    it[PolicyActivationsTable.reason],
+                    it[PolicyActivationsTable.activatedAt],
+                )
+            },
+        )
+    }
+
+    override fun add(policy: SignInPolicy, change: Change, at: Instant): PolicyVersion {
         val purposeWord = words.of(PurposeHeard().of(policy))
         lockCountingOf(purposeWord)
         val highest = PolicyVersionsTable.select(PolicyVersionsTable.number.max())
             .where { PolicyVersionsTable.purpose eq purposeWord }
             .single()[PolicyVersionsTable.number.max()] ?: 0
-        PolicyVersion(highest + 1, policy).writeTo(Inserting(at))
+        PolicyVersion(highest + 1, policy).writeTo(Inserting(change, at))
         return versionOf(purposeWord, highest + 1)
     }
 
-    override fun activate(version: PolicyVersion, at: Instant) {
+    override fun activate(version: PolicyVersion, change: Change, at: Instant) {
         val heard = VersionHeard().also { version.writeTo(it) }
         val purposeWord = words.of(heard.purpose())
         val kept = PolicyVersionsTable.selectAll()
@@ -76,10 +110,13 @@ internal class PostgresPolicyVersions : PolicyVersions {
                 "than the one kept. A version put in force must be the one that PolicyVersions.add or " +
                 "active handed out, not one built to look like it."
         }
+        val told = ChangeHeard().also { change.writeTo(it) }
         PolicyActivationsTable.insert {
             it[purpose] = purposeWord
             it[number] = heard.number()
             it[activatedAt] = at
+            it[activatedBy] = told.author().value
+            it[reason] = told.comment()
         }
     }
 
@@ -136,7 +173,7 @@ internal class PostgresPolicyVersions : PolicyVersions {
      * steps point at the row of the version, so they are held until the limits arrive: the last thing
      * a version says, which is when everything the version row needs is known.
      */
-    private class Inserting(private val at: Instant) : PolicyVersion.Record {
+    private class Inserting(private val change: Change, private val at: Instant) : PolicyVersion.Record {
         private val words = StoredWords()
         private val numbers = mutableListOf<Int>()
         private val purposes = mutableListOf<Purpose>()
@@ -157,6 +194,7 @@ internal class PostgresPolicyVersions : PolicyVersions {
         override fun limits(attemptLifetime: Duration, maxFailures: Int, firstDelay: Duration) {
             val purposeWord = words.of(purposes.single())
             val versionNumber = numbers.single()
+            val told = ChangeHeard().also { change.writeTo(it) }
             PolicyVersionsTable.insert {
                 it[purpose] = purposeWord
                 it[number] = versionNumber
@@ -164,6 +202,8 @@ internal class PostgresPolicyVersions : PolicyVersions {
                 it[PolicyVersionsTable.maxFailures] = maxFailures
                 it[firstDelayMillis] = firstDelay.inWholeMilliseconds
                 it[createdAt] = at
+                it[madeBy] = told.author().value
+                it[comment] = told.comment()
             }
             steps.forEachIndexed { index, (accepts, necessity) ->
                 val position = index + 1
@@ -182,6 +222,23 @@ internal class PostgresPolicyVersions : PolicyVersions {
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * Hears who made a change and the words they gave.
+     */
+    private class ChangeHeard : Change.Record {
+        private val authors = mutableListOf<AccountId>()
+        private val comments = mutableListOf<String>()
+
+        fun author(): AccountId = authors.single()
+
+        fun comment(): String = comments.single()
+
+        override fun change(author: AccountId, comment: String) {
+            authors += author
+            comments += comment
         }
     }
 

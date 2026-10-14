@@ -26,6 +26,10 @@ public class AccountDirectory(private val kept: KeptAccounts, private val ids: I
 
     override fun isAdmin(account: AccountId): Boolean = kept.isAdministrator(account.value)
 
+    override fun all(): List<AccountId> = kept.administrators().map(::AccountId)
+
+    override fun count(): Int = kept.count()
+
     override fun register(registrant: Registrant): Registration {
         val told = Told().also { registrant.writeTo(it) }
         val name = told.name()

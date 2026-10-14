@@ -48,10 +48,17 @@ public class Lifetimes internal constructor(
 
     override fun toString(): String = "Lifetimes(idle=$idle, absolute=$absolute, freshness=$freshness)"
 
-    public companion object {
-        private val IDLE: ClosedRange<Duration> = 15.minutes..30.days
+    /**
+     * Tells [record] the three numbers.
+     */
+    internal fun writeTo(record: ClientLifetimes.Record) {
+        record.lifetimes(idle, absolute, freshness)
+    }
 
-        private val FRESHNESS: ClosedRange<Duration> = 1.minutes..15.minutes
+    public companion object {
+        internal val IDLE: ClosedRange<Duration> = 15.minutes..30.days
+
+        internal val FRESHNESS: ClosedRange<Duration> = 1.minutes..15.minutes
 
         /**
          * The longest any session can be allowed to live, which is as long as its cookie is told to be

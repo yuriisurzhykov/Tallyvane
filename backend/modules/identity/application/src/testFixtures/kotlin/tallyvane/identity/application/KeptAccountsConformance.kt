@@ -12,6 +12,7 @@ import kotlin.uuid.Uuid
 
 private val FIRST = Uuid.parse("0199a000-0000-7000-8000-000000000001")
 private val SECOND = Uuid.parse("0199a000-0000-7000-8000-000000000002")
+private val THIRD = Uuid.parse("0199a000-0000-7000-8000-000000000003")
 private val AT = Instant.parse("2026-10-02T09:00:00Z")
 
 private fun account(id: Uuid, subject: String) =
@@ -58,7 +59,7 @@ abstract class KeptAccountsConformance : StringSpec() {
             val subject = fresh()
             subject.inOwnTransaction { add(account(FIRST, "google-1")) }
 
-            subject.inOwnTransaction { add(account(SECOND, "google-1")) } shouldBe AccountAdded.SubjectTaken
+            subject.inOwnTransaction { add(account(THIRD, "google-1")) } shouldBe AccountAdded.SubjectTaken
 
             subject.inOwnTransaction { withGoogle("google-1") } shouldBe FIRST
         }
@@ -104,6 +105,33 @@ abstract class KeptAccountsConformance : StringSpec() {
 
         "does not take an account nobody registered for an administrator" {
             fresh().inOwnTransaction { isAdministrator(FIRST) } shouldBe false
+        }
+
+        "lists every account that was given the right, and none that was not" {
+            val subject = fresh()
+            subject.inOwnTransaction { add(account(FIRST, "google-1")) }
+            subject.inOwnTransaction { add(account(SECOND, "google-2")) }
+            subject.grantAdministrator(SECOND)
+
+            subject.inOwnTransaction { administrators() } shouldBe listOf(SECOND)
+        }
+
+        "lists no administrator while nobody was given the right" {
+            val subject = fresh()
+            subject.inOwnTransaction { add(account(FIRST, "google-1")) }
+
+            subject.inOwnTransaction { administrators() } shouldBe emptyList()
+        }
+
+        "counts the accounts it keeps" {
+            val subject = fresh()
+            subject.inOwnTransaction { count() } shouldBe 0
+
+            subject.inOwnTransaction { add(account(FIRST, "google-1")) }
+            subject.inOwnTransaction { add(account(SECOND, "google-2")) }
+            subject.inOwnTransaction { add(account(THIRD, "google-1")) }
+
+            subject.inOwnTransaction { count() } shouldBe 2
         }
     }
 }

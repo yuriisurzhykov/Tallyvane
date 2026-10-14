@@ -47,6 +47,8 @@ private object Verdicts : DraftCheck.Report<List<String>>, Violation.Report<Stri
     override fun nothingIdentifiesTheAccount() = "nothing identifies the account"
 
     override fun belowTheFloor(purpose: Purpose) = "$purpose below the floor"
+
+    override fun wouldLockPeopleOut(purpose: Purpose) = "$purpose would lock people out"
 }
 
 private fun PolicyDraft.verdicts() = check().reportTo(Verdicts)
@@ -93,7 +95,7 @@ class PolicyDraftSpec :
 
             "a policy with no step every account can pass without setup is refused" {
                 draft(Purpose.Registration, listOf(SECOND_FACTOR_ALWAYS)).verdicts() shouldBe
-                    listOf("nothing identifies the account")
+                    listOf("nothing identifies the account", "Registration would lock people out")
                 draft(Purpose.Registration, listOf(Step(setOf(Google), WhenEnrolled))).verdicts() shouldBe
                     listOf("nothing identifies the account")
             }
@@ -105,6 +107,27 @@ class PolicyDraftSpec :
                     listOf("AdminLogin below the floor")
                 draft(Purpose.AdminLogin, listOf(GOOGLE, Step(setOf(Totp, Google), Always))).verdicts() shouldBe
                     listOf("AdminLogin below the floor")
+            }
+
+            // ADR-098: no session exists that lets a person in only to set a factor up, so a policy that asks
+            // everyone for a second factor would shut out whoever has not set one up.
+            "only the administrators' sign-in may demand a second factor from everyone" {
+                listOf(Purpose.Registration, Purpose.Login, Purpose.StepUp).forEach { purpose ->
+                    draft(purpose, listOf(GOOGLE, SECOND_FACTOR_ALWAYS)).verdicts() shouldBe
+                        listOf("$purpose would lock people out")
+                }
+                draft(Purpose.AdminLogin, listOf(GOOGLE, SECOND_FACTOR_ALWAYS)).verdicts() shouldBe listOf("passed")
+            }
+
+            "a second factor demanded from those who set one up locks nobody out" {
+                listOf(Purpose.Login, Purpose.StepUp).forEach { purpose ->
+                    draft(purpose, listOf(GOOGLE, SECOND_FACTOR_IF_ENABLED)).verdicts() shouldBe listOf("passed")
+                }
+            }
+
+            "a step that accepts Google as well as a second factor shuts nobody out, even for everyone" {
+                draft(Purpose.Login, listOf(GOOGLE, SECOND_FACTOR_IF_ENABLED, Step(setOf(Google, Totp), Always)))
+                    .verdicts() shouldBe listOf("passed")
             }
 
             "registration has no factor to demand beyond Google" {

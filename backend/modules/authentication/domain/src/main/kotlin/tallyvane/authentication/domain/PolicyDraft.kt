@@ -70,6 +70,7 @@ public class PolicyDraft(
             listOfNotNull(
                 Violation.NothingIdentifiesTheAccount().takeUnless { steps.any { it.identifiesTheAccount() } },
                 Violation.BelowTheFloor(purpose).takeUnless { purpose.isKeptBy(steps) },
+                Violation.WouldLockPeopleOut(purpose).takeIf { purpose.isLockedOutBy(steps) },
             )
 
     override fun toString(): String = "PolicyDraft(purpose=$purpose, steps=$steps, attemptLifetime=$attemptLifetime, " +
