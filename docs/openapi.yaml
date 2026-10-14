@@ -840,6 +840,319 @@ paths:
         default:
           $ref: "#/components/responses/Problem"
 
+  /policy-history:
+    get:
+      tags: [authentication]
+      operationId: listPolicyVersions
+      summary: The versions of the sign-in policy of one purpose
+      description: |
+        Every version kept for `purpose` (`registration`, `login`, `admin_login`, `step_up`), newest first, with who
+        made it and why, and which one is in force and since when (ADR-098). A version a migration made has no
+        `made_by` and no `comment`. Never cached.
+
+        Served on the administrators' site only: on the application's own site the route does not exist (`404`).
+        Only an administrator may read it (`403` otherwise), and the right is checked again on every request.
+        `422` names the field: `purpose` (`unknown`).
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: purpose
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [registration, login, admin_login, step_up]
+      responses:
+        "200":
+          description: The versions.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+            traceparent:
+              $ref: "#/components/headers/Traceparent"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PolicyHistory"
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /policy-versions:
+    post:
+      tags: [authentication]
+      operationId: addPolicyVersion
+      summary: Keep a new version of a sign-in policy
+      description: |
+        Keeps the policy as the next version of its purpose. It changes nothing for anyone until it is put in
+        force with `POST /policy-activations`. The author is the signed-in administrator.
+
+        The bounds are in the code, and a version outside them is not kept: `422` lists every error at once, each
+        with its `field` and a `code`, and a `detail` in words fit to show.
+
+        | field | code | when |
+        |---|---|---|
+        | `purpose` | `unknown` | the word names no purpose |
+        | `steps[i].accepts` | `empty` | step `i` (counting from 0) accepts no factor |
+        | `steps` | `nothing-identifies-the-account` | no step applies to everyone with no setup, such as Google, so the account is never learned |
+        | `steps` | `below-the-floor` | a purpose that always demanded a second factor would stop demanding it |
+        | `steps` | `would-lock-people-out` | a step demands a second factor from everyone, for a purpose other than `admin_login`, where a person without one could not sign in to set it up |
+        | `attempt_lifetime_millis`, `max_failures`, `first_delay_millis` | `out-of-bounds` | outside the range the code sets |
+        | `comment` | `comment-invalid` | empty, longer than 500 characters or with a control character once trimmed |
+
+        Served on the administrators' site only, to an administrator only.
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PolicyProposal"
+      responses:
+        "201":
+          description: The version is kept, and is not in force.
+          headers:
+            traceparent:
+              $ref: "#/components/headers/Traceparent"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PolicyVersionMade"
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /policy-previews:
+    get:
+      tags: [authentication]
+      operationId: previewPolicyVersion
+      summary: What putting a kept policy version in force would do
+      description: |
+        For the kept version `number` of `purpose`: how many people the purpose applies to and how many of them
+        could not get to the end of a sign-in under it. The same for a new version and for a rollback; there is no
+        draft on the server. Writes nothing. Never cached.
+
+        `404` when no such version is kept, and for a `number` that is missing or is not a whole number. `422`
+        names the field: `purpose` (`unknown`). Served on the administrators' site only, to an administrator only.
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: purpose
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [registration, login, admin_login, step_up]
+        - name: number
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: The consequences.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+            traceparent:
+              $ref: "#/components/headers/Traceparent"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PolicyPreview"
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /policy-activations:
+    post:
+      tags: [authentication]
+      operationId: activatePolicyVersion
+      summary: Put a kept policy version in force
+      description: |
+        Makes the version `number` of `purpose` the one that judges every step from now on, including a sign-in
+        already begun (ADR-078), and records who did it and why. Putting an earlier version in force is the
+        rollback.
+
+        A dangerous act: it asks for a recent proof of who the person is (ADR-092). A person whose last proof is
+        older is answered `403` with the problem type `step-up-required`, and goes on after `POST /step-ups`.
+
+        - `404` no such version is kept.
+        - `422` names the field: `purpose` (`unknown`), `comment` (`comment-invalid`), and `number`
+          (`would-lock-out-every-administrator`) when the version is for `admin_login` and no administrator could
+          get to the end of it. It is `422` and not `409`: the request is well formed and the data it names is what
+          is wrong, as for a version outside the bounds.
+
+        Served on the administrators' site only, to an administrator only.
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PolicyActivation"
+      responses:
+        "204":
+          description: The version is in force.
+          headers:
+            traceparent:
+              $ref: "#/components/headers/Traceparent"
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /lifetime-history:
+    get:
+      tags: [sessions]
+      operationId: listLifetimeVersions
+      summary: The versions of the session lifetimes of one kind of client
+      description: |
+        Every version kept for `client` (`browser`, `admin`), newest first, with who made it and why, and which
+        one is in force and since when (ADR-098). A version a migration made has no `made_by` and no `comment`.
+        Never cached.
+
+        Served on the administrators' site only, to an administrator only. `422` names the field: `client`
+        (`unknown`).
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: client
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [browser, admin]
+      responses:
+        "200":
+          description: The versions.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+            traceparent:
+              $ref: "#/components/headers/Traceparent"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LifetimeHistory"
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /lifetime-versions:
+    post:
+      tags: [sessions]
+      operationId: addLifetimeVersion
+      summary: Keep a new version of the session lifetimes
+      description: |
+        Keeps the lifetimes as the next version of their client. It changes nothing for anyone until it is put in
+        force with `POST /lifetime-activations`. The author is the signed-in administrator.
+
+        `422` lists every error at once, each with its `field` and a `code`.
+
+        | field | code | when |
+        |---|---|---|
+        | `client` | `unknown` | the word names no kind of client |
+        | `idle_millis`, `freshness_millis` | `out-of-bounds` | outside the range the code sets |
+        | `absolute_millis` | `out-of-bounds` | longer than the code allows |
+        | `absolute_millis` | `below-idle` | shorter than `idle_millis`, so the idle limit could never be reached |
+        | `comment` | `comment-invalid` | empty, longer than 500 characters or with a control character once trimmed |
+
+        Served on the administrators' site only, to an administrator only.
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LifetimeProposal"
+      responses:
+        "201":
+          description: The version is kept, and is not in force.
+          headers:
+            traceparent:
+              $ref: "#/components/headers/Traceparent"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LifetimeVersionMade"
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /lifetime-previews:
+    get:
+      tags: [sessions]
+      operationId: previewLifetimeVersion
+      summary: What putting a kept lifetimes version in force would do
+      description: |
+        For the kept version `number` of `client`: how many sessions of that kind of client are live now, and how
+        many of them the version would end at once (a session past a limit of the version stops working at the
+        next request). Sessions that are over already are in neither count. Writes nothing. Never cached.
+
+        `404` when no such version is kept, and for a `number` that is missing or is not a whole number. `422`
+        names the field: `client` (`unknown`). Served on the administrators' site only, to an administrator only.
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: client
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [browser, admin]
+        - name: number
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: The consequences.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+            traceparent:
+              $ref: "#/components/headers/Traceparent"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LifetimePreview"
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /lifetime-activations:
+    post:
+      tags: [sessions]
+      operationId: activateLifetimeVersion
+      summary: Put a kept lifetimes version in force
+      description: |
+        Makes the version `number` of `client` the one every session of that kind of client is judged by from the
+        next request, and records who did it and why. Putting an earlier version in force is the rollback. There is
+        no bound that can lock people out: a session that is ended by a tighter version is signed in again.
+
+        A dangerous act: it asks for a recent proof of who the person is (ADR-092). A person whose last proof is
+        older is answered `403` with the problem type `step-up-required`, and goes on after `POST /step-ups`.
+
+        - `404` no such version is kept.
+        - `422` names the field: `client` (`unknown`), `comment` (`comment-invalid`).
+
+        Served on the administrators' site only, to an administrator only.
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LifetimeActivation"
+      responses:
+        "204":
+          description: The version is in force.
+          headers:
+            traceparent:
+              $ref: "#/components/headers/Traceparent"
+        default:
+          $ref: "#/components/responses/Problem"
+
 components:
   securitySchemes:
     attemptCookie:
@@ -1356,3 +1669,265 @@ components:
         name:
           type: string
           description: 1 to 60 characters once trimmed, no control characters.
+
+    PolicyHistory:
+      type: object
+      additionalProperties: false
+      required: [purpose, versions]
+      properties:
+        purpose:
+          type: string
+        versions:
+          type: array
+          description: Newest first.
+          items:
+            $ref: "#/components/schemas/PolicyVersion"
+
+    PolicyVersion:
+      type: object
+      additionalProperties: false
+      required: [number, made_at, steps, attempt_lifetime_millis, max_failures, first_delay_millis]
+      properties:
+        number:
+          type: integer
+          minimum: 1
+        made_by:
+          type: string
+          format: uuid
+          description: The account that made it. Absent for a version a migration made.
+        made_at:
+          type: string
+          format: date-time
+        comment:
+          type: string
+          description: Why. Absent for a version a migration made.
+        in_force:
+          $ref: "#/components/schemas/InForce"
+          description: Present on the one version that is in force, and on no other.
+        steps:
+          type: array
+          items:
+            $ref: "#/components/schemas/PolicyStep"
+        attempt_lifetime_millis:
+          type: integer
+          format: int64
+          description: How long a sign-in attempt stays open.
+        max_failures:
+          type: integer
+          description: The wrong answers after which an attempt is over.
+        first_delay_millis:
+          type: integer
+          format: int64
+          description: The pause after the first wrong answer; each next one doubles it.
+
+    PolicyStep:
+      type: object
+      additionalProperties: false
+      required: [accepts, necessity]
+      properties:
+        accepts:
+          type: array
+          description: The step is satisfied by any one of these.
+          items:
+            type: string
+            enum: [google, totp, recovery_code]
+        necessity:
+          type: string
+          enum: [always, when_enrolled]
+          description: |
+            `when_enrolled` applies only to a person who has set one of the factors up. `always` applies to
+            everyone.
+
+    InForce:
+      type: object
+      additionalProperties: false
+      required: [since]
+      properties:
+        since:
+          type: string
+          format: date-time
+        by:
+          type: string
+          format: uuid
+          description: Who put it in force. Absent for an activation a migration made.
+        reason:
+          type: string
+          description: Why. Absent for an activation a migration made.
+
+    PolicyProposal:
+      type: object
+      additionalProperties: false
+      required:
+        - purpose
+        - steps
+        - attempt_lifetime_millis
+        - max_failures
+        - first_delay_millis
+        - comment
+      properties:
+        purpose:
+          type: string
+          enum: [registration, login, admin_login, step_up]
+        steps:
+          type: array
+          items:
+            $ref: "#/components/schemas/PolicyStep"
+        attempt_lifetime_millis:
+          type: integer
+          format: int64
+        max_failures:
+          type: integer
+        first_delay_millis:
+          type: integer
+          format: int64
+        comment:
+          type: string
+          description: Why, 1 to 500 characters once trimmed, no control characters.
+
+    PolicyVersionMade:
+      type: object
+      additionalProperties: false
+      required: [purpose, number]
+      properties:
+        purpose:
+          type: string
+        number:
+          type: integer
+          minimum: 1
+
+    PolicyPreview:
+      type: object
+      additionalProperties: false
+      required: [people, cannot_pass]
+      properties:
+        people:
+          type: integer
+          minimum: 0
+          description: How many people the purpose applies to (all accounts, or the administrators for `admin_login`).
+        cannot_pass:
+          type: integer
+          minimum: 0
+          description: How many of them could not get to the end of a sign-in under the version.
+
+    PolicyActivation:
+      type: object
+      additionalProperties: false
+      required: [purpose, number, comment]
+      properties:
+        purpose:
+          type: string
+          enum: [registration, login, admin_login, step_up]
+        number:
+          type: integer
+          minimum: 1
+        comment:
+          type: string
+          description: Why, 1 to 500 characters once trimmed, no control characters.
+
+    LifetimeHistory:
+      type: object
+      additionalProperties: false
+      required: [client, versions]
+      properties:
+        client:
+          type: string
+        versions:
+          type: array
+          description: Newest first.
+          items:
+            $ref: "#/components/schemas/LifetimeVersion"
+
+    LifetimeVersion:
+      type: object
+      additionalProperties: false
+      required: [number, made_at, idle_millis, absolute_millis, freshness_millis]
+      properties:
+        number:
+          type: integer
+          minimum: 1
+        made_by:
+          type: string
+          format: uuid
+          description: The account that made it. Absent for a version a migration made.
+        made_at:
+          type: string
+          format: date-time
+        comment:
+          type: string
+          description: Why. Absent for a version a migration made.
+        in_force:
+          $ref: "#/components/schemas/InForce"
+          description: Present on the one version that is in force, and on no other.
+        idle_millis:
+          type: integer
+          format: int64
+          description: How long a session may go unused.
+        absolute_millis:
+          type: integer
+          format: int64
+          description: How long a session may live, however much it is used.
+        freshness_millis:
+          type: integer
+          format: int64
+          description: How long a proof of who the person is stays fresh for a dangerous act.
+
+    LifetimeProposal:
+      type: object
+      additionalProperties: false
+      required: [client, idle_millis, absolute_millis, freshness_millis, comment]
+      properties:
+        client:
+          type: string
+          enum: [browser, admin]
+        idle_millis:
+          type: integer
+          format: int64
+        absolute_millis:
+          type: integer
+          format: int64
+        freshness_millis:
+          type: integer
+          format: int64
+        comment:
+          type: string
+          description: Why, 1 to 500 characters once trimmed, no control characters.
+
+    LifetimeVersionMade:
+      type: object
+      additionalProperties: false
+      required: [client, number]
+      properties:
+        client:
+          type: string
+        number:
+          type: integer
+          minimum: 1
+
+    LifetimePreview:
+      type: object
+      additionalProperties: false
+      required: [sessions, would_end]
+      properties:
+        sessions:
+          type: integer
+          minimum: 0
+          description: Sessions of the kind of client that are live now.
+        would_end:
+          type: integer
+          minimum: 0
+          description: How many of them the version would end at once.
+
+    LifetimeActivation:
+      type: object
+      additionalProperties: false
+      required: [client, number, comment]
+      properties:
+        client:
+          type: string
+          enum: [browser, admin]
+        number:
+          type: integer
+          minimum: 1
+        comment:
+          type: string
+          description: Why, 1 to 500 characters once trimmed, no control characters.

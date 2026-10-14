@@ -47,6 +47,14 @@ public data class SignInPolicy internal constructor(
         attempt.endedBy(attemptLifetime, maxFailures, now) ?: openProgressOf(attempt, enrollment, now)
 
     /**
+     * Whether a person with this [enrollment] can get to the end of the policy: every step that applies to them
+     * can be passed with something they have. False for an account that would be let in only to set a factor
+     * up (a [Progress.Restricted] sign-in), which is how an administrator without TOTP meets `admin_login`.
+     */
+    public fun canBePassedBy(enrollment: Enrollment): Boolean =
+        steps.filter { it.appliesTo(enrollment) }.all { it.isReachableWith(enrollment) }
+
+    /**
      * Tells [record] what this policy is: its purpose, each step in order, then its limits.
      *
      * How storage keeps a policy it has been handed to make the next version of its purpose

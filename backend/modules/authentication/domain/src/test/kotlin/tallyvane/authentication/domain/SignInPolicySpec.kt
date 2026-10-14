@@ -188,5 +188,30 @@ class SignInPolicySpec :
                 ADMIN_LOGIN.progressOf(attempt, enrollment, START + 11.seconds) shouldBe
                     Progress.Awaiting(SECOND_FACTOR)
             }
+
+            // What a preview counts (ADR-098): the people who could not get to the end of the policy.
+            "an administrator without a second factor cannot pass the administrators' sign-in" {
+                ADMIN_LOGIN.canBePassedBy(NOTHING_SET_UP) shouldBe false
+            }
+
+            "an administrator with TOTP or with recovery codes left can pass the administrators' sign-in" {
+                ADMIN_LOGIN.canBePassedBy(TOTP_SET_UP) shouldBe true
+                ADMIN_LOGIN.canBePassedBy(ONLY_CODES_LEFT) shouldBe true
+            }
+
+            "a policy that accepts only TOTP shuts out an account that has only recovery codes left" {
+                val totpOnly = policyOf(Purpose.AdminLogin, GOOGLE, Step(setOf(Totp), Always))
+
+                totpOnly.canBePassedBy(ONLY_CODES_LEFT) shouldBe false
+                totpOnly.canBePassedBy(TOTP_SET_UP) shouldBe true
+            }
+
+            "everybody can pass a policy that asks for a second factor only of those who set one up" {
+                listOf(NOTHING_SET_UP, TOTP_SET_UP, ONLY_CODES_LEFT).forEach { enrollment ->
+                    LOGIN.canBePassedBy(enrollment) shouldBe true
+                    STEP_UP.canBePassedBy(enrollment) shouldBe true
+                    REGISTRATION.canBePassedBy(enrollment) shouldBe true
+                }
+            }
         },
     )

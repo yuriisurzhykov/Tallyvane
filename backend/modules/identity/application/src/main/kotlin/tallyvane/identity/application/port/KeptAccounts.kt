@@ -28,6 +28,16 @@ public interface KeptAccounts {
     public fun isAdministrator(id: Uuid): Boolean
 
     /**
+     * Every account that was given the right to administer, in no particular order.
+     */
+    public fun administrators(): List<Uuid>
+
+    /**
+     * How many accounts are kept.
+     */
+    public fun count(): Int
+
+    /**
      * Keeps [account], unless an account for the same Google subject is already kept, in which case
      * nothing changes and the answer is [AccountAdded.SubjectTaken]. Two registrations of one person
      * that race each other end with one account, not with an error.

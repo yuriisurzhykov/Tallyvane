@@ -30,6 +30,11 @@ public class PolicyVersion(private val number: Int, private val policy: SignInPo
     public fun progressOf(attempt: Attempt, enrollment: Enrollment, now: Instant): Progress =
         policy.progressOf(attempt, enrollment, now)
 
+    /**
+     * Whether a person with this [enrollment] can get to the end of the policy this version holds.
+     */
+    public fun canBePassedBy(enrollment: Enrollment): Boolean = policy.canBePassedBy(enrollment)
+
     override fun toString(): String = "PolicyVersion(number=$number, policy=$policy)"
 
     /**

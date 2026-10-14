@@ -1,5 +1,7 @@
 package tallyvane.authentication.application.port
 
+import tallyvane.authentication.application.Change
+import tallyvane.authentication.application.KeptVersions
 import tallyvane.authentication.domain.PolicyVersion
 import tallyvane.authentication.domain.Purpose
 import tallyvane.authentication.domain.SignInPolicy
@@ -24,20 +26,25 @@ public interface PolicyVersions {
     public fun active(purpose: Purpose): PolicyVersion?
 
     /**
-     * Keeps [policy] as the next version of its purpose, numbered after the latest one kept, at
-     * [at]. It is not in force until [activate] makes it so.
+     * Every version kept for [purpose], newest first, with who made each and why, and which is in force.
+     */
+    public fun history(purpose: Purpose): KeptVersions
+
+    /**
+     * Keeps [policy] as the next version of its purpose, made by [change] at [at]. It is not in force until
+     * [activate] makes it so.
      *
      * Two administrators adding at once each get a number of their own.
      */
-    public fun add(policy: SignInPolicy, at: Instant): PolicyVersion
+    public fun add(policy: SignInPolicy, change: Change, at: Instant): PolicyVersion
 
     /**
-     * Makes [version] the one in force for its purpose, from [at]. Activating an earlier version is
-     * a rollback; activating the one already in force is kept as an activation too.
+     * Makes [version] the one in force for its purpose, from [at], for the reason [change] gives. Activating an
+     * earlier version is a rollback; activating the one already in force is kept as an activation too.
      *
      * @throws IllegalStateException if no version is kept that says what [version] says: one that
      * was never kept, or one built to look like a kept version. A version put in force is one that
-     * [add] or [active] handed out.
+     * [add], [active] or [history] handed out.
      */
-    public fun activate(version: PolicyVersion, at: Instant)
+    public fun activate(version: PolicyVersion, change: Change, at: Instant)
 }

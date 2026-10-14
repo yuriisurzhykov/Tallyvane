@@ -1,6 +1,7 @@
 package tallyvane.sessions.application.port
 
 import tallyvane.platform.kernel.Digest
+import tallyvane.sessions.domain.ClientType
 import tallyvane.sessions.domain.DeviceName
 import tallyvane.sessions.domain.Session
 import tallyvane.sessions.domain.SessionId
@@ -62,6 +63,12 @@ public interface Sessions {
      * what is over is for the caller to judge, under the lifetimes in force.
      */
     public fun ofAccount(account: Uuid): List<Session>
+
+    /**
+     * Every session kept for the kind of client [client], in no particular order. Sessions that are over are among
+     * them, as in [ofAccount]. What a preview of new lifetimes counts (ADR-098).
+     */
+    public fun ofClient(client: ClientType): List<Session>
 
     /**
      * Forgets the session [id] of [account], which ends it at once. Returns whether there was one. A
