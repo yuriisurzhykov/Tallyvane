@@ -205,6 +205,9 @@ services:
       # server name — every real hostname then falls through to the default server and gets a
       # 404, and `nginx -t` reports success. See the dated entry in ops/README.md.
       TALLYVANE_DOMAIN: ${DOMAIN:?DOMAIN must be set}
+      # The host the backend takes for the administrators' door (the host of ADMIN_ORIGIN), which the internal
+      # `nginx-admin` block sends as `Host` (40-internal.conf.template). Set ADMIN_HOST only together with ADMIN_ORIGIN.
+      TALLYVANE_ADMIN_HOST: ${ADMIN_HOST:-admin.${DOMAIN}}
       # Blue/green (§2 of the CD plan): PRIMARY carries traffic, SECONDARY is always
       # declared too — marked `down` in 00-common.conf.template — because nginx resolves
       # every declared upstream server at load time whether or not any location sends it
