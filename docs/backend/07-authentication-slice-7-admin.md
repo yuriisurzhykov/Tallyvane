@@ -235,6 +235,13 @@ classDiagram
         Browser
         Admin
     }
+    class LifetimeConsequences {
+        <<entities.lifetime-version>>
+        -sessions
+        -wouldEnd
+        +isNone() Boolean
+        +describe(words) text
+    }
     class LifetimeVersions {
         <<sessions port>>
         +active() LifetimeRules
@@ -294,7 +301,7 @@ Slice 7a is built. The diagrams above are the ones it was written from; this is 
 
 > Layers: `frontend-admin` (the screens), the shared sign-in package `auth-kit` (7-0, a separate pull request that lands first), the generated client types of `frontend-shared` (after 7b).
 > Status: plan accepted by Yurii on 2026-10-14 (the order of work: 7-0 is its own thread and pull request). The diagrams below are the ones the code is written from; if the code departs from a diagram, the same PR changes the diagram.
-> The field names on the wire are provisional until `docs/openapi.yaml` of 7b exists; the diagrams are corrected in the 7c pull request if they differ.
+> The diagrams follow the contract of 7b as pushed in `docs/openapi.yaml` (branch `claude/project-thread-77a78p`, 2026-10-14): admin-only paths on `admin.`, snake_case JSON, durations in milliseconds, a version carries `in_force` (with `since`, `by`, `reason`) only while it is the one in force, and `made_by` and `comment` are absent for versions a migration made. If the merged contract differs, the 7c pull request corrects the diagrams.
 
 ### 7.1 What we should end up with
 
@@ -316,7 +323,7 @@ Slice 7a is built. The diagrams above are the ones it was written from; this is 
 
 ### 7.3 How the policies screen works (diagram 4)
 
-The administrator's own sign-in is diagram 1. The lifetimes screen is the same with `/lifetime-versions` and `/lifetime-activations`.
+The administrator's own sign-in is diagram 1. The lifetimes screen is the same with `/lifetime-history`, `/lifetime-versions`, `/lifetime-previews` and `/lifetime-activations`, keyed by the client (`browser` or `admin`) instead of the purpose.
 
 ```mermaid
 sequenceDiagram
@@ -326,15 +333,15 @@ sequenceDiagram
     participant K as API (Host admin.)
     A->>S: opens /policies
     Note over S,K: gate: GET /me with the cookie, nobody signed in means /login (auth-kit)
-    S->>K: GET /policy-versions?purpose=login
-    K-->>S: versions: number, author, time, comment, whether in force
+    S->>K: GET /policy-history?purpose=login
+    K-->>S: versions: number, made_by, made_at, comment, in_force on the one in force
     S-->>A: the list, the version in force is marked
     A->>S: New version from this one (version N)
     S-->>A: the form filled with version N
     A->>S: edits, writes a comment, Save
     S->>K: POST /policy-versions
     alt outside the bounds the code sets
-        K-->>S: 422 and the list of violations
+        K-->>S: 422 and every violation at once (also would-lock-people-out)
         S-->>A: every violation in words next to the form, nothing saved
     else within the bounds
         K-->>S: 201, version N+1, not in force yet
@@ -353,10 +360,7 @@ sequenceDiagram
         S->>K: the same POST /policy-activations
     end
     alt no administrator could sign in after it
-        K-->>S: 409 would-lock-out-every-administrator
-        S-->>A: a message in the dialog, the version is not in force
-    else the policy would lock people out
-        K-->>S: 422 would-lock-people-out
+        K-->>S: 422 would-lock-out-every-administrator
         S-->>A: a message in the dialog, the version is not in force
     else accepted
         K-->>S: 204
@@ -437,7 +441,8 @@ classDiagram
         <<entities.policy-version>>
         -wire
         +number() Number
-        +isActive() Boolean
+        +isInForce() Boolean
+        +inForceNote(words) text
         +madeBy() text
         +madeOn(locale) text
         +comment() text
@@ -474,16 +479,23 @@ classDiagram
         +isNone() Boolean
         +describe(words) text
     }
+    class LifetimeConsequences {
+        <<entities.lifetime-version>>
+        -sessions
+        -wouldEnd
+        +isNone() Boolean
+        +describe(words) text
+    }
     class LifetimeVersions {
         <<entities.lifetime-version api>>
         +history(client) LifetimeHistory
         +add(client, form, comment) Saving
-        +preview(client, number) Consequences
+        +preview(client, number) LifetimeConsequences
         +activate(client, number, comment)
     }
     class LifetimeVersion {
         <<entities.lifetime-version>>
-        +isActive() Boolean
+        +isInForce() Boolean
         +summary(words) text
         +asForm() LifetimeForm
     }
@@ -522,7 +534,7 @@ classDiagram
     LifetimeVersions --> LifetimeVersion
     LifetimeVersion --> LifetimeForm
     LifetimeVersions --> Saving
-    LifetimeVersions --> Consequences
+    LifetimeVersions --> LifetimeConsequences
     useActivation --> PolicyVersions
     useActivation --> LifetimeVersions
     AdminGate --> AuthKit
