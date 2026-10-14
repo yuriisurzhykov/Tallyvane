@@ -59,9 +59,24 @@ for the full reasoning, including what was rejected (a VPN instead of
 Cloudflare Access; an env-var-gated single build instead of a real second
 app).
 
+## Sign-in and the two policy screens (slice 7c)
+
+Every page sits behind `AdminGate` (`src/widgets/admin-gate`), which asks the server who is visiting and sends nobody to
+`/login`. The sign-in pages are those of [`auth-kit`](../packages/auth-kit) ([ADR-100](../docs/adr/ADR-100-the-sign-in-flow-is-a-package-the-apps-give-their-words-and-frame.md)),
+given this app's words (`src/app/config/auth.ts`), its frame (`src/widgets/auth-frame`) and the page a finished sign-in lands on.
+
+Two screens use the API of [ADR-098](../docs/adr/ADR-098-policies-and-lifetimes-are-edited-as-kept-versions-through-an-admin-only-api.md):
+
+| Route | View | What it does |
+| --- | --- | --- |
+| `/policies` | `admin-policies` | The versions of the sign-in policy of each purpose: start a new one from a copy, put one in force, roll back. |
+| `/lifetimes` | `admin-lifetimes` | The same for the lifetimes of a browser session and of an administrator's. |
+
+The plan, the diagrams and what changed while building are in [`docs/backend/07-authentication-slice-7-admin.md`](../docs/backend/07-authentication-slice-7-admin.md)
+(section 8); the decision is [ADR-099](../docs/adr/ADR-099-the-admin-screens-keep-versions-in-place-and-let-the-server-judge-the-bounds.md).
+Tests are plain classes under `src/**/*.test.ts` (`pnpm test`); a component is looked at in a browser, not in jsdom.
+
 ## Status
 
-Currently a skeleton: every view is a placeholder, matching how far
-`frontend-web` itself has been built. The point of scaffolding it now, before
-either app has real features, is that the workspace boundary exists from the
-first line of admin-specific code rather than being retrofitted later.
+The CMS views (`pages`, `media`, `strings`) are still placeholders, matching how far `frontend-web` itself has been built. The
+policy and lifetime screens are real.

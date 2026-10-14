@@ -1,0 +1,244 @@
+{
+    "auth": {
+        "productName": "tallyvane",
+        "mark": "T",
+        "continueWithGoogle": "Continue with Google",
+        "privacy": "Privacy",
+        "terms": "Terms",
+        "help": "Help",
+        "adminBadge": "admin"
+    },
+    "login": {
+        "title": "Sign in to Tallyvane admin",
+        "lead": "For administrators only. Use the Google account that has the right to administer.",
+        "fineprint": "We only use Google to confirm who you are. Tallyvane never sees your Google password.",
+        "failed": "We couldn't reach Google just now. Try again in a moment.",
+        "problemRestart": "That sign-in took a wrong turn. Start again, please.",
+        "problemExpired": "That sign-in took too long and timed out. Start again, please.",
+        "problemCancelled": "Sign-in was cancelled. Nothing was changed.",
+        "problemRefused": "Google didn't let us confirm who you are. Try again, or use another Google account.",
+        "problemEmailUnverified": "Google hasn't verified that email address, so we can't use it. Verify it with Google, or use another account.",
+        "problemUnavailable": "Sign-in is unavailable right now. Try again in a moment."
+    },
+    "continue": {
+        "title": "Signing you in",
+        "working": "Finishing sign-in…",
+        "failed": "We couldn't finish signing you in.",
+        "back": "Back to sign in",
+        "closeTab": "You're signed in. You can close this tab.",
+        "ended": "That sign-in has ended. Start again, please.",
+        "blocked": "Set up the authenticator app in Tallyvane first (Settings, Security), then sign in here again."
+    },
+    "verify": {
+        "title": "Enter your code",
+        "lead": "One more step to finish signing in.",
+        "working": "Checking your sign-in…",
+        "failed": "We couldn't check your sign-in just now. Try again in a moment.",
+        "ended": "That sign-in has ended. Start again, please.",
+        "blocked": "Set up the authenticator app in Tallyvane first (Settings, Security), then sign in here again.",
+        "startAgain": "Back to sign in"
+    },
+    "secondFactor": {
+        "codeLabel": "Code from your app",
+        "codeHint": "Six digits from your authenticator app.",
+        "recoveryLabel": "Recovery code",
+        "recoveryHint": "Ten characters, like ABCDE-FGHJK. Each code works once.",
+        "wrongCode": "That code didn't work. Check your app and try again.",
+        "wrongRecovery": "That recovery code didn't work. Check it and try again.",
+        "paused": "Too many tries. Try again in {seconds} s.",
+        "pausedAnnouncement": "Too many tries. You can try again in {seconds} seconds.",
+        "failed": "We couldn't check that code just now. Try again in a moment.",
+        "submit": "Continue",
+        "useRecovery": "No access to the app?",
+        "useApp": "Use the code from your app"
+    },
+    "recoveryUsed": {
+        "used": "You signed in with a recovery code.",
+        "noneLeft": "You have no recovery codes left.",
+        "oneLeft": "You have 1 recovery code left.",
+        "manyLeft": "You have {count} recovery codes left.",
+        "retired": "Your authenticator app no longer works. Set it up again in Tallyvane (Settings, Security). Until then only your recovery codes sign you in, and each works once.",
+        "setUp": "Set up now",
+        "continue": "Continue"
+    },
+    "reauth": {
+        "title": "Your session expired",
+        "lead": "Sign in again to continue. Your unsaved work is still here, and we'll finish saving it right after.",
+        "blocked": "Pop-up blocked?",
+        "openLink": "Open Google sign-in",
+        "different": "Signing in as a different person will discard these changes.",
+        "preparing": "Getting Google ready…",
+        "failed": "We couldn't reach Google just now."
+    },
+    "stepUp": {
+        "title": "Confirm it's you",
+        "lead": "This can't be undone, so we need you to sign in with Google once more. If you use an authenticator app, we'll ask for a code in the window that opens. The page behind stays as it is.",
+        "blocked": "Pop-up blocked?",
+        "openLink": "Open Google sign-in",
+        "failed": "We couldn't reach Google just now.",
+        "cancel": "Cancel"
+    },
+    "stepUpContinue": {
+        "title": "Confirming it's you",
+        "working": "Finishing confirmation…",
+        "done": "Confirmed. You can close this tab.",
+        "failed": "We couldn't confirm it's you.",
+        "otherAccount": "That was a different Google account. Close this tab and try again with the one you are signed in with.",
+        "lead": "If you use an authenticator app, we ask for a code too.",
+        "ended": "That confirmation has ended. Close this tab and try again.",
+        "recoveryUsed": "You used a recovery code, so your authenticator app no longer works. Set it up again in Tallyvane, in Settings, Security."
+    },
+    "nav": {
+        "pages": "Pages",
+        "media": "Media",
+        "strings": "Strings",
+        "policies": "Sign-in policies",
+        "lifetimes": "Session lifetimes",
+        "skipToContent": "Skip to content"
+    },
+    "span": {
+        "seconds": "{amount} s",
+        "minutes": "{amount} min",
+        "hours": "{amount} h",
+        "days": "{amount} d",
+        "unitSeconds": "seconds",
+        "unitMinutes": "minutes",
+        "unitHours": "hours",
+        "unitDays": "days",
+        "unitGroup": "Unit"
+    },
+    "purposes": {
+        "label": "Purpose",
+        "registration": "Registration",
+        "login": "Sign-in",
+        "admin_login": "Administrator sign-in",
+        "step_up": "Confirming a dangerous act"
+    },
+    "clients": {
+        "label": "Kind of client",
+        "browser": "Browser",
+        "admin": "Administrators"
+    },
+    "factors": {
+        "google": "Google",
+        "totp": "Authenticator app",
+        "recovery_code": "Recovery code"
+    },
+    "necessity": {
+        "always": "Everyone",
+        "when_enrolled": "Only those who set it up"
+    },
+    "history": {
+        "title": "Versions",
+        "lead": "Every change keeps a new version. Putting one in force, or rolling back to an older one, is recorded with who did it and why.",
+        "loading": "Loading versions…",
+        "loadFailed": "We couldn't load the versions.",
+        "refreshFailed": "We couldn't refresh the versions. This list may be out of date.",
+        "tryAgain": "Try again",
+        "empty": "No versions yet.",
+        "versionNumber": "v{number}",
+        "inForce": "In force",
+        "inForceNote": "In force since {when}, put there by {by}.",
+        "inForceReason": "Reason: {reason}",
+        "madeBy": "{by} · {when}",
+        "you": "You",
+        "migration": "Migration",
+        "account": "Account {id}",
+        "commentLabel": "Reason: {comment}",
+        "newFromThis": "New version from this one",
+        "activate": "Put in force",
+        "rollBack": "Roll back to this"
+    },
+    "activation": {
+        "activateTitle": "Put version {number} in force?",
+        "rollBackTitle": "Roll back to version {number}?",
+        "loading": "Checking what this would change…",
+        "previewFailed": "We couldn't check what this would change, so it can't be put in force right now.",
+        "consequences": "What this changes",
+        "reasonLabel": "Reason (saved to the audit log)",
+        "reasonHint": "1 to 500 characters.",
+        "confirm": "Put in force",
+        "confirmRollBack": "Roll back",
+        "cancel": "Cancel",
+        "failed": "We couldn't put this version in force. Try again in a moment.",
+        "commentInvalid": "Write a reason of 1 to 500 characters, without control characters.",
+        "wouldLockOut": "No administrator could sign in under this version, so it stays out of force.",
+        "gone": "That version is no longer there."
+    },
+    "save": {
+        "commentLabel": "Reason",
+        "commentHint": "Why this version. 1 to 500 characters.",
+        "save": "Save version",
+        "cancel": "Cancel",
+        "failed": "We couldn't save the version. Try again in a moment.",
+        "violations": "The version was not saved:"
+    },
+    "policies": {
+        "title": "Sign-in policies",
+        "lead": "What a person must do to register or sign in. The server checks the bounds; a version outside them is not kept.",
+        "newVersion": "New version"
+    },
+    "policyEditor": {
+        "title": "New version: {purpose}",
+        "lead": "Started from version {number}. Nothing changes for anyone until you put it in force.",
+        "close": "Close",
+        "stepsHeading": "Steps",
+        "stepsHint": "A person passes a step with any one of the factors it accepts. Steps are taken in order.",
+        "step": "Step {position}",
+        "accepts": "Accepts",
+        "appliesTo": "Applies to",
+        "addStep": "Add a step",
+        "removeStep": "Remove step {position}",
+        "limitsHeading": "Limits",
+        "attemptLifetime": "A sign-in stays open for",
+        "maxFailures": "Wrong answers before it is over",
+        "firstDelay": "Pause after the first wrong answer",
+        "firstDelayHint": "Each next wrong answer doubles the pause."
+    },
+    "policyWords": {
+        "or": " or ",
+        "then": " then ",
+        "step": "{factors} ({who})",
+        "limits": "{lifetime} to finish, {failures} wrong answers, first pause {delay}",
+        "people": "{count} people use this purpose.",
+        "cannotPass": "{count} of them could not finish a sign-in under it."
+    },
+    "lifetimes": {
+        "title": "Session lifetimes",
+        "lead": "How long a session may live, and how long a proof of who someone is stays fresh. A tighter version ends sessions at their next request; people sign in again.",
+        "newVersion": "New version"
+    },
+    "lifetimeEditor": {
+        "title": "New version: {client}",
+        "lead": "Started from version {number}. Nothing changes for anyone until you put it in force.",
+        "close": "Close",
+        "idle": "Unused for",
+        "idleHint": "A session unused this long ends.",
+        "absolute": "Lives at most",
+        "absoluteHint": "However much it is used, a session ends after this.",
+        "freshness": "Proof stays fresh for",
+        "freshnessHint": "How long a sign-in counts as recent for a dangerous act."
+    },
+    "lifetimeWords": {
+        "summary": "Unused for {idle}, lives at most {absolute}, proof fresh for {freshness}",
+        "sessions": "{count} sessions of this client are live now.",
+        "wouldEnd": "{count} of them would end at once."
+    },
+    "faults": {
+        "unknown": "The server does not know this choice.",
+        "stepEmpty": "Step {position} accepts no factor. Pick at least one.",
+        "nothingIdentifies": "No step applies to everyone with no setup, such as Google, so the account would never be learned.",
+        "belowTheFloor": "This purpose always demanded a second factor, and this version would stop demanding it.",
+        "wouldLockPeopleOut": "A step demands a second factor from everyone, so a person without one could not sign in to set it up.",
+        "outOfBoundsAttemptLifetime": "The time a sign-in stays open is outside the range the server allows.",
+        "outOfBoundsMaxFailures": "The number of wrong answers is outside the range the server allows.",
+        "outOfBoundsFirstDelay": "The first pause is outside the range the server allows.",
+        "outOfBoundsIdle": "The unused time is outside the range the server allows.",
+        "outOfBoundsAbsolute": "The longest life is longer than the server allows.",
+        "outOfBoundsFreshness": "The freshness of the proof is outside the range the server allows.",
+        "belowIdle": "The longest life of a session cannot be shorter than the time it may go unused.",
+        "commentInvalid": "Write a reason of 1 to 500 characters, without control characters.",
+        "unmapped": "The server refused {field}: {code}.",
+        "other": "The server refused: {detail}"
+    }
+}

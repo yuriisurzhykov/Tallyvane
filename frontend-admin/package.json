@@ -11,6 +11,7 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
     "arch": "pnpm run tokens:check && pnpm run arch:fsd && pnpm run arch:graph",
     "arch:fsd": "steiger ./src",
     "arch:graph": "depcruise app src scripts --config .dependency-cruiser.cjs",
@@ -30,12 +31,14 @@
     "steiger": "^0.6.0",
     "tailwindcss": "^4.3.3",
     "tsx": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.10"
   },
-  "//": "design-token-engine is a devDependency on purpose, same reasoning as frontend-web/package.json: the compiler is build-time only. frontend-shared and content-kit are regular dependencies: their code IS the runtime bundle here. @swc/helpers and @next/env are pinned as direct dependencies to work around a real, currently-open Next.js 16.3.1 bug — see the identical note in frontend-web/package.json for the full explanation and the exact failure each prevents.",
+  "//": "design-token-engine is a devDependency on purpose, same reasoning as frontend-web/package.json: the compiler is build-time only. frontend-shared and content-kit are regular dependencies: their code IS the runtime bundle here. @swc/helpers and @next/env are pinned as direct dependencies to work around a real, currently-open Next.js 16.3.1 bug \u2014 see the identical note in frontend-web/package.json for the full explanation and the exact failure each prevents.",
   "dependencies": {
     "@next/env": "16.3.1",
     "@swc/helpers": "0.5.23",
+    "auth-kit": "workspace:*",
     "content-kit": "workspace:*",
     "frontend-shared": "workspace:*",
     "next": "^16.3.1",
