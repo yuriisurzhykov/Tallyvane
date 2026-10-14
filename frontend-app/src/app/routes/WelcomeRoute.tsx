@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { ProblemError, type components } from "frontend-shared/api";
 import { serverApi } from "@/shared/api";
 import { WelcomePage } from "@/views/welcome";
+import { SIGN_IN_LANDING } from "../config";
 
 type Confirmed = components["schemas"]["Welcomed"];
 
@@ -23,5 +24,5 @@ export async function WelcomeRoute() {
     if (found === undefined) {
         redirect("/login?problem=restart");
     }
-    return <WelcomePage name={found.name} email={found.email} />;
+    return <WelcomePage name={found.name} email={found.email} landing={SIGN_IN_LANDING} />;
 }

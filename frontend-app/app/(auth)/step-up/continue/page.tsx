@@ -1,1 +1,1 @@
-export { StepUpContinuePage as default } from "@/views/step-up-continue";
+export { StepUpContinueRoute as default } from "@/app/routes";
