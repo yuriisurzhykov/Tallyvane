@@ -145,6 +145,9 @@ x-frontend-admin: &frontend-admin-defaults
   restart: unless-stopped
   profiles: [ blue-green ]
   environment:
+    # Where a server component asks the API who is visiting (the gate). Not `nginx`: the administrators'
+    # door is chosen by Host, and this name is the one that carries it (40-internal.conf.template).
+    TALLYVANE_API_INTERNAL_URL: http://nginx-admin
     OTEL_SERVICE_NAME: tallyvane-frontend-admin
     OTEL_RESOURCE_ATTRIBUTES: *otel-namespace
     # Off only on a laptop with no collector to talk to (ops/local/); never set on the server.
@@ -154,8 +157,9 @@ x-frontend-admin: &frontend-admin-defaults
   mem_limit: 192m
   networks: [ edge ]
   logging: *log-bound
+  # `/login`, not `/pages`: every admin page asks the API who is visiting (see frontend-app above).
   healthcheck:
-    test: [ "CMD", "wget", "--quiet", "--tries=1", "--output-document=/dev/null", "http://127.0.0.1:3000/pages" ]
+    test: [ "CMD", "wget", "--quiet", "--tries=1", "--output-document=/dev/null", "http://127.0.0.1:3000/login" ]
     interval: 10s
     timeout: 3s
     retries: 3
@@ -201,6 +205,9 @@ services:
       # server name — every real hostname then falls through to the default server and gets a
       # 404, and `nginx -t` reports success. See the dated entry in ops/README.md.
       TALLYVANE_DOMAIN: ${DOMAIN:?DOMAIN must be set}
+      # The host the backend takes for the administrators' door (the host of ADMIN_ORIGIN), which the internal
+      # `nginx-admin` block sends as `Host` (40-internal.conf.template). Set ADMIN_HOST only together with ADMIN_ORIGIN.
+      TALLYVANE_ADMIN_HOST: ${ADMIN_HOST:-admin.${DOMAIN}}
       # Blue/green (§2 of the CD plan): PRIMARY carries traffic, SECONDARY is always
       # declared too — marked `down` in 00-common.conf.template — because nginx resolves
       # every declared upstream server at load time whether or not any location sends it
@@ -220,7 +227,11 @@ services:
       # into it, and templates/default.conf.template overwrites the image's own welcome-page
       # server by name; a read-only mount would defeat both.
       - ./nginx/templates:/etc/nginx/templates:ro
-    networks: [ edge ]
+    networks:
+      edge:
+        # The second name frontend-admin asks the API at, so that its request is routed through the
+        # administrators' door; see 40-internal.conf.template.
+        aliases: [ nginx-admin ]
     logging: *log-bound
     healthcheck:
       test: [ "CMD", "wget", "--quiet", "--tries=1", "--output-document=/dev/null", "http://127.0.0.1/healthz" ]

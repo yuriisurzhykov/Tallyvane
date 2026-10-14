@@ -627,4 +627,21 @@ carries one for a laptop only.
   The script finds the account by its address and does nothing if two accounts report the same one.
 
 Cloudflare Access stays the first door and is not checked by the server (ADR-097). On a laptop (`ops/local/`) the
-administrators' site is not reachable: Google accepts only `localhost` as a plain-http redirect URI.
+administrators' site is `http://127.0.0.1:8080` (see the entry of 2026-10-14 below).
+
+## 2026-10-14 — the administrators' site on the stand and behind `nginx-admin`
+
+`frontend-admin` (slice 7c) asks the API who is visiting on every page, and the backend tells its two doors apart by `Host`
+alone (ADR-097). Node's `fetch` replaces a `Host` it is given, so an administrator's session would have been judged at the
+console's door and the gate would have sent every page to `/login`. Two changes:
+
+- **`nginx-admin`.** A second network alias of the `nginx` container with its own block in `40-internal.conf.template`, which
+  sets `Host: ${TALLYVANE_ADMIN_HOST}` (`admin.<DOMAIN>` unless `ADMIN_HOST` is set, and it must be the host of
+  `ADMIN_ORIGIN`). `frontend-admin` is started with `TALLYVANE_API_INTERNAL_URL=http://nginx-admin`, and its health check
+  is `/login`, not `/pages`, because every admin page now asks the API.
+- **The stand has the administrators' site.** `./stand.sh up` builds `frontend-admin` and serves it at
+  `http://127.0.0.1:8080` next to the console at `http://localhost:8080`; Google accepts a plain-http redirect URI on
+  `localhost` and on a loopback address, and the two hosts keep separate cookies. A `.env` made before this needs
+  `ADMIN_ORIGIN=http://127.0.0.1:8080` and `ADMIN_HOST=127.0.0.1` (see `env.example`), and the OAuth client needs the redirect URI
+  `http://127.0.0.1:8080/api/v1/google-return`. `./stand.sh admin <email>` gives the right to administer
+  (what `grant-admin.sh` does on the server) and `./stand.sh admin --revoke <email>` takes it away.

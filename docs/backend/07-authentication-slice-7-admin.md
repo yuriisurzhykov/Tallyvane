@@ -2,7 +2,7 @@
 
 > Layers: `platform:kernel`, `platform:http`, `identity`, `authentication`, `sessions`, `server`, `ops` (7a); the same plus `docs/openapi.yaml` (7b); `frontend-admin` and a shared sign-in package (7-0, 7c)
 > Status: plan accepted by Yurii on 2026-10-07. The diagrams below are the ones the code is written from. If the code departs from a diagram, the same PR changes the diagram.
-> The decisions are recorded in [ADR-097](../adr/ADR-097-the-admin-surface-is-a-second-door-with-its-own-session-type.md) (7a) and [ADR-098](../adr/ADR-098-policies-and-lifetimes-are-edited-as-kept-versions-through-an-admin-only-api.md) (7b); the record for 7c is added with its PR.
+> The decisions are recorded in [ADR-097](../adr/ADR-097-the-admin-surface-is-a-second-door-with-its-own-session-type.md) (7a) and [ADR-098](../adr/ADR-098-policies-and-lifetimes-are-edited-as-kept-versions-through-an-admin-only-api.md) (7b) and [ADR-099](../adr/ADR-099-the-admin-screens-edit-versions-behind-a-gate-built-from-the-sign-in-package.md) (7c).
 > Parent documents: [ADR-078](../adr/ADR-078-factors-attempts-and-versioned-policies.md) (policies, bounds, floors), [ADR-079](../adr/ADR-079-server-side-opaque-sessions.md) (sessions), [ADR-090](../adr/ADR-090-devices-are-sessions-and-lifetimes-are-versions-owned-by-sessions.md) (lifetimes as versions), [ADR-092](../adr/ADR-092-a-dangerous-act-asks-for-a-fresh-proof-and-the-session-remembers-it.md) (fresh proof), [ADR-032](../adr/ADR-032-subdomain-split-and-admin-isolation.md) (the admin host)
 
 Read it in this order: what we get and how it is cut into pull requests, which forks were answered, how an administrator signs in and changes a policy, who depends on whom, which classes it is made of.
@@ -24,7 +24,7 @@ Read it in this order: what we get and how it is cut into pull requests, which f
 | **7b** backend | Versions of policies and of lifetimes: list, create, preview, activate and roll back, with author and comment. |
 | **7c** `frontend-admin` | Sign-in on `auth-kit`, the gate, the two screens. |
 
-This document covers 7a and 7b in full and shows where 7c sits. The classes of the screens are drawn in the plan of 7c.
+This document covers 7a and 7b in full and shows where 7c sits. The gate and the two screens of 7c are drawn in section 7.
 
 ## 2. Decisions
 
@@ -239,6 +239,13 @@ classDiagram
         Browser
         Admin
     }
+    class LifetimeConsequences {
+        <<entities.lifetime-version>>
+        -sessions
+        -wouldEnd
+        +isNone() Boolean
+        +describe(words) text
+    }
     class LifetimeVersions {
         <<sessions port>>
         +active() LifetimeRules
@@ -327,3 +334,307 @@ A `422` is the usual problem body with `errors[{field, code}]` and a `detail` of
 - **What `cannot_pass` counts.** Everyone in `people` who could not get to the end of the policy with the factors they have set up: for `admin_login` the administrators; for the other purposes all accounts, and a policy within the bounds cannot shut anyone out of them, so the count is `0` there.
 - **`Admins.all()` arrives** (the plan showed it in diagram 3) with `Accounts.count()` and the `EnrollmentCensus` port, which counts accounts by the factors they have set up in one grouped query.
 - **Not verified here.** The Postgres integration tests ran against PostgreSQL 16, not the 17 image of the fixture. The emergency rollback SQL for the ops runbook is not written yet.
+
+## 8. Slice 7c. The gate and the two screens
+
+> Layers: `frontend-admin` (the gate and the screens), the shared sign-in package `auth-kit` (7-0, merged), the generated client types of `frontend-shared` (7b, merged).
+> Status: implemented. The diagrams below are the ones the code was written from, updated in the same pull request where the code departed from the plan (see 8.7). The decision is recorded in [ADR-099](../adr/ADR-099-the-admin-screens-keep-versions-in-place-and-let-the-server-judge-the-bounds.md).
+> The diagrams follow the contract of 7b as merged in `docs/openapi.yaml` (section 7): admin-only paths on `admin.`, snake_case JSON, durations in milliseconds, a version carries `in_force` (with `since`, `by`, `reason`) only while it is the one in force, and `made_by` and `comment` are absent for versions a migration made.
+> The look follows the board "S9 · admin policies" of the design canvas "Tallyvane auth screens" (`https://claude.ai/artifact/PkNFQuxQyAxz7aA7j47ZUf`): one elevated card titled "Versions", a row per version with its number, a one-line summary, the "In force" badge, who and when, and the acts at the right; consequences in an amber callout with the reason below it. The canvas shows the activation as a modal window; the product has none (ARCHITECTURE §12.9, ADR-091), so the same content opens in place under the row.
+
+### 8.1 What we should end up with
+
+- **A gate in front of every page of `frontend-admin`** (the three CMS placeholders too). The server asks `GET /me` with the visitor's cookie and the `admin.` host; nobody signed in means `/login`, remembering where the person was going. A person without the right never gets as far as the code (the server turns them back after Google, as 7-0 did), so the app has no "no access" state. The mechanics come from `auth-kit`; the app passes its texts, frame and landing page. An administrator without an authenticator reaches the `restricted` state, whose text the app supplies and which points at the console, where the authenticator is set up.
+- **"Sign-in policies"** at `/policies`: a purpose picker (`registration`, `login`, `admin_login`, `step_up`), the versions of that purpose (number, a line saying what it holds, author, time, reason, an "In force" badge), "New version from this one" (a drawer with a form filled from the chosen version: steps with the factors each accepts and whom it applies to, attempt lifetime, maximum failures, first delay) and "Roll back to this" on an older version.
+- **"Session lifetimes"** at `/lifetimes`: a "Browser / Administrators" picker, the same list of versions, a form of three lengths (unused for, lives at most, proof stays fresh for), activation and rollback.
+- **Violations are shown at the form.** The server names every one (`422`); the screen words them next to the field they belong to, or in a list above the buttons, and saves nothing. The bounds are not copied into the screen: the server's code knows them.
+- **Activation and rollback share one in-place panel.** It loads the consequences, asks for a reason and, when the confirmation is older than five minutes, the confirmation of `auth-kit` rises by itself and the request is repeated.
+
+### 8.2 Decided without a fork
+
+- **The consequences load with the panel** instead of behind a separate button: a version cannot be put in force without its consequences in front of the person. The request is the `GET /policy-previews` (or `/lifetime-previews`) of diagram 4, by the number of a kept version.
+- **A rollback is an activation** of an earlier version: the same panel and request, a different title and button label. A version newer than the one in force is "Put in force"; an older one is "Roll back to this".
+- **A new version always starts from a copy of an existing one**, edited as a set of steps. The button in the top bar starts from the version in force. There is no empty form and no free-text (JSON) editing.
+- **No modal windows.** Creation happens in a drawer, activation in place under the row.
+- **The menu** gets "Sign-in policies" and "Session lifetimes" next to Pages, Media and Strings. `/` still redirects to `/pages`, which is also where a finished sign-in lands.
+- **Authors are shown as "You", a short form of the account id, or "Migration".** The contract carries `made_by` as an account id and no names.
+- **Loading, failure and empty states** are shown the way the Devices and Activity pages of the console show them.
+- **Strings** are English, in the app's dictionary; styling only with classes on the design-system tokens, through the primitives of `frontend-shared`.
+
+### 8.3 How the policies screen works (diagram 4)
+
+The administrator's own sign-in is diagram 1. The lifetimes screen is the same with `/lifetime-history`, `/lifetime-versions`, `/lifetime-previews` and `/lifetime-activations`, keyed by the client (`browser` or `admin`) instead of the purpose.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant A as Administrator
+    participant S as Screen /policies
+    participant K as API (Host admin.)
+    A->>S: opens /policies
+    Note over S,K: gate: GET /me with the cookie, nobody signed in means /login (auth-kit)
+    S->>K: GET /policy-history?purpose=login
+    K-->>S: versions: number, made_by, made_at, comment, in_force on the one in force
+    S-->>A: the list, the version in force is marked
+    A->>S: New version from this one (version N)
+    S-->>A: a drawer with the form filled from version N
+    A->>S: edits, writes a reason, Save
+    S->>K: POST /policy-versions
+    alt outside the bounds the code sets
+        K-->>S: 422 and every violation at once (also would-lock-people-out)
+        S-->>A: every violation in words next to the form, nothing saved
+    else within the bounds
+        K-->>S: 201, version N+1, not in force yet
+        S-->>A: the drawer closes, version N+1 appears in the list
+    end
+    A->>S: Put in force (or Roll back to this) on a version
+    S->>K: GET /policy-previews?purpose=login&number=N+1
+    K-->>S: how many people it affects, who cannot pass
+    S-->>A: the panel opens under the row: the consequences and a "Reason" field
+    A->>S: Put in force
+    S->>K: POST /policy-activations
+    alt the confirmation is older than 5 minutes
+        K-->>S: 403 step-up-required
+        S-->>A: the confirmation of auth-kit (Google and TOTP)
+        A->>S: confirmed
+        S->>K: the same POST /policy-activations
+    end
+    alt no administrator could sign in after it
+        K-->>S: 422 would-lock-out-every-administrator
+        S-->>A: a message in the panel, the version is not in force
+    else accepted
+        K-->>S: 204
+        S-->>A: the list is read again, N+1 is in force, who and why are shown
+    end
+```
+
+### 8.4 Module dependencies (diagram 5)
+
+```mermaid
+flowchart TB
+    subgraph app["frontend-admin: app"]
+        gate["(admin)/layout: AdminRoute, AdminGate"]
+        login["(auth)/login..., step-up/continue: pages of auth-kit, AuthFrame, authTexts"]
+        routes["(admin)/policies, (admin)/lifetimes"]
+        nav["navigation.ts (+2 items)"]
+    end
+    subgraph views["views"]
+        vp["admin-policies"]
+        vl["admin-lifetimes"]
+    end
+    subgraph widgets["widgets"]
+        vh["version-history"]
+        pe["policy-editor"]
+        le["lifetimes-editor"]
+    end
+    subgraph features["features"]
+        add["save-version"]
+        act["activate-version"]
+    end
+    subgraph entities["entities"]
+        epv["policy-version"]
+        elv["lifetime-version"]
+    end
+    subgraph own["shared (the app's own)"]
+        sp["span, rejection, history, lib, ui/span-input, i18n"]
+    end
+    kit["auth-kit (7-0): Viewers, ViewerProvider, ReauthProvider, sign-in pages, return to the page"]
+    shared["frontend-shared: api, ui"]
+    gate --> kit
+    login --> kit
+    routes --> vp
+    routes --> vl
+    vp --> vh
+    vp --> pe
+    vl --> vh
+    vl --> le
+    vh --> act
+    vh --> kit
+    pe --> add
+    le --> add
+    pe --> epv
+    le --> elv
+    vp --> epv
+    vl --> elv
+    add --> sp
+    act --> sp
+    epv --> sp
+    elv --> sp
+    sp --> shared
+    kit --> shared
+```
+
+`version-history` knows no entity: it asks every version the same few questions (`Listed`), and the view hands it the way to summarise a version, the activation to run and the words for its consequences. The two entities do not know each other either; what they share (a length of time, a rejection, who made a version) is in the app's own `shared`.
+
+### 8.5 Classes (diagram 6)
+
+The same rules as before: fields are private and behaviour is in methods. The answer of the server becomes an object at the border, and the screen asks the object ("how are you shown", "are you in force") instead of taking the answer apart. Forms are values: every edit gives a new one.
+
+```mermaid
+classDiagram
+    direction LR
+    class PolicyVersions {
+        <<entities.policy-version api>>
+        +history(purpose) PolicyHistory
+        +add(purpose, form, comment) Number
+        +activation(purpose, number) PolicyActivation
+    }
+    class PolicyActivation {
+        <<entities.policy-version api>>
+        +preview() PolicyConsequences
+        +confirm(comment)
+    }
+    class PolicyHistory {
+        <<entities.policy-version>>
+        -versions
+        +isEmpty() Boolean
+        +map(show) List
+        +startingPoint() PolicyVersion
+    }
+    class PolicyVersion {
+        <<entities.policy-version>>
+        -wire
+        +number() Number
+        +isInForce() Boolean
+        +made() VersionStamp
+        +inForce() VersionStamp
+        +summary(words) text
+        +asForm() PolicyForm
+    }
+    class PolicyForm {
+        <<entities.policy-version>>
+        -steps
+        -limits
+        +mapSteps(show) List
+        +withStepAdded() PolicyForm
+        +withoutStep(position) PolicyForm
+        +withFactorToggled(position, factor) PolicyForm
+        +withNecessity(position, necessity) PolicyForm
+        +withAttemptLifetime(span) PolicyForm
+        +withMaxFailures(count) PolicyForm
+        +withFirstDelay(span) PolicyForm
+        +summary(words) text
+        +toRequest(purpose, comment) Request
+    }
+    class PolicyStep {
+        <<entities.policy-version>>
+        -factors
+        -necessity
+        +accepts(factor) Boolean
+        +appliesTo(necessity) Boolean
+        +withFactorToggled(factor) PolicyStep
+        +withNecessity(necessity) PolicyStep
+    }
+    class PolicyConsequences {
+        <<entities.policy-version>>
+        -wire
+        +isHarmless() Boolean
+        +describe(words) List
+    }
+    class PolicyFaults {
+        <<entities.policy-version>>
+        +phrase(fault) text
+    }
+    class LifetimeVersions {
+        <<entities.lifetime-version api>>
+        +history(client) LifetimeHistory
+        +add(client, form, comment) Number
+        +activation(client, number) LifetimeActivation
+    }
+    class LifetimeVersion {
+        <<entities.lifetime-version>>
+        +isInForce() Boolean
+        +made() VersionStamp
+        +summary(words) text
+        +asForm() LifetimeForm
+    }
+    class LifetimeForm {
+        <<entities.lifetime-version>>
+        -idle
+        -absolute
+        -freshness
+        +withIdle(span) LifetimeForm
+        +withAbsolute(span) LifetimeForm
+        +withFreshness(span) LifetimeForm
+        +toRequest(client, comment) Request
+    }
+    class LifetimeConsequences {
+        <<entities.lifetime-version>>
+        +isHarmless() Boolean
+        +describe(words) List
+    }
+    class Span {
+        <<shared>>
+        -millis
+        +toMillis() Number
+        +amountIn(unit) Number
+        +naturalUnit(offered) Unit
+        +describe(words) text
+    }
+    class Rejection {
+        <<shared>>
+        -faults
+        +about(fields) Rejection
+        +except(fields) Rejection
+        +describe(phrase) List
+    }
+    class VersionStamp {
+        <<shared>>
+        +author(words, onlooker) text
+        +when(locale) text
+        +reason() text
+    }
+    class useSaveVersion {
+        <<features.save-version hook>>
+        +state idle, saving, rejected, failed, saved
+        +save(attempt)
+    }
+    class useActivation {
+        <<features.activate-version hook>>
+        +state previewing, ready, confirming
+        +confirm(comment)
+    }
+    class refusalOf {
+        <<features.activate-version>>
+        declined, gone, lock-out, comment, failed
+    }
+    class AdminGate {
+        <<app, server component>>
+        +children
+    }
+    PolicyVersions --> PolicyHistory
+    PolicyVersions --> PolicyActivation
+    PolicyHistory --> PolicyVersion
+    PolicyVersion --> PolicyForm
+    PolicyForm --> PolicyStep
+    PolicyActivation --> PolicyConsequences
+    PolicyForm --> Span
+    LifetimeVersions --> LifetimeVersion
+    LifetimeVersion --> LifetimeForm
+    LifetimeForm --> Span
+    PolicyVersion --> VersionStamp
+    LifetimeVersion --> VersionStamp
+    useSaveVersion --> Rejection
+    Rejection --> PolicyFaults
+    useActivation --> refusalOf
+    AdminGate --> AuthKit
+    class AuthKit {
+        <<package, 7-0>>
+        Viewers
+        ReauthProvider
+        sign-in pages
+    }
+```
+
+### 8.6 Out of scope
+
+Managing people and giving the administrator right from the interface; a policy journal on the screen (the author and reason are shown in the list of versions itself); names instead of account ids in the list (the contract carries ids); a sign-out button and account menu on the administrators' site; a session "only for setting up"; the CMS editors (the placeholders stay placeholders, but sit behind the gate).
+
+### 8.7 What changed while implementing
+
+- **The activation is a panel under the row, not a dialog**, and "New version" is a drawer. The plan said "dialog"; the product has no modal windows (ADR-091), and the design canvas that the screens follow shows the same content as a card. Diagram 4 and the classes say so.
+- **`Rejection` is generic and the wording is per entity.** Instead of one `Rejection` that knows every field, `shared/rejection` holds the faults the server named (`about` a field, `except` some, `describe`), and `PolicyFaults` and `LifetimeFaults` turn a fault into a sentence. `ProblemError` gained `faults()` and `detail()` for it.
+- **`Consequences` became `isHarmless()` and `describe(words)`**, shared by both entities in shape (an interface of the activation feature), not in code.
+- **The administrators' site reaches the API through its own internal name.** The backend picks the door (app or admin) from the request `Host` alone (ADR-097), and a server-side `fetch` of Node drops a `Host` that it is told to set. The gate of the admin site would therefore have been answered as the public door and sent to `/login` in a loop. `ops/nginx` has a second internal name, `nginx-admin`, that sets `Host: admin.<domain>`; `frontend-admin` calls the API through it (`TALLYVANE_API_INTERNAL_URL=http://nginx-admin`), and its health check is `/login`, which needs no session.
+- **A save or an activation that is repeated keeps its `Idempotency-Key`.** The contract says the key is generated once per intention and sent again unchanged (ADR-086). `IntentionKey` in the app's `shared` holds it while the same request is repeated after an answer that never came (a network drop, a `5xx`, a `409` or `429`), and starts a new one when the request changes or the server turned it down (`ProblemError.wasRefused()`), so a lost response cannot keep a second version.
+- **Nothing in the server's contract changed.** The screens needed no new field.

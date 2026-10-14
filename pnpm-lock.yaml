@@ -50,6 +50,9 @@ importers:
       '@swc/helpers':
         specifier: 0.5.23
         version: 0.5.23
+      auth-kit:
+        specifier: workspace:*
+        version: link:../packages/auth-kit
       content-kit:
         specifier: workspace:*
         version: link:../packages/content-kit
@@ -102,6 +105,9 @@ importers:
       typescript:
         specifier: ^5
         version: 5.9.3
+      vitest:
+        specifier: ^4.1.10
+        version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(jsdom@30.0.1)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12))
 
   frontend-app:
     dependencies:

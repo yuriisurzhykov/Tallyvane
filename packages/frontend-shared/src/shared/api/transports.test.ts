@@ -57,6 +57,14 @@ describe("ProblemTransport", () => {
         expect(ProblemError.from(problem("conflict", 409, { "retry-after": "3" })).isAnsweredBefore()).toBe(false);
     });
 
+    it("calls a request refused only when a 4xx says nothing was carried out and it is not worth repeating as it is", () => {
+        expect(ProblemError.from(problem("validation-failed", 422)).wasRefused()).toBe(true);
+        expect(ProblemError.from(problem("forbidden", 403)).wasRefused()).toBe(true);
+        expect(ProblemError.from(problem("conflict", 409)).wasRefused()).toBe(false);
+        expect(ProblemError.from(problem("slow-down", 429)).wasRefused()).toBe(false);
+        expect(ProblemError.from(problem("other", 503)).wasRefused()).toBe(false);
+    });
+
     it("reads Retry-After in seconds, and says nothing when it is absent or not a count", () => {
         expect(ProblemError.from(problem("slow-down", 429, { "retry-after": "4" })).retryAfterSeconds()).toBe(4);
         expect(ProblemError.from(problem("slow-down", 429)).retryAfterSeconds()).toBeUndefined();
@@ -93,6 +101,36 @@ describe("ProblemTransport", () => {
 
         expect(refused.fieldCode("agreed")).toBe("consent-required");
         expect(refused.fieldCode("name")).toBeUndefined();
+    });
+
+    it("lists every fault in the order the server named them, and the detail it gave", () => {
+        const refused = ProblemError.from({
+            status: 422,
+            headers: new Headers(),
+            body: {
+                type: "https://tallyvane.com/errors/validation-failed",
+                title: "Invalid",
+                status: 422,
+                detail: "Two things are wrong.",
+                errors: [
+                    { field: "steps[0].accepts", code: "empty" },
+                    { field: "comment", code: "comment-invalid" },
+                ],
+            },
+        });
+
+        expect(refused.faults()).toEqual([
+            { field: "steps[0].accepts", code: "empty" },
+            { field: "comment", code: "comment-invalid" },
+        ]);
+        expect(refused.detail()).toBe("Two things are wrong.");
+    });
+
+    it("has no faults and no detail for a failure that is not about fields", () => {
+        const failure = ProblemError.from(problem("internal", 500));
+
+        expect(failure.faults()).toEqual([]);
+        expect(failure.detail()).toBeUndefined();
     });
 });
 

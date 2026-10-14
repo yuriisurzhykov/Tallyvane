@@ -3476,15 +3476,19 @@ frontend-admin/                       admin.tallyvane.com — отдельное
 │   │   ├── pages/page.tsx            невозможен, потому что ребра
 │   │   ├── pages/[id]/page.tsx       зависимости просто нет
 │   │   ├── media/page.tsx
-│   │   └── strings/page.tsx
+│   │   ├── strings/page.tsx
+│   │   ├── policies/page.tsx         политики входа (ADR-099)
+│   │   └── lifetimes/page.tsx        сроки сессий (ADR-099)
+│   ├── (auth)/                       вход через packages/auth-kit (ADR-100)
 │   └── proxy.ts
 ├── scripts/
 │   └── generate-design-tokens.ts     та же тема, тот же generated/, что и у соседей
 └── src/
-    ├── app/          свои провайдеры; импортирует frontend-shared и content-kit
-    ├── views/        admin-page-list, admin-page-editor, admin-media, admin-strings
-    ├── widgets/      block-editor (поверх block-renderer из content-kit)
-    └── features/     edit-page-blocks, publish-page, restore-revision, upload-media, edit-strings
+    ├── app/          свои провайдеры; импортирует frontend-shared, content-kit и auth-kit
+    ├── views/        admin-page-list, admin-page-editor, admin-media, admin-strings, admin-policies, admin-lifetimes
+    ├── widgets/      block-editor (поверх block-renderer из content-kit), admin-gate, auth-frame, version-history, policy-editor, lifetimes-editor
+    ├── features/     edit-page-blocks, publish-page, restore-revision, upload-media, edit-strings, save-version, activate-version
+    └── entities/     policy-version, lifetime-version
 ```
 
 **Каталог `app/` в корне каждого приложения — не слой FSD, а адаптер маршрутизации.** Каждый файл маршрута состоит из
@@ -3580,10 +3584,11 @@ Tailwind, поведение примитивов из Base UI — см. [ADR-03
 `brief-layout`, `contact-history`, `resume-studio`, `funnel-chart`, `activity-chart`. `views`: `today`, `pipeline`,
 `job-detail`, `brief`, `contacts`, `contact-detail`, `resume-studio`, `analytics`, `settings`.
 
-**`frontend-admin` (`features`, `widgets`, `views` — без локального `entities`)** — `features`: `edit-page-blocks`,
-`publish-page`, `restore-revision`, `upload-media`, `edit-strings`. `widgets`: `block-editor`. `views`:
-`admin-page-list`, `admin-page-editor`, `admin-media`, `admin-strings`. Локального слоя `entities` нет: единственные
-нужные ему сущности, `content-page` и `media-asset`, уже приходят из `content-kit`.
+**`frontend-admin` (`entities`, `features`, `widgets`, `views`)** — `entities`: `policy-version`, `lifetime-version` (срез 7c;
+сущности контента, `content-page` и `media-asset`, приходят из `content-kit`). `features`: `edit-page-blocks`,
+`publish-page`, `restore-revision`, `upload-media`, `edit-strings`, `save-version`, `activate-version`. `widgets`:
+`block-editor`, `admin-gate`, `auth-frame`, `version-history`, `policy-editor`, `lifetimes-editor`. `views`:
+`admin-page-list`, `admin-page-editor`, `admin-media`, `admin-strings`, `admin-policies`, `admin-lifetimes`.
 
 **`app`** — в каждом приложении свой: провайдеры запросов, темы, строк и (где нужно) реестра блоков; глобальные стили;
 конфигурация. Реестр блоков сегодня подключают только `frontend-web` и `frontend-admin`, и его состав идентичен в этих

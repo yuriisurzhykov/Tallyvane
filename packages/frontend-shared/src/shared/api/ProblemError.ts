@@ -3,6 +3,12 @@ import type { ApiResponse } from "./ApiRequest";
 
 type Problem = components["schemas"]["Problem"];
 
+/** One thing wrong with one field of a `422`, as the server names it: the field as the client sent it, and a code to branch on. */
+export interface Fault {
+    readonly field: string;
+    readonly code: string;
+}
+
 const TYPE_PREFIX = "https://tallyvane.com/errors/";
 
 /** The kinds of failure the server names (ADR-062). Anything else, including a proxy's own error page, is `other`. */
@@ -73,6 +79,15 @@ export class ProblemError extends Error {
         return this.problem.status === status;
     }
 
+    /**
+     * The server read the request and turned it down (a `4xx` other than "try again": `408`, `409`, `429`), so
+     * nothing was carried out and the intention is over. Any other failure leaves it open: the work may have been done.
+     */
+    public wasRefused(): boolean {
+        const status = this.problem.status;
+        return status >= 400 && status < 500 && ![408, 409, 429].includes(status);
+    }
+
     public isSessionExpired(): boolean {
         return this.kind() === "session-expired";
     }
@@ -110,5 +125,15 @@ export class ProblemError extends Error {
     /** What is wrong with one field of a `422`, or `undefined` when that field is fine. */
     public fieldCode(field: string): string | undefined {
         return this.problem.errors?.find((error) => error.field === field)?.code;
+    }
+
+    /** Every fault the server found, in the order it listed them; none for a failure that is not about fields. */
+    public faults(): readonly Fault[] {
+        return (this.problem.errors ?? []).map((error) => ({ field: error.field, code: error.code }));
+    }
+
+    /** This occurrence in the server's words, or `undefined` when it gave none. Fit to show, never a driver's message. */
+    public detail(): string | undefined {
+        return this.problem.detail;
     }
 }
