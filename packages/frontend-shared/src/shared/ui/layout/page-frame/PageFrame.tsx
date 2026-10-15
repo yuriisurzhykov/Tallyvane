@@ -28,7 +28,7 @@ export function PageFrame({ sidebar, title, lead, actions, skipLinkLabel, childr
         <div className="flex min-h-dvh flex-col bg-surface-inset lg:flex-row">
             <SkipLink href={`#${MAIN_CONTENT_ID}`}>{skipLinkLabel}</SkipLink>
             <aside className="border-b border-border-subtle bg-surface-primary lg:shrink-0 lg:border-r lg:border-b-0">{sidebar}</aside>
-            <main id={MAIN_CONTENT_ID} className="flex-1 p-stack lg:p-section-gap">
+            <main id={MAIN_CONTENT_ID} className="min-w-0 flex-1 p-stack lg:p-section-gap">
                 <div className="mx-auto flex max-w-(--layout-console-max-width) flex-col gap-section-gap">
                     <header className="flex flex-col gap-group-gap sm:flex-row sm:items-start sm:justify-between">
                         <div className="flex flex-1 flex-col gap-stack-tight">

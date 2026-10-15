@@ -27,6 +27,7 @@ export function PolicyFlow({ form, compact = false }: PolicyFlowProps) {
                     {compact ? (
                         <Text variant="body">
                             {step.mapFactors((factor) => factors(factor)).join(` ${t("or")} `)}
+                            {step.appliesTo("when_enrolled") ? ` (${necessity("when_enrolled")})` : ""}
                         </Text>
                     ) : (
                         <Surface variant="inset" className="px-stack py-inline">

@@ -70,6 +70,7 @@ function Body({ purpose, from, inForce, onClose, onSaved }: BodyProps) {
     const purposes = useStrings("purposes");
     const refused = useStrings("faults");
     const api = useApi();
+    const words = usePolicyWords();
     const faults = usePolicyFaults();
     const [form, setForm] = useState(() => from.asForm());
     const [comment, setComment] = useState("");
@@ -98,6 +99,7 @@ function Body({ purpose, from, inForce, onClose, onSaved }: BodyProps) {
                 <Stack gap="stack-tight">
                     <Text variant="overline" color="muted">{t("result")}</Text>
                     <PolicyFlow form={form} compact />
+                    <Text variant="numeric" color="secondary">{form.limitsLine(words)}</Text>
                 </Stack>
             </Surface>
             <Stack gap="group-gap" className="flex-1 overflow-y-auto p-inline-tight">
