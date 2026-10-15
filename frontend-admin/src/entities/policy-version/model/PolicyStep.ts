@@ -44,6 +44,17 @@ export class PolicyStep {
         return this.factors.includes(factor);
     }
 
+    /** Shows each factor the step accepts, in the order a person meets them. */
+    public mapFactors<T>(show: (factor: Factor, position: number) => T): T[] {
+        return this.factors.map(show);
+    }
+
+    public sameAs(other: PolicyStep): boolean {
+        return this.necessity === other.necessity
+            && this.factors.length === other.factors.length
+            && this.factors.every((factor, at) => other.factors[at] === factor);
+    }
+
     public acceptsNothing(): boolean {
         return this.factors.length === 0;
     }

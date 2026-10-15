@@ -16,8 +16,13 @@ export class LifetimeHistory {
         return this.versions.map(show);
     }
 
+    /** The version in force; every history has one, but a history not yet read has none. */
+    public inForce(): LifetimeVersion | undefined {
+        return this.versions.find((version) => version.isInForce());
+    }
+
     /** The version a new one is started from when no particular one was picked: the one in force, else the newest. */
     public startingPoint(): LifetimeVersion | undefined {
-        return this.versions.find((version) => version.isInForce()) ?? this.versions[0];
+        return this.inForce() ?? this.versions[0];
     }
 }

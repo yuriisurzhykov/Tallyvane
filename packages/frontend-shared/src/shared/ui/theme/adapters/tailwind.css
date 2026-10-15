@@ -196,7 +196,9 @@
      * Unlike the layout roles above, these must sit in `@theme` and nowhere
      * else: the classes `z-modal`, `z-toast` and the rest are generated FROM
      * this namespace, so a variable read through `var()` would produce no
-     * utility at all.
+     * utility at all. The namespace is `--z-index-*`: Tailwind generates
+     * nothing from a plain `--z-*` name (found 2026-10-15, when a `Tabs` tab
+     * at `z-10` drew over an open `Drawer` whose `z-modal` had no rule).
      *
      * The namespace is NOT cleared, because clearing it would change nothing:
      * `z-10` and `z-50` are bare-value utilities Tailwind builds without
@@ -204,15 +206,15 @@
      * leaves one route around the named layers that CSS cannot close — a lint
      * rule is the place to close it.
      * -------------------------------------------------------------------- */
-    --z-background: var(--ds-semantic-z-background);
-    --z-content: var(--ds-semantic-z-content);
-    --z-sidebar: var(--ds-semantic-z-sidebar);
-    --z-fab: var(--ds-semantic-z-fab);
-    --z-popover: var(--ds-semantic-z-popover);
-    --z-scrim: var(--ds-semantic-z-scrim);
-    --z-modal: var(--ds-semantic-z-modal);
-    --z-toast: var(--ds-semantic-z-toast);
-    --z-tooltip: var(--ds-semantic-z-tooltip);
+    --z-index-background: var(--ds-semantic-z-background);
+    --z-index-content: var(--ds-semantic-z-content);
+    --z-index-sidebar: var(--ds-semantic-z-sidebar);
+    --z-index-fab: var(--ds-semantic-z-fab);
+    --z-index-popover: var(--ds-semantic-z-popover);
+    --z-index-scrim: var(--ds-semantic-z-scrim);
+    --z-index-modal: var(--ds-semantic-z-modal);
+    --z-index-toast: var(--ds-semantic-z-toast);
+    --z-index-tooltip: var(--ds-semantic-z-tooltip);
 }
 
 /* ------------------------------------------------------------------------

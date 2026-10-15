@@ -1,9 +1,9 @@
 "use client";
 
-import { AppShell } from "frontend-shared/ui/app-shell";
 import { DataTable, type DataTableColumnDef } from "frontend-shared/ui/data-table";
 import { Badge, type BadgeTone } from "frontend-shared/ui/badge";
-import { adminNavItems } from "@/app/navigation";
+import { adminNavGroups } from "@/app/navigation";
+import { AdminShell } from "@/widgets/admin-shell";
 
 type PageStatus = "draft" | "published";
 
@@ -45,11 +45,11 @@ const COLUMNS: DataTableColumnDef<AdminPage>[] = [
  */
 export function AdminPageListView() {
     return (
-        <AppShell navItems={adminNavItems("/pages")} title="Pages" skipLinkLabel="Skip to content">
+        <AdminShell groups={adminNavGroups("/pages")} title="Pages">
             <DataTable.Root data={MOCK_PAGES} columns={COLUMNS} getRowId={(row) => row.id} aria-label="Pages">
                 <DataTable.Header />
                 <DataTable.Body />
             </DataTable.Root>
-        </AppShell>
+        </AdminShell>
     );
 }

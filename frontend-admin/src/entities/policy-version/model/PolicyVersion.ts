@@ -1,4 +1,5 @@
 import type { components } from "frontend-shared/api";
+import type { Diff } from "@/shared/diff";
 import { Span } from "@/shared/span";
 import { VersionStamp } from "@/shared/history";
 import { PolicyForm, type PolicyWords } from "./PolicyForm";
@@ -36,6 +37,11 @@ export class PolicyVersion {
 
     public summary(words: PolicyWords): string {
         return this.asForm().summary(words);
+    }
+
+    /** How this version differs from the one in force: what the one in force had that this does not, and what this has that it did not. */
+    public changesFrom(inForce: PolicyVersion, words: PolicyWords): Diff {
+        return this.asForm().changesFrom(inForce.asForm(), words);
     }
 
     /** The form to start the next version from: this one, to be changed. */

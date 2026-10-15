@@ -1,5 +1,5 @@
-import type { SidebarNavItem } from "frontend-shared/ui/sidebar-nav";
 import { enDictionary } from "@/shared/i18n";
+import type { NavGroup } from "@/widgets/admin-shell";
 
 /**
  * The admin's whole nav (ARCHITECTURE.md §12.2: the CMS screens and the two screens that govern
@@ -12,13 +12,11 @@ import { enDictionary } from "@/shared/i18n";
  */
 export type AdminHref = "/pages" | "/media" | "/strings" | "/policies" | "/lifetimes";
 
-export function adminNavItems(activeHref: AdminHref): SidebarNavItem[] {
+export function adminNavGroups(activeHref: AdminHref): NavGroup[] {
     const words = enDictionary.nav;
+    const item = (label: string, href: AdminHref) => ({ label, href, isActive: activeHref === href });
     return [
-        { label: words.pages, href: "/pages", isActive: activeHref === "/pages" },
-        { label: words.media, href: "/media", isActive: activeHref === "/media" },
-        { label: words.strings, href: "/strings", isActive: activeHref === "/strings" },
-        { label: words.policies, href: "/policies", isActive: activeHref === "/policies" },
-        { label: words.lifetimes, href: "/lifetimes", isActive: activeHref === "/lifetimes" },
+        { label: words.groupContent, items: [item(words.pages, "/pages"), item(words.media, "/media"), item(words.strings, "/strings")] },
+        { label: words.groupSignIn, items: [item(words.policies, "/policies"), item(words.lifetimes, "/lifetimes")] },
     ];
 }
