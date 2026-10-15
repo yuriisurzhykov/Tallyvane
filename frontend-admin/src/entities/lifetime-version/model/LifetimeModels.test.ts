@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { components } from "frontend-shared/api";
+import type { DiffLook } from "@/shared/diff";
 import { Span, type SpanWords } from "@/shared/span";
 import { LifetimeConsequences } from "./LifetimeConsequences";
 import { LifetimeFaults, LIFETIME_LIMIT_FIELDS, type LifetimeFaultWords } from "./LifetimeFaults";
@@ -18,7 +19,11 @@ const spanWords: SpanWords = {
 const words: LifetimeWords = {
     span: spanWords,
     summary: (idle, absolute, freshness) => `idle ${idle}, absolute ${absolute}, fresh ${freshness}`,
+    idleLine: (idle) => `unused ${idle}`,
+    absoluteLine: (absolute) => `lives ${absolute}`,
+    freshnessLine: (freshness) => `fresh ${freshness}`,
 };
+const look: DiffLook<string> = { section: (t) => `# ${t}`, removed: (t) => `- ${t}`, added: (t) => `+ ${t}` };
 
 const wire = (number: number, extra: Partial<Wire> = {}): Wire => ({
     number,
@@ -110,5 +115,24 @@ describe("LifetimeFaults", () => {
 
     it("lists the fields that show their error beside the input", () => {
         expect(LIFETIME_LIMIT_FIELDS).toEqual(["idle_millis", "absolute_millis", "freshness_millis"]);
+    });
+});
+
+describe("LifetimeVersion.changesFrom", () => {
+    const told = (now: LifetimeVersion, inForce: LifetimeVersion) => now.changesFrom(inForce, words).map((line) => line.appearAs(look));
+
+    it("has nothing to tell about two versions that hold the same lengths", () => {
+        expect(new LifetimeVersion(wire(2)).changesFrom(new LifetimeVersion(wire(1)), words).isEmpty()).toBe(true);
+    });
+
+    it("tells each length that changed, what it was in force and what it would be, and no other", () => {
+        const now = new LifetimeVersion(wire(2, { idle_millis: 43_200_000, freshness_millis: 180_000 }));
+
+        expect(told(now, new LifetimeVersion(wire(1)))).toEqual([
+            "- unused 1 d",
+            "+ unused 12 h",
+            "- fresh 5 min",
+            "+ fresh 3 min",
+        ]);
     });
 });

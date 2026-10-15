@@ -20,18 +20,20 @@ export interface SaveBarProps {
     readonly messages: readonly string[];
     /** What the server said is wrong with the reason, in words. */
     readonly commentError?: string;
+    /** The name of the reason field when the form numbers its parts ("3. Reason"). */
+    readonly label?: string;
 }
 
-/** The foot of the form that keeps a new version: why it was made, what the server refused, and the buttons. */
-export function SaveBar({ state, comment, onComment, onSave, onCancel, messages, commentError }: SaveBarProps) {
+/**
+ * The foot of the form that keeps a new version: why it was made, what the server refused, and the buttons.
+ * It stands outside the part of the drawer that scrolls, so the reason and the save are never out of reach.
+ */
+export function SaveBar({ state, comment, onComment, onSave, onCancel, messages, commentError, label }: SaveBarProps) {
     const t = useStrings("save");
     const saving = state.status === "saving";
 
     return (
-        <Stack gap="stack">
-            <Field label={t("commentLabel")} description={t("commentHint")} {...(commentError !== undefined ? { error: commentError } : {})}>
-                <TextArea value={comment} onChange={(event) => { onComment(event.target.value); }} />
-            </Field>
+        <Stack gap="stack" className="border-t border-border-subtle pt-stack">
             {messages.length > 0 ? (
                 <Callout tone="danger">
                     <Stack gap="stack-tight">
@@ -43,9 +45,12 @@ export function SaveBar({ state, comment, onComment, onSave, onCancel, messages,
                 </Callout>
             ) : null}
             {state.status === "failed" ? <Callout tone="danger">{t("failed")}</Callout> : null}
-            <Row gap="inline">
-                <Button tone="primary" loading={saving} onClick={onSave}>{t("save")}</Button>
-                <Button tone="ghost" disabled={saving} onClick={onCancel}>{t("cancel")}</Button>
+            <Field label={label ?? t("commentLabel")} description={t("commentHint")} {...(commentError !== undefined ? { error: commentError } : {})}>
+                <TextArea value={comment} rows={2} onChange={(event) => { onComment(event.target.value); }} />
+            </Field>
+            <Row gap="inline" className="w-full">
+                <Button tone="neutral" className="flex-1" disabled={saving} onClick={onCancel}>{t("cancel")}</Button>
+                <Button tone="primary" className="flex-1" loading={saving} onClick={onSave}>{t("save")}</Button>
             </Row>
         </Stack>
     );

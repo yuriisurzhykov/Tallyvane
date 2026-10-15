@@ -7,3 +7,4 @@ export { LifetimeVersions } from "./api/LifetimeVersions";
 export { LifetimeActivation } from "./api/LifetimeActivation";
 export { useLifetimeHistory } from "./model/useLifetimeHistory";
 export { useLifetimeWords, useLifetimeConsequenceWords, useLifetimeFaults } from "./model/useWords";
+export { LifetimeFigures, type LifetimeFiguresProps } from "./ui/LifetimeFigures";

@@ -1,18 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { Field } from "frontend-shared/ui/field";
 import { Input } from "frontend-shared/ui/input";
-import { Stack } from "frontend-shared/ui/stack";
+import { Row } from "frontend-shared/ui/row";
 import { Toggle } from "frontend-shared/ui/toggle";
 import { ToggleGroup } from "frontend-shared/ui/toggle-group";
 import { Span, type SpanUnit } from "../../span";
 
 export interface SpanInputProps {
+    /** What the number is, for assistive technology: the visible name stands beside the input, in a `LimitRow`. */
     readonly label: string;
-    readonly hint?: string;
-    /** What the server said is wrong with this length, in words. */
-    readonly error?: string;
+    /** Whether what the server said about this length is shown; the sentence itself is the row's. */
+    readonly invalid?: boolean;
     /** Where the field starts. Changes after that are the field's own: it reports them, it does not follow the parent. */
     readonly initial: Span;
     readonly onChange: (span: Span) => void;
@@ -27,8 +26,8 @@ interface Draft {
     readonly text: string;
 }
 
-/** A number and the unit it is counted in, reporting the length they make. What cannot be read as a length is reported as none (zero), which the server refuses by name. */
-export function SpanInput({ label, hint, error, initial, onChange, units, unitLabels, unitGroupLabel }: SpanInputProps) {
+/** A number and the unit it is counted in, side by side, reporting the length they make. What cannot be read as a length is reported as none (zero), which the server refuses by name. */
+export function SpanInput({ label, invalid = false, initial, onChange, units, unitLabels, unitGroupLabel }: SpanInputProps) {
     const [draft, setDraft] = useState<Draft>(() => {
         const unit = initial.naturalUnit(units);
         return { unit, text: String(initial.amountIn(unit)) };
@@ -41,17 +40,17 @@ export function SpanInput({ label, hint, error, initial, onChange, units, unitLa
     };
 
     return (
-        <Stack gap="inline-tight">
-            <Field label={label} {...(hint !== undefined ? { description: hint } : {})} {...(error !== undefined ? { error } : {})}>
-                <Input
-                    type="number"
-                    inputMode="decimal"
-                    min={0}
-                    step="any"
-                    value={draft.text}
-                    onChange={(event) => { change({ ...draft, text: event.target.value }); }}
-                />
-            </Field>
+        <Row gap="inline">
+            <Input
+                aria-label={label}
+                aria-invalid={invalid || undefined}
+                type="number"
+                inputMode="decimal"
+                min={0}
+                step="any"
+                value={draft.text}
+                onChange={(event) => { change({ ...draft, text: event.target.value }); }}
+            />
             <ToggleGroup
                 aria-label={unitGroupLabel}
                 value={[draft.unit]}
@@ -64,6 +63,6 @@ export function SpanInput({ label, hint, error, initial, onChange, units, unitLa
                     <Toggle key={unit} value={unit}>{unitLabels[unit]}</Toggle>
                 ))}
             </ToggleGroup>
-        </Stack>
+        </Row>
     );
 }

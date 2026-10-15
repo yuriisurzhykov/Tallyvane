@@ -19,6 +19,12 @@ export function usePolicyWords(): PolicyWords {
         step: (factorNames, who) => t("step", { factors: factorNames, who }),
         limits: (lifetime, failures, delay) => t("limits", { lifetime, failures, delay }),
         span: words,
+        stepsSection: t("stepsSection"),
+        limitsSection: t("limitsSection"),
+        stepAt: (position, step) => t("stepAt", { position, step }),
+        lifetimeLine: (lifetime) => t("lifetimeLine", { lifetime }),
+        failuresLine: (failures) => t("failuresLine", { failures }),
+        delayLine: (delay) => t("delayLine", { delay }),
     };
 }
 
