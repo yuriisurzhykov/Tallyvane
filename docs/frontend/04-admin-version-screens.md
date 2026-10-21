@@ -255,3 +255,4 @@ The diagrams above were drawn before the code; these are the places where the co
 - **The details of a row do not repeat the reason:** a version's reason is its title.
 - **Cancel and the confirming button** fill the row in equal halves, in the panel and in the drawer.
 - **The three CMS placeholders and the page editor** moved to `AdminShell`; `adminNavItems` became `adminNavGroups`.
+- **The drawer is 40 rem wide, not 28.** After the first review the editor felt narrow, so the `drawer.width` component token now points at layout primitive `640`; the panel is capped at the viewport width. Both editors are its only consumers. A dialog was considered and not taken: ADR-091 keeps the product free of modal windows, and an editor that does not hide the version in force behind it is the point of the drawer.
