@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory
 import tallyvane.knowledge.application.KnowledgeCore
 import tallyvane.knowledge.application.Settings
 import tallyvane.knowledge.infra.llm.AnthropicClient
+import tallyvane.knowledge.infra.llm.EmbeddingFailed
 import tallyvane.knowledge.infra.llm.OllamaEmbeddings
 import tallyvane.knowledge.infra.llm.RecordingLlmClient
 import tallyvane.knowledge.infra.postgres.Postgres
@@ -28,14 +29,23 @@ private val SOURCE_PROMPTS = Path.of("infra/src/main/resources/prompts")
 fun main() {
     val log = LoggerFactory.getLogger("knowledge-core")
     try {
-        serve(Environment.ofProcess())
+        assemble(Environment.ofProcess()).serve()
     } catch (e: StartupFailure) {
         log.error(e.message)
         exitProcess(1)
     }
 }
 
-private fun serve(env: Environment) {
+/** What the composition root builds: the core, the record of its calls to the model, and the port to serve on. */
+class Assembled(val core: KnowledgeCore, val calls: RecordingLlmClient, private val port: Int) {
+    fun serve() {
+        LoggerFactory.getLogger("knowledge-core").info("Serving on http://localhost:$port")
+        embeddedServer(CIO, port = port) { Api(core, calls::recent).install(this) }.start(wait = true)
+    }
+}
+
+/** Builds every part once, from the settings in [env], and hands them to [KnowledgeCore]. */
+fun assemble(env: Environment): Assembled {
     val embeddingDimensions = env.whole("EMBED_DIM", 768)
     val http =
         HttpClient(ClientCio) {
@@ -50,7 +60,13 @@ private fun serve(env: Environment) {
             embeddingDimensions,
         )
     val embeddings = OllamaEmbeddings(http, env.text("OLLAMA_URL", "http://localhost:11434"), env.text("EMBED_MODEL", "nomic-embed-text"))
-    val dictionary = runBlocking { Seeding.bundled(postgres, embeddings, embeddingDimensions).run() }
+    val dictionary =
+        try {
+            runBlocking { Seeding.bundled(postgres, embeddings, embeddingDimensions).run() }
+        } catch (e: EmbeddingFailed) {
+            postgres.close()
+            throw StartupFailure("${e.message?.trimEnd('.')}. Is Ollama running, with the embedding model pulled?", e)
+        }
 
     val llm =
         RecordingLlmClient(
@@ -77,10 +93,7 @@ private fun serve(env: Environment) {
             settings = Settings(env.decimal("DEDUPE_THRESHOLD", 0.85), env.decimal("TAG_THRESHOLD", 0.55)),
             today = { LocalDate.now() },
         )
-
-    val port = env.whole("PORT", 8080)
-    LoggerFactory.getLogger("knowledge-core").info("Serving on http://localhost:$port")
-    embeddedServer(CIO, port = port) { Api(core, llm::recent).install(this) }.start(wait = true)
+    return Assembled(core, llm, env.whole("PORT", 8080))
 }
 
 /** `PROMPTS_DIR` if set, else the prompts in the source tree when run from the root of the build, else only the built-in ones. */
