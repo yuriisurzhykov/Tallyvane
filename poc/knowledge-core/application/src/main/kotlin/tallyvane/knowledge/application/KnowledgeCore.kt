@@ -59,6 +59,7 @@ class KnowledgeCore(
         )
     val resolveMerge = ResolveMerge(graph)
     val showGraph = ShowGraph(graph)
+    val showEvidence = ShowEvidence(graph)
     val resetData = ResetData(graph)
     val parseVacancy = ParseVacancy(call, skills, vacancies, diagnostics)
     val matchAndScore = MatchAndScore(graph, vacancies, skills, today)

@@ -17,3 +17,8 @@ class ShowGraph(private val graph: KnowledgeGraph) {
 class ResetData(private val graph: KnowledgeGraph) {
     suspend fun reset() = graph.wipe()
 }
+
+/** What the person said that a node of the graph was made from, so the page can show where each fact came from. */
+class ShowEvidence(private val graph: KnowledgeGraph) {
+    suspend fun of(nodeId: String): EvidenceView = EvidenceView(graph.quotesOfNode(nodeId))
+}

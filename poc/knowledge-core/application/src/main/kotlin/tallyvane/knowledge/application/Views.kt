@@ -19,6 +19,9 @@ class EdgeView(val from: String, val to: String, val type: String, val weight: D
 class GraphResponse(val nodes: List<NodeView>, val edges: List<EdgeView>)
 
 @Serializable
+class EvidenceView(val quotes: List<String>)
+
+@Serializable
 class MergeCandidate(
     val newActionId: String,
     val existingActionId: String,

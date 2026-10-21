@@ -10,5 +10,6 @@ dependencies {
 
     testFixturesApi(projects.domain)
     testFixturesApi(libs.kotlinx.coroutines.core)
+    testFixturesApi(libs.kotest.assertions.core)
     testImplementation(libs.kotlinx.coroutines.core)
 }

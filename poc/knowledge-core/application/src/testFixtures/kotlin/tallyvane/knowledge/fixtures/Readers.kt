@@ -288,3 +288,10 @@ internal class ReadMatch : SkillMatch.Record {
         fun of(match: SkillMatch): ReadMatch = ReadMatch().also { match.writeTo(it) }
     }
 }
+
+/** The name, slug and aliases of a skill, for a test that seeds a database with the skills of the demo. */
+object ReadSkillForSeeds {
+    fun of(skill: Skill): ReadSkillData = ReadSkill.of(skill).let { ReadSkillData(it.slug, it.name, it.aliases) }
+}
+
+class ReadSkillData(val slug: SkillSlug, val name: String, val aliases: List<String>)
