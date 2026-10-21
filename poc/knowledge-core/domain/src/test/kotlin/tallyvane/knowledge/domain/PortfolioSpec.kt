@@ -2,6 +2,7 @@ package tallyvane.knowledge.domain
 
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.doubles.plusOrMinus
+import io.kotest.matchers.ints.shouldBeGreaterThan
 import io.kotest.matchers.shouldBe
 import java.time.LocalDate
 
@@ -78,6 +79,11 @@ class PortfolioSpec :
                 RolePeriod("2019", "2024", null).recencyOn(today) shouldBe (1.0 - 0.1 * (today.toEpochDay() - LocalDate.of(2024, 12, 31).toEpochDay()) / 365.25).plusOrMinus(1e-9)
                 RolePeriod("2005", "2010", false).recencyOn(today) shouldBe 0.4
                 RolePeriod("2022", null, true).recencyOn(today) shouldBe 1.0
+            }
+
+            "a role that ended in a year alone ranks by the end of that year, not by its start" {
+                RolePeriod("2005", "2024", null).recencyRank() shouldBeGreaterThan RolePeriod("2018", "2021", null).recencyRank()
+                RolePeriod("2005", "2024", null).recencyRank() shouldBe RolePeriod("2020", "2024-12", null).recencyRank()
             }
 
             "a role that ends in the future, or with no known end, is not penalised" {

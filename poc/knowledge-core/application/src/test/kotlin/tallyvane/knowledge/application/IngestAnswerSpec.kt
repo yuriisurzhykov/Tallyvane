@@ -9,6 +9,7 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import kotlinx.coroutines.runBlocking
 import tallyvane.knowledge.domain.ActionId
+import tallyvane.knowledge.domain.QuestionId
 import tallyvane.knowledge.fixtures.DemoWorld
 import tallyvane.knowledge.fixtures.ScriptedLlm
 import kotlin.uuid.Uuid
@@ -74,6 +75,31 @@ class IngestAnswerSpec :
                     val world = world("extract" to listOf("""{"company":{"n":"Acme","q":"в компании Acme"}}"""))
                     shouldThrow<AnswerNotUsable> { world.core.ingestAnswer.ingest(FIRST, null) }
                     world.core.showGraph.show().nodes shouldBe emptyList()
+                }
+            }
+
+            "an answer to a question that is not the pending one is refused and saves nothing" {
+                runBlocking {
+                    val world = world("extract" to listOf(FIRST_REPLY))
+                    val first = world.core.ingestAnswer.ingest(FIRST, null)
+                    val saved = world.store.rawEntries()
+                    shouldThrow<AnswerNotUsable> { world.core.ingestAnswer.ingest("2022", QuestionId(Uuid.random())) }
+                    world.store.rawEntries() shouldBe saved
+                    world.core.nextQuestion.current().id shouldBe first.nextQuestion.id
+                }
+            }
+
+            "an answer replayed to a question that was already answered does not move the interview" {
+                runBlocking {
+                    val dates = """{"role":{"start":"2022","current":true,"q":"с 2022"}}"""
+                    val world = world("extract" to listOf(FIRST_REPLY, dates))
+                    val first = world.core.ingestAnswer.ingest(FIRST, null)
+                    val questionId = QuestionId(Uuid.parse(first.nextQuestion.id))
+                    val second = world.core.ingestAnswer.ingest("Работаю с 2022", questionId)
+                    val saved = world.store.rawEntries()
+                    shouldThrow<AnswerNotUsable> { world.core.ingestAnswer.ingest("Работаю с 2022", questionId) }
+                    world.store.rawEntries() shouldBe saved
+                    world.core.nextQuestion.current().id shouldBe second.nextQuestion.id
                 }
             }
 

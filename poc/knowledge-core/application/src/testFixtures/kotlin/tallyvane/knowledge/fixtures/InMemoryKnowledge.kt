@@ -12,6 +12,7 @@ import tallyvane.knowledge.domain.Cursor
 import tallyvane.knowledge.domain.Embedding
 import tallyvane.knowledge.domain.Gap
 import tallyvane.knowledge.domain.Outcome
+import tallyvane.knowledge.domain.OutcomeFacts
 import tallyvane.knowledge.domain.OutcomeId
 import tallyvane.knowledge.domain.Placement
 import tallyvane.knowledge.domain.Portfolio
@@ -125,7 +126,7 @@ class InMemoryKnowledge(
             ProjectDetails(project.title, project.problem),
             mine.map { ActionFacts(it.id, it.action, it.technologies.toList()) },
             mine.flatMap { it.collaborators }.distinct(),
-            outcomes.filter { it.project == project.id }.map { it.outcome },
+            outcomes.filter { it.project == project.id }.map { OutcomeFacts(it.outcome, it.actions.toList()) },
         )
     }
 

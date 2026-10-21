@@ -32,8 +32,16 @@ fun facts(
     actions: List<ActionFacts> = emptyList(),
     collaborators: List<Collaborator> = emptyList(),
     outcomes: List<Outcome> = emptyList(),
+    producedOutcomes: List<OutcomeFacts> = emptyList(),
 ): ProjectFacts =
-    ProjectFacts(company, RoleFacts(title, period), ProjectDetails(projectTitle, problem), actions, collaborators, outcomes)
+    ProjectFacts(
+        company,
+        RoleFacts(title, period),
+        ProjectDetails(projectTitle, problem),
+        actions,
+        collaborators,
+        outcomes.map { OutcomeFacts(it, emptyList()) } + producedOutcomes,
+    )
 
 fun actionFacts(
     action: Action = action(),

@@ -51,9 +51,10 @@ class RolePeriod(
             else -> (endMonth() ?: startMonth())?.let { it.year * MONTHS + it.monthValue } ?: 0
         }
 
-    private fun endDate(): LocalDate? = endMonth()?.atEndOfMonth() ?: end?.let { year(it) }?.let { LocalDate.of(it, 12, 31) }
+    private fun endDate(): LocalDate? = endMonth()?.atEndOfMonth()
 
-    private fun endMonth(): YearMonth? = end?.let { month(it) }
+    /** The month the role ended; a year alone means the end of that year. */
+    private fun endMonth(): YearMonth? = end?.let { month(it) ?: year(it)?.let { y -> YearMonth.of(y, MONTHS) } }
 
     private fun startMonth(): YearMonth? = start?.let { month(it) ?: year(it)?.let { y -> YearMonth.of(y, 1) } }
 

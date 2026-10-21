@@ -43,7 +43,10 @@ class IngestAnswer(
     suspend fun ingest(text: String, questionId: QuestionId?): Ingested {
         if (text.isBlank()) throw AnswerNotUsable("The answer is empty.")
         val cursor = cursors.cursor()
-        val asked = questionId?.let { log.find(it) } ?: log.pending()
+        val asked = log.pending()
+        if (questionId != null && questionId != asked?.id) {
+            throw AnswerNotUsable("That question is not the one waiting for an answer.")
+        }
         val gap = asked?.question?.gap() ?: Gap.OPENING
         val entry = graph.recordRaw(text, "answer", asked?.id ?: questionId, cursor)
         val utterance = Utterance(text)

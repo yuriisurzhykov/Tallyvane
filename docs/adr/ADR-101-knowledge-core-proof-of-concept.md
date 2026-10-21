@@ -274,6 +274,11 @@ classDiagram
     class NothingMore {
         +isSaidBy(answer) Boolean
     }
+    class OutcomeFacts {
+        -outcome
+        -producedBy
+        +isProducedBy(ActionFacts) Boolean
+    }
     class ProjectFacts {
         -company
         -role
@@ -333,7 +338,8 @@ classDiagram
     Interview ..> Cursor
     Cursor ..> Placement
     ProjectFacts ..> Action
-    ProjectFacts ..> Outcome
+    ProjectFacts ..> OutcomeFacts
+    OutcomeFacts ..> Outcome
     ProjectFacts ..> Bullet
     BulletCheck ..> ProjectFacts
     BulletCheck ..> TechnologyDictionary
@@ -582,6 +588,12 @@ erDiagram
   "or known technology names". The check is stricter: a technology must be one the project used,
   under any of its spellings. Kafka is a technology the product knows, and it is still not
   something this person did if they never said so.
+- Without a model, a result goes into a bullet only onto an action the person said produced it
+  (`OutcomeFacts` keeps that link), and each result is used once. A result linked to no action
+  stays in the graph and out of the fallback bullets.
+- An answer is accepted only for the question that is pending. A retried or delayed response to
+  a question already answered is refused, so it cannot move the interview or place facts under
+  the wrong role.
 - The specification says "no metric" sets an outcome with `has_metric = false` so the gap
   closes. It does, and so does asking only once; the first is kept as specified.
 

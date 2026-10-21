@@ -83,14 +83,36 @@ class BulletCheckSpec :
             }
 
             "without a model, the bullets are the actions with what they used and the result" {
-                val built = actionFacts(action(kind = ActionKind.BUILT, verb = "built", what = "a catalog cache"), listOf(redis))
+                val builtId = actionId()
+                val built = actionFacts(action(kind = ActionKind.BUILT, verb = "built", what = "a catalog cache"), listOf(redis), builtId)
                 val profiled = actionFacts(action(kind = ActionKind.INVESTIGATED, verb = "profiled", what = "database queries"))
-                val bullets = facts(actions = listOf(profiled, built), outcomes = listOf(outcome())).fallbackBullets()
+                val bullets =
+                    facts(actions = listOf(profiled, built), producedOutcomes = listOf(OutcomeFacts(outcome(), listOf(builtId))))
+                        .fallbackBullets()
                 bullets.map { it.text() } shouldBe
                     listOf(
                         "Built a catalog cache using Redis, reducing database load by about 40%.",
                         "Profiled database queries.",
                     )
+            }
+
+            "without a model, a result goes only onto the action the person said produced it" {
+                val profiledId = actionId()
+                val built = actionFacts(action(kind = ActionKind.BUILT, verb = "built", what = "a catalog cache"), listOf(redis))
+                val profiled =
+                    actionFacts(action(kind = ActionKind.INVESTIGATED, verb = "profiled", what = "database queries"), id = profiledId)
+                val project = facts(actions = listOf(profiled, built), producedOutcomes = listOf(OutcomeFacts(outcome(), listOf(profiledId))))
+                project.fallbackBullets().map { it.text() } shouldBe
+                    listOf(
+                        "Built a catalog cache using Redis.",
+                        "Profiled database queries, reducing database load by about 40%.",
+                    )
+            }
+
+            "without a model, an outcome linked to no action is left out of the bullets" {
+                val built = actionFacts(action(kind = ActionKind.BUILT, verb = "built", what = "a catalog cache"), listOf(redis))
+                facts(actions = listOf(built), outcomes = listOf(outcome())).fallbackBullets().map { it.text() } shouldBe
+                    listOf("Built a catalog cache using Redis.")
             }
 
             "without a model, at most two bullets and each one's own checks hold" {

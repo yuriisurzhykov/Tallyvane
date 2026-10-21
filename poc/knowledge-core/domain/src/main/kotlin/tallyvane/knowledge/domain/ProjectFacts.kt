@@ -36,6 +36,8 @@ class ActionFacts(
 ) {
     fun isOfKind(kind: ActionKind): Boolean = action.isOfKind(kind)
 
+    fun isOneOf(ids: List<ActionId>): Boolean = id in ids
+
     fun usesAnyTechnology(): Boolean = technologies.isNotEmpty()
 
     fun firstTechnologyOr(fallback: String): String = technologies.firstOrNull()?.toString() ?: fallback
@@ -51,7 +53,7 @@ class ActionFacts(
 
     private fun kindOf(): ActionKind = ActionKind.entries.first { action.isOfKind(it) }
 
-    fun asBullet(result: Outcome?): Bullet {
+    fun asBullet(result: OutcomeFacts?): Bullet {
         val using = if (technologies.isEmpty()) "" else " using " + technologies.joinToString(", ")
         val ending = result?.let { ", " + it.phrase() } ?: ""
         return Bullet("${action.beginsSentence()} ${action.describesWhat()}$using$ending.", listOf(id))
@@ -86,6 +88,22 @@ class ActionFacts(
     }
 }
 
+/** An outcome together with the actions the person said produced it; it may be linked to none. */
+class OutcomeFacts(
+    private val outcome: Outcome,
+    private val producedBy: List<ActionId>,
+) {
+    fun hasMetric(): Boolean = outcome.hasMetric()
+
+    fun statesFigure(figure: Double): Boolean = outcome.statesFigure(figure)
+
+    fun isProducedBy(fact: ActionFacts): Boolean = fact.isOneOf(producedBy)
+
+    fun phrase(): String = outcome.phrase()
+
+    fun writeTo(record: Outcome.Record) = outcome.writeTo(record)
+}
+
 /**
  * Everything known about one project at the moment: its company and role, what it was, what was done,
  * with whom, and what came of it. The questions asked of the person come from what is missing here; the
@@ -97,7 +115,7 @@ class ProjectFacts(
     private val project: ProjectDetails,
     private val actions: List<ActionFacts>,
     private val collaborators: List<Collaborator>,
-    private val outcomes: List<Outcome>,
+    private val outcomes: List<OutcomeFacts>,
 ) {
     fun lacksRoleTitle(): Boolean = role.lacksTitle()
 
@@ -140,14 +158,24 @@ class ProjectFacts(
 
     /**
      * What a bullet can say with no model: up to two of the actions, the most substantial first, each as
-     * "Verb what using Tech", the first of them with the result.
+     * "Verb what using Tech". A result goes only onto an action the person said produced it, and onto the
+     * first such action only, so no action is credited with a result that was not its own.
      */
     fun fallbackBullets(): List<Bullet> {
-        val result = outcomes.firstOrNull { it.hasMetric() } ?: outcomes.firstOrNull()
+        val used = mutableSetOf<OutcomeFacts>()
         return actions
             .sortedBy { it.priority() }
             .take(FALLBACK_BULLETS)
-            .mapIndexed { index, fact -> fact.asBullet(if (index == 0) result else null) }
+            .map { fact ->
+                val result = resultOf(fact, used)
+                result?.let(used::add)
+                fact.asBullet(result)
+            }
+    }
+
+    private fun resultOf(fact: ActionFacts, used: Set<OutcomeFacts>): OutcomeFacts? {
+        val mine = outcomes.filter { it.isProducedBy(fact) && it !in used }
+        return mine.firstOrNull { it.hasMetric() } ?: mine.firstOrNull()
     }
 
     fun writeTo(record: Record) {
