@@ -242,9 +242,9 @@ class InMemoryKnowledge(
 
     private fun nameOfSkill(slug: SkillSlug): String = ReadSkill.of(catalog.first { it.isSlug(slug) }).name
 
-    override suspend fun similarActions(embedding: Embedding, excluding: List<ActionId>, limit: Int): List<SimilarAction> =
+    override suspend fun similarActions(cursor: Cursor, embedding: Embedding, excluding: List<ActionId>, limit: Int): List<SimilarAction> =
         actions
-            .filter { it.id !in excluding }
+            .filter { it.project == ReadCursor.of(cursor).project && it.id !in excluding }
             .map { SimilarAction(it.id, ReadAction.of(it.action).let { shape -> "${shape.verb} ${shape.what}" }, it.embedding.similarityTo(embedding)) }
             .sortedByDescending { it.similarity }
             .take(limit)

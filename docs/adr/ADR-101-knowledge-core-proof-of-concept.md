@@ -97,7 +97,7 @@ sequenceDiagram
         I->>L: pick up to 3 slugs from the top 30 candidates
     end
     I->>DB: one transaction: nodes, links, tags, evidence, cursor
-    I->>DB: similar existing actions, cosine at or above DEDUPE_THRESHOLD?
+    I->>DB: similar actions of this project, cosine at or above DEDUPE_THRESHOLD?
     I->>N: next question
     N->>DB: facts of the current project, gaps already asked
     N-->>I: question and gap_code
@@ -421,7 +421,7 @@ classDiagram
         +recordRaw(...)
         +facts(cursor)
         +write(GraphWrite)
-        +similarActions(...)
+        +similarActions(cursor, ...)
         +merge(...)
         +closeProject(...)
         +portfolio()
@@ -620,6 +620,9 @@ erDiagram
 - An answer is accepted only for the question that is pending. A retried or delayed response to
   a question already answered is refused, so it cannot move the interview or place facts under
   the wrong role.
+- A merge is offered only against an action of the same project. The specification compares a new
+  action with "existing actions of this user", but folding an action into one of another project
+  would take it out of the project it was said about, so other projects are never candidates.
 - The `vacancy` table has no `raw_text`: the domain's `Vacancy` is the title, the requirements and
   what was unmapped, and nothing keeps the text it was read from.
 - The technologies of `seed/technologies.json` are rows of the `technology` table, which is the

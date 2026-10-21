@@ -254,6 +254,24 @@ class IngestAnswerSpec :
                 }
             }
 
+            "an identical action in another project of the same role is not offered as a merge" {
+                runBlocking {
+                    val other =
+                        """{"project":{"title":"Search cache","problem":"Slow search","q":"снова внедрил кеш на Redis"},
+                            "actions":[{"kind":"built","verb":"implemented","what":"a catalog cache","q":"снова внедрил кеш на Redis"}]}"""
+                    val bullets = """{"bullets":[{"text":"Implemented a catalog cache using Redis.","a":["A1"]}]}"""
+                    val world = world("extract" to listOf(FIRST_REPLY, other), "bullets" to listOf(bullets))
+                    val core = world.core
+                    core.ingestAnswer.ingest(FIRST, null)
+                    repeat(2) { core.ingestAnswer.ingest("нет", null) }
+                    core.ingestAnswer.ingest("no metric", null)
+                    core.ingestAnswer.ingest("нет", null).nextQuestion.gap shouldBe "MORE_IN_ROLE"
+                    core.ingestAnswer.ingest("Да, снова внедрил кеш на Redis", null).mergeCandidate shouldBe null
+                    core.showGraph.show().nodes.count { it.type == "action" } shouldBe 2
+                    core.showGraph.show().nodes.count { it.type == "project" } shouldBe 2
+                }
+            }
+
             "actions that are not alike are not offered as a merge" {
                 runBlocking {
                     val other =

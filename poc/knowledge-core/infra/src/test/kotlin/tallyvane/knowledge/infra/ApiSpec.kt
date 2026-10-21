@@ -69,6 +69,14 @@ class ApiSpec :
                 }
             }
 
+            "a body that is not JSON for the endpoint is a 400, not a 500" {
+                serving(DemoWorld(DemoScript.llm())) {
+                    val reply = postJson("/api/answer", "{not json")
+                    reply.status shouldBe HttpStatusCode.BadRequest
+                    json(reply.bodyAsText())["error"]!!.jsonPrimitive.content shouldContain "could not be read"
+                }
+            }
+
             "a model that cannot be understood twice is a 502 that names the step" {
                 serving(DemoWorld(ScriptedLlm.of("extract" to listOf("nope", "still nope")))) {
                     val reply = postJson("/api/answer", """{"text":${text(DemoScript.FIRST_ANSWER)}}""")

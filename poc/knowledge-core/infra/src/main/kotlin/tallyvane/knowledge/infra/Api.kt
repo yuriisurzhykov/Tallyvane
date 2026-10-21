@@ -4,6 +4,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
+import io.ktor.server.plugins.BadRequestException
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.request.receive
@@ -51,6 +52,9 @@ class Api(private val core: KnowledgeCore, private val recentCalls: () -> List<R
             exception<LlmStepFailed> { call, cause -> call.respond(HttpStatusCode.BadGateway, ErrorResponse(cause.message.orEmpty(), cause.step)) }
             exception<LlmCallFailed> { call, cause -> call.respond(HttpStatusCode.BadGateway, ErrorResponse(cause.message.orEmpty())) }
             exception<EmbeddingFailed> { call, cause -> call.respond(HttpStatusCode.BadGateway, ErrorResponse(cause.message.orEmpty())) }
+            exception<BadRequestException> { call, _ ->
+                call.respond(HttpStatusCode.BadRequest, ErrorResponse("The request body could not be read as JSON matching this endpoint."))
+            }
             exception<IllegalArgumentException> { call, cause ->
                 call.respond(HttpStatusCode.BadRequest, ErrorResponse("The request is not valid: ${cause.message}"))
             }

@@ -135,6 +135,6 @@ class AnthropicClient(
         const val ERROR_EXCERPT = 300
 
         /** Rate limit, the API's own overload status, and the gateway errors that pass. */
-        val RETRYABLE = setOf(429, 500, 502, 503, 529)
+        val RETRYABLE = setOf(429, 500, 502, 503, 504, 529)
     }
 }

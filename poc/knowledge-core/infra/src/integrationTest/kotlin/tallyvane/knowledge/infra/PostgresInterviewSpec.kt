@@ -117,6 +117,26 @@ class PostgresInterviewSpec :
                 }
             }
 
+            "an identical action in another project of the same role is not offered as a merge" {
+                val other =
+                    """{"project":{"title":"Search cache","problem":"Slow search","q":"снова внедрил кеш на Redis"},
+                        "actions":[{"kind":"built","verb":"implemented","what":"a catalog cache","q":"снова внедрил кеш на Redis"}]}"""
+                val bullets = """{"bullets":[{"text":"Implemented a catalog cache using Redis.","a":["A1"]}]}"""
+                val database = TestDatabase.fresh()
+                Deployment(database, ScriptedLlm.of("extract" to listOf(FIRST_REPLY, other), "bullets" to listOf(bullets))).use { deployment ->
+                    runBlocking {
+                        val core = deployment.core
+                        core.ingestAnswer.ingest(FIRST, null)
+                        repeat(2) { core.ingestAnswer.ingest("нет", null) }
+                        core.ingestAnswer.ingest("no metric", null)
+                        core.ingestAnswer.ingest("нет", null).nextQuestion.gap shouldBe "MORE_IN_ROLE"
+                        core.ingestAnswer.ingest("Да, снова внедрил кеш на Redis", null).mergeCandidate shouldBe null
+                        database.count("action") shouldBe 2
+                        database.count("project") shouldBe 2
+                    }
+                }
+            }
+
             "a second project in the role and a job before it are kept as a project and a company of their own" {
                 val second =
                     """{"project":{"title":"Importer","problem":"Manual imports","q":"писал импортёр"},

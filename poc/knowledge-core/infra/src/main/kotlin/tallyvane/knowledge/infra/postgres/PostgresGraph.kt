@@ -7,6 +7,7 @@ import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import org.jetbrains.exposed.v1.core.ResultRow
+import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.lowerCase
@@ -368,12 +369,13 @@ internal class PostgresGraph(private val db: Db) : KnowledgeGraph {
         }
     }
 
-    override suspend fun similarActions(embedding: Embedding, excluding: List<ActionId>, limit: Int): List<SimilarAction> =
+    override suspend fun similarActions(cursor: Cursor, embedding: Embedding, excluding: List<ActionId>, limit: Int): List<SimilarAction> =
         db.tx {
+            val project = checkNotNull(ReadCursor.of(cursor).project) { "There is no project to look for similar actions in." }.uuid
             val distance = CosineDistance(ActionsTable.embedding, valuesOf(embedding))
             val excluded = excluding.map { it.uuid }
             ActionsTable.select(ActionsTable.id, ActionsTable.verb, ActionsTable.what, distance)
-                .let { query -> if (excluded.isEmpty()) query else query.where { ActionsTable.id notInList excluded } }
+                .where { (ActionsTable.projectId eq project) and (ActionsTable.id notInList excluded) }
                 .orderBy(distance)
                 .limit(limit)
                 .map { SimilarAction(ActionId(it[ActionsTable.id]), "${it[ActionsTable.verb]} ${it[ActionsTable.what]}", similarityOf(it[distance])) }

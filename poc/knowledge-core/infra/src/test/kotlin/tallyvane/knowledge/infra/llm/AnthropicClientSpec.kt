@@ -92,6 +92,22 @@ class AnthropicClientSpec :
                 }
             }
 
+            "a gateway timeout is tried again like any other passing failure" {
+                runBlocking {
+                    var calls = 0
+                    val engine =
+                        MockEngine {
+                            if (++calls < 2) {
+                                respond("gateway timeout", HttpStatusCode.GatewayTimeout, JSON_HEADERS)
+                            } else {
+                                respond(REPLY, HttpStatusCode.OK, JSON_HEADERS)
+                            }
+                        }
+                    AnthropicClient(client(engine), "k", "m", retryDelays = listOf(0, 0)).complete(CachedPrompt("tags", "p", "s")).text shouldBe """{"ok":true}"""
+                    calls shouldBe 2
+                }
+            }
+
             "a refusal is not tried again, and the API's own words are given back" {
                 runBlocking {
                     var calls = 0

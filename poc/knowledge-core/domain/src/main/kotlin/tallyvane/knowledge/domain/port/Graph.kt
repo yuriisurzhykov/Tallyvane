@@ -41,8 +41,12 @@ interface KnowledgeGraph {
     /** Applies [write] in one transaction. Fields of a role or project that already have a value keep it. */
     suspend fun write(write: GraphWrite): WriteResult
 
-    /** The [limit] existing actions nearest [embedding], nearest first, leaving out those in [excluding]. */
-    suspend fun similarActions(embedding: Embedding, excluding: List<ActionId>, limit: Int): List<SimilarAction>
+    /**
+     * The [limit] actions of the project the [cursor] is on that are nearest [embedding], nearest first, leaving
+     * out those in [excluding]. An action of another project is never a candidate: folding it into one of this
+     * project would take the action out of the project it was said about.
+     */
+    suspend fun similarActions(cursor: Cursor, embedding: Embedding, excluding: List<ActionId>, limit: Int): List<SimilarAction>
 
     /** Folds [newAction] into [existing]: its links, tags and evidence move to the existing one, and it is removed. */
     suspend fun merge(newAction: ActionId, existing: ActionId)
