@@ -341,12 +341,17 @@
   <div class="scroll" id="calls"></div>
 </aside>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.30.2/cytoscape.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.30.2/cytoscape.min.js" integrity="sha384-IWROdLKRsN1UuJywMlWl7/blXQ8GEooN2n7dzTxfEPd7ybYIKCUJ2Ol/1Gpf3YV4" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script>
 (() => {
   'use strict';
 
   const $ = (id) => document.getElementById(id);
+
+  if (typeof cytoscape === 'undefined') {
+    $('graph-empty').textContent = 'The graph library could not be loaded from cdnjs. Check the connection and reload the page.';
+    return;
+  }
 
   /** Builds an element; strings become text, never markup. */
   function el(tag, props, ...children) {

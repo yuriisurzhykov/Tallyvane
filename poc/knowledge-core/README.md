@@ -32,6 +32,9 @@ starts, so it needs that model: wait until `docker compose ps -a` shows `ollama-
 (`docker compose logs -f ollama-pull` to watch). If the application cannot reach Ollama or
 Postgres, it says which and stops.
 
+The page loads Cytoscape from cdnjs, pinned to a version and an integrity hash, so the browser needs
+internet for that one script; without it the graph panel says so.
+
 The application is not in the compose file; `./gradlew run` runs it from this directory, where it
 reads `.env`. A variable set in the shell wins over `.env`.
 
