@@ -37,7 +37,7 @@ class DemoWorld(llm: ScriptedLlm, settings: Settings = Settings()) {
 
     companion object {
         val TODAY: LocalDate = LocalDate.of(2026, 10, 21)
-        private const val DIMENSIONS = 8
+        const val DIMENSIONS = 8
 
         private fun skill(slug: String, name: String, vararg aliases: String) = Skill(SkillSlug(slug), name, aliases.toList())
 
@@ -68,14 +68,14 @@ class DemoWorld(llm: ScriptedLlm, settings: Settings = Settings()) {
                 "memcached" to mapOf(6 to 1f),
             )
 
-        val DICTIONARY =
-            TechnologyDictionary(
-                listOf(
-                    TechnologyDictionary.Entry("Redis", listOf("редис")),
-                    TechnologyDictionary.Entry("PostgreSQL", listOf("postgres", "постгрес")),
-                    TechnologyDictionary.Entry("Kafka", listOf("кафка")),
-                    TechnologyDictionary.Entry("Memcached", listOf("мемкеш")),
-                ),
+        val TECHNOLOGIES =
+            listOf(
+                TechnologyDictionary.Entry("Redis", listOf("редис")),
+                TechnologyDictionary.Entry("PostgreSQL", listOf("postgres", "постгрес")),
+                TechnologyDictionary.Entry("Kafka", listOf("кафка")),
+                TechnologyDictionary.Entry("Memcached", listOf("мемкеш")),
             )
+
+        val DICTIONARY = TechnologyDictionary(TECHNOLOGIES)
     }
 }

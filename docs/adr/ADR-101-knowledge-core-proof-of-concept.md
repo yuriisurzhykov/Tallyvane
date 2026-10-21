@@ -97,7 +97,7 @@ sequenceDiagram
         I->>L: pick up to 3 slugs from the top 30 candidates
     end
     I->>DB: one transaction: nodes, links, tags, evidence, cursor
-    I->>DB: similar existing actions, cosine at or above DEDUPE_THRESHOLD?
+    I->>DB: similar actions of this project, cosine at or above DEDUPE_THRESHOLD?
     I->>N: next question
     N->>DB: facts of the current project, gaps already asked
     N-->>I: question and gap_code
@@ -421,7 +421,7 @@ classDiagram
         +recordRaw(...)
         +facts(cursor)
         +write(GraphWrite)
-        +similarActions(...)
+        +similarActions(cursor, ...)
         +merge(...)
         +closeProject(...)
         +portfolio()
@@ -442,24 +442,39 @@ classDiagram
     }
 
     class AnthropicClient {
-        <<infra, PR 2>>
+        <<infra>>
+        -apiKey
+        -model
+        +complete(CachedPrompt) LlmReply
     }
     class RecordingLlmClient {
-        <<infra decorator, PR 2>>
+        <<infra decorator>>
         -delegate
-        -log
+        -calls
+        +recent() List
     }
     class OllamaEmbeddings {
-        <<infra, PR 2>>
+        <<infra>>
     }
     class FilePrompts {
-        <<infra, PR 2>>
+        <<infra>>
+        -directory
+    }
+    class Postgres {
+        <<infra>>
+        +open(url, user, password, dimensions)
+        +knowledge() PostgresKnowledge
     }
     class PostgresKnowledge {
-        <<infra, PR 2>>
+        <<infra>>
     }
-    class Routes {
-        <<infra, PR 2>>
+    class Seeding {
+        <<infra>>
+        +run() TechnologyDictionary
+    }
+    class Api {
+        <<infra>>
+        +install(Application)
     }
 
     KnowledgeCore ..> IngestAnswer : builds once
@@ -497,7 +512,16 @@ classDiagram
     Vacancies <|.. PostgresKnowledge
     CursorStore <|.. PostgresKnowledge
     QuestionLog <|.. PostgresKnowledge
-    Routes ..> KnowledgeCore
+    PostgresKnowledge *-- PostgresGraph
+    PostgresKnowledge *-- PostgresSkills
+    PostgresKnowledge *-- PostgresVacancies
+    PostgresKnowledge *-- PostgresCursor
+    PostgresKnowledge *-- PostgresQuestions
+    Postgres ..> PostgresKnowledge : opens, migrates
+    Seeding ..> Postgres
+    Seeding ..> EmbeddingProvider
+    Api ..> KnowledgeCore
+    Api ..> RecordingLlmClient : recent calls
 ```
 
 In tests `AnthropicClient` is replaced by `ScriptedLlm`, which gives the replies of a script, and
@@ -510,7 +534,10 @@ use cases stand on and is the reference for how `PostgresKnowledge` must behave.
 
 The schema of the specification, plus two tables it does not have. A `vacancy` row is what
 `vacancyId` stands for; a `cursor_state` row (always id 1) keeps the position of the interview
-across a restart. `evidence` points to an entity by `entity_type` and `entity_id` with no foreign
+across a restart. Four more columns are not in the specification's list: `seq`, an identity column
+on the tables whose order matters (role, project, action, outcome, evidence, question_log),
+`technology.seeded`, which lets a reset keep the technologies that came with the product and drop
+the ones a person's answers added, and nothing else. `evidence` points to an entity by `entity_type` and `entity_id` with no foreign
 key. The vector dimension is `EMBED_DIM` (768 for `nomic-embed-text`), passed to Flyway as a
 placeholder, and the application refuses to start if the embedding model's output differs.
 
@@ -529,7 +556,6 @@ erDiagram
     vacancy {
         uuid id PK
         text title
-        text raw_text
         jsonb reqs
         jsonb unmapped
     }
@@ -594,6 +620,27 @@ erDiagram
 - An answer is accepted only for the question that is pending. A retried or delayed response to
   a question already answered is refused, so it cannot move the interview or place facts under
   the wrong role.
+- A merge is offered only against an action of the same project. The specification compares a new
+  action with "existing actions of this user", but folding an action into one of another project
+  would take it out of the project it was said about, so other projects are never candidates.
+- The `vacancy` table has no `raw_text`: the domain's `Vacancy` is the title, the requirements and
+  what was unmapped, and nothing keeps the text it was read from.
+- The technologies of `seed/technologies.json` are rows of the `technology` table, which is the
+  alias table of the specification: the dictionary that normalises names is read from it at
+  start. The skills are rows of `skill`, embedded at start if they have no vector yet or if their
+  name or aliases changed.
+- There is no vector index. The tables are small enough that an exact scan is faster than an
+  index worth tuning, and an index would make the nearest skills approximate.
+- Every call of an adapter is one transaction; what the person typed (`raw_entry`) is committed
+  on its own before anything is read from it. pgvector answers `NaN` for the distance to a
+  vector of zeros, which the adapter reads as similarity 0, as the fake does.
+- `ANTHROPIC_URL` can point the client at another host (a proxy, a stub). A `.env` file in the
+  working directory is read under the real environment. The prompts are read from `PROMPTS_DIR`,
+  or from `infra/src/main/resources/prompts` when the application runs from the root of the
+  build, on every call, so an edit applies to the next answer.
+- The prompt prefix is marked for caching, and a model caches it only above its minimum length
+  (1024 tokens for the larger models), so the short prompts (`tags`, `bullets`, `vacancy`) may
+  show no cache reads; the debug drawer shows what each call really cost.
 - The specification says "no metric" sets an outcome with `has_metric = false` so the gap
   closes. It does, and so does asking only once; the first is kept as specified.
 

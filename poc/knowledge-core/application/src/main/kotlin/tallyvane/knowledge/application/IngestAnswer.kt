@@ -124,17 +124,18 @@ class IngestAnswer(
                 ),
             )
         cursors.save(result.cursor)
-        return Created(result.created, mergeCandidateFor(found, vectors, result.actionIds))
+        return Created(result.created, mergeCandidateFor(result.cursor, found, vectors, result.actionIds))
     }
 
-    /** The first new action that is close enough to an old one to be worth asking about. */
+    /** The first new action that is close enough to an old one of the same project to be worth asking about. */
     private suspend fun mergeCandidateFor(
+        cursor: Cursor,
         found: Found,
         vectors: List<Embedding>,
         ids: List<ActionId>,
     ): MergeCandidate? {
         found.actions.forEachIndexed { index, action ->
-            val nearest = graph.similarActions(vectors[index], ids, 1).firstOrNull()
+            val nearest = graph.similarActions(cursor, vectors[index], ids, 1).firstOrNull()
             if (nearest != null && duplicates.suspects(nearest.similarity)) {
                 return MergeCandidate(
                     ids[index].uuid.toString(),

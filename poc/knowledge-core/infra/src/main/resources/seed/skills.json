@@ -1,0 +1,609 @@
+[
+  {
+    "slug": "caching",
+    "name": "Caching",
+    "aliases": [
+      "cache",
+      "кеш",
+      "кэш",
+      "кеширование",
+      "кэширование"
+    ]
+  },
+  {
+    "slug": "redis",
+    "name": "Redis",
+    "aliases": [
+      "редис"
+    ]
+  },
+  {
+    "slug": "postgresql",
+    "name": "PostgreSQL",
+    "aliases": [
+      "postgres",
+      "постгрес",
+      "постгре"
+    ]
+  },
+  {
+    "slug": "mysql",
+    "name": "MySQL",
+    "aliases": [
+      "мускул"
+    ]
+  },
+  {
+    "slug": "mongodb",
+    "name": "MongoDB",
+    "aliases": [
+      "mongo",
+      "монго"
+    ]
+  },
+  {
+    "slug": "elasticsearch",
+    "name": "Elasticsearch",
+    "aliases": [
+      "elastic",
+      "эластик",
+      "полнотекстовый поиск",
+      "full-text search"
+    ]
+  },
+  {
+    "slug": "sql",
+    "name": "SQL",
+    "aliases": [
+      "запросы к базе"
+    ]
+  },
+  {
+    "slug": "database-design",
+    "name": "Database design",
+    "aliases": [
+      "schema design",
+      "проектирование схемы базы",
+      "проектирование базы данных"
+    ]
+  },
+  {
+    "slug": "query-optimization",
+    "name": "Query optimization",
+    "aliases": [
+      "slow queries",
+      "индексы",
+      "оптимизация запросов",
+      "оптимизация sql"
+    ]
+  },
+  {
+    "slug": "data-migration",
+    "name": "Data migration",
+    "aliases": [
+      "schema migration",
+      "миграция данных",
+      "миграции"
+    ]
+  },
+  {
+    "slug": "etl-data-pipelines",
+    "name": "ETL and data pipelines",
+    "aliases": [
+      "etl",
+      "data pipeline",
+      "пайплайн данных"
+    ]
+  },
+  {
+    "slug": "performance-profiling",
+    "name": "Performance profiling",
+    "aliases": [
+      "profiling",
+      "профилирование",
+      "профилировал",
+      "bottleneck analysis"
+    ]
+  },
+  {
+    "slug": "load-testing",
+    "name": "Load testing",
+    "aliases": [
+      "stress testing",
+      "нагрузочное тестирование"
+    ]
+  },
+  {
+    "slug": "scalability",
+    "name": "Scalability",
+    "aliases": [
+      "scaling",
+      "масштабирование",
+      "horizontal scaling"
+    ]
+  },
+  {
+    "slug": "cost-optimization",
+    "name": "Cost optimization",
+    "aliases": [
+      "cloud cost",
+      "снижение затрат"
+    ]
+  },
+  {
+    "slug": "kafka",
+    "name": "Kafka",
+    "aliases": [
+      "кафка",
+      "event streaming"
+    ]
+  },
+  {
+    "slug": "rabbitmq",
+    "name": "RabbitMQ",
+    "aliases": [
+      "рэббит",
+      "кролик"
+    ]
+  },
+  {
+    "slug": "message-queues",
+    "name": "Message queues",
+    "aliases": [
+      "queue",
+      "очередь",
+      "очереди сообщений",
+      "message broker"
+    ]
+  },
+  {
+    "slug": "event-driven-architecture",
+    "name": "Event-driven architecture",
+    "aliases": [
+      "events",
+      "event sourcing",
+      "событийная архитектура"
+    ]
+  },
+  {
+    "slug": "distributed-systems",
+    "name": "Distributed systems",
+    "aliases": [
+      "распределённые системы",
+      "consistency",
+      "consensus"
+    ]
+  },
+  {
+    "slug": "concurrency",
+    "name": "Concurrency",
+    "aliases": [
+      "multithreading",
+      "параллелизм",
+      "многопоточность",
+      "coroutines"
+    ]
+  },
+  {
+    "slug": "system-design",
+    "name": "System design",
+    "aliases": [
+      "architecture design",
+      "проектирование систем",
+      "проектирование архитектуры",
+      "software architecture"
+    ]
+  },
+  {
+    "slug": "microservices",
+    "name": "Microservices",
+    "aliases": [
+      "service-oriented",
+      "микросервисы"
+    ]
+  },
+  {
+    "slug": "clean-architecture",
+    "name": "Clean architecture",
+    "aliases": [
+      "hexagonal",
+      "layered architecture",
+      "чистая архитектура"
+    ]
+  },
+  {
+    "slug": "domain-driven-design",
+    "name": "Domain-driven design",
+    "aliases": [
+      "ddd",
+      "предметно-ориентированное проектирование"
+    ]
+  },
+  {
+    "slug": "api-design",
+    "name": "API design",
+    "aliases": [
+      "interface design",
+      "проектирование api",
+      "контракты api"
+    ]
+  },
+  {
+    "slug": "rest-api",
+    "name": "REST APIs",
+    "aliases": [
+      "restful",
+      "http api",
+      "рест"
+    ]
+  },
+  {
+    "slug": "graphql",
+    "name": "GraphQL",
+    "aliases": [
+      "графкьюэл"
+    ]
+  },
+  {
+    "slug": "grpc",
+    "name": "gRPC",
+    "aliases": [
+      "protobuf",
+      "protocol buffers"
+    ]
+  },
+  {
+    "slug": "kubernetes",
+    "name": "Kubernetes",
+    "aliases": [
+      "k8s",
+      "кубернетес",
+      "кубер",
+      "container orchestration"
+    ]
+  },
+  {
+    "slug": "docker",
+    "name": "Docker",
+    "aliases": [
+      "докер",
+      "containers",
+      "контейнеры"
+    ]
+  },
+  {
+    "slug": "ci-cd",
+    "name": "CI/CD",
+    "aliases": [
+      "continuous integration",
+      "continuous delivery",
+      "build pipeline",
+      "пайплайн сборки",
+      "деплой"
+    ]
+  },
+  {
+    "slug": "terraform",
+    "name": "Terraform",
+    "aliases": [
+      "infrastructure as code",
+      "iac",
+      "терраформ"
+    ]
+  },
+  {
+    "slug": "aws",
+    "name": "AWS",
+    "aliases": [
+      "amazon web services",
+      "амазон"
+    ]
+  },
+  {
+    "slug": "gcp",
+    "name": "Google Cloud",
+    "aliases": [
+      "gcp",
+      "google cloud platform"
+    ]
+  },
+  {
+    "slug": "azure",
+    "name": "Azure",
+    "aliases": [
+      "microsoft azure",
+      "азур"
+    ]
+  },
+  {
+    "slug": "linux",
+    "name": "Linux",
+    "aliases": [
+      "линукс",
+      "unix",
+      "bash"
+    ]
+  },
+  {
+    "slug": "git",
+    "name": "Git",
+    "aliases": [
+      "version control",
+      "гит",
+      "контроль версий"
+    ]
+  },
+  {
+    "slug": "observability",
+    "name": "Observability",
+    "aliases": [
+      "tracing",
+      "opentelemetry",
+      "наблюдаемость",
+      "distributed tracing"
+    ]
+  },
+  {
+    "slug": "monitoring-alerting",
+    "name": "Monitoring and alerting",
+    "aliases": [
+      "prometheus",
+      "grafana",
+      "мониторинг",
+      "алерты",
+      "dashboards"
+    ]
+  },
+  {
+    "slug": "logging",
+    "name": "Logging",
+    "aliases": [
+      "structured logs",
+      "логирование",
+      "логи"
+    ]
+  },
+  {
+    "slug": "incident-response",
+    "name": "Incident response",
+    "aliases": [
+      "on-call",
+      "postmortem",
+      "инциденты",
+      "разбор инцидентов",
+      "outage"
+    ]
+  },
+  {
+    "slug": "reliability-engineering",
+    "name": "Reliability engineering",
+    "aliases": [
+      "sre",
+      "availability",
+      "надёжность",
+      "slo"
+    ]
+  },
+  {
+    "slug": "security",
+    "name": "Security",
+    "aliases": [
+      "secure coding",
+      "безопасность",
+      "vulnerabilities",
+      "owasp"
+    ]
+  },
+  {
+    "slug": "authentication-authorization",
+    "name": "Authentication and authorization",
+    "aliases": [
+      "oauth",
+      "jwt",
+      "sso",
+      "аутентификация",
+      "авторизация",
+      "login"
+    ]
+  },
+  {
+    "slug": "kotlin",
+    "name": "Kotlin",
+    "aliases": [
+      "котлин"
+    ]
+  },
+  {
+    "slug": "java",
+    "name": "Java",
+    "aliases": [
+      "джава",
+      "jvm"
+    ]
+  },
+  {
+    "slug": "python",
+    "name": "Python",
+    "aliases": [
+      "питон"
+    ]
+  },
+  {
+    "slug": "go",
+    "name": "Go",
+    "aliases": [
+      "golang",
+      "го"
+    ]
+  },
+  {
+    "slug": "typescript",
+    "name": "TypeScript",
+    "aliases": [
+      "тайпскрипт"
+    ]
+  },
+  {
+    "slug": "javascript",
+    "name": "JavaScript",
+    "aliases": [
+      "js",
+      "джаваскрипт"
+    ]
+  },
+  {
+    "slug": "react",
+    "name": "React",
+    "aliases": [
+      "реакт"
+    ]
+  },
+  {
+    "slug": "node-js",
+    "name": "Node.js",
+    "aliases": [
+      "node",
+      "нода"
+    ]
+  },
+  {
+    "slug": "spring",
+    "name": "Spring",
+    "aliases": [
+      "spring boot",
+      "спринг"
+    ]
+  },
+  {
+    "slug": "ktor",
+    "name": "Ktor",
+    "aliases": [
+      "ktor server"
+    ]
+  },
+  {
+    "slug": "testing",
+    "name": "Testing",
+    "aliases": [
+      "unit tests",
+      "integration tests",
+      "автотесты",
+      "тестирование",
+      "test automation"
+    ]
+  },
+  {
+    "slug": "tdd",
+    "name": "Test-driven development",
+    "aliases": [
+      "tdd",
+      "test first",
+      "разработка через тестирование"
+    ]
+  },
+  {
+    "slug": "code-review",
+    "name": "Code review",
+    "aliases": [
+      "reviewing pull requests",
+      "ревью кода",
+      "код-ревью",
+      "pull request review"
+    ]
+  },
+  {
+    "slug": "refactoring",
+    "name": "Refactoring",
+    "aliases": [
+      "code cleanup",
+      "рефакторинг",
+      "tech debt"
+    ]
+  },
+  {
+    "slug": "legacy-modernization",
+    "name": "Legacy modernization",
+    "aliases": [
+      "rewrite",
+      "migration off legacy",
+      "модернизация легаси",
+      "monolith decomposition"
+    ]
+  },
+  {
+    "slug": "technical-leadership",
+    "name": "Technical leadership",
+    "aliases": [
+      "tech lead",
+      "led the team",
+      "руководил",
+      "техлид",
+      "technical direction"
+    ]
+  },
+  {
+    "slug": "mentoring",
+    "name": "Mentoring",
+    "aliases": [
+      "coaching",
+      "onboarding",
+      "наставничество",
+      "менторинг",
+      "обучал"
+    ]
+  },
+  {
+    "slug": "cross-team-collaboration",
+    "name": "Cross-team collaboration",
+    "aliases": [
+      "teamwork",
+      "stakeholders",
+      "agreed with other teams",
+      "согласовал",
+      "взаимодействие с командами",
+      "DBA",
+      "product team"
+    ]
+  },
+  {
+    "slug": "stakeholder-communication",
+    "name": "Stakeholder communication",
+    "aliases": [
+      "presenting",
+      "status reports",
+      "коммуникация",
+      "презентовал",
+      "explaining to management"
+    ]
+  },
+  {
+    "slug": "requirements-analysis",
+    "name": "Requirements analysis",
+    "aliases": [
+      "gathering requirements",
+      "анализ требований",
+      "product requirements",
+      "specifications"
+    ]
+  },
+  {
+    "slug": "agile-scrum",
+    "name": "Agile and Scrum",
+    "aliases": [
+      "sprints",
+      "kanban",
+      "скрам",
+      "agile"
+    ]
+  },
+  {
+    "slug": "technical-writing",
+    "name": "Technical writing",
+    "aliases": [
+      "documentation",
+      "документация",
+      "design docs",
+      "adr"
+    ]
+  }
+]
