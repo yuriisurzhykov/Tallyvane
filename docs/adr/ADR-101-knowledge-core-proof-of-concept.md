@@ -476,6 +476,10 @@ classDiagram
         <<infra>>
         +install(Application)
     }
+    class Assembled {
+        <<infra>>
+        +serve()
+    }
 
     KnowledgeCore ..> IngestAnswer : builds once
     IngestAnswer ..> Extractor
@@ -522,6 +526,9 @@ classDiagram
     Seeding ..> EmbeddingProvider
     Api ..> KnowledgeCore
     Api ..> RecordingLlmClient : recent calls
+    Assembled ..> KnowledgeCore : built once from the settings
+    Assembled ..> Api : serves
+    Assembled *-- RecordingLlmClient
 ```
 
 In tests `AnthropicClient` is replaced by `ScriptedLlm`, which gives the replies of a script, and
@@ -638,6 +645,18 @@ erDiagram
   working directory is read under the real environment. The prompts are read from `PROMPTS_DIR`,
   or from `infra/src/main/resources/prompts` when the application runs from the root of the
   build, on every call, so an edit applies to the next answer.
+- The page is one file, `infra/src/main/resources/static/index.html`, served by Ktor from the
+  classpath at `/`. Plain JavaScript, Cytoscape from cdnjs, no build step. Everything the person or
+  the model wrote is put on the page as text, never as markup. A merge offer the person does not
+  answer before the next answer is left as two actions, and the card says so.
+- Main builds the parts in `assemble(env)` and returns them as `Assembled`, so that the opt-in live
+  test builds exactly what the application runs on. The application is not in the compose file:
+  `docker-compose.yml` holds Postgres, Ollama and a one-shot pull of the embedding model, and the
+  application runs with `./gradlew run`.
+- The live test (`LiveDemoSpec`, `LIVE_LLM=1`) is in the integration suite, since it needs the same
+  database. A real model does not repeat itself, so it asserts what must hold whatever the model
+  says: the facts of the first answer are in the graph, the interview ends, the vacancy is matched,
+  and each bullet has quotes and no number the person did not say.
 - The prompt prefix is marked for caching, and a model caches it only above its minimum length
   (1024 tokens for the larger models), so the short prompts (`tags`, `bullets`, `vacancy`) may
   show no cache reads; the debug drawer shows what each call really cost.
