@@ -598,7 +598,7 @@
     scrollChat();
   }
 
-  /** A merge nobody answered before the next answer is left as two actions, and the card says so. */
+  /** A merge nobody answered by the time the next answer is accepted is left as two actions, and the card says so. */
   function retirePendingMerge() {
     if (!pendingMerge) return;
     pendingMerge.choices.replaceWith(el('p', { class: 'decided', text: 'Left as two separate actions.' }));
@@ -615,14 +615,20 @@
   async function sendAnswer() {
     const text = answerBox.value.trim();
     if (!text || sending) return;
-    retirePendingMerge();
     say('answer', text);
     setSending(true);
     try {
       const result = await api('POST', '/api/answer', { text, questionId: currentQuestion ? currentQuestion.id : null });
+      // The server has moved on, so the page does too, before anything that can fail on its own.
+      currentQuestion = result.nextQuestion;
       answerBox.value = '';
+      retirePendingMerge();
       if (result.nodes.length > 0) say('note', `Graph updated: ${countsOf(result.nodes)}.`);
-      await refreshGraph(true);
+      try {
+        await refreshGraph(true);
+      } catch (error) {
+        say('error', `The answer was saved, but the graph could not be refreshed: ${describe(error)}`);
+      }
       if (result.mergeCandidate) showMerge(result.mergeCandidate);
       showQuestion(result.nextQuestion);
     } catch (error) {
@@ -660,7 +666,7 @@
   const hideQuotes = () => { popover.hidden = true; };
 
   function renderResume(resume) {
-    const byText = new Map(resume.bullets.map((bullet) => [bullet.text, bullet]));
+    const unclaimed = [...resume.bullets];
     const root = $('resume');
     root.replaceChildren();
     let list = null;
@@ -668,7 +674,9 @@
       if (line.startsWith('- ')) {
         if (!list) { list = el('ul'); root.append(list); }
         const text = line.slice(2);
-        const bullet = byText.get(text);
+        // Two bullets can read alike; each line takes the first one not yet taken, which is the order they were built in.
+        const at = unclaimed.findIndex((candidate) => candidate.text === text);
+        const bullet = at >= 0 ? unclaimed.splice(at, 1)[0] : undefined;
         const item = el('li', { class: 'bullet', text, tabindex: '0' });
         const quotes = bullet ? bullet.evidence : [];
         item.addEventListener('mouseenter', () => showQuotes(item, quotes));
