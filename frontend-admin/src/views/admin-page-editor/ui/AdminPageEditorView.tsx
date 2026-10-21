@@ -1,11 +1,11 @@
-import { AppShell } from "frontend-shared/ui/app-shell";
 import { Field } from "frontend-shared/ui/field";
 import { Input } from "frontend-shared/ui/input";
 import { TextArea } from "frontend-shared/ui/text-area";
 import { Panel } from "frontend-shared/ui/panel";
 import { Stack } from "frontend-shared/ui/stack";
 import { Text } from "frontend-shared/ui/text";
-import { adminNavItems } from "@/app/navigation";
+import { adminNavGroups } from "@/app/navigation";
+import { AdminShell } from "@/widgets/admin-shell";
 
 /**
  * Wired to `AppShell` and real form fields on 2026-08-28, replacing the
@@ -17,7 +17,7 @@ import { adminNavItems } from "@/app/navigation";
  */
 export function AdminPageEditorView() {
     return (
-        <AppShell navItems={adminNavItems("/pages")} title="Edit page" skipLinkLabel="Skip to content">
+        <AdminShell groups={adminNavGroups("/pages")} title="Edit page">
             <Panel header={<Text variant="bodyStrong">Page details</Text>}>
                 <Stack gap="stack">
                     <Field label="Title">
@@ -31,6 +31,6 @@ export function AdminPageEditorView() {
                     </Field>
                 </Stack>
             </Panel>
-        </AppShell>
+        </AdminShell>
     );
 }

@@ -8,3 +8,4 @@ export { PolicyActivation } from "./api/PolicyActivation";
 export { usePolicyHistory } from "./model/usePolicyHistory";
 export { PolicyFaults, POLICY_LIMIT_FIELDS, type PolicyFaultWords, type PolicyLimit } from "./model/PolicyFaults";
 export { usePolicyWords, usePolicyConsequenceWords, usePolicyFaults } from "./model/useWords";
+export { PolicyFlow, type PolicyFlowProps } from "./ui/PolicyFlow";

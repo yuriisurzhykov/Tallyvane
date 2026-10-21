@@ -44,7 +44,7 @@ is what actually caught this; the equivalent Vitest suite could not have.
 
 No semantic layout *role* names "how wide a drawer is" — a global role with
 one consumer would trip DS102. Width is `--ds-component-drawer-width`
-(`28rem`, from layout primitive `448`). A named rem constant used to be
+(`40rem`, from layout primitive `640`). A named rem constant used to be
 the lint exemption; that hole is closed.
 
 ## SOLID and fault tolerance

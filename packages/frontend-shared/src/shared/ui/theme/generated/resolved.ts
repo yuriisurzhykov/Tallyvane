@@ -65,7 +65,7 @@ export const resolved = {
                 "thumbTravel": "1rem"
             },
             "drawer": {
-                "width": "28rem"
+                "width": "40rem"
             },
             "fileDrop": {
                 "filenameMaxWidth": "16rem"
@@ -222,7 +222,7 @@ export const resolved = {
                 "thumbTravel": "1rem"
             },
             "drawer": {
-                "width": "28rem"
+                "width": "40rem"
             },
             "fileDrop": {
                 "filenameMaxWidth": "16rem"

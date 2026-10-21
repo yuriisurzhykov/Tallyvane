@@ -94,7 +94,9 @@
         "strings": "Strings",
         "policies": "Sign-in policies",
         "lifetimes": "Session lifetimes",
-        "skipToContent": "Skip to content"
+        "skipToContent": "Skip to content",
+        "groupContent": "Content",
+        "groupSignIn": "Sign-in"
     },
     "span": {
         "seconds": "{amount} s",
@@ -129,8 +131,7 @@
         "when_enrolled": "Only those who set it up"
     },
     "history": {
-        "title": "Versions",
-        "lead": "Every change keeps a new version. Putting one in force, or rolling back to an older one, is recorded with who did it and why.",
+        "title": "Other versions",
         "loading": "Loading versions…",
         "loadFailed": "We couldn't load the versions.",
         "refreshFailed": "We couldn't refresh the versions. This list may be out of date.",
@@ -138,16 +139,20 @@
         "empty": "No versions yet.",
         "versionNumber": "v{number}",
         "inForce": "In force",
-        "inForceNote": "In force since {when}, put there by {by}.",
-        "inForceReason": "Reason: {reason}",
         "madeBy": "{by} · {when}",
         "you": "You",
         "migration": "Migration",
         "account": "Account {id}",
-        "commentLabel": "Reason: {comment}",
         "newFromThis": "New version from this one",
         "activate": "Put in force",
-        "rollBack": "Roll back to this"
+        "rollBack": "Roll back to this",
+        "initialVersion": "Initial version",
+        "inForceSince": "Since {when} by {by}",
+        "inForceSinceWhy": "Since {when} by {by} · “{reason}”",
+        "details": "Details",
+        "hideDetails": "Hide",
+        "noOthers": "No other versions yet.",
+        "emptyLead": "The first version appears when a migration or an administrator makes one."
     },
     "activation": {
         "activateTitle": "Put version {number} in force?",
@@ -163,11 +168,13 @@
         "failed": "We couldn't put this version in force. Try again in a moment.",
         "commentInvalid": "Write a reason of 1 to 500 characters, without control characters.",
         "wouldLockOut": "No administrator could sign in under this version, so it stays out of force.",
-        "gone": "That version is no longer there."
+        "gone": "That version is no longer there.",
+        "differences": "Changes from the version in force (v{number}):",
+        "noDifferences": "Nothing differs from the version in force (v{number})."
     },
     "save": {
         "commentLabel": "Reason",
-        "commentHint": "Why this version. 1 to 500 characters.",
+        "commentHint": "Why you are making this version. 1 to 500 characters.",
         "save": "Save version",
         "cancel": "Cancel",
         "failed": "We couldn't save the version. Try again in a moment.",
@@ -182,26 +189,42 @@
         "title": "New version: {purpose}",
         "lead": "Started from version {number}. Nothing changes for anyone until you put it in force.",
         "close": "Close",
-        "stepsHeading": "Steps",
-        "stepsHint": "A person passes a step with any one of the factors it accepts. Steps are taken in order.",
+        "result": "Result",
+        "stepsHeading": "1. Steps",
+        "stepsHint": "A person goes through the steps in this order.",
         "step": "Step {position}",
-        "accepts": "Accepts",
-        "appliesTo": "Applies to",
+        "accepts": "Which of these lets a person pass this step?",
+        "acceptsHint": "One is enough.",
+        "accepted": "Accepted",
+        "notAccepted": "Not accepted",
+        "appliesTo": "Who is asked to pass it?",
+        "then": "then",
         "addStep": "Add a step",
         "removeStep": "Remove step {position}",
-        "limitsHeading": "Limits",
-        "attemptLifetime": "A sign-in stays open for",
-        "maxFailures": "Wrong answers before it is over",
-        "firstDelay": "Pause after the first wrong answer",
-        "firstDelayHint": "Each next wrong answer doubles the pause."
+        "limitsHeading": "2. Limits",
+        "changeLimits": "Change limits",
+        "hideLimits": "Hide limits",
+        "attemptLifetime": "Time to finish",
+        "attemptLifetimeHint": "How long a sign-in stays open after it starts.",
+        "maxFailures": "Wrong answers",
+        "maxFailuresHint": "The attempt is over after this many wrong answers.",
+        "firstDelay": "First pause",
+        "firstDelayHint": "How long to wait after the first wrong answer. Each next one doubles it.",
+        "reasonHeading": "3. Reason"
     },
     "policyWords": {
         "or": " or ",
         "then": " then ",
         "step": "{factors} ({who})",
-        "limits": "{lifetime} to finish, {failures} wrong answers, first pause {delay}",
+        "limits": "{lifetime} to finish · {failures} wrong answers · first pause {delay}",
         "people": "{count} people use this purpose.",
-        "cannotPass": "{count} of them could not finish a sign-in under it."
+        "cannotPass": "{count} of them could not finish a sign-in under it.",
+        "stepsSection": "steps",
+        "limitsSection": "limits",
+        "stepAt": "Step {position}: {step}",
+        "lifetimeLine": "a sign-in stays open for {lifetime}",
+        "failuresLine": "{failures} wrong answers",
+        "delayLine": "first pause {delay}"
     },
     "lifetimes": {
         "title": "Session lifetimes",
@@ -217,12 +240,16 @@
         "absolute": "Lives at most",
         "absoluteHint": "However much it is used, a session ends after this.",
         "freshness": "Proof stays fresh for",
-        "freshnessHint": "How long a sign-in counts as recent for a dangerous act."
+        "freshnessHint": "How long a sign-in counts as recent for a dangerous act.",
+        "result": "Result"
     },
     "lifetimeWords": {
         "summary": "Unused for {idle}, lives at most {absolute}, proof fresh for {freshness}",
         "sessions": "{count} sessions of this client are live now.",
-        "wouldEnd": "{count} of them would end at once."
+        "wouldEnd": "{count} of them would end at once.",
+        "idleLine": "unused for {idle}",
+        "absoluteLine": "lives at most {absolute}",
+        "freshnessLine": "proof stays fresh for {freshness}"
     },
     "faults": {
         "unknown": "The server does not know this choice.",
@@ -240,5 +267,23 @@
         "commentInvalid": "Write a reason of 1 to 500 characters, without control characters.",
         "unmapped": "The server refused {field}: {code}.",
         "other": "The server refused: {detail}"
+    },
+    "diff": {
+        "removed": "Removed:",
+        "added": "Added:",
+        "removedMark": "−",
+        "addedMark": "+"
+    },
+    "limit": {
+        "now": "Now: {value}"
+    },
+    "policyFlow": {
+        "arrow": "→",
+        "or": "or"
+    },
+    "factorHints": {
+        "google": "Sign in with a Google account",
+        "totp": "Six-digit code from the app",
+        "recovery_code": "One-time backup code"
     }
 }

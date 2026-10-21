@@ -4,3 +4,5 @@ export { TopBar } from "./top-bar";
 export type { TopBarProps } from "./top-bar";
 export { AppShell } from "./app-shell";
 export type { AppShellProps } from "./app-shell";
+export { PageFrame } from "./page-frame";
+export type { PageFrameProps } from "./page-frame";

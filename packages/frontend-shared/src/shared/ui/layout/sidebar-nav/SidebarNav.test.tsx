@@ -37,6 +37,13 @@ describe("SidebarNav", () => {
         expect(screen.getByRole("navigation", { name: "Primary" })).toBeInTheDocument();
     });
 
+    it("takes the name of its landmark from the caller, so two navs on a page can be told apart", () => {
+        render(<SidebarNav items={ITEMS} label="Content" />);
+
+        expect(screen.getByRole("navigation", { name: "Content" })).toBeInTheDocument();
+        expect(screen.queryByRole("navigation", { name: "Primary" })).not.toBeInTheDocument();
+    });
+
     it("appends a caller-provided className to its own classes", () => {
         render(<SidebarNav items={ITEMS} className="border-r" />);
 

@@ -1,4 +1,5 @@
 import type { components } from "frontend-shared/api";
+import { Diff, DiffLine } from "@/shared/diff";
 import type { Span, SpanWords } from "@/shared/span";
 import { PolicyStep, type Factor, type Necessity, type StepWords } from "./PolicyStep";
 
@@ -13,6 +14,15 @@ export interface PolicyWords extends StepWords {
     /** Between two steps. */
     readonly then: string;
     readonly limits: (lifetime: string, failures: number, delay: string) => string;
+    /** Headings over the two kinds of difference between policies. */
+    readonly stepsSection: string;
+    readonly limitsSection: string;
+    /** A step in a list of differences: "Step 2: Google (Everyone)". */
+    readonly stepAt: (position: number, step: string) => string;
+    /** One limit in a list of differences, each said as the screen says it elsewhere. */
+    readonly lifetimeLine: (lifetime: string) => string;
+    readonly failuresLine: (failures: number) => string;
+    readonly delayLine: (delay: string) => string;
 }
 
 /** The numbers beside the steps, which change together or not at all. */
@@ -87,12 +97,48 @@ export class PolicyForm {
     /** One line saying the whole policy: "Google (Everyone) then Authenticator app (Only those who set it up), 10 min to finish, …". */
     public summary(words: PolicyWords): string {
         const steps = this.steps.map((step) => step.describe(words)).join(words.then);
-        const limits = words.limits(
+        return `${steps}. ${this.limitsLine(words)}`;
+    }
+
+    /** The three limits in one line: "10 min to finish · 5 wrong answers · first pause 5 s". */
+    public limitsLine(words: PolicyWords): string {
+        return words.limits(
             this.limits.attemptLifetime.describe(words.span),
             this.limits.maxFailures,
             this.limits.firstDelay.describe(words.span),
         );
-        return `${steps}. ${limits}`;
+    }
+
+    /** How this policy differs from `before`: what `before` had that this does not (removed) and what this has that `before` did not (added). */
+    public changesFrom(before: PolicyForm, words: PolicyWords): Diff {
+        const steps: DiffLine[] = [];
+        for (let at = 0; at < Math.max(this.steps.length, before.steps.length); at += 1) {
+            const was = before.steps[at];
+            const now = this.steps[at];
+            if (was !== undefined && now !== undefined && was.sameAs(now)) continue;
+            if (was !== undefined) steps.push(DiffLine.removed(words.stepAt(at + 1, was.describe(words))));
+            if (now !== undefined) steps.push(DiffLine.added(words.stepAt(at + 1, now.describe(words))));
+        }
+        const limits: DiffLine[] = [];
+        if (!before.limits.attemptLifetime.equals(this.limits.attemptLifetime)) {
+            limits.push(
+                DiffLine.removed(words.lifetimeLine(before.limits.attemptLifetime.describe(words.span))),
+                DiffLine.added(words.lifetimeLine(this.limits.attemptLifetime.describe(words.span))),
+            );
+        }
+        if (before.limits.maxFailures !== this.limits.maxFailures) {
+            limits.push(
+                DiffLine.removed(words.failuresLine(before.limits.maxFailures)),
+                DiffLine.added(words.failuresLine(this.limits.maxFailures)),
+            );
+        }
+        if (!before.limits.firstDelay.equals(this.limits.firstDelay)) {
+            limits.push(
+                DiffLine.removed(words.delayLine(before.limits.firstDelay.describe(words.span))),
+                DiffLine.added(words.delayLine(this.limits.firstDelay.describe(words.span))),
+            );
+        }
+        return Diff.section(words.stepsSection, steps).and(Diff.section(words.limitsSection, limits));
     }
 
     public toRequest(purpose: Purpose, comment: string): Proposal {
