@@ -1,6 +1,8 @@
 # Copy to providers.local.yaml and set api_key for each API provider.
 # providers.local.yaml is git-ignored. Keys stay on the server and are omitted from reports.
 # Rates are editable USD estimates per 1M tokens, checked 2026-10-29.
+# min_request_interval_seconds defaults to 1; one request in flight per origin/credential.
+# HTTP 401/403 stops calls until restart; HTTP 429 respects Retry-After. No automatic retries.
 # They exclude taxes and any provider-specific surcharges. Recheck before a real run.
 providers:
   - name: groq-oss20

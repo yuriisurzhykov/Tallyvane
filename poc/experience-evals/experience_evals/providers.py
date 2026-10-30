@@ -2,8 +2,12 @@
 
 from dataclasses import dataclass
 import copy
+from email.utils import parsedate_to_datetime
+import hashlib
+from http.client import HTTPException
 import json
 import math
+import threading
 import time
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlsplit
@@ -24,6 +28,54 @@ class ProviderError(RuntimeError):
         self.usage = usage
         self.raw = raw
         self.latency_ms = latency_ms
+
+
+class RequestGate:
+    """One in-flight request per API origin/credential; refusals never trigger retries."""
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.last_started = None
+        self.blocked = False
+        self.resume_at = 0.0
+
+    def enter(self, interval):
+        if not self.lock.acquire(blocking=False):
+            raise ProviderError("Запрос к этому API уже выполняется. Дождитесь его завершения.")
+        try:
+            if self.blocked:
+                raise ProviderError("Отправка к этому API остановлена после отказа в доступе. Проверьте доступ и перезапустите стенд.")
+            remaining = self.resume_at - time.monotonic()
+            if remaining > 0:
+                raise ProviderError(f"Пауза после ограничения API: осталось {math.ceil(remaining)} с. Запрос не отправлен.")
+            if self.last_started is not None:
+                delay = interval - (time.monotonic() - self.last_started)
+                if delay > 0:
+                    time.sleep(delay)
+            self.last_started = time.monotonic()
+        except BaseException:
+            self.lock.release()
+            raise
+
+
+_GATES = {}
+_GATES_LOCK = threading.Lock()
+
+
+def request_gate(base, key):
+    identity = (urlsplit(base).netloc.casefold(), hashlib.sha256((key or "").encode()).hexdigest())
+    with _GATES_LOCK:
+        return _GATES.setdefault(identity, RequestGate())
+
+
+def retry_delay(header):
+    try:
+        delay = float(header)
+    except (TypeError, ValueError):
+        try:
+            delay = parsedate_to_datetime(header).timestamp() - time.time()
+        except (TypeError, ValueError, OverflowError, AttributeError):
+            return 60.0
+    return max(1.0, delay) if math.isfinite(delay) else 60.0
 
 
 def estimate_cost(usage, prices):
@@ -71,6 +123,11 @@ class ApiProvider:
             raise ValueError("base_url must not contain credentials, query strings or fragments")
         if url.scheme != "https" and not (url.scheme == "http" and url.hostname in {"localhost", "127.0.0.1", "::1"}):
             raise ValueError("Use HTTPS, or HTTP on loopback for a local provider")
+        self.gate = request_gate(self.base, self._api_key)
+        self.interval = self.config.get("min_request_interval_seconds", 1.0)
+        if (not isinstance(self.interval, (int, float)) or isinstance(self.interval, bool)
+                or not math.isfinite(self.interval) or not 0 <= self.interval <= 60):
+            raise ValueError("min_request_interval_seconds must be between 0 and 60")
         self.mode = self.config.get("response_mode", "prompt" if self.protocol == "anthropic" else "json_schema")
         if self.mode not in {"json_schema", "json", "prompt"}:
             raise ValueError("Unknown response_mode")
@@ -125,9 +182,17 @@ class ApiProvider:
                               "max_tokens": self.max_tokens, **params}
 
     def complete(self, payload, prompt, schema):
+        self.gate.enter(self.interval)
+        try:
+            return self._complete(payload, prompt, schema)
+        finally:
+            self.gate.lock.release()
+
+    def _complete(self, payload, prompt, schema):
         key = self._api_key
         path, body = self._request(payload, prompt, schema)
-        headers = {"Content-Type": "application/json", "Accept": "application/json"}
+        headers = {"Content-Type": "application/json", "Accept": "application/json",
+                   "User-Agent": "Tallyvane-Experience-Lab/0.1 (+https://github.com/yuriisurzhykov/Tallyvane)"}
         if key:
             if self.protocol == "gemini":
                 headers["x-goog-api-key"] = key
@@ -148,10 +213,33 @@ class ApiProvider:
                 raw_text = raw_text.replace(key, "[REDACTED]")
             raw = json.loads(raw_text)
         except HTTPError as error:
-            text = error.read(20_000).decode("utf-8", errors="replace")
+            # Record the refusal before touching its body: diagnostics may themselves time out.
+            if error.code in {401, 403}:
+                self.gate.blocked = True
+                message = f"API отклонил доступ (HTTP {error.code}). Отправка остановлена. Проверьте ключ и доступ у провайдера, затем перезапустите стенд."
+            elif error.code == 429:
+                delay = retry_delay(error.headers.get("Retry-After"))
+                self.gate.resume_at = time.monotonic() + delay
+                message = f"API ограничил частоту запросов (HTTP 429). Пауза {math.ceil(delay)} с. Автоматических повторов нет."
+            else:
+                message = f"API вернул HTTP {error.code}. Технические подробности доступны в ответе API."
+            try:
+                text = error.read(20_000).decode("utf-8", errors="replace")
+            except (OSError, HTTPException, ValueError):
+                text = "HTTP error body could not be read."
+            finally:
+                error.close()
             if key:
                 text = text.replace(key, "[REDACTED]")
-            raise ProviderError(f"HTTP {error.code}: {text}", latency_ms=(time.perf_counter() - started) * 1000) from None
+            try:
+                detail = json.loads(text)
+            except ValueError:
+                detail = text
+            request_id = error.headers.get("x-request-id") or error.headers.get("cf-ray")
+            if key and request_id:
+                request_id = request_id.replace(key, "[REDACTED]")
+            raw = {"http_status": error.code, "body": detail, "request_id": request_id}
+            raise ProviderError(message, raw=raw, latency_ms=(time.perf_counter() - started) * 1000) from None
         except (URLError, TimeoutError, OSError, ValueError) as error:
             text = str(error).replace(key, "[REDACTED]") if key else str(error)
             raise ProviderError(text, latency_ms=(time.perf_counter() - started) * 1000) from None

@@ -175,3 +175,11 @@ providers:
     api_key: "your-api-key"
     response_mode: json_schema
 ```
+
+## API transport safeguards
+
+All adapters send a truthful `Tallyvane-Experience-Lab/0.1` User-Agent. Calls sharing an API origin and credential share a process-wide guard across models, session forks and CLI repetitions. Only one request can be in flight; successful calls start at least one second apart by default. Set `min_request_interval_seconds` (0–60) per provider to change that spacing. Token-based quotas are still determined by the provider.
+
+There are no automatic retries, redirects, browser impersonation or credential rotation. HTTP 401/403 stops further requests with that origin/credential until the process restarts or the credential changes. Check provider access before restarting. HTTP 429 pauses requests for `Retry-After` (seconds or HTTP-date); if absent/invalid, the pause is 60 seconds. Submissions during a pause return a local error without an API request. These guards coordinate one running process; separately started processes do not share them.
+
+The chat displays a short HTTP error. The redacted error body and provider request ID remain in the response diagnostics for troubleshooting. The reported Cloudflare 1010 refusal is covered by a simulated HTTP regression test; unblocking the real Groq endpoint has not been verified without a live credential.
