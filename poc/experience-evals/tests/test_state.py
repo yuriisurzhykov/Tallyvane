@@ -121,6 +121,42 @@ class StateTests(unittest.TestCase):
         with self.assertRaises(StateError):
             apply_proposal(self.state, self.proposal([{"operation": "set_result", "action_id": "a1", "result": result, "evidence": evidence("Java")}]), self.message)
 
+    def test_normalized_metric_label_and_multiplier_apply_with_room_technology(self):
+        text="Я добавил кеширование в Room database, таким образом, что открытие экрана ускорилось в 2 раза по прошлым показателям."
+        message={"id":"m2","text":text}
+        record_message(self.state,message)
+        metric={"name":"Opening screen speed","value":2,"unit":"x","baseline":None,"target":None,"approximate":False}
+        result={"status":"achieved","description":text,"metrics":[metric],"lesson":None}
+        changes=[{"operation":"set_result","action_id":"a1","result":result,"evidence":evidence(text,"m2")},
+                 {"operation":"add_technologies","action_id":"a1","technologies":["Room"],"evidence":evidence(text,"m2")}]
+        actual=apply_proposal(self.state,self.proposal(changes),message)
+        self.assertEqual(actual["actions"]["a1"]["result"]["metrics"],[metric])
+        self.assertIn("Room",actual["actions"]["a1"]["technologies"])
+        self.assertEqual(actual["history"][-1]["proposal"]["changes"][0]["evidence"]["quote"],text)
+
+    def test_multiplier_can_be_stated_in_words(self):
+        for phrase in ("в два раза быстрее","в две секунды","two times faster"):
+            with self.subTest(phrase=phrase):
+                from experience_evals.state import check_result
+                result={"status":"achieved","description":phrase,"metrics":[{
+                    "name":"Opening screen speed","value":2,"unit":"s" if "секунды" in phrase else "x",
+                    "baseline":None,"target":None,"approximate":False}],"lesson":None}
+                check_result(result,phrase)
+
+    def test_normalized_metric_does_not_allow_invented_numbers_or_units(self):
+        from experience_evals.state import check_result
+        result={"status":"achieved","description":"Ускорилось в 2 раза","metrics":[{
+            "name":"Opening screen speed","value":99,"unit":"x","baseline":None,"target":None,"approximate":False}],"lesson":None}
+        with self.assertRaises(StateError):
+            check_result(result,"Ускорилось в 2 раза")
+        result["metrics"][0].update(value=2,unit="kg")
+        with self.assertRaises(StateError):
+            check_result(result,"Ускорилось в 2 раза")
+        result["description"]="two times faster"
+        result["metrics"][0]["unit"]="s"
+        with self.assertRaises(StateError):
+            check_result(result,"two times faster")
+
     def test_invalid_initial_action_type_is_rejected_before_any_change(self):
         self.state["actions"]["a1"]["technologies"] = "Kotlin"
         with self.assertRaises(ValueError):

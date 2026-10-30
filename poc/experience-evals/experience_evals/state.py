@@ -48,18 +48,49 @@ def check_evidence(item, message):
     return evidence["quote"]
 
 
+def metric_numbers(quote):
+    numbers = {float(x.replace(",", ".")) for x in re.findall(r"(?<![\w.])-?\d+(?:[.,]\d+)?", quote)}
+    # Deliberately bounded grammar, not a general natural-language number parser.
+    # Requiring an introductory boundary avoids reading 'twenty two' as just 2.
+    words = {"один":1,"одну":1,"два":2,"две":2,"три":3,"четыре":4,"пять":5,
+             "шесть":6,"семь":7,"восемь":8,"девять":9,"десять":10,
+             "one":1,"two":2,"three":3,"four":4,"five":5,"six":6,"seven":7,
+             "eight":8,"nine":9,"ten":10}
+    pattern = (r"(?:^|[.!?;:,]\s*|\b(?:в|за|by|in)\s+)(" + "|".join(words) +
+               r")\s+(?:раз(?:а|ов)?|times|seconds?|секунд(?:а|ы|у)?)(?!\w)")
+    numbers.update(words[m.group(1)] for m in re.finditer(pattern, quote.casefold()))
+    return numbers
+
+
+def check_metric_unit(unit, quote):
+    aliases = (
+        ({"x","×","times","fold","ratio"}, r"\b(?:раз(?:а|ов)?|times|fold)\b|\d\s*[x×](?!\w)"),
+        ({"%","percent","percentage"}, r"%|\b(?:percent(?:age)?|процент\w*)\b"),
+        ({"ms","millisecond","milliseconds"}, r"\b(?:ms|milliseconds?|миллисекунд\w*)\b"),
+        ({"s","sec","second","seconds"}, r"\b(?:s|sec|seconds?|секунд\w*)\b"),
+    )
+    for names, pattern in aliases:
+        if unit.strip().casefold() in names:
+            if re.search(pattern, quote, re.IGNORECASE):
+                return
+            raise StateError("metric unit is not supported by its quote: " + unit)
+    require_supported(unit, quote)
+
+
 def check_result(result, quote):
     Result.model_validate(result)
     require_supported(result["description"], quote)
     require_supported(result["lesson"], quote)
-    numbers = {float(x.replace(",", ".")) for x in re.findall(r"(?<![\w.])-?\d+(?:[.,]\d+)?", quote)}
+    numbers = metric_numbers(quote)
     for metric in result["metrics"]:
-        require_supported(metric["name"], quote)
+        # Metric names are model-normalized labels, not verbatim quotations.
+        if not normal(metric["name"]):
+            raise StateError("metric name must contain a meaningful label")
         for key in ("value", "baseline", "target"):
             number = metric[key]
             if number is not None and (not math.isfinite(number) or number not in numbers):
                 raise StateError("metric number is not in its quote")
-        require_supported(metric["unit"], quote)
+        check_metric_unit(metric["unit"], quote)
 
 
 def check_deadline(deadline, quote):
