@@ -52,15 +52,16 @@ class WebLabTests(unittest.TestCase):
             config = {}
             def complete(self, payload, prompt, schema):
                 raise ProviderError("bad private-key", raw={"error": "private-key"})
-        lab = Lab(ROOT / "scenarios", [{"name": "test", "model": "test", "protocol": "responses"}],
-                  provider_factory=lambda config, api_key=None: Failed())
+        lab = Lab(ROOT / "scenarios", [{"name": "test", "model": "test", "protocol": "responses", "api_key":"private-key"}],
+                  provider_factory=lambda config: Failed())
         s = lab.create()
-        s = lab.turn({"session_id": s["id"], "provider": "test", "text": "Worked at Helix",
-                      "api_key": "private-key"})
+        s = lab.turn({"session_id": s["id"], "provider": "test", "text": "Worked at Helix"})
         self.assertEqual(s["state"]["revision"], 0)
         self.assertEqual(len(s["state"]["messages"]), 1)
         self.assertEqual(s["events"][-1]["status"], "provider_error")
         self.assertNotIn("private-key", json.dumps(s))
+        self.assertNotIn("private-key", json.dumps(lab.bootstrap()))
+        self.assertTrue(lab.bootstrap()["providers"][0]["key_configured"])
 
     def test_redelivery_does_not_call_provider_twice(self):
         s = self.lab.create("create_hierarchy")
@@ -79,7 +80,7 @@ class WebLabTests(unittest.TestCase):
             def complete(self, *_):
                 calls.append(1)
                 return ModelReply(json.dumps(proposal))
-        lab = Lab(ROOT / "scenarios", [{"name":"test","model":"test","protocol":"responses"}],
+        lab = Lab(ROOT / "scenarios", [{"name":"test","model":"test","protocol":"responses","api_key":"1"}],
                   provider_factory=lambda *a, **k: Replies())
         s = lab.create("move_action")
         action = s["state"]["actions"]["a1"]
@@ -104,12 +105,18 @@ class WebLabTests(unittest.TestCase):
             def complete(self, *_):
                 return ModelReply('{"base_revision":0,"changes":[],"unresolved_references":[]}',
                                   usage={"input_tokens": 1, "output_tokens": 1})
-        lab = Lab(ROOT / "scenarios", [{"name":"test","model":"test","protocol":"responses"}],
+        lab = Lab(ROOT / "scenarios", [{"name":"test","model":"test","protocol":"responses","api_key":"1"}],
                   provider_factory=lambda *a, **k: Replies())
         s = lab.create()
-        s = lab.turn({"session_id":s["id"],"provider":"test","text":"hello","api_key":"1"})
+        s = lab.turn({"session_id":s["id"],"provider":"test","text":"hello"})
         self.assertEqual(s["events"][-1]["usage"]["input_tokens"],1)
         self.assertEqual(s["state"]["revision"],1)
+
+    def test_browser_cannot_override_configured_key(self):
+        s = self.lab.create()
+        with self.assertRaises(WebError):
+            self.lab.turn({"session_id":s["id"],"provider":"offline-demo","text":"hello","api_key":"override"})
+        self.assertEqual(self.lab.view(s["id"])["state"]["messages"],{})
 
     def test_concurrent_turn_is_rejected(self):
         entered, release = threading.Event(), threading.Event()

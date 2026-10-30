@@ -1,4 +1,5 @@
-# Copy to providers.local.yaml. Credentials are read from environment variables only.
+# Copy to providers.local.yaml and set api_key for each API provider.
+# providers.local.yaml is git-ignored. Keys stay on the server and are omitted from reports.
 # Rates are editable USD estimates per 1M tokens, checked 2026-10-29.
 # They exclude taxes and any provider-specific surcharges. Recheck before a real run.
 providers:
@@ -6,7 +7,7 @@ providers:
     protocol: chat_completions
     base_url: https://api.groq.com/openai/v1
     model: openai/gpt-oss-20b
-    api_key_env: GROQ_API_KEY
+    api_key: null
     response_mode: json_schema
     max_output_tokens: 8192
     timeout_seconds: 90
@@ -19,7 +20,7 @@ providers:
     protocol: responses
     base_url: https://api.openai.com/v1
     model: gpt-6-luna
-    api_key_env: OPENAI_API_KEY
+    api_key: null
     response_mode: json_schema
     max_output_tokens: 8192
     parameters:
@@ -34,7 +35,7 @@ providers:
     protocol: gemini
     base_url: https://generativelanguage.googleapis.com/v1beta
     model: gemini-3.5-flash-lite
-    api_key_env: GEMINI_API_KEY
+    api_key: null
     response_mode: json_schema
     max_output_tokens: 8192
     parameters: {}
@@ -47,7 +48,7 @@ providers:
     protocol: chat_completions
     base_url: https://api.deepseek.com
     model: deepseek-flash
-    api_key_env: DEEPSEEK_API_KEY
+    api_key: null
     response_mode: json
     token_limit_field: max_tokens
     max_output_tokens: 8192
@@ -64,7 +65,7 @@ providers:
     protocol: anthropic
     base_url: https://api.anthropic.com/v1
     model: REPLACE_WITH_AVAILABLE_MODEL
-    api_key_env: ANTHROPIC_API_KEY
+    api_key: null
     response_mode: prompt
     max_output_tokens: 8192
     parameters: {}
@@ -75,7 +76,7 @@ providers:
     protocol: chat_completions
     base_url: http://127.0.0.1:1234/v1
     model: REPLACE_WITH_LOCAL_MODEL
-    api_key_env: null
+    api_key: null
     response_mode: json
     token_limit_field: max_tokens
     max_output_tokens: 8192

@@ -3,7 +3,6 @@
 import copy
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
-import os
 from pathlib import Path
 import secrets
 import threading
@@ -11,9 +10,9 @@ from urllib.parse import urlsplit
 import uuid
 
 from pydantic import ValidationError
-import yaml
 
 from .contract import output_schema
+from .config import load_config
 from .dataset import load_scenarios
 from .providers import ApiProvider, ProviderError, ScriptedProvider, estimate_cost
 from .runner import PROMPT_PATH, build_input, parse_proposal
@@ -68,8 +67,7 @@ class Lab:
 
     def bootstrap(self):
         return {"providers": [{"name": p["name"], "model": p["model"], "protocol": p["protocol"],
-                    "base_url": p.get("base_url"), "api_key_env": p.get("api_key_env"),
-                    "key_configured": bool(os.environ.get(p.get("api_key_env") or "")),
+                    "base_url": p.get("base_url"), "key_configured": bool(p.get("api_key")),
                     "prices": p.get("prices", {})} for p in self.providers.values()],
                 "scenarios": [{"id": s.id, "description": s.description, "turns": len(s.turns)}
                               for s in self.scenarios.values()]}
@@ -140,6 +138,8 @@ class Lab:
             s["lock"].release()
 
     def _turn(self, s, body):
+        if "api_key" in body:
+            raise WebError("API keys must be configured in providers.local.yaml")
         text = body.get("text")
         if not isinstance(text, str) or not text.strip() or len(text) > 30_000:
             raise WebError("Enter a message of 1–30000 characters")
@@ -175,11 +175,8 @@ class Lab:
                     raise WebError("Invalid model")
                 if model != config["model"]:
                     config["model"], config["prices"] = model, {}  # Original model's rates do not apply.
-            key = body.get("api_key")
-            if key is not None and (not isinstance(key, str) or len(key) > 4096):
-                raise WebError("Invalid API key")
-            keys = [key, os.environ.get(config.get("api_key_env") or "")]
-            provider = self.provider_factory(config, api_key=key)
+            keys = [config.get("api_key")]
+            provider = self.provider_factory(config)
         message = {"id": mid, "text": text}
         before = copy.deepcopy(s["state"])
         try:
@@ -297,7 +294,7 @@ def make_server(lab, port):
 
 
 def serve(config_path, port=8765):
-    config = yaml.safe_load(Path(config_path).read_text(encoding="utf-8"))
+    config = load_config(config_path)
     lab = Lab(ROOT / "scenarios", config["providers"])
     server = make_server(lab, port)
     print(f"Interactive lab: http://127.0.0.1:{server.server_port}", flush=True)

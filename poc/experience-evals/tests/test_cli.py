@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from experience_evals.__main__ import main
 from experience_evals.contract import InterviewInput, output_schema
@@ -12,6 +13,23 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class CliTests(unittest.TestCase):
+    def test_web_defaults_to_local_yaml(self):
+        with patch("experience_evals.web.serve") as serve:
+            self.assertEqual(main(["serve"]),0)
+            serve.assert_called_once_with(ROOT / "providers.local.yaml",8765)
+
+    def test_missing_local_yaml_has_setup_instructions(self):
+        with tempfile.TemporaryDirectory() as temp, contextlib.redirect_stderr(io.StringIO()) as err:
+            self.assertEqual(main(["serve","--config",str(Path(temp)/"providers.local.yaml")]),2)
+            self.assertIn("Copy providers.example.yaml",err.getvalue())
+
+    def test_invalid_yaml_does_not_echo_credential_line(self):
+        with tempfile.TemporaryDirectory() as temp, contextlib.redirect_stderr(io.StringIO()) as err:
+            config=Path(temp)/"providers.local.yaml"
+            config.write_text("providers:\n  - api_key: secret-value: invalid\n")
+            self.assertEqual(main(["serve","--config",str(config)]),2)
+            self.assertNotIn("secret-value",err.getvalue())
+            self.assertIn("Invalid provider YAML",err.getvalue())
     def test_checked_in_schemas_match_runtime_contracts(self):
         self.assertEqual(json.loads((ROOT / "contracts/input.schema.json").read_text()), InterviewInput.model_json_schema())
         self.assertEqual(json.loads((ROOT / "contracts/output.schema.json").read_text()), output_schema())

@@ -19,7 +19,7 @@
       <label for="provider">API-провайдер</label><select id="provider"></select>
       <label for="model">Модель</label><input id="model" placeholder="Model ID" autocomplete="off">
       <p id="provider-note" class="hint"></p>
-      <div id="key-wrap"><label for="key">API key <span class="optional">необязательно</span></label><input id="key" type="password" autocomplete="off" placeholder="Ключ из env или вставьте сюда"><p class="hint">Ключ из поля передаётся только локальному серверу и выбранному API. Не сохраняется в сессии.</p></div>
+      <p class="hint">API-ключи читаются сервером из <code>providers.local.yaml</code>. После изменения файла перезапустите стенд.</p>
       <div class="sidebar-rule"></div>
       <div class="section-label">02 / ЭКСПЕРИМЕНТ</div>
       <label for="scenario">Начальные данные</label><select id="scenario"><option value="">Пустая история</option></select>

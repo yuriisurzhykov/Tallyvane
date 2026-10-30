@@ -31,7 +31,7 @@ async function api(path, body) {
 }
 function setBusy(value) {
   busy = value;
-  document.querySelectorAll('button, select, #model, #key').forEach(node => { node.disabled = value; });
+  document.querySelectorAll('button, select, #model').forEach(node => { node.disabled = value; });
   $('message').disabled = value;
   $('send').textContent = value ? 'Обработка…' : (isDemo() ? 'Следующий шаг ↗' : 'Отправить ↗');
 }
@@ -41,13 +41,11 @@ function providerUI() {
   const p = boot.providers.find(item => item.name === $('provider').value);
   $('model').value = p ? p.model : 'Готовые ответы сценария';
   $('model').readOnly = demo;
-  $('key').value = '';
-  $('key-wrap').hidden = demo;
   $('demo-hint').hidden = !demo;
   $('mode-badge').textContent = demo ? 'Демо · без LLM' : 'Live API';
   $('mode-badge').className = 'pill ' + (demo ? 'amber' : 'live');
   $('provider-note').textContent = demo ? 'Только готовые реплики. Это проверка механики, а не качества модели.' :
-    `${p.protocol} · ${p.base_url}. ` + (p.key_configured ? `Ключ доступен в ${p.api_key_env}.` : `Задайте ${p.api_key_env || 'ключ, если нужен'} или введите его ниже.`);
+    `${p.protocol} · ${p.base_url}. ` + (p.key_configured ? 'Ключ задан в providers.local.yaml.' : 'Ключ не задан. Укажите api_key в providers.local.yaml, если API требует авторизацию.');
   refreshComposer();
 }
 function refreshComposer() {
@@ -283,7 +281,6 @@ $('composer').addEventListener('submit',event => {
       context:activeContext()};
     if (!isDemo()) body.model=$('model').value;
     body.message_id=isDemo()?session.next_demo.id:pending.prepare(body);
-    if (!isDemo() && $('key').value) body.api_key=$('key').value;
     let next;
     try { next=await api('/api/turn',body); pending.clear(session.id); }
     catch(error) {

@@ -28,7 +28,7 @@ Open `results/demo/report.html` in a browser. The **OFFLINE ORACLE** uses script
 
 ## Run a live comparison
 
-Copy `providers.example.yaml` to `providers.local.yaml`. Select only the models you want to call. Set their named environment variables in your terminal, for example `GROQ_API_KEY` and `OPENAI_API_KEY`. In PowerShell, use `$env:GROQ_API_KEY = 'your-key'`; in a POSIX shell, use `export GROQ_API_KEY='your-key'`. Keys never belong in the YAML configuration.
+Copy `providers.example.yaml` to `providers.local.yaml`. Select only the models you want to call and set their `api_key` fields directly in that file. Both the CLI and web lab use this file by default. Environment variables and browser-submitted keys are not used. Set `api_key: null` for a local API that does not require authentication. The local file is git-ignored; credentials are excluded from reports and browser responses.
 
 Start with one scenario and one repetition:
 
@@ -125,12 +125,14 @@ Protocol/pricing references checked on 2026-10-29:
 - [Gemini pricing](https://ai.google.dev/gemini-api/docs/pricing)
 - [DeepSeek JSON output](https://api-docs.deepseek.com/guides/json_mode/)
 - [DeepSeek rates](https://api-docs.deepseek.com/quick_start/pricing/)
-# Interactive web lab
+## Interactive web lab
 
 Run the interactive interface from this directory:
 
 ```bash
 python -m pip install -r requirements.txt
+cp providers.example.yaml providers.local.yaml
+# Fill in api_key for the APIs you want to use.
 python -m experience_evals serve
 ```
 
@@ -138,13 +140,13 @@ Open **http://127.0.0.1:8765** in your browser. No Node install or frontend buil
 
 The interface opens a guided five-turn demo: create an action, add a technology, state a result, correct the technologies, and retract the result. The demo replays **scripted expected answers**, not an LLM. Choose any of the 27 scenarios and click **Начать новую сессию** to try another. Offline input is intentionally limited to the exact next example.
 
-For arbitrary messages, select an API provider. Use its environment variable or enter a key in the password field. The password is held only in the page and transient request memory; it is not added to session exports or browser storage. It is sent to the loopback server and selected API over the adapter. Provider diagnostics are redacted. Ordinary text deliberately typed in the interview remains immutable user data.
+For arbitrary messages, select an API provider and put its key in `providers.local.yaml`. Each provider has an `api_key` field. Keys are loaded at server startup; restart after editing the file. The browser receives only whether a key is configured, never the credential. Keys are not included in model payloads, session exports or reports. Provider diagnostics are redacted. Ordinary text deliberately typed in the interview remains immutable user data.
 
 To customize endpoints, model parameters, output modes or prices:
 
 ```bash
 cp providers.example.yaml providers.local.yaml
-# Edit providers.local.yaml and set the API key environment variables.
+# Edit providers.local.yaml and fill in api_key for each provider.
 python -m experience_evals serve --config providers.local.yaml
 ```
 
@@ -161,3 +163,15 @@ In the browser you can:
 This is a **local development lab**, not hosted production infrastructure. It binds only to IPv4 loopback, rejects external Host/Origin headers, and checks a per-process token on POST requests. Do not expose it through a tunnel or reverse proxy. Sessions are in server memory, with a 100-session cap; export before restarting. No database, embedding computation, vector-similarity visualization, login or import of exported sessions is implemented here. The graph represents domain relationships, not vector proximity.
 
 Checks: `python -m unittest discover -s tests` and `node --test tests/test_pending.cjs` (Node is needed only for this frontend helper test). Browser rendering is not verified in the managed preview environment because its runtime has no Python executable.
+
+Example credential configuration (keep the other provider fields from the template):
+
+```yaml
+providers:
+  - name: openai-luna
+    protocol: responses
+    base_url: https://api.openai.com/v1
+    model: gpt-6-luna
+    api_key: "your-api-key"
+    response_mode: json_schema
+```

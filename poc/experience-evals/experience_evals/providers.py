@@ -4,7 +4,6 @@ from dataclasses import dataclass
 import copy
 import json
 import math
-import os
 import time
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlsplit
@@ -55,9 +54,13 @@ class NoRedirect(HTTPRedirectHandler):
 class ApiProvider:
     execution = "live"
 
-    def __init__(self, config, *, api_key=None):
-        self._api_key = api_key
+    def __init__(self, config):
         self.config = dict(config)
+        self._api_key = self.config.pop("api_key", None)
+        if self._api_key is not None and (not isinstance(self._api_key, str) or not self._api_key.strip()):
+            raise ValueError("api_key must be a nonempty string or null in providers.local.yaml")
+        if "api_key_env" in self.config:
+            raise ValueError("Replace api_key_env with api_key in providers.local.yaml")
         self.name = self.config["name"]
         self.protocol = self.config["protocol"]
         if self.protocol not in {"chat_completions", "responses", "gemini", "anthropic"}:
@@ -122,10 +125,7 @@ class ApiProvider:
                               "max_tokens": self.max_tokens, **params}
 
     def complete(self, payload, prompt, schema):
-        key_name = self.config.get("api_key_env")
-        key = self._api_key or (os.environ.get(key_name) if key_name else None)
-        if key_name and not key:
-            raise ProviderError("Missing environment variable: " + key_name)
+        key = self._api_key
         path, body = self._request(payload, prompt, schema)
         headers = {"Content-Type": "application/json", "Accept": "application/json"}
         if key:

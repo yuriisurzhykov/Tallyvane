@@ -10,10 +10,12 @@ class ProtocolTests(unittest.TestCase):
     def setUp(self):
         outer = self
         self.requests = []
+        self.auth_headers = []
         self.response = {}
 
         class Handler(BaseHTTPRequestHandler):
             def do_POST(self):
+                outer.auth_headers.append(dict(self.headers))
                 outer.requests.append((self.path, json.loads(self.rfile.read(int(self.headers["Content-Length"])))) )
                 body = json.dumps(outer.response).encode()
                 self.send_response(200)
@@ -36,7 +38,7 @@ class ProtocolTests(unittest.TestCase):
 
     def provider(self, protocol, **kwargs):
         return ApiProvider({"name": "test", "protocol": protocol, "base_url": self.base,
-                            "model": "test-model", "api_key_env": None, **kwargs})
+                            "model": "test-model", "api_key": None, **kwargs})
 
     def test_chat_completion_sends_schema_and_counts_usage(self):
         self.response = {"choices": [{"message": {"content": "{}"}, "finish_reason": "stop"}],
@@ -46,6 +48,30 @@ class ProtocolTests(unittest.TestCase):
         self.assertEqual(path, "/chat/completions")
         self.assertTrue(body["response_format"]["json_schema"]["strict"])
         self.assertEqual(reply.usage, {"input_tokens": 100, "cached_input_tokens": 30, "output_tokens": 40})
+
+    def test_api_key_from_config_authenticates_without_entering_payload(self):
+        self.response = {"status":"completed","output":[{"type":"message","content":[{"type":"output_text","text":"{}"}]}]}
+        self.provider("responses", api_key="yaml-secret").complete({}, "prompt", {})
+        self.assertEqual(self.auth_headers[0]["Authorization"], "Bearer yaml-secret")
+        self.assertNotIn("yaml-secret", json.dumps(self.requests))
+        self.assertNotIn("yaml-secret", json.dumps(self.provider("responses", api_key="yaml-secret").config))
+
+    def test_invalid_config_key_is_rejected_without_echoing_secret(self):
+        with self.assertRaises(ValueError):
+            self.provider("responses", api_key=1234)
+
+    def test_yaml_key_uses_each_protocols_auth_header(self):
+        self.response = {"status":"completed","output":[{"type":"message","content":[{"type":"output_text","text":"{}"}]}],
+                         "choices":[{"message":{"content":"{}"},"finish_reason":"stop"}],
+                         "candidates":[{"content":{"parts":[{"text":"{}"}]},"finishReason":"STOP"}],
+                         "content":[{"type":"text","text":"{}"}],"stop_reason":"end_turn"}
+        for protocol, header, expected in (("responses","Authorization","Bearer yaml-secret"),
+                  ("chat_completions","Authorization","Bearer yaml-secret"),
+                  ("gemini","X-Goog-Api-Key","yaml-secret"),("anthropic","X-Api-Key","yaml-secret")):
+            with self.subTest(protocol=protocol):
+                self.provider(protocol, api_key="yaml-secret").complete({},"prompt",{})
+                headers={k.lower():v for k,v in self.auth_headers[-1].items()}
+                self.assertEqual(headers[header.lower()],expected)
 
     def test_responses_extracts_text_and_rejects_incomplete(self):
         self.response = {"status": "completed", "output": [{"type": "message", "content": [{"type": "output_text", "text": "{}"}]}], "usage": {"input_tokens": 5, "output_tokens": 8}}

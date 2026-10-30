@@ -3,13 +3,11 @@
 import argparse
 from datetime import datetime, timezone
 import json
-import os
 from pathlib import Path
 import sys
 
-import yaml
-
 from .contract import InterviewInput, output_schema
+from .config import load_config
 from .dataset import load_scenarios
 from .providers import ApiProvider, ScriptedProvider
 from .report import write_reports
@@ -22,7 +20,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description="Evaluate interview extraction and updates across API models.")
     commands = parser.add_subparsers(dest="command", required=True)
     serve = commands.add_parser("serve", help="Open the interactive local web lab")
-    serve.add_argument("--config", type=Path, default=ROOT / "providers.example.yaml")
+    serve.add_argument("--config", type=Path, default=ROOT / "providers.local.yaml")
     serve.add_argument("--port", type=int, default=8765)
     for name in ("validate", "demo", "run"):
         command = commands.add_parser(name)
@@ -34,7 +32,7 @@ def main(argv=None):
             command.add_argument("--out", type=Path, default=ROOT / "results" / (name + "-" + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")))
             command.add_argument("--prompt", type=Path, default=PROMPT_PATH)
         if name == "run":
-            command.add_argument("--config", type=Path, required=True)
+            command.add_argument("--config", type=Path, default=ROOT / "providers.local.yaml")
             command.add_argument("--provider", action="append", required=True, help="Configured provider name; repeat to compare")
     schema = commands.add_parser("schema")
     schema.add_argument("--out", type=Path)
@@ -76,7 +74,7 @@ def main(argv=None):
         if args.command == "demo":
             providers = [ScriptedProvider.from_scenarios(cases)]
         else:
-            config = yaml.safe_load(args.config.read_text(encoding="utf-8"))
+            config = load_config(args.config)
             entries = config["providers"]
             if len({p["name"] for p in entries}) != len(entries):
                 raise ValueError("Provider names must be unique")
@@ -84,10 +82,6 @@ def main(argv=None):
             if set(args.provider) - selected.keys():
                 raise ValueError("Unknown provider name")
             providers = [ApiProvider(selected[name]) for name in dict.fromkeys(args.provider)]
-            for provider in providers:
-                key = provider.config.get("api_key_env")
-                if key and not os.environ.get(key):
-                    raise ValueError("Missing environment variable: " + key)
         modes = ["isolated", "chained"] if args.mode == "both" else [args.mode]
         logical_calls = len(providers) * len(modes) * args.repeats * sum(len(c.turns) for c in cases)
         print(f"{len(cases)} scenarios; up to {logical_calls} model calls. Duplicate deliveries are local no-ops.")
@@ -112,6 +106,9 @@ def main(argv=None):
               "Interrupted. Completed turn diagnostics remain in the output turns.jsonl.", file=sys.stderr)
         return 130
     except (ValueError, KeyError, TypeError, OSError) as error:
+        if isinstance(error, FileNotFoundError) and args.command in {"serve", "run"} and error.filename == str(args.config):
+            print("Configuration file not found. Copy providers.example.yaml to providers.local.yaml and fill in api_key for each provider.", file=sys.stderr)
+            return 2
         print(f"Configuration/data error: {error}", file=sys.stderr)
         return 2
 
