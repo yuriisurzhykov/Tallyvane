@@ -1,0 +1,58 @@
+version: 1
+id: metric_then_correction
+description: A numeric correction replaces the single result and preserves the action.
+tags:
+- metric
+- correction
+- multi_turn
+initial_state: ../fixtures/two-companies.yaml
+context:
+  company_id: c1
+  project_id: p1
+  task_id: t1
+  action_id: a1
+turns:
+- input:
+    id: metric_then_correction_m1
+    text: 'Показатель startup_time: запуск сократился с 5 s до 2 s.'
+  expected:
+    changes:
+    - operation: set_result
+      action_id: a1
+      result:
+        status: achieved
+        description: запуск сократился с 5 s до 2 s
+        metrics:
+        - name: startup_time
+          value: 2.0
+          unit: s
+          baseline: 5.0
+          target: null
+          approximate: false
+        lesson: null
+      evidence:
+        message_id: metric_then_correction_m1
+        quote: 'Показатель startup_time: запуск сократился с 5 s до 2 s.'
+    unresolved_references: []
+- input:
+    id: metric_then_correction_m2
+    text: 'Я ошибся. Показатель startup_time: запуск сократился с 5 s до 3 s.'
+  expected:
+    changes:
+    - operation: set_result
+      action_id: a1
+      result:
+        status: achieved
+        description: запуск сократился с 5 s до 3 s
+        metrics:
+        - name: startup_time
+          value: 3.0
+          unit: s
+          baseline: 5.0
+          target: null
+          approximate: false
+        lesson: null
+      evidence:
+        message_id: metric_then_correction_m2
+        quote: 'Я ошибся. Показатель startup_time: запуск сократился с 5 s до 3 s.'
+    unresolved_references: []

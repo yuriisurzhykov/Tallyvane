@@ -1,0 +1,85 @@
+# Copy to providers.local.yaml. Credentials are read from environment variables only.
+# Rates are editable USD estimates per 1M tokens, checked 2026-10-29.
+# They exclude taxes and any provider-specific surcharges. Recheck before a real run.
+providers:
+  - name: groq-oss20
+    protocol: chat_completions
+    base_url: https://api.groq.com/openai/v1
+    model: openai/gpt-oss-20b
+    api_key_env: GROQ_API_KEY
+    response_mode: json_schema
+    max_output_tokens: 8192
+    timeout_seconds: 90
+    parameters: {}
+    prices:
+      input: 0.075
+      output: 0.30
+
+  - name: openai-luna
+    protocol: responses
+    base_url: https://api.openai.com/v1
+    model: gpt-6-luna
+    api_key_env: OPENAI_API_KEY
+    response_mode: json_schema
+    max_output_tokens: 8192
+    parameters:
+      reasoning:
+        effort: none
+    prices:
+      input: 0.10
+      cached_input: 0.01
+      output: 0.50
+
+  - name: gemini-lite
+    protocol: gemini
+    base_url: https://generativelanguage.googleapis.com/v1beta
+    model: gemini-3.5-flash-lite
+    api_key_env: GEMINI_API_KEY
+    response_mode: json_schema
+    max_output_tokens: 8192
+    parameters: {}
+    prices:
+      input: 0.30
+      cached_input: 0.03
+      output: 2.50
+
+  - name: deepseek-flash
+    protocol: chat_completions
+    base_url: https://api.deepseek.com
+    model: deepseek-flash
+    api_key_env: DEEPSEEK_API_KEY
+    response_mode: json
+    token_limit_field: max_tokens
+    max_output_tokens: 8192
+    parameters:
+      thinking:
+        type: disabled
+    # Off-peak only. Change these rates to peak rates for calls during peak hours.
+    prices:
+      input: 0.15
+      cached_input: 0.003
+      output: 0.60
+
+  - name: anthropic-custom
+    protocol: anthropic
+    base_url: https://api.anthropic.com/v1
+    model: REPLACE_WITH_AVAILABLE_MODEL
+    api_key_env: ANTHROPIC_API_KEY
+    response_mode: prompt
+    max_output_tokens: 8192
+    parameters: {}
+    # Unknown pricing produces unknown cost. Set input/output/cached_input/cache_write_input if applicable.
+    prices: {}
+
+  - name: local-compatible
+    protocol: chat_completions
+    base_url: http://127.0.0.1:1234/v1
+    model: REPLACE_WITH_LOCAL_MODEL
+    api_key_env: null
+    response_mode: json
+    token_limit_field: max_tokens
+    max_output_tokens: 8192
+    parameters:
+      temperature: 0
+    # Local compute is not automatically free; enter a measured cost model separately.
+    prices: {}

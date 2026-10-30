@@ -1,0 +1,26 @@
+version: 1
+id: same_task_different_project
+description: An explicitly named project overrides current focus.
+tags:
+- project_scope
+- same_names
+initial_state: ../fixtures/two-companies.yaml
+context:
+  company_id: c1
+  project_id: p1
+  task_id: t1
+  action_id: a1
+turns:
+- input:
+    id: same_task_different_project_m1
+    text: В проекте Portal экран авторизации делал на Java, не Kotlin.
+  expected:
+    changes:
+    - operation: replace_technologies
+      action_id: a3
+      technologies:
+      - Java
+      evidence:
+        message_id: same_task_different_project_m1
+        quote: В проекте Portal экран авторизации делал на Java, не Kotlin.
+    unresolved_references: []

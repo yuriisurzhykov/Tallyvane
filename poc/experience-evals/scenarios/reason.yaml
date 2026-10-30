@@ -1,0 +1,24 @@
+version: 1
+id: reason
+description: Record a stated cause without changing the action.
+tags:
+- reason
+initial_state: ../fixtures/two-companies.yaml
+context:
+  company_id: c1
+  project_id: p1
+  task_id: t1
+  action_id: a1
+turns:
+- input:
+    id: reason_m1
+    text: 'Причина: экран тормозил.'
+  expected:
+    changes:
+    - operation: set_reason
+      action_id: a1
+      reason: экран тормозил
+      evidence:
+        message_id: reason_m1
+        quote: 'Причина: экран тормозил.'
+    unresolved_references: []

@@ -1,0 +1,37 @@
+name: Experience evaluation bench
+
+on:
+  pull_request:
+    paths:
+      - 'poc/experience-evals/**'
+      - '.github/workflows/experience-evals.yml'
+  push:
+    branches: [master]
+    paths:
+      - 'poc/experience-evals/**'
+      - '.github/workflows/experience-evals.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.12']
+    defaults:
+      run:
+        working-directory: poc/experience-evals
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: poc/experience-evals/requirements.txt
+      - run: python -m pip install -r requirements.txt
+      - run: python -m unittest discover -s tests
+      - run: python -m experience_evals validate
+      - run: python -m experience_evals demo --repeats 2 --out results/ci-demo
