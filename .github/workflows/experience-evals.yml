@@ -33,5 +33,6 @@ jobs:
           cache-dependency-path: poc/experience-evals/requirements.txt
       - run: python -m pip install -r requirements.txt
       - run: python -m unittest discover -s tests
+      - run: node --test tests/test_pending.cjs
       - run: python -m experience_evals validate
       - run: python -m experience_evals demo --repeats 2 --out results/ci-demo

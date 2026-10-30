@@ -55,7 +55,8 @@ class NoRedirect(HTTPRedirectHandler):
 class ApiProvider:
     execution = "live"
 
-    def __init__(self, config):
+    def __init__(self, config, *, api_key=None):
+        self._api_key = api_key
         self.config = dict(config)
         self.name = self.config["name"]
         self.protocol = self.config["protocol"]
@@ -122,7 +123,7 @@ class ApiProvider:
 
     def complete(self, payload, prompt, schema):
         key_name = self.config.get("api_key_env")
-        key = os.environ.get(key_name) if key_name else None
+        key = self._api_key or (os.environ.get(key_name) if key_name else None)
         if key_name and not key:
             raise ProviderError("Missing environment variable: " + key_name)
         path, body = self._request(payload, prompt, schema)

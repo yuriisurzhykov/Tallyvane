@@ -21,6 +21,9 @@ ROOT = Path(__file__).resolve().parents[1]
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Evaluate interview extraction and updates across API models.")
     commands = parser.add_subparsers(dest="command", required=True)
+    serve = commands.add_parser("serve", help="Open the interactive local web lab")
+    serve.add_argument("--config", type=Path, default=ROOT / "providers.example.yaml")
+    serve.add_argument("--port", type=int, default=8765)
     for name in ("validate", "demo", "run"):
         command = commands.add_parser(name)
         command.add_argument("--scenarios", type=Path, default=ROOT / "scenarios")
@@ -41,6 +44,10 @@ def main(argv=None):
     report.add_argument("--out", type=Path, required=True)
     args = parser.parse_args(argv)
     try:
+        if args.command == "serve":
+            from .web import serve as serve_lab
+            serve_lab(args.config, args.port)
+            return 0
         if args.command == "schema":
             value = InterviewInput.model_json_schema() if args.kind == "input" else output_schema()
             text = json.dumps(value, ensure_ascii=False, indent=2) + "\n"
@@ -101,7 +108,8 @@ def main(argv=None):
                 print(f"Dialogs passed: {last['dialogues_passed']}/{last['dialogues_total']}; report: {args.out / 'report.html'}", flush=True)
         return 0 if all(row["passed"] for run in runs for row in run["turns"]) else 1
     except KeyboardInterrupt:
-        print("Interrupted. Completed turn diagnostics remain in the output turns.jsonl.", file=sys.stderr)
+        print("Local lab stopped. In-memory sessions have been discarded." if args.command == "serve" else
+              "Interrupted. Completed turn diagnostics remain in the output turns.jsonl.", file=sys.stderr)
         return 130
     except (ValueError, KeyError, TypeError, OSError) as error:
         print(f"Configuration/data error: {error}", file=sys.stderr)

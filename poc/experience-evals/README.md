@@ -4,6 +4,8 @@ Compare API models on a work-history interview that grows and changes over time.
 
 This is a standalone Python bench, outside the Kotlin backend and its Gradle build. It evaluates the new contract discussed for Tallyvane, not the existing `poc/knowledge-core` implementation: that PoC has no task level and supports many-to-many action/outcome links. No production data or personal work-history document is included.
 
+For the interactive browser interface, see [Interactive web lab](#interactive-web-lab). Run `python -m experience_evals serve` and open http://127.0.0.1:8765.
+
 ## Start without an API key
 
 Requires Python 3.11 or newer. From the repository root:
@@ -123,3 +125,39 @@ Protocol/pricing references checked on 2026-10-29:
 - [Gemini pricing](https://ai.google.dev/gemini-api/docs/pricing)
 - [DeepSeek JSON output](https://api-docs.deepseek.com/guides/json_mode/)
 - [DeepSeek rates](https://api-docs.deepseek.com/quick_start/pricing/)
+# Interactive web lab
+
+Run the interactive interface from this directory:
+
+```bash
+python -m pip install -r requirements.txt
+python -m experience_evals serve
+```
+
+Open **http://127.0.0.1:8765** in your browser. No Node install or frontend build is required. Change the port with `--port 9000` if needed.
+
+The interface opens a guided five-turn demo: create an action, add a technology, state a result, correct the technologies, and retract the result. The demo replays **scripted expected answers**, not an LLM. Choose any of the 27 scenarios and click **Начать новую сессию** to try another. Offline input is intentionally limited to the exact next example.
+
+For arbitrary messages, select an API provider. Use its environment variable or enter a key in the password field. The password is held only in the page and transient request memory; it is not added to session exports or browser storage. It is sent to the loopback server and selected API over the adapter. Provider diagnostics are redacted. Ordinary text deliberately typed in the interview remains immutable user data.
+
+To customize endpoints, model parameters, output modes or prices:
+
+```bash
+cp providers.example.yaml providers.local.yaml
+# Edit providers.local.yaml and set the API key environment variables.
+python -m experience_evals serve --config providers.local.yaml
+```
+
+The model ID can also be edited in the UI. If it differs from the configured model, cost is unknown until you add its prices in the config. Configuration defaults are examples; availability and native schema support must be checked against your account.
+
+In the browser you can:
+
+- Write new experience, additions and corrections in **Диалог**. One submit makes one API call; there is no automatic retry or hidden interview assistant call.
+- Inspect the clickable company → project → task → action → singular result graph. Technologies, reasons, approaches, deadlines, requirements and metrics are in node details. Selecting a node sets its ancestor context for the next live message. Clear it with the context button.
+- Select a processed message and inspect the logical request, system prompt, output schema, raw API response, validation errors, token usage, estimated cost, and exact field changes. **Состояние БД** shows the latest in-memory state; each step also exposes its historical state.
+- Fork the current session with **Скопировать текущее состояние**, switch model and compare the same next message against the original session. Forks are independent; API failures retain the raw message and leave the graph unchanged.
+- Export the complete session as JSON. Sessions survive a page reload while the server is running; pending request IDs survive transport failures to avoid duplicate paid calls. Retrying a known failed API response is a new explicit call.
+
+This is a **local development lab**, not hosted production infrastructure. It binds only to IPv4 loopback, rejects external Host/Origin headers, and checks a per-process token on POST requests. Do not expose it through a tunnel or reverse proxy. Sessions are in server memory, with a 100-session cap; export before restarting. No database, embedding computation, vector-similarity visualization, login or import of exported sessions is implemented here. The graph represents domain relationships, not vector proximity.
+
+Checks: `python -m unittest discover -s tests` and `node --test tests/test_pending.cjs` (Node is needed only for this frontend helper test). Browser rendering is not verified in the managed preview environment because its runtime has no Python executable.

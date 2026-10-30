@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Tallyvane · Experience Lab</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/pending.js" defer></script>
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="Tallyvane"><span class="brand-icon">t<span>↗</span></span>Tallyvane<span class="brand-divider">/</span><span class="brand-sub">Experience Lab</span></a>
+    <div class="top-actions"><span class="local-badge"><i></i> Локальный стенд</span><button id="export" class="quiet">↓ Экспорт JSON</button></div>
+  </header>
+  <div class="workspace">
+    <aside class="sidebar">
+      <div class="section-label">01 / ПОДКЛЮЧЕНИЕ</div>
+      <label for="provider">API-провайдер</label><select id="provider"></select>
+      <label for="model">Модель</label><input id="model" placeholder="Model ID" autocomplete="off">
+      <p id="provider-note" class="hint"></p>
+      <div id="key-wrap"><label for="key">API key <span class="optional">необязательно</span></label><input id="key" type="password" autocomplete="off" placeholder="Ключ из env или вставьте сюда"><p class="hint">Ключ из поля передаётся только локальному серверу и выбранному API. Не сохраняется в сессии.</p></div>
+      <div class="sidebar-rule"></div>
+      <div class="section-label">02 / ЭКСПЕРИМЕНТ</div>
+      <label for="scenario">Начальные данные</label><select id="scenario"><option value="">Пустая история</option></select>
+      <p id="scenario-note" class="hint"></p>
+      <button id="new-session" class="secondary full">＋ Начать новую сессию</button>
+      <button id="fork" class="quiet full">⑂ Скопировать текущее состояние</button>
+      <p class="hint">Копия позволяет проверить другую модель на тех же данных.</p>
+      <label for="sessions">Открытые сессии</label><select id="sessions"></select>
+      <div class="sidebar-bottom"><span class="tiny-dot"></span><div><strong>Всё видно на каждом шаге</strong><p>Сообщение → ответ API → проверка → изменения данных.</p></div></div>
+    </aside>
+    <main>
+      <div class="page-heading"><div><div class="eyebrow">WORK HISTORY / PLAYGROUND</div><h1>От рассказа к структуре.</h1><p>Добавляйте детали, исправляйте факты и наблюдайте за связями.</p></div><div id="revision" class="revision">Ревизия 0</div></div>
+      <div id="notice" class="notice" role="status" hidden></div>
+      <div class="lab-grid">
+        <section class="chat-panel panel">
+          <div class="panel-heading"><div><h2>Диалог</h2><span class="small muted">Ваши сообщения и результат обработки</span></div><span id="mode-badge" class="pill amber">Демо</span></div>
+          <div id="chat" class="chat" aria-live="polite"></div>
+          <div class="composer-wrap">
+            <div class="context-line"><span>Контекст:</span><button id="context-clear" title="Сбросить выбранный контекст">вся история</button></div>
+            <div id="demo-hint" class="demo-hint">Демо воспроизводит готовый сценарий. Для своего текста выберите API.</div>
+            <form id="composer"><label class="sr-only" for="message">Сообщение об опыте</label><textarea id="message" rows="4" placeholder="Работал в Helix. На проекте Panel реализовал авторизацию на Kotlin…"></textarea><div class="composer-bottom"><span id="composer-note" class="small muted">Ctrl / ⌘ + Enter</span><button id="send" class="primary" type="submit">Отправить <span>↗</span></button></div></form>
+          </div>
+        </section>
+        <section class="graph-panel panel">
+          <div class="panel-heading"><div><h2>Граф опыта <span id="node-count" class="count">0</span></h2><span class="small muted">Нажмите на узел, чтобы увидеть данные и задать контекст</span></div><div class="zoom-controls"><button id="zoom-out" aria-label="Уменьшить">−</button><button id="zoom-fit">Вписать</button><button id="zoom-in" aria-label="Увеличить">＋</button></div></div>
+          <div class="legend"><span><i class="company"></i>Компания</span><span><i class="project"></i>Проект</span><span><i class="task"></i>Задача</span><span><i class="action"></i>Действие</span><span><i class="result"></i>Результат</span><span class="changed-key">● Изменилось</span></div>
+          <div id="graph-stage" class="graph-stage"><div id="graph-empty" class="graph-empty"><div class="empty-symbol">⌘</div><h3>Здесь появится ваш опыт</h3><p>Отправьте первое сообщение.<br>Компании, проекты и действия станут узлами графа.</p></div><svg id="graph" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Граф профессионального опыта"></svg></div>
+          <div id="entity" class="entity"><div class="entity-placeholder">Выберите узел графа. Здесь будут его ID, поля и исходные цитаты.</div></div>
+        </section>
+      </div>
+      <section class="inspector panel">
+        <div class="inspector-head"><div class="tabs" role="tablist" aria-label="Диагностика"><button role="tab" aria-selected="true" data-tab="changes">Изменения <span id="diff-count" class="count">0</span></button><button role="tab" aria-selected="false" data-tab="request">Запрос</button><button role="tab" aria-selected="false" data-tab="response">Ответ API</button><button role="tab" aria-selected="false" data-tab="state">Состояние БД</button></div><span id="step-label" class="small muted">Выберите шаг диалога</span></div>
+        <div id="diagnostics" class="diagnostics" role="tabpanel"></div>
+      </section>
+      <footer>Доменный граф показывает связи записей. Embeddings и векторный поиск в этом стенде пока не рассчитываются. <span>Сессии хранятся в памяти до остановки сервера.</span></footer>
+    </main>
+  </div>
+</body>
+</html>
