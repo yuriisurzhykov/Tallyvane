@@ -1,0 +1,43 @@
+version: 1
+id: multi_operation
+description: One message corrects one action and adds a separate action.
+tags:
+- multi_operation
+- correction
+- create_action
+initial_state: ../fixtures/two-companies.yaml
+context:
+  company_id: c1
+  project_id: p1
+  task_id: t1
+  action_id: a1
+turns:
+- input:
+    id: multi_operation_m1
+    text: Авторизацию делал на Java, не Kotlin. Ещё Добавил кеширование на Room.
+  expected:
+    changes:
+    - operation: replace_technologies
+      action_id: a1
+      technologies:
+      - Java
+      evidence:
+        message_id: multi_operation_m1
+        quote: Авторизацию делал на Java, не Kotlin. Ещё Добавил кеширование на Room.
+    - operation: create_action
+      ref: $cache
+      task_id: t1
+      description: Добавил кеширование
+      reason: null
+      technologies:
+      - Room
+      approaches: []
+      result:
+        status: not_stated
+        description: null
+        metrics: []
+        lesson: null
+      evidence:
+        message_id: multi_operation_m1
+        quote: Авторизацию делал на Java, не Kotlin. Ещё Добавил кеширование на Room.
+    unresolved_references: []

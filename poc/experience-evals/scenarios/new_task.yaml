@@ -1,0 +1,32 @@
+version: 1
+id: new_task
+description: Add a task to an existing project without moving existing actions.
+tags:
+- create_task
+- preservation
+initial_state: ../fixtures/two-companies.yaml
+context:
+  company_id: c1
+  project_id: p1
+  task_id: t1
+  action_id: a1
+turns:
+- input:
+    id: new_task_m1
+    text: В проекте Panel появилась задача Сеть.
+  expected:
+    changes:
+    - operation: create_task
+      ref: $network
+      project_id: p1
+      title: Сеть
+      requirements: []
+      deadline:
+        due_at: null
+        completed_at: null
+        status: not_stated
+        reaction: null
+      evidence:
+        message_id: new_task_m1
+        quote: В проекте Panel появилась задача Сеть.
+    unresolved_references: []

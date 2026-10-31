@@ -1,0 +1,29 @@
+version: 1
+id: missed_deadline
+description: Keep the due date, actual date and stakeholder reaction.
+tags:
+- deadline
+- reaction
+initial_state: ../fixtures/two-companies.yaml
+context:
+  company_id: c1
+  project_id: p1
+  task_id: t1
+  action_id: a1
+turns:
+- input:
+    id: missed_deadline_m1
+    text: 'Срок задачи Login в Panel был 2026-10-01, завершил 2026-10-03. Реакция: приняли перенос.'
+  expected:
+    changes:
+    - operation: set_deadline
+      task_id: t1
+      deadline:
+        due_at: '2026-10-01'
+        completed_at: '2026-10-03'
+        status: missed
+        reaction: приняли перенос
+      evidence:
+        message_id: missed_deadline_m1
+        quote: 'Срок задачи Login в Panel был 2026-10-01, завершил 2026-10-03. Реакция: приняли перенос.'
+    unresolved_references: []

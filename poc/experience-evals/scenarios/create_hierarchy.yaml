@@ -1,0 +1,152 @@
+version: 1
+id: create_hierarchy
+description: Create multiple nested companies/projects/tasks/actions with application IDs.
+tags:
+- hierarchy
+- create_company
+- create_project
+- create_task
+- create_action
+initial_state: {}
+context: {}
+turns:
+- input:
+    id: create_hierarchy_m1
+    text: 'Работал в Helix: проект Panel, задача Авторизация. Реализовал экран на Kotlin. Добавил тесты на Kotlin. Там же проект Portal, задача Поиск. Реализовал поиск на Java. Ещё работал в Delta: проект Mobile, задача Камера. Реализовал preview на Camera2.'
+  expected:
+    changes:
+    - operation: create_company
+      ref: $helix
+      name: Helix
+      evidence:
+        message_id: create_hierarchy_m1
+        quote: Работал в Helix
+    - operation: create_project
+      ref: $panel
+      company_id: $helix
+      name: Panel
+      requirements: []
+      responsibility: null
+      evidence:
+        message_id: create_hierarchy_m1
+        quote: проект Panel
+    - operation: create_task
+      ref: $login
+      project_id: $panel
+      title: Авторизация
+      requirements: []
+      deadline: &id001
+        due_at: null
+        completed_at: null
+        status: not_stated
+        reaction: null
+      evidence:
+        message_id: create_hierarchy_m1
+        quote: задача Авторизация
+    - operation: create_action
+      ref: $screen
+      task_id: $login
+      description: Реализовал экран
+      reason: null
+      technologies:
+      - Kotlin
+      approaches: []
+      result:
+        status: not_stated
+        description: null
+        metrics: []
+        lesson: null
+      evidence:
+        message_id: create_hierarchy_m1
+        quote: Реализовал экран на Kotlin
+    - operation: create_action
+      ref: $tests
+      task_id: $login
+      description: Добавил тесты
+      reason: null
+      technologies:
+      - Kotlin
+      approaches: []
+      result:
+        status: not_stated
+        description: null
+        metrics: []
+        lesson: null
+      evidence:
+        message_id: create_hierarchy_m1
+        quote: Добавил тесты на Kotlin
+    - operation: create_project
+      ref: $portal
+      company_id: $helix
+      name: Portal
+      requirements: []
+      responsibility: null
+      evidence:
+        message_id: create_hierarchy_m1
+        quote: проект Portal
+    - operation: create_task
+      ref: $search
+      project_id: $portal
+      title: Поиск
+      requirements: []
+      deadline: *id001
+      evidence:
+        message_id: create_hierarchy_m1
+        quote: задача Поиск
+    - operation: create_action
+      ref: $searchAction
+      task_id: $search
+      description: Реализовал поиск
+      reason: null
+      technologies:
+      - Java
+      approaches: []
+      result:
+        status: not_stated
+        description: null
+        metrics: []
+        lesson: null
+      evidence:
+        message_id: create_hierarchy_m1
+        quote: Реализовал поиск на Java
+    - operation: create_company
+      ref: $delta
+      name: Delta
+      evidence:
+        message_id: create_hierarchy_m1
+        quote: работал в Delta
+    - operation: create_project
+      ref: $mobile
+      company_id: $delta
+      name: Mobile
+      requirements: []
+      responsibility: null
+      evidence:
+        message_id: create_hierarchy_m1
+        quote: проект Mobile
+    - operation: create_task
+      ref: $camera
+      project_id: $mobile
+      title: Камера
+      requirements: []
+      deadline: *id001
+      evidence:
+        message_id: create_hierarchy_m1
+        quote: задача Камера
+    - operation: create_action
+      ref: $preview
+      task_id: $camera
+      description: Реализовал preview
+      reason: null
+      technologies:
+      - Camera2
+      approaches: []
+      result:
+        status: not_stated
+        description: null
+        metrics: []
+        lesson: null
+      evidence:
+        message_id: create_hierarchy_m1
+        quote: Реализовал preview на Camera2
+    unresolved_references: []
