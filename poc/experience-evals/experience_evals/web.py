@@ -196,6 +196,7 @@ class Lab:
             proposal = parse_proposal(reply.text)
             event["proposal"] = proposal.model_dump()
             s["state"] = apply_proposal(s["state"], proposal, message)
+            event["applied_proposal"] = s["state"]["history"][-1]["proposal"]
             event["status"] = "applied"
             if demo:
                 s["step"] += 1

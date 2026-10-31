@@ -1,0 +1,46 @@
+version: 1
+id: caching_term_normalization
+description: Normalize source-supported Caching as an approach without inventing an
+  implementation.
+tags:
+- normalization
+- approaches
+- result
+- regression
+initial_state: ../fixtures/two-companies.yaml
+context:
+  company_id: c1
+  project_id: p1
+  task_id: t1
+  action_id: a1
+turns:
+- input:
+    id: caching_term_m1
+    text: Я добавил кеширование, и у экрана уменьшилось время открытия практически
+      в 2 раза
+  expected:
+    changes:
+    - operation: add_technologies
+      action_id: a1
+      technologies:
+      - Caching
+      evidence: &id001
+        message_id: caching_term_m1
+        quote: Я добавил кеширование, и у экрана уменьшилось время открытия практически
+          в 2 раза
+    - operation: set_result
+      action_id: a1
+      result:
+        status: achieved
+        description: Я добавил кеширование, и у экрана уменьшилось время открытия
+          практически в 2 раза
+        metrics:
+        - name: speedup
+          value: 2
+          unit: x
+          baseline: null
+          target: null
+          approximate: true
+        lesson: null
+      evidence: *id001
+    unresolved_references: []

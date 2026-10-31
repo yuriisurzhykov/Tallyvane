@@ -138,7 +138,7 @@ python -m experience_evals serve
 
 Open **http://127.0.0.1:8765** in your browser. No Node install or frontend build is required. Change the port with `--port 9000` if needed.
 
-The interface opens a guided five-turn demo: create an action, add a technology, state a result, correct the technologies, and retract the result. The demo replays **scripted expected answers**, not an LLM. Choose any of the 28 scenarios and click **Начать новую сессию** to try another. Offline input is intentionally limited to the exact next example.
+The interface opens a guided five-turn demo: create an action, add a technology, state a result, correct the technologies, and retract the result. The demo replays **scripted expected answers**, not an LLM. Choose any of the 29 scenarios and click **Начать новую сессию** to try another. Offline input is intentionally limited to the exact next example.
 
 For arbitrary messages, select an API provider and put its key in `providers.local.yaml`. Each provider has an `api_key` field. Keys are loaded at server startup; restart after editing the file. The browser receives only whether a key is configured, never the credential. Keys are not included in model payloads, session exports or reports. Provider diagnostics are redacted. Ordinary text deliberately typed in the interview remains immutable user data.
 
@@ -183,3 +183,7 @@ All adapters send a truthful `Tallyvane-Experience-Lab/0.1` User-Agent. Calls sh
 There are no automatic retries, redirects, browser impersonation or credential rotation. HTTP 401/403 stops further requests with that origin/credential until the process restarts or the credential changes. Check provider access before restarting. HTTP 429 pauses requests for `Retry-After` (seconds or HTTP-date); if absent/invalid, the pause is 60 seconds. Submissions during a pause return a local error without an API request. These guards coordinate one running process; separately started processes do not share them.
 
 The chat displays a short HTTP error. The redacted error body and provider request ID remain in the response diagnostics for troubleshooting. The reported Cloudflare 1010 refusal is covered by a simulated HTTP regression test; unblocking the real Groq endpoint has not been verified without a live credential.
+
+## Source-supported technique normalization
+
+Explicit Caching/кеширование/кэширование aliases are mapped to the source spelling and stored as approaches, including misclassified additive technology operations and new actions. Concrete products remain source-validated; no implementation is inferred. Technology replacement by a technique is rejected rather than clearing the stack. Other translated tags still need verbatim support or an explicit normalization rule. History retains the original proposal when normalization changes operations; the interface exposes the applied proposal separately. Provider reasoning is diagnostic only; only message.content is parsed.

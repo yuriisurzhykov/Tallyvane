@@ -132,6 +132,38 @@ def unique(values):
     return result
 
 
+def normalize_tag_changes(changes):
+    """Normalize only explicit, source-supported caching aliases; never infer a product."""
+    output = []
+    for original in changes:
+        change = copy.deepcopy(original)
+        quote = change["evidence"]["quote"]
+        match = re.search(r"\b(?:к[еэ]ширование|caching)\b", quote, re.IGNORECASE)
+
+        def caching(value):
+            return match is not None and value.casefold().strip() in {"caching", "кеширование", "кэширование"}
+
+        op = change["operation"]
+        if op in {"create_action", "add_technologies", "replace_technologies"}:
+            methods = [match.group() for value in change["technologies"] if caching(value)]
+            if methods:
+                if op == "replace_technologies":
+                    raise StateError("Caching is an approach; it cannot replace a concrete technology. Use add_approaches.")
+                change["technologies"] = [value for value in change["technologies"] if not caching(value)]
+                if op == "create_action":
+                    change["approaches"] += methods
+                else:
+                    if change["technologies"]:
+                        output.append(change)
+                    output.append({"operation":"add_approaches", "action_id":change["action_id"],
+                                   "approaches":unique(methods), "evidence":change["evidence"]})
+                    continue
+        if "approaches" in change:
+            change["approaches"] = unique([match.group() if caching(value) else value for value in change["approaches"]])
+        output.append(change)
+    return output
+
+
 def apply_proposal(state, proposal, message, id_factory=None):
     proposal = proposal if isinstance(proposal, Proposal) else Proposal.model_validate(proposal)
     if state["messages"].get(message["id"]) != message:
@@ -145,7 +177,8 @@ def apply_proposal(state, proposal, message, id_factory=None):
     id_factory = id_factory or (lambda: str(uuid.uuid4()))
     aliases = {}
     all_ids = {key for table in TABLES for key in state[table]}
-    changes = [c.model_dump() for c in proposal.changes]
+    original_proposal = proposal.model_dump()
+    changes = normalize_tag_changes(original_proposal["changes"])
     for change in changes:
         if change["operation"].startswith("create_"):
             ref = change["ref"]
@@ -231,6 +264,10 @@ def apply_proposal(state, proposal, message, id_factory=None):
     validate_state(working)
     working["revision"] += 1
     working["processed"][message["id"]] = working["revision"]
-    working["history"].append({"revision": working["revision"], "message_id": message["id"],
-                               "proposal": proposal.model_dump(), "allocated_ids": aliases})
+    applied = {**original_proposal, "changes": changes}
+    history = {"revision": working["revision"], "message_id": message["id"],
+               "proposal": applied, "allocated_ids": aliases}
+    if applied != original_proposal:
+        history["original_proposal"] = original_proposal
+    working["history"].append(history)
     return working

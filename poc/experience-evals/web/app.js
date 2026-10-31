@@ -263,6 +263,8 @@ function renderDiagnostics() {
       table.append(body); host.append(table);
     }
     if (event.proposal) host.append(disclosure('Предложенные операции и цитаты',event.proposal));
+    if (event.applied_proposal && JSON.stringify(event.applied_proposal)!==JSON.stringify(event.proposal))
+      host.append(disclosure('Применённые операции после нормализации терминов',event.applied_proposal));
     host.append(disclosure('Состояние сразу после этого шага',event.state_after));
   }
 }
