@@ -34,7 +34,8 @@ platform:
   # storage and no HTTP: persistence implements the ports, http speaks the header.
   idempotency:   { depends: [platform:kernel] }
   outbox:        { depends: [platform:kernel, platform:persistence] }
-  llm:           { depends: [platform:kernel] }
+  # persistence: the memo and the spending ledger are kept in Postgres, in transactions of their own.
+  llm:           { depends: [platform:kernel, platform:persistence] }
   storage:       { depends: [platform:kernel] }
   exec:          { depends: [platform:kernel] }
   observability: { depends: [platform:kernel] }
@@ -72,6 +73,13 @@ modules:
   sessions:
     layers: [domain, application, infrastructure, web]
     reads: [authentication, identity, journal]
+    publishes: []
+
+  # The curated list of skills and roles, the same for every account (docs/backend/08-product-core.md). It
+  # ships as a file with the release, so it has no domain of its own, no storage and no routes.
+  catalog:
+    layers: [contract, application, infrastructure]
+    reads: []
     publishes: []
 
 # Modules that are designed but not yet created. Listed here so the intended
