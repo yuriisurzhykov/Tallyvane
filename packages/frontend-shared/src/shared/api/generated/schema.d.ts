@@ -984,10 +984,140 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/model-providers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The model providers, the one in use, and the last 30 days of cost
+         * @description Served on the administrators' site only (`404` elsewhere); `403` for anyone who is not an administrator.
+         *     Answers with the whole screen as it is after the change. Never cached.
+         */
+        get: operations["showModelProviders"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/model-provider/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Add a model provider, or change one
+         * @description Served on the administrators' site only (`404` elsewhere); `403` for anyone who is not an administrator.
+         *     Answers with the whole screen as it is after the change. Never cached.
+         */
+        put: operations["saveModelProvider"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/model-provider-removal/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove a model provider and its key
+         * @description Served on the administrators' site only (`404` elsewhere); `403` for anyone who is not an administrator.
+         *     Answers with the whole screen as it is after the change. Never cached.
+         */
+        delete: operations["removeModelProvider"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/active-model-provider": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Choose the provider every model call goes to from now on
+         * @description Served on the administrators' site only (`404` elsewhere); `403` for anyone who is not an administrator.
+         *     Answers with the whole screen as it is after the change. Never cached.
+         */
+        put: operations["chooseModelProvider"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        ModelProviders: {
+            providers: components["schemas"]["ModelProvider"][];
+            costs: components["schemas"]["ModelCost"][];
+        };
+        ModelProvider: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** @enum {string} */
+            kind: "anthropic" | "openai_compatible";
+            baseUrl?: string | null;
+            /** @description The key's last characters, like …a1b2. The key itself is never sent back. */
+            keyHint: string;
+            /** @description The model for fast calls, like gpt-5-mini. */
+            fast: string;
+            careful: string;
+            /** @description US dollars per million input tokens. */
+            priceIn: number;
+            /** @description US dollars per million output tokens. */
+            priceOut: number;
+            active: boolean;
+        };
+        ModelProviderSent: {
+            name: string;
+            /** @enum {string} */
+            kind: "anthropic" | "openai_compatible";
+            /** @description Required for openai_compatible, like https://openrouter.ai/api/v1. */
+            baseUrl?: string | null;
+            /** @description Required for a new provider; absent or empty keeps the key kept. */
+            key?: string | null;
+            fast: string;
+            careful: string;
+            priceIn: number;
+            priceOut: number;
+        };
+        ModelCost: {
+            provider: string;
+            model: string;
+            spec: string;
+            calls: number;
+            /** @description Calls answered from the memo, for nothing. */
+            remembered: number;
+            tokensIn: number;
+            tokensOut: number;
+            dollars: number;
+        };
         Telling: {
             /** @description What the person said, as typed or transcribed. */
             words: string;
@@ -2490,6 +2620,110 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Resume"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    showModelProviders: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The providers (keys never shown, only their last characters) and the cost by provider, model and spec. */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelProviders"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    saveModelProvider: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Chosen by the client for a new provider, so a repeat is harmless. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ModelProviderSent"];
+            };
+        };
+        responses: {
+            /** @description The screen after saving. `400` names what is wrong; `409` when another provider has the name. */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelProviders"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    removeModelProvider: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The screen after removing. `404` when there is no such provider. Its calls stay in the cost table. */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelProviders"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    chooseModelProvider: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    id: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The screen after choosing. `404` when there is no such provider. */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelProviders"];
                 };
             };
             default: components["responses"]["Problem"];

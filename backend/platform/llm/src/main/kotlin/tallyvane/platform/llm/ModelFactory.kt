@@ -1,36 +1,26 @@
 package tallyvane.platform.llm
 
-import com.anthropic.client.okhttp.AnthropicOkHttpClient
 import tallyvane.platform.kernel.Clock
-import tallyvane.platform.kernel.Secret
 import tallyvane.platform.kernel.TransactionRunner
 
 /**
- * Hands out the model every module asks, built once by the composition root.
+ * The model for the composition root: the provider an administrator chose, remembered and recorded, within a
+ * daily budget per person. [bookkeeping] is a runner of its own, outside any request's transaction.
  */
 public class ModelFactory {
-    /**
-     * The model, behind its memo and its budget: memo first, then the budget, then the provider. Without a
-     * [key] the installation runs with [Model.Absent], and the memo still answers what it already knows.
-     */
-    public fun model(
-        key: Secret?,
-        names: ModelNames,
-        tokensADay: Long,
-        transactions: TransactionRunner,
-        clock: Clock,
-    ): Model {
-        val provider = if (key == null) {
-            Model.Absent()
-        } else {
-            AnthropicModel(AnthropicOkHttpClient.builder().apiKey(key.revealed()).build(), names)
-        }
-        return RememberingModel(
-            BudgetedModel(provider, PostgresSpending(transactions), clock, tokensADay),
-            PostgresMemo(transactions),
-            names,
+    public fun model(records: ProviderRecords, tokensADay: Long, bookkeeping: TransactionRunner, clock: Clock): Model =
+        BudgetedModel(
+            RoutedModel(
+                PostgresProviders(records, bookkeeping),
+                ClientSpeakers(),
+                PostgresMemo(bookkeeping),
+                PostgresCallLog(bookkeeping),
+                clock,
+            ),
+            PostgresSpending(bookkeeping),
+            clock,
+            tokensADay,
         )
-    }
 
     override fun toString(): String = "ModelFactory"
 }

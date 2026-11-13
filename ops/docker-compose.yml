@@ -46,10 +46,7 @@ x-server: &server-defaults
     TALLYVANE_DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
     TALLYVANE_HEALTH_TOKEN: ${TALLYVANE_HEALTH_TOKEN:?TALLYVANE_HEALTH_TOKEN must be set}
     TALLYVANE_LOG_LEVEL: ${TALLYVANE_LOG_LEVEL:-INFO}
-    # The model. No key: the product runs, words are kept, and reading them waits for a key.
-    ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-    TALLYVANE_MODEL_FAST: ${TALLYVANE_MODEL_FAST:-claude-haiku-5-5}
-    TALLYVANE_MODEL_CAREFUL: ${TALLYVANE_MODEL_CAREFUL:-claude-sonnet-5-5}
+    # Model providers, keys and models are chosen in Admin, Models; only the daily allowance is set here.
     TALLYVANE_MODEL_TOKENS_A_DAY: ${TALLYVANE_MODEL_TOKENS_A_DAY:-200000}
     # Signing in (ADR-080, 3a/3b). The API answers on the console's own origin (nginx routes
     # `/api/` there), so one address serves as both: it is what the browser's Origin header

@@ -64,6 +64,8 @@ tags:
 
   - name: stories
     description: The person's own words about their work, and the facts that quote them (docs/backend/08-product-core.md).
+  - name: models
+    description: The model providers an administrator chooses between, and what calls to them cost.
   - name: career
     description: The goal, the one next step, the route and the résumé, chosen by rules from the stories (0 tokens).
 paths:
@@ -1316,6 +1318,124 @@ paths:
         default:
           $ref: "#/components/responses/Problem"
 
+  /model-providers:
+    get:
+      tags: [models]
+      operationId: showModelProviders
+      summary: The model providers, the one in use, and the last 30 days of cost
+      description: |
+        Served on the administrators' site only (`404` elsewhere); `403` for anyone who is not an administrator.
+        Answers with the whole screen as it is after the change. Never cached.
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: The providers (keys never shown, only their last characters) and the cost by provider, model and spec.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModelProviders"
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /model-provider/{id}:
+    put:
+      tags: [models]
+      operationId: saveModelProvider
+      summary: Add a model provider, or change one
+      description: |
+        Served on the administrators' site only (`404` elsewhere); `403` for anyone who is not an administrator.
+        Answers with the whole screen as it is after the change. Never cached.
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+          description: Chosen by the client for a new provider, so a repeat is harmless.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ModelProviderSent"
+      responses:
+        "200":
+          description: The screen after saving. `400` names what is wrong; `409` when another provider has the name.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModelProviders"
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /model-provider-removal/{id}:
+    delete:
+      tags: [models]
+      operationId: removeModelProvider
+      summary: Remove a model provider and its key
+      description: |
+        Served on the administrators' site only (`404` elsewhere); `403` for anyone who is not an administrator.
+        Answers with the whole screen as it is after the change. Never cached.
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        "200":
+          description: The screen after removing. `404` when there is no such provider. Its calls stay in the cost table.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModelProviders"
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /active-model-provider:
+    put:
+      tags: [models]
+      operationId: chooseModelProvider
+      summary: Choose the provider every model call goes to from now on
+      description: |
+        Served on the administrators' site only (`404` elsewhere); `403` for anyone who is not an administrator.
+        Answers with the whole screen as it is after the change. Never cached.
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id]
+              properties:
+                id: {type: string, format: uuid}
+      responses:
+        "200":
+          description: The screen after choosing. `404` when there is no such provider.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModelProviders"
+        default:
+          $ref: "#/components/responses/Problem"
+
 components:
   securitySchemes:
     attemptCookie:
@@ -1405,6 +1525,50 @@ components:
             $ref: "#/components/schemas/Problem"
 
   schemas:
+    ModelProviders:
+      type: object
+      required: [providers, costs]
+      properties:
+        providers: {type: array, items: {$ref: "#/components/schemas/ModelProvider"}}
+        costs: {type: array, items: {$ref: "#/components/schemas/ModelCost"}}
+    ModelProvider:
+      type: object
+      required: [id, name, kind, keyHint, fast, careful, priceIn, priceOut, active]
+      properties:
+        id: {type: string, format: uuid}
+        name: {type: string}
+        kind: {type: string, enum: [anthropic, openai_compatible]}
+        baseUrl: {type: [string, "null"]}
+        keyHint: {type: string, description: "The key's last characters, like …a1b2. The key itself is never sent back."}
+        fast: {type: string, description: "The model for fast calls, like gpt-5-mini."}
+        careful: {type: string}
+        priceIn: {type: number, description: "US dollars per million input tokens."}
+        priceOut: {type: number, description: "US dollars per million output tokens."}
+        active: {type: boolean}
+    ModelProviderSent:
+      type: object
+      required: [name, kind, fast, careful, priceIn, priceOut]
+      properties:
+        name: {type: string, maxLength: 60}
+        kind: {type: string, enum: [anthropic, openai_compatible]}
+        baseUrl: {type: [string, "null"], description: "Required for openai_compatible, like https://openrouter.ai/api/v1."}
+        key: {type: [string, "null"], description: "Required for a new provider; absent or empty keeps the key kept."}
+        fast: {type: string}
+        careful: {type: string}
+        priceIn: {type: number, minimum: 0}
+        priceOut: {type: number, minimum: 0}
+    ModelCost:
+      type: object
+      required: [provider, model, spec, calls, remembered, tokensIn, tokensOut, dollars]
+      properties:
+        provider: {type: string}
+        model: {type: string}
+        spec: {type: string}
+        calls: {type: integer}
+        remembered: {type: integer, description: "Calls answered from the memo, for nothing."}
+        tokensIn: {type: integer}
+        tokensOut: {type: integer}
+        dollars: {type: number}
     Telling:
       type: object
       required: [words]

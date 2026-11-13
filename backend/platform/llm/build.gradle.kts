@@ -14,6 +14,10 @@ dependencies {
     implementation(libs.kotlinx.coroutines.core)
     // The official SDK; nothing outside `AnthropicModel` names it.
     implementation(libs.anthropic.java)
+    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.exposed.kotlin.datetime)
+    // Seals provider keys at rest.
+    implementation(libs.tink)
 
     testFixturesApi(projects.platform.kernel)
 

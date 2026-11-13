@@ -18,15 +18,15 @@ import kotlin.jvm.optionals.getOrNull
  * calls of one spec share a prefix. Effort is low: every spec asks for reading or for one short piece of
  * writing, and the backend checks the reply anyway. A reply that was refused or cut off is not an answer.
  */
-internal class AnthropicModel(private val client: AnthropicClient, private val names: ModelNames) : Model {
-    override suspend fun ask(call: ModelCall): ModelReply = try {
-        replyOf(withContext(Dispatchers.IO) { client.messages().create(paramsOf(call)) })
+internal class AnthropicSpeaker(private val client: AnthropicClient) : Speaker {
+    override suspend fun ask(call: ModelCall, model: String): ModelReply = try {
+        replyOf(withContext(Dispatchers.IO) { client.messages().create(paramsOf(call, model)) })
     } catch (failure: AnthropicException) {
         ModelReply.Unavailable(failure.message ?: failure.javaClass.simpleName)
     }
 
-    private fun paramsOf(call: ModelCall): MessageCreateParams = MessageCreateParams.builder()
-        .model(names.of(call.tier))
+    private fun paramsOf(call: ModelCall, model: String): MessageCreateParams = MessageCreateParams.builder()
+        .model(model)
         .maxTokens(MAX_TOKENS)
         .outputConfig(OutputConfig.builder().effort(OutputConfig.Effort.LOW).build())
         .systemOfTextBlockParams(
@@ -56,7 +56,7 @@ internal class AnthropicModel(private val client: AnthropicClient, private val n
         )
     }
 
-    override fun toString(): String = "AnthropicModel($names)"
+    override fun toString(): String = "AnthropicSpeaker"
 
     private companion object {
         /**

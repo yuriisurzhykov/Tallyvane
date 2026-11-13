@@ -75,6 +75,12 @@ modules:
     reads: [authentication, identity, journal]
     publishes: []
 
+  # The model providers an administrator chooses between, their keys, and what calls to them cost. The
+  # providers are the model gateway's (`platform:llm`) own records; this module is their admin screen.
+  models:
+    layers: [application, infrastructure, web]
+    reads: [identity]
+    publishes: []
   career:
     # The goal, the one next step and the résumé, all chosen by rules from what was told (0 tokens).
     layers: [application, infrastructure, web]

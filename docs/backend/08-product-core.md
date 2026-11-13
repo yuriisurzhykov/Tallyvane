@@ -85,3 +85,16 @@ A skill is *confirmed* by two facts in stories that have a result, *growing* wit
 
 The model calls are fixed in [`docs/specs/model`](../specs/model/README.md); the HTTP API in
 [`docs/openapi.yaml`](../openapi.yaml).
+
+## Model providers (set in Admin)
+
+No vendor is assumed. An administrator adds providers on the Admin "Models" screen (`/models`):
+Anthropic or any OpenAI-compatible endpoint (OpenAI, OpenRouter, Gemini, DeepSeek, Ollama), a key
+(sealed with Tink under the TOTP keyset, associated data `platform-model-provider-key-v1`), a fast
+and a careful model, and prices per 1M input/output tokens. One provider is active at a time.
+Every call is logged in `platform.model_calls` with its cost (0 when served from the memo), and the
+screen shows 30 days of cost by provider, model and spec. The memo key includes the provider kind,
+base URL and model, so switching providers never reuses another model's answer. With no active
+provider, model calls answer unavailable and the person's words are still kept.
+Model memo, spending and call log write through `Persistence.bookkeeping`, outside the request's
+claimed transaction (ADR-086).
