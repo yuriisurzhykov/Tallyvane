@@ -3,7 +3,7 @@ package tallyvane.stories.infrastructure
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import tallyvane.platform.kernel.UntrustedText
-import tallyvane.platform.llm.Model
+import tallyvane.platform.llm.core.Model
 import tallyvane.platform.llm.ModelCall
 import tallyvane.platform.llm.ModelReply
 import tallyvane.platform.llm.ModelTier

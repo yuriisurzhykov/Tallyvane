@@ -15,6 +15,9 @@ dependencies {
     runtimeOnly(projects.modules.identity.infrastructure)
     runtimeOnly(projects.modules.journal.infrastructure)
     runtimeOnly(projects.modules.sessions.infrastructure)
+    runtimeOnly(projects.platform.llm)
+    runtimeOnly(projects.modules.stories.infrastructure)
+    runtimeOnly(projects.modules.career.infrastructure)
     runtimeOnly(libs.postgresql)
     runtimeOnly(libs.flyway.database.postgresql)
 }

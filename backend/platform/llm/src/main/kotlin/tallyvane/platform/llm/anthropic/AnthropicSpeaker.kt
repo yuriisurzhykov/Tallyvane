@@ -1,4 +1,4 @@
-package tallyvane.platform.llm
+package tallyvane.platform.llm.anthropic
 
 import com.anthropic.client.AnthropicClient
 import com.anthropic.errors.AnthropicException
@@ -9,10 +9,14 @@ import com.anthropic.models.messages.OutputConfig
 import com.anthropic.models.messages.TextBlockParam
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import tallyvane.platform.llm.ModelCall
+import tallyvane.platform.llm.ModelReply
+import tallyvane.platform.llm.TokenCount
+import tallyvane.platform.llm.core.Speaker
 import kotlin.jvm.optionals.getOrNull
 
 /**
- * [Model] over the Anthropic Messages API, through the official SDK.
+ * [tallyvane.platform.llm.core.Model] over the Anthropic Messages API, through the official SDK.
  *
  * The instructions of a spec go first and are marked for the provider's prompt cache; the input follows, so
  * calls of one spec share a prefix. Effort is low: every spec asks for reading or for one short piece of

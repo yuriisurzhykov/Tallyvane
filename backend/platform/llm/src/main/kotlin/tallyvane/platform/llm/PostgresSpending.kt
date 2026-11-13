@@ -7,10 +7,12 @@ import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.upsert
 import tallyvane.platform.kernel.TransactionRunner
 import tallyvane.platform.kernel.Verdict
+import tallyvane.platform.llm.core.Spending
+import tallyvane.platform.llm.db.ModelSpendingTable
 import kotlin.uuid.Uuid
 
 /**
- * [Spending] over `platform.model_spending`, each call in a transaction of its own.
+ * [tallyvane.platform.llm.core.Spending] over `platform.model_spending`, each call in a transaction of its own.
  */
 internal class PostgresSpending(private val transactions: TransactionRunner) : Spending {
     override suspend fun spentOn(account: Uuid, day: String): Long = transactions.inTransaction {

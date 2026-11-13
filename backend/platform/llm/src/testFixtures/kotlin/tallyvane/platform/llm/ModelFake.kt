@@ -1,7 +1,9 @@
 package tallyvane.platform.llm
 
+import tallyvane.platform.llm.core.Model
+
 /**
- * A [Model] that answers from a script, a spec at a time, and remembers what it was asked (ADR-044).
+ * A [tallyvane.platform.llm.core.Model] that answers from a script, a spec at a time, and remembers what it was asked (ADR-044).
  *
  * A spec with nothing scripted, or with its script used up, is [ModelReply.Unavailable], so a test that
  * forgot to script a call fails on the outcome and not on a null.

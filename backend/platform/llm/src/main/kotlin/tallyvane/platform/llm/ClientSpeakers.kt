@@ -2,6 +2,9 @@ package tallyvane.platform.llm
 
 import com.anthropic.client.okhttp.AnthropicOkHttpClient
 import tallyvane.platform.kernel.Secret
+import tallyvane.platform.llm.anthropic.AnthropicSpeaker
+import tallyvane.platform.llm.core.Speaker
+import tallyvane.platform.llm.core.Speakers
 import java.net.http.HttpClient
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.uuid.Uuid

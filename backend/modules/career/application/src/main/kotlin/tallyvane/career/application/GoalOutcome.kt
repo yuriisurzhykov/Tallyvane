@@ -3,6 +3,7 @@ package tallyvane.career.application
 import tallyvane.platform.kernel.Failure
 
 public sealed interface GoalOutcome {
+
     public class Set internal constructor(public val role: String) : GoalOutcome {
         override fun equals(other: Any?): Boolean = other is Set && other.role == role
 

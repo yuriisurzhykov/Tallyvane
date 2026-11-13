@@ -1082,16 +1082,16 @@ export interface components {
             name: string;
             /** @enum {string} */
             kind: "anthropic" | "openai_compatible";
-            baseUrl?: string | null;
+            base_url?: string | null;
             /** @description The key's last characters, like …a1b2. The key itself is never sent back. */
-            keyHint: string;
+            key_hint: string;
             /** @description The model for fast calls, like gpt-5-mini. */
             fast: string;
             careful: string;
             /** @description US dollars per million input tokens. */
-            priceIn: number;
+            price_in: number;
             /** @description US dollars per million output tokens. */
-            priceOut: number;
+            price_out: number;
             active: boolean;
         };
         ModelProviderSent: {
@@ -1099,13 +1099,13 @@ export interface components {
             /** @enum {string} */
             kind: "anthropic" | "openai_compatible";
             /** @description Required for openai_compatible, like https://openrouter.ai/api/v1. */
-            baseUrl?: string | null;
+            base_url?: string | null;
             /** @description Required for a new provider; absent or empty keeps the key kept. */
             key?: string | null;
             fast: string;
             careful: string;
-            priceIn: number;
-            priceOut: number;
+            price_in: number;
+            price_out: number;
         };
         ModelCost: {
             provider: string;
@@ -1114,8 +1114,8 @@ export interface components {
             calls: number;
             /** @description Calls answered from the memo, for nothing. */
             remembered: number;
-            tokensIn: number;
-            tokensOut: number;
+            tokens_in: number;
+            tokens_out: number;
             dollars: number;
         };
         Telling: {

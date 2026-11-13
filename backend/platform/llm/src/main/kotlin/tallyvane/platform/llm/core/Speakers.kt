@@ -1,6 +1,7 @@
-package tallyvane.platform.llm
+package tallyvane.platform.llm.core
 
 import tallyvane.platform.kernel.Secret
+import tallyvane.platform.llm.ProviderKind
 import kotlin.uuid.Uuid
 
 /**

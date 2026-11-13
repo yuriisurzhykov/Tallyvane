@@ -1,4 +1,4 @@
-package tallyvane.platform.llm
+package tallyvane.platform.llm.db
 
 import org.jetbrains.exposed.v1.core.Table
 

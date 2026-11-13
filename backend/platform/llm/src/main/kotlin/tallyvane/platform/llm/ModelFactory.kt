@@ -2,6 +2,7 @@ package tallyvane.platform.llm
 
 import tallyvane.platform.kernel.Clock
 import tallyvane.platform.kernel.TransactionRunner
+import tallyvane.platform.llm.core.Model
 
 /**
  * The model for the composition root: the provider an administrator chose, remembered and recorded, within a

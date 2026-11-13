@@ -6,6 +6,8 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import tallyvane.platform.kernel.ClockFake
 import tallyvane.platform.kernel.Secret
+import tallyvane.platform.llm.core.Speaker
+import tallyvane.platform.llm.core.Speakers
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
 

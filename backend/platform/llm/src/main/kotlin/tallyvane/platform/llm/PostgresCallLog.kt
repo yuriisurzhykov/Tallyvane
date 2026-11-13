@@ -3,6 +3,7 @@ package tallyvane.platform.llm
 import org.jetbrains.exposed.v1.jdbc.insert
 import tallyvane.platform.kernel.TransactionRunner
 import tallyvane.platform.kernel.Verdict
+import tallyvane.platform.llm.db.ModelCallsTable
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
 

@@ -1,6 +1,8 @@
 package tallyvane.platform.llm
 
 import tallyvane.platform.kernel.Clock
+import tallyvane.platform.llm.core.Model
+import tallyvane.platform.llm.core.Speakers
 import java.security.MessageDigest
 
 /**

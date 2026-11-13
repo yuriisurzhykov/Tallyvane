@@ -1,6 +1,8 @@
 package tallyvane.platform.llm
 
 import tallyvane.platform.kernel.Secret
+import tallyvane.platform.llm.core.Speaker
+import tallyvane.platform.llm.core.Speakers
 import kotlin.uuid.Uuid
 
 /**

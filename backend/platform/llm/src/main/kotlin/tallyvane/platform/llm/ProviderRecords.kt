@@ -14,6 +14,8 @@ import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
 import tallyvane.platform.kernel.Clock
+import tallyvane.platform.llm.db.ModelCallsTable
+import tallyvane.platform.llm.db.ModelProvidersTable
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
 

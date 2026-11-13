@@ -1,5 +1,6 @@
-package tallyvane.platform.llm
+package tallyvane.platform.llm.core
 
+import tallyvane.platform.llm.TokenCount
 import kotlin.uuid.Uuid
 
 /**

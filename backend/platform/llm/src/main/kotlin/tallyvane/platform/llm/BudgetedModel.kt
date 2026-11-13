@@ -1,9 +1,11 @@
 package tallyvane.platform.llm
 
 import tallyvane.platform.kernel.Clock
+import tallyvane.platform.llm.core.Model
+import tallyvane.platform.llm.core.Spending
 
 /**
- * A [Model] that refuses a call once the account has spent its day, and writes down what each call cost.
+ * A [tallyvane.platform.llm.core.Model] that refuses a call once the account has spent its day, and writes down what each call cost.
  *
  * Wrapped by [RememberingModel] and not the other way round: an answer from the memo costs nothing and is
  * given even to an account over its budget.

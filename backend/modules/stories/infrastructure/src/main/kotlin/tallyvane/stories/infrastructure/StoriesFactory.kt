@@ -1,6 +1,6 @@
 package tallyvane.stories.infrastructure
 
-import tallyvane.platform.llm.Model
+import tallyvane.platform.llm.core.Model
 import tallyvane.stories.application.port.Reader
 import tallyvane.stories.application.port.Stories
 import tallyvane.stories.application.port.Utterances

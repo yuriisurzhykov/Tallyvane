@@ -5,6 +5,7 @@ import org.jetbrains.exposed.v1.jdbc.insertIgnore
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import tallyvane.platform.kernel.TransactionRunner
 import tallyvane.platform.kernel.Verdict
+import tallyvane.platform.llm.db.ModelMemoTable
 
 /**
  * [Memo] over `platform.model_memo`, each call in a transaction of its own.

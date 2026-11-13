@@ -1533,41 +1533,41 @@ components:
         costs: {type: array, items: {$ref: "#/components/schemas/ModelCost"}}
     ModelProvider:
       type: object
-      required: [id, name, kind, keyHint, fast, careful, priceIn, priceOut, active]
+      required: [id, name, kind, key_hint, fast, careful, price_in, price_out, active]
       properties:
         id: {type: string, format: uuid}
         name: {type: string}
         kind: {type: string, enum: [anthropic, openai_compatible]}
-        baseUrl: {type: [string, "null"]}
-        keyHint: {type: string, description: "The key's last characters, like …a1b2. The key itself is never sent back."}
+        base_url: {type: [string, "null"]}
+        key_hint: {type: string, description: "The key's last characters, like …a1b2. The key itself is never sent back."}
         fast: {type: string, description: "The model for fast calls, like gpt-5-mini."}
         careful: {type: string}
-        priceIn: {type: number, description: "US dollars per million input tokens."}
-        priceOut: {type: number, description: "US dollars per million output tokens."}
+        price_in: {type: number, description: "US dollars per million input tokens."}
+        price_out: {type: number, description: "US dollars per million output tokens."}
         active: {type: boolean}
     ModelProviderSent:
       type: object
-      required: [name, kind, fast, careful, priceIn, priceOut]
+      required: [name, kind, fast, careful, price_in, price_out]
       properties:
         name: {type: string, maxLength: 60}
         kind: {type: string, enum: [anthropic, openai_compatible]}
-        baseUrl: {type: [string, "null"], description: "Required for openai_compatible, like https://openrouter.ai/api/v1."}
+        base_url: {type: [string, "null"], description: "Required for openai_compatible, like https://openrouter.ai/api/v1."}
         key: {type: [string, "null"], description: "Required for a new provider; absent or empty keeps the key kept."}
         fast: {type: string}
         careful: {type: string}
-        priceIn: {type: number, minimum: 0}
-        priceOut: {type: number, minimum: 0}
+        price_in: {type: number, minimum: 0}
+        price_out: {type: number, minimum: 0}
     ModelCost:
       type: object
-      required: [provider, model, spec, calls, remembered, tokensIn, tokensOut, dollars]
+      required: [provider, model, spec, calls, remembered, tokens_in, tokens_out, dollars]
       properties:
         provider: {type: string}
         model: {type: string}
         spec: {type: string}
         calls: {type: integer}
         remembered: {type: integer, description: "Calls answered from the memo, for nothing."}
-        tokensIn: {type: integer}
-        tokensOut: {type: integer}
+        tokens_in: {type: integer}
+        tokens_out: {type: integer}
         dollars: {type: number}
     Telling:
       type: object

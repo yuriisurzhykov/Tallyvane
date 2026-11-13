@@ -15,6 +15,7 @@ import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import tallyvane.platform.kernel.Secret
+import tallyvane.platform.llm.core.Speaker
 import java.io.IOException
 import java.net.URI
 import java.net.http.HttpClient
