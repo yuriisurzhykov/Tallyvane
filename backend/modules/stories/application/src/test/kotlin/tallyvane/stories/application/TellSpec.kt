@@ -7,6 +7,7 @@ import tallyvane.catalog.contract.SkillCatalogFake
 import tallyvane.platform.kernel.ClockFake
 import tallyvane.platform.kernel.IdGeneratorFake
 import tallyvane.platform.kernel.TransactionRunnerFake
+import tallyvane.platform.kernel.TransactionRunnerFake.Ending
 import tallyvane.stories.application.port.Reader
 import tallyvane.stories.domain.Claim
 import tallyvane.stories.domain.FactKind
@@ -38,14 +39,13 @@ class TellSpec :
         class World(reader: Reader) {
             val stories = StoriesFake()
             val utterances = UtterancesFake()
-            private val transactions = TransactionRunnerFake()
+            val transactions = TransactionRunnerFake()
             private val ids = IdGeneratorFake()
+            private val at = ClockFake(Instant.parse("2026-11-13T10:00:00Z"))
             val tell = TellUseCase.Tell(
-                stories,
                 reader,
-                Listening(utterances, transactions, ClockFake(Instant.parse("2026-11-13T10:00:00Z")), ids),
+                Listening(utterances, stories, transactions, at, ids),
                 SkillCatalogFake(),
-                transactions,
                 ids,
             )
         }
@@ -67,6 +67,17 @@ class TellSpec :
             spent.tell.tell(ADA, null, WORDS) shouldBe StoryOutcome.Failed.OverBudget()
             down.utterances.countOf(ADA) shouldBe 1
             down.stories.of(ADA) shouldBe emptyList()
+        }
+
+        "commits once a request, as a claimed request requires (ADR-086), even when it adds to a story" {
+            val world = World(ReaderFake(HEARD))
+            world.tell.tell(ADA, null, WORDS)
+            val story = world.stories.of(ADA).single().id()
+            val before = world.transactions.endings.count { it == Ending.Committed }
+
+            world.tell.tell(ADA, story, WORDS)
+
+            world.transactions.endings.count { it == Ending.Committed } - before shouldBe 1
         }
 
         "refuses blank words and keeps nothing" {

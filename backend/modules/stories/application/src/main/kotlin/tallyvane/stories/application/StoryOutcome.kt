@@ -12,6 +12,10 @@ public sealed interface StoryOutcome {
             story.writeTo(record)
         }
 
+        internal fun saveTo(stories: tallyvane.stories.application.port.Stories) {
+            stories.save(story)
+        }
+
         override fun equals(other: Any?): Boolean = other is Told && other.story == story
 
         override fun hashCode(): Int = story.hashCode()

@@ -34,12 +34,13 @@ public class ProductWiring(private val platform: PlatformWiring, private val mod
             model.key,
             ModelNames(model.fast, model.careful),
             model.tokensADay.toLong(),
-            transactions,
+            // The memo and spending commit on their own, outside the request's one claimed transaction.
+            platform.persistence.bookkeeping,
             clock,
         )
     }
     private val reader by lazy { storage.reader(gateway, catalog.skills().map { it.slug }) }
-    private val listening by lazy { Listening(storage.utterances(), transactions, clock, platform.ids) }
+    private val listening by lazy { Listening(storage.utterances(), stories, transactions, clock, platform.ids) }
     private val experience by lazy { StoriesExperience(stories, transactions) }
     private val goals by lazy { CareerStorageFactory().goals() }
 
@@ -47,9 +48,9 @@ public class ProductWiring(private val platform: PlatformWiring, private val mod
         val storyRoutes = StoriesRoutesFactory()
         val careerRoutes = CareerRoutesFactory()
         listOf(
-            storyRoutes.tell(TellUseCase.Tell(stories, reader, listening, catalog, transactions, platform.ids)),
+            storyRoutes.tell(TellUseCase.Tell(reader, listening, catalog, platform.ids)),
             storyRoutes.correction(
-                CorrectFactUseCase.CorrectFact(stories, reader, listening, catalog, transactions, platform.ids),
+                CorrectFactUseCase.CorrectFact(reader, listening, catalog, platform.ids),
             ),
             storyRoutes.shelf(ShowStoriesUseCase.ShowStories(stories, transactions)),
             careerRoutes.home(ShowHomeUseCase.ShowHome(goals, experience, catalog, transactions)),

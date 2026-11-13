@@ -40,17 +40,9 @@ class CorrectFactSpec :
             stories.save(Story.begun(STORY, ADA).hear(hearing, listOf(claim), NOWHERE, null, IdGeneratorFake()))
             val transactions = TransactionRunnerFake()
             val ids = IdGeneratorFake(100)
-            val listening =
-                Listening(UtterancesFake(), transactions, ClockFake(Instant.parse("2026-11-13T10:00:00Z")), ids)
-            return stories to
-                CorrectFactUseCase.CorrectFact(
-                    stories,
-                    ReaderFake(reading),
-                    listening,
-                    SkillCatalogFake(),
-                    transactions,
-                    ids,
-                )
+            val at = ClockFake(Instant.parse("2026-11-13T10:00:00Z"))
+            val listening = Listening(UtterancesFake(), stories, transactions, at, ids)
+            return stories to CorrectFactUseCase.CorrectFact(ReaderFake(reading), listening, SkillCatalogFake(), ids)
         }
 
         "replaces the fact with one that quotes the correction" {

@@ -31,6 +31,8 @@ export function HomeBoard() {
     const [busy, setBusy] = useState(false);
     const [notice, setNotice] = useState<string | null>(null);
     const [reads, setReads] = useState(0);
+    // A string, not `t`: the translator is a new function on every render and would refetch forever.
+    const loadFailed = t("loadFailed");
 
     useEffect(() => {
         let current = true;
@@ -41,13 +43,13 @@ export function HomeBoard() {
                 setTold(list);
             },
             () => {
-                if (current) setNotice(t("loadFailed"));
+                if (current) setNotice(loadFailed);
             },
         );
         return () => {
             current = false;
         };
-    }, [career, stories, reads, t]);
+    }, [career, stories, reads, loadFailed]);
 
     const continuing = home?.step === "finish_story" ? (home.subject ?? undefined) : undefined;
 
