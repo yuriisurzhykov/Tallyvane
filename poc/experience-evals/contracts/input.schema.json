@@ -1,0 +1,507 @@
+{
+  "$defs": {
+    "ActionState": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "task_id": {
+          "minLength": 1,
+          "title": "Task Id",
+          "type": "string"
+        },
+        "description": {
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Reason"
+        },
+        "technologies": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Technologies",
+          "type": "array"
+        },
+        "approaches": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Approaches",
+          "type": "array"
+        },
+        "result": {
+          "$ref": "#/$defs/Result"
+        },
+        "retracted": {
+          "title": "Retracted",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "task_id",
+        "description",
+        "reason",
+        "technologies",
+        "approaches",
+        "result",
+        "retracted"
+      ],
+      "title": "ActionState",
+      "type": "object"
+    },
+    "CompanyState": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "title": "CompanyState",
+      "type": "object"
+    },
+    "Context": {
+      "additionalProperties": false,
+      "properties": {
+        "company_id": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Company Id"
+        },
+        "project_id": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Project Id"
+        },
+        "task_id": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Task Id"
+        },
+        "action_id": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Action Id"
+        }
+      },
+      "required": [
+        "company_id",
+        "project_id",
+        "task_id",
+        "action_id"
+      ],
+      "title": "Context",
+      "type": "object"
+    },
+    "Deadline": {
+      "additionalProperties": false,
+      "properties": {
+        "due_at": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Due At"
+        },
+        "completed_at": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Completed At"
+        },
+        "status": {
+          "enum": [
+            "not_stated",
+            "unknown",
+            "met",
+            "missed",
+            "in_progress"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "reaction": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Reaction"
+        }
+      },
+      "required": [
+        "due_at",
+        "completed_at",
+        "status",
+        "reaction"
+      ],
+      "title": "Deadline",
+      "type": "object"
+    },
+    "Message": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "text": {
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "text"
+      ],
+      "title": "Message",
+      "type": "object"
+    },
+    "Metric": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "value": {
+          "title": "Value",
+          "type": "number"
+        },
+        "unit": {
+          "minLength": 1,
+          "title": "Unit",
+          "type": "string"
+        },
+        "baseline": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Baseline"
+        },
+        "target": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Target"
+        },
+        "approximate": {
+          "title": "Approximate",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "name",
+        "value",
+        "unit",
+        "baseline",
+        "target",
+        "approximate"
+      ],
+      "title": "Metric",
+      "type": "object"
+    },
+    "ProjectState": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "company_id": {
+          "minLength": 1,
+          "title": "Company Id",
+          "type": "string"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "requirements": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Requirements",
+          "type": "array"
+        },
+        "responsibility": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Responsibility"
+        }
+      },
+      "required": [
+        "id",
+        "company_id",
+        "name",
+        "requirements",
+        "responsibility"
+      ],
+      "title": "ProjectState",
+      "type": "object"
+    },
+    "Result": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "enum": [
+            "not_stated",
+            "achieved",
+            "not_achieved",
+            "in_progress",
+            "rejected"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Description"
+        },
+        "metrics": {
+          "items": {
+            "$ref": "#/$defs/Metric"
+          },
+          "title": "Metrics",
+          "type": "array"
+        },
+        "lesson": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Lesson"
+        }
+      },
+      "required": [
+        "status",
+        "description",
+        "metrics",
+        "lesson"
+      ],
+      "title": "Result",
+      "type": "object"
+    },
+    "Snapshot": {
+      "additionalProperties": false,
+      "properties": {
+        "revision": {
+          "minimum": 0,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "companies": {
+          "additionalProperties": {
+            "$ref": "#/$defs/CompanyState"
+          },
+          "title": "Companies",
+          "type": "object"
+        },
+        "projects": {
+          "additionalProperties": {
+            "$ref": "#/$defs/ProjectState"
+          },
+          "title": "Projects",
+          "type": "object"
+        },
+        "tasks": {
+          "additionalProperties": {
+            "$ref": "#/$defs/TaskState"
+          },
+          "title": "Tasks",
+          "type": "object"
+        },
+        "actions": {
+          "additionalProperties": {
+            "$ref": "#/$defs/ActionState"
+          },
+          "title": "Actions",
+          "type": "object"
+        }
+      },
+      "required": [
+        "revision",
+        "companies",
+        "projects",
+        "tasks",
+        "actions"
+      ],
+      "title": "Snapshot",
+      "type": "object"
+    },
+    "TaskState": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "project_id": {
+          "minLength": 1,
+          "title": "Project Id",
+          "type": "string"
+        },
+        "title": {
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "requirements": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Requirements",
+          "type": "array"
+        },
+        "deadline": {
+          "$ref": "#/$defs/Deadline"
+        }
+      },
+      "required": [
+        "id",
+        "project_id",
+        "title",
+        "requirements",
+        "deadline"
+      ],
+      "title": "TaskState",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "state": {
+      "$ref": "#/$defs/Snapshot"
+    },
+    "context": {
+      "$ref": "#/$defs/Context"
+    },
+    "previous_messages": {
+      "items": {
+        "$ref": "#/$defs/Message"
+      },
+      "title": "Previous Messages",
+      "type": "array"
+    },
+    "message": {
+      "$ref": "#/$defs/Message"
+    }
+  },
+  "required": [
+    "state",
+    "context",
+    "previous_messages",
+    "message"
+  ],
+  "title": "InterviewInput",
+  "type": "object"
+}

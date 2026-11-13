@@ -1,0 +1,26 @@
+version: 1
+id: approaches
+description: Approaches are distinct from the technology list.
+tags:
+- approaches
+initial_state: ../fixtures/two-companies.yaml
+context:
+  company_id: c1
+  project_id: p1
+  task_id: t1
+  action_id: a1
+turns:
+- input:
+    id: approaches_m1
+    text: Из подходов использовал профилирование и unit tests.
+  expected:
+    changes:
+    - operation: add_approaches
+      action_id: a1
+      approaches:
+      - профилирование
+      - unit tests
+      evidence:
+        message_id: approaches_m1
+        quote: Из подходов использовал профилирование и unit tests.
+    unresolved_references: []

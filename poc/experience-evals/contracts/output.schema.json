@@ -1,0 +1,835 @@
+{
+  "$defs": {
+    "AddApproaches": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence": {
+          "$ref": "#/$defs/Evidence"
+        },
+        "operation": {
+          "const": "add_approaches",
+          "title": "Operation",
+          "type": "string"
+        },
+        "action_id": {
+          "minLength": 1,
+          "title": "Action Id",
+          "type": "string"
+        },
+        "approaches": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Approaches",
+          "type": "array"
+        }
+      },
+      "required": [
+        "evidence",
+        "operation",
+        "action_id",
+        "approaches"
+      ],
+      "title": "AddApproaches",
+      "type": "object"
+    },
+    "AddTechnologies": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence": {
+          "$ref": "#/$defs/Evidence"
+        },
+        "operation": {
+          "const": "add_technologies",
+          "title": "Operation",
+          "type": "string"
+        },
+        "action_id": {
+          "minLength": 1,
+          "title": "Action Id",
+          "type": "string"
+        },
+        "technologies": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Technologies",
+          "type": "array"
+        }
+      },
+      "required": [
+        "evidence",
+        "operation",
+        "action_id",
+        "technologies"
+      ],
+      "title": "AddTechnologies",
+      "type": "object"
+    },
+    "CreateAction": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence": {
+          "$ref": "#/$defs/Evidence"
+        },
+        "operation": {
+          "const": "create_action",
+          "title": "Operation",
+          "type": "string"
+        },
+        "ref": {
+          "pattern": "^\\$[A-Za-z][A-Za-z0-9_-]{0,63}$",
+          "title": "Ref",
+          "type": "string"
+        },
+        "task_id": {
+          "minLength": 1,
+          "title": "Task Id",
+          "type": "string"
+        },
+        "description": {
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Reason"
+        },
+        "technologies": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Technologies",
+          "type": "array"
+        },
+        "approaches": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Approaches",
+          "type": "array"
+        },
+        "result": {
+          "$ref": "#/$defs/Result"
+        }
+      },
+      "required": [
+        "evidence",
+        "operation",
+        "ref",
+        "task_id",
+        "description",
+        "reason",
+        "technologies",
+        "approaches",
+        "result"
+      ],
+      "title": "CreateAction",
+      "type": "object"
+    },
+    "CreateCompany": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence": {
+          "$ref": "#/$defs/Evidence"
+        },
+        "operation": {
+          "const": "create_company",
+          "title": "Operation",
+          "type": "string"
+        },
+        "ref": {
+          "pattern": "^\\$[A-Za-z][A-Za-z0-9_-]{0,63}$",
+          "title": "Ref",
+          "type": "string"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "evidence",
+        "operation",
+        "ref",
+        "name"
+      ],
+      "title": "CreateCompany",
+      "type": "object"
+    },
+    "CreateProject": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence": {
+          "$ref": "#/$defs/Evidence"
+        },
+        "operation": {
+          "const": "create_project",
+          "title": "Operation",
+          "type": "string"
+        },
+        "ref": {
+          "pattern": "^\\$[A-Za-z][A-Za-z0-9_-]{0,63}$",
+          "title": "Ref",
+          "type": "string"
+        },
+        "company_id": {
+          "minLength": 1,
+          "title": "Company Id",
+          "type": "string"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "requirements": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Requirements",
+          "type": "array"
+        },
+        "responsibility": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Responsibility"
+        }
+      },
+      "required": [
+        "evidence",
+        "operation",
+        "ref",
+        "company_id",
+        "name",
+        "requirements",
+        "responsibility"
+      ],
+      "title": "CreateProject",
+      "type": "object"
+    },
+    "CreateTask": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence": {
+          "$ref": "#/$defs/Evidence"
+        },
+        "operation": {
+          "const": "create_task",
+          "title": "Operation",
+          "type": "string"
+        },
+        "ref": {
+          "pattern": "^\\$[A-Za-z][A-Za-z0-9_-]{0,63}$",
+          "title": "Ref",
+          "type": "string"
+        },
+        "project_id": {
+          "minLength": 1,
+          "title": "Project Id",
+          "type": "string"
+        },
+        "title": {
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "requirements": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Requirements",
+          "type": "array"
+        },
+        "deadline": {
+          "$ref": "#/$defs/Deadline"
+        }
+      },
+      "required": [
+        "evidence",
+        "operation",
+        "ref",
+        "project_id",
+        "title",
+        "requirements",
+        "deadline"
+      ],
+      "title": "CreateTask",
+      "type": "object"
+    },
+    "Deadline": {
+      "additionalProperties": false,
+      "properties": {
+        "due_at": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Due At"
+        },
+        "completed_at": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Completed At"
+        },
+        "status": {
+          "enum": [
+            "not_stated",
+            "unknown",
+            "met",
+            "missed",
+            "in_progress"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "reaction": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Reaction"
+        }
+      },
+      "required": [
+        "due_at",
+        "completed_at",
+        "status",
+        "reaction"
+      ],
+      "title": "Deadline",
+      "type": "object"
+    },
+    "Evidence": {
+      "additionalProperties": false,
+      "properties": {
+        "message_id": {
+          "minLength": 1,
+          "title": "Message Id",
+          "type": "string"
+        },
+        "quote": {
+          "minLength": 1,
+          "title": "Quote",
+          "type": "string"
+        }
+      },
+      "required": [
+        "message_id",
+        "quote"
+      ],
+      "title": "Evidence",
+      "type": "object"
+    },
+    "Metric": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "value": {
+          "title": "Value",
+          "type": "number"
+        },
+        "unit": {
+          "minLength": 1,
+          "title": "Unit",
+          "type": "string"
+        },
+        "baseline": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Baseline"
+        },
+        "target": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Target"
+        },
+        "approximate": {
+          "title": "Approximate",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "name",
+        "value",
+        "unit",
+        "baseline",
+        "target",
+        "approximate"
+      ],
+      "title": "Metric",
+      "type": "object"
+    },
+    "MoveAction": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence": {
+          "$ref": "#/$defs/Evidence"
+        },
+        "operation": {
+          "const": "move_action",
+          "title": "Operation",
+          "type": "string"
+        },
+        "action_id": {
+          "minLength": 1,
+          "title": "Action Id",
+          "type": "string"
+        },
+        "task_id": {
+          "minLength": 1,
+          "title": "Task Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "evidence",
+        "operation",
+        "action_id",
+        "task_id"
+      ],
+      "title": "MoveAction",
+      "type": "object"
+    },
+    "ReplaceTechnologies": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence": {
+          "$ref": "#/$defs/Evidence"
+        },
+        "operation": {
+          "const": "replace_technologies",
+          "title": "Operation",
+          "type": "string"
+        },
+        "action_id": {
+          "minLength": 1,
+          "title": "Action Id",
+          "type": "string"
+        },
+        "technologies": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Technologies",
+          "type": "array"
+        }
+      },
+      "required": [
+        "evidence",
+        "operation",
+        "action_id",
+        "technologies"
+      ],
+      "title": "ReplaceTechnologies",
+      "type": "object"
+    },
+    "Result": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "enum": [
+            "not_stated",
+            "achieved",
+            "not_achieved",
+            "in_progress",
+            "rejected"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Description"
+        },
+        "metrics": {
+          "items": {
+            "$ref": "#/$defs/Metric"
+          },
+          "title": "Metrics",
+          "type": "array"
+        },
+        "lesson": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Lesson"
+        }
+      },
+      "required": [
+        "status",
+        "description",
+        "metrics",
+        "lesson"
+      ],
+      "title": "Result",
+      "type": "object"
+    },
+    "RetractAction": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence": {
+          "$ref": "#/$defs/Evidence"
+        },
+        "operation": {
+          "const": "retract_action",
+          "title": "Operation",
+          "type": "string"
+        },
+        "action_id": {
+          "minLength": 1,
+          "title": "Action Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "evidence",
+        "operation",
+        "action_id"
+      ],
+      "title": "RetractAction",
+      "type": "object"
+    },
+    "SetDeadline": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence": {
+          "$ref": "#/$defs/Evidence"
+        },
+        "operation": {
+          "const": "set_deadline",
+          "title": "Operation",
+          "type": "string"
+        },
+        "task_id": {
+          "minLength": 1,
+          "title": "Task Id",
+          "type": "string"
+        },
+        "deadline": {
+          "$ref": "#/$defs/Deadline"
+        }
+      },
+      "required": [
+        "evidence",
+        "operation",
+        "task_id",
+        "deadline"
+      ],
+      "title": "SetDeadline",
+      "type": "object"
+    },
+    "SetDescription": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence": {
+          "$ref": "#/$defs/Evidence"
+        },
+        "operation": {
+          "const": "set_description",
+          "title": "Operation",
+          "type": "string"
+        },
+        "action_id": {
+          "minLength": 1,
+          "title": "Action Id",
+          "type": "string"
+        },
+        "description": {
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        }
+      },
+      "required": [
+        "evidence",
+        "operation",
+        "action_id",
+        "description"
+      ],
+      "title": "SetDescription",
+      "type": "object"
+    },
+    "SetReason": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence": {
+          "$ref": "#/$defs/Evidence"
+        },
+        "operation": {
+          "const": "set_reason",
+          "title": "Operation",
+          "type": "string"
+        },
+        "action_id": {
+          "minLength": 1,
+          "title": "Action Id",
+          "type": "string"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Reason"
+        }
+      },
+      "required": [
+        "evidence",
+        "operation",
+        "action_id",
+        "reason"
+      ],
+      "title": "SetReason",
+      "type": "object"
+    },
+    "SetRequirements": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence": {
+          "$ref": "#/$defs/Evidence"
+        },
+        "operation": {
+          "const": "set_requirements",
+          "title": "Operation",
+          "type": "string"
+        },
+        "target_type": {
+          "enum": [
+            "project",
+            "task"
+          ],
+          "title": "Target Type",
+          "type": "string"
+        },
+        "target_id": {
+          "minLength": 1,
+          "title": "Target Id",
+          "type": "string"
+        },
+        "requirements": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Requirements",
+          "type": "array"
+        }
+      },
+      "required": [
+        "evidence",
+        "operation",
+        "target_type",
+        "target_id",
+        "requirements"
+      ],
+      "title": "SetRequirements",
+      "type": "object"
+    },
+    "SetResult": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence": {
+          "$ref": "#/$defs/Evidence"
+        },
+        "operation": {
+          "const": "set_result",
+          "title": "Operation",
+          "type": "string"
+        },
+        "action_id": {
+          "minLength": 1,
+          "title": "Action Id",
+          "type": "string"
+        },
+        "result": {
+          "$ref": "#/$defs/Result"
+        }
+      },
+      "required": [
+        "evidence",
+        "operation",
+        "action_id",
+        "result"
+      ],
+      "title": "SetResult",
+      "type": "object"
+    },
+    "Unresolved": {
+      "additionalProperties": false,
+      "properties": {
+        "text": {
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "candidate_ids": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Candidate Ids",
+          "type": "array"
+        },
+        "evidence": {
+          "$ref": "#/$defs/Evidence"
+        }
+      },
+      "required": [
+        "text",
+        "candidate_ids",
+        "evidence"
+      ],
+      "title": "Unresolved",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "base_revision": {
+      "minimum": 0,
+      "title": "Base Revision",
+      "type": "integer"
+    },
+    "changes": {
+      "items": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/CreateCompany"
+          },
+          {
+            "$ref": "#/$defs/CreateProject"
+          },
+          {
+            "$ref": "#/$defs/CreateTask"
+          },
+          {
+            "$ref": "#/$defs/CreateAction"
+          },
+          {
+            "$ref": "#/$defs/AddTechnologies"
+          },
+          {
+            "$ref": "#/$defs/ReplaceTechnologies"
+          },
+          {
+            "$ref": "#/$defs/SetResult"
+          },
+          {
+            "$ref": "#/$defs/SetReason"
+          },
+          {
+            "$ref": "#/$defs/AddApproaches"
+          },
+          {
+            "$ref": "#/$defs/SetDescription"
+          },
+          {
+            "$ref": "#/$defs/MoveAction"
+          },
+          {
+            "$ref": "#/$defs/RetractAction"
+          },
+          {
+            "$ref": "#/$defs/SetDeadline"
+          },
+          {
+            "$ref": "#/$defs/SetRequirements"
+          }
+        ]
+      },
+      "title": "Changes",
+      "type": "array"
+    },
+    "unresolved_references": {
+      "items": {
+        "$ref": "#/$defs/Unresolved"
+      },
+      "title": "Unresolved References",
+      "type": "array"
+    }
+  },
+  "required": [
+    "base_revision",
+    "changes",
+    "unresolved_references"
+  ],
+  "title": "Proposal",
+  "type": "object"
+}

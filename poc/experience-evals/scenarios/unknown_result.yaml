@@ -1,0 +1,28 @@
+version: 1
+id: unknown_result
+description: A result can remain explicitly unknown.
+tags:
+- unknown_result
+initial_state: ../fixtures/two-companies.yaml
+context:
+  company_id: c1
+  project_id: p1
+  task_id: t1
+  action_id: a1
+turns:
+- input:
+    id: unknown_result_m1
+    text: Результат пока неизвестен.
+  expected:
+    changes:
+    - operation: set_result
+      action_id: a1
+      result:
+        status: not_stated
+        description: null
+        metrics: []
+        lesson: null
+      evidence:
+        message_id: unknown_result_m1
+        quote: Результат пока неизвестен.
+    unresolved_references: []

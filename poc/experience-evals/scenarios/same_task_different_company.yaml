@@ -1,0 +1,26 @@
+version: 1
+id: same_task_different_company
+description: An explicitly named company overrides current focus.
+tags:
+- company_scope
+- same_names
+initial_state: ../fixtures/two-companies.yaml
+context:
+  company_id: c1
+  project_id: p1
+  task_id: t1
+  action_id: a1
+turns:
+- input:
+    id: same_task_different_company_m1
+    text: В компании Beta в проекте Mobile экран авторизации делал на Java, не Kotlin.
+  expected:
+    changes:
+    - operation: replace_technologies
+      action_id: a2
+      technologies:
+      - Java
+      evidence:
+        message_id: same_task_different_company_m1
+        quote: В компании Beta в проекте Mobile экран авторизации делал на Java, не Kotlin.
+    unresolved_references: []

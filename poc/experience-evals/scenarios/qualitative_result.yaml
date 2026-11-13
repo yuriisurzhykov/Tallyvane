@@ -1,0 +1,29 @@
+version: 1
+id: qualitative_result
+description: Do not manufacture a numeric improvement.
+tags:
+- result
+- no_invented_metric
+initial_state: ../fixtures/two-companies.yaml
+context:
+  company_id: c1
+  project_id: p1
+  task_id: t1
+  action_id: a1
+turns:
+- input:
+    id: qualitative_result_m1
+    text: 'Результат: интерфейс стал быстрее.'
+  expected:
+    changes:
+    - operation: set_result
+      action_id: a1
+      result:
+        status: achieved
+        description: интерфейс стал быстрее
+        metrics: []
+        lesson: null
+      evidence:
+        message_id: qualitative_result_m1
+        quote: 'Результат: интерфейс стал быстрее.'
+    unresolved_references: []

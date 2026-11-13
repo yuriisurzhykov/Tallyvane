@@ -1,0 +1,61 @@
+version: 1
+id: new_action_then_corrections
+description: Add an action, then enrich and correct that same application-generated record across five turns.
+tags: [create_action, multi_turn, correction, stable_id, result]
+initial_state: ../fixtures/two-companies.yaml
+context:
+  company_id: c1
+  project_id: p1
+  task_id: t1
+  action_id: null
+turns:
+  - input:
+      id: new_action_then_corrections_m1
+      text: "Добавил кеширование на Room."
+    expected:
+      changes:
+        - operation: create_action
+          ref: $cache
+          task_id: t1
+          description: Добавил кеширование
+          reason: null
+          technologies: [Room]
+          approaches: []
+          result: {status: not_stated, description: null, metrics: [], lesson: null}
+          evidence: {message_id: new_action_then_corrections_m1, quote: "Добавил кеширование на Room"}
+  - input:
+      id: new_action_then_corrections_m2
+      text: "Для кеширования ещё использовал SQLite."
+    expected:
+      changes:
+        - operation: add_technologies
+          action_id: "@cache"
+          technologies: [SQLite]
+          evidence: {message_id: new_action_then_corrections_m2, quote: "Для кеширования ещё использовал SQLite"}
+  - input:
+      id: new_action_then_corrections_m3
+      text: "Результат кеширования: экран стал быстрее."
+    expected:
+      changes:
+        - operation: set_result
+          action_id: "@cache"
+          result: {status: achieved, description: экран стал быстрее, metrics: [], lesson: null}
+          evidence: {message_id: new_action_then_corrections_m3, quote: "Результат кеширования: экран стал быстрее"}
+  - input:
+      id: new_action_then_corrections_m4
+      text: "Ошибся: для кеширования был Redis, а не Room и SQLite."
+    expected:
+      changes:
+        - operation: replace_technologies
+          action_id: "@cache"
+          technologies: [Redis]
+          evidence: {message_id: new_action_then_corrections_m4, quote: "для кеширования был Redis, а не Room и SQLite"}
+  - input:
+      id: new_action_then_corrections_m5
+      text: "Я ошибся и с результатом кеширования: результат пока неизвестен."
+    expected:
+      changes:
+        - operation: set_result
+          action_id: "@cache"
+          result: {status: not_stated, description: null, metrics: [], lesson: null}
+          evidence: {message_id: new_action_then_corrections_m5, quote: "результат пока неизвестен"}

@@ -54,3 +54,7 @@ application/  use cases, the reading of the model's replies, KnowledgeCore (the 
 infra/        Postgres and pgvector (Exposed, Flyway), the Anthropic and Ollama clients, the prompts and
               the seeds as files, the Ktor routes, and Main (the composition root)
 ```
+
+## Model comparison for the next interview contract
+
+[`../experience-evals/`](../experience-evals/) is an independent Python evaluation bench for comparing API models on nested companies, projects, tasks, actions and corrections. It tests a new contract with one result object per action; it does not change or evaluate this PoC's existing many-to-many outcome implementation.

@@ -1,0 +1,40 @@
+version: 1
+id: correction_then_addition
+description: Correction replaces Kotlin, then addition preserves Java and the action ID.
+tags:
+- correction
+- multi_turn
+- preservation
+initial_state: ../fixtures/two-companies.yaml
+context:
+  company_id: c1
+  project_id: p1
+  task_id: t1
+  action_id: a1
+turns:
+- input:
+    id: correction_then_addition_m1
+    text: 'Я ошибся: это было на Java, а не на Kotlin.'
+  expected:
+    changes:
+    - operation: replace_technologies
+      action_id: a1
+      technologies:
+      - Java
+      evidence:
+        message_id: correction_then_addition_m1
+        quote: 'Я ошибся: это было на Java, а не на Kotlin.'
+    unresolved_references: []
+- input:
+    id: correction_then_addition_m2
+    text: И ещё использовал Android Keystore.
+  expected:
+    changes:
+    - operation: add_technologies
+      action_id: a1
+      technologies:
+      - Android Keystore
+      evidence:
+        message_id: correction_then_addition_m2
+        quote: И ещё использовал Android Keystore.
+    unresolved_references: []

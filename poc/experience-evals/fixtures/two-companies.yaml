@@ -1,0 +1,100 @@
+companies:
+  c1:
+    id: c1
+    name: Acme
+  c2:
+    id: c2
+    name: Beta
+projects:
+  p1:
+    id: p1
+    company_id: c1
+    name: Panel
+    requirements: []
+    responsibility: null
+  p2:
+    id: p2
+    company_id: c2
+    name: Mobile
+    requirements: []
+    responsibility: null
+  p3:
+    id: p3
+    company_id: c1
+    name: Portal
+    requirements: []
+    responsibility: null
+tasks:
+  t1:
+    id: t1
+    project_id: p1
+    title: Login
+    requirements: []
+    deadline:
+      due_at: null
+      completed_at: null
+      status: not_stated
+      reaction: null
+  t2:
+    id: t2
+    project_id: p2
+    title: Login
+    requirements: []
+    deadline:
+      due_at: null
+      completed_at: null
+      status: not_stated
+      reaction: null
+  t3:
+    id: t3
+    project_id: p3
+    title: Login
+    requirements: []
+    deadline:
+      due_at: null
+      completed_at: null
+      status: not_stated
+      reaction: null
+actions:
+  a1:
+    id: a1
+    task_id: t1
+    description: Built login
+    reason: null
+    technologies:
+    - Kotlin
+    approaches: []
+    result:
+      status: not_stated
+      description: null
+      metrics: []
+      lesson: null
+    retracted: false
+  a2:
+    id: a2
+    task_id: t2
+    description: Built login
+    reason: null
+    technologies:
+    - Kotlin
+    approaches: []
+    result:
+      status: not_stated
+      description: null
+      metrics: []
+      lesson: null
+    retracted: false
+  a3:
+    id: a3
+    task_id: t3
+    description: Built login
+    reason: null
+    technologies:
+    - Kotlin
+    approaches: []
+    result:
+      status: not_stated
+      description: null
+      metrics: []
+      lesson: null
+    retracted: false
