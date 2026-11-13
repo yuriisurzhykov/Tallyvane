@@ -9,11 +9,12 @@ export function RouteCard({ home }: { readonly home: Home }) {
     const t = useStrings("home");
     if (home.route.length === 0) return null;
     const goal = home.goalName ?? "";
-    const firstOpen = home.route.findIndex((stop) => stop.level !== "confirmed");
-    const stops: TrackStop[] = home.route.map((stop, index) => ({
+    // The stop the main step asks about, as the server chose it, not the first open one in catalog order.
+    const next = home.step === "close_gap" ? home.subject : null;
+    const stops: TrackStop[] = home.route.map((stop) => ({
         key: stop.skill,
         label: stop.name,
-        state: stop.level === "confirmed" ? "done" : index === firstOpen ? "now" : "ahead",
+        state: stop.level === "confirmed" ? "done" : stop.skill === next ? "now" : "ahead",
     }));
     stops.push({ key: "goal", label: goal, state: "end" });
     const done = home.route.filter((stop) => stop.level === "confirmed").length;
