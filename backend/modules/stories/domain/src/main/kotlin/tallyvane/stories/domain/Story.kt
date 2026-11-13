@@ -18,9 +18,9 @@ public class Story private constructor(
 ) {
     public fun isOf(account: Uuid): Boolean = this.account == account
 
-    public fun has(id: Uuid): Boolean = this.id == id
+    public fun id(): Uuid = id
 
-    public fun holds(fact: Uuid): Boolean = facts.any { it.has(fact) && it.isLive() }
+    public fun live(fact: Uuid): Fact? = facts.firstOrNull { it.has(fact) && it.isLive() }
 
     /**
      * This story after hearing [claims] in [hearing]. Claims that do not hold are dropped, and so is one that
@@ -47,7 +47,7 @@ public class Story private constructor(
      */
     public fun correct(corrected: Uuid, hearing: Hearing, claim: Claim, ids: IdGenerator): Story? {
         val newId = ids.next()
-        val old = facts.firstOrNull { it.has(corrected) && it.isLive() }
+        val old = live(corrected)
         val new = old?.let { hearing.factOf(claim, newId, it) }
         return new?.let { fact ->
             Story(

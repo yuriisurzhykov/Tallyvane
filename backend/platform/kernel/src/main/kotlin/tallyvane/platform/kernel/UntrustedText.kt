@@ -29,7 +29,7 @@ public class UntrustedText private constructor(private val text: String) {
         private val INVISIBLE = Regex("""[\p{Cc}\p{Cf}\p{Co}\p{Cn}&&[^\n\t]]""")
 
         /**
-         * [raw] without invisible characters and outer blanks, or null when nothing is left or it is longer
+         * [raw] without invisible characters and outer blanks; null for nothing left, or for text longer
          * than [LIMIT].
          */
         public fun of(raw: String): UntrustedText? =

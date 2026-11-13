@@ -62,6 +62,10 @@ tags:
     description: |
       What happened to a person's security, kept for them to read (ADR-083, ADR-095).
 
+  - name: stories
+    description: The person's own words about their work, and the facts that quote them (docs/backend/08-product-core.md).
+  - name: career
+    description: The goal, the one next step, the route and the résumé, chosen by rules from the stories (0 tokens).
 paths:
   /health:
     get:
@@ -1150,6 +1154,165 @@ paths:
           headers:
             traceparent:
               $ref: "#/components/headers/Traceparent"
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /words:
+    post:
+      tags: [stories]
+      operationId: tell
+      summary: Tell something about your work
+      description: |
+        The one way in for what a person says (spec `extract_facts@1`). The words are kept first and never
+        changed; then the model lists claims, and the backend keeps only those whose fragments are exact
+        substrings of the words, whose figures are written in those fragments, and whose skills the catalog
+        lists. The words are sent to the model as a JSON string, never as instructions.
+
+        `story` adds to a story already begun; absent begins a new one. `400` for empty words, `404` for a
+        story that is not the person's, `503` when the model is unavailable and `429` when today's token
+        allowance is spent (the words are kept in both cases).
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Telling"
+      responses:
+        "200":
+          description: The story after hearing the words.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Story"
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /corrections:
+    post:
+      tags: [stories]
+      operationId: correctFact
+      summary: Correct one fact in your own words
+      description: |
+        Spec `correct_fact@1`. The old fact stays, marked as replaced by the new one. `409` when the
+        correction quotes nothing of the new words, so nothing changed; `404` for a story or fact that is
+        not the person's.
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Correction"
+      responses:
+        "200":
+          description: The story with the fact replaced.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Story"
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /stories:
+    get:
+      tags: [stories]
+      operationId: showStories
+      summary: Your stories, the newest first
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: Every story of the person, with its live facts and their quotes.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Stories"
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /home:
+    get:
+      tags: [career]
+      operationId: showHome
+      summary: The one next step, and the route to the goal
+      description: |
+        Chosen by rules, 0 tokens. `step`: `tell_first` (nothing told yet), `set_goal`, `finish_story`
+        (`subject` is the story, `detail` the slot to ask about), `close_gap` (`subject` is the skill),
+        `keep_going`. Never a vacancy to apply to (ADR-040).
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: The home.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Home"
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /goal:
+    put:
+      tags: [career]
+      operationId: setGoal
+      summary: Choose the role you are heading for
+      description: "`404` when the catalog has no such role track."
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Goal"
+      responses:
+        "200":
+          description: The goal as kept.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Goal"
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /resume:
+    get:
+      tags: [career]
+      operationId: showResume
+      summary: A résumé selected from your own facts
+      description: |
+        Only facts the person said they did themselves, results first, at most five a place. Every bullet
+        traces back to a quote of their words. 0 tokens.
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: The résumé.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Resume"
         default:
           $ref: "#/components/responses/Problem"
 

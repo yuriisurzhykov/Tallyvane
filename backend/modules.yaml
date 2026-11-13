@@ -75,6 +75,16 @@ modules:
     reads: [authentication, identity, journal]
     publishes: []
 
+  career:
+    # The goal, the one next step and the résumé, all chosen by rules from what was told (0 tokens).
+    layers: [application, infrastructure, web]
+    reads: [stories, catalog]
+    publishes: []
+  stories:
+    # Words, and the facts that quote them (ADR-102). Credits facts with skills the catalog lists.
+    layers: [contract, domain, application, infrastructure, web]
+    reads: [catalog]
+    publishes: []
   # The curated list of skills and roles, the same for every account (docs/backend/08-product-core.md). It
   # ships as a file with the release, so it has no domain of its own, no storage and no routes.
   catalog:

@@ -224,7 +224,7 @@ class StorySpec :
                 corrected shouldNotBe null
                 corrected?.seen()?.replaced shouldBe listOf("2M clients, 300 payments/s")
                 corrected?.seen()?.facts?.last() shouldBe "1.5M clients, 300 payments/s"
-                corrected?.holds(old) shouldBe false
+                corrected?.live(old) shouldBe null
             }
 
             "a correction that quotes nothing from the new words, or names a fact the story lacks, is refused" {

@@ -39,6 +39,8 @@ public class Wiring(private val platform: PlatformWiring, private val configurat
 
     private val journal = JournalWiring(platform)
 
+    private val product = ProductWiring(platform, configuration.model)
+
     private val surfaces = Surfaces(configuration.signIn.appOrigin, configuration.signIn.adminOrigin)
 
     private val authentication =
@@ -76,7 +78,7 @@ public class Wiring(private val platform: PlatformWiring, private val configurat
                     reporter = HealthReporter.OverChecks(checks),
                     token = ServiceToken(configuration.healthToken.revealed()),
                 ),
-            ) + authentication.routes + sessions.routes + journal.routes + identity.routes,
+            ) + authentication.routes + sessions.routes + journal.routes + identity.routes + product.routes,
             failures = FailureTranslator.Chained(emptyList()),
             trace = TraceHeader(platform.ids),
             ledger = platform.persistence.ledger,
