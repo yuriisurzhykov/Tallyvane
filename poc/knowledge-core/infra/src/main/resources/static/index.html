@@ -1,0 +1,846 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Knowledge Core</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f4f5f8;
+    --panel: #ffffff;
+    --panel-soft: #f7f8fb;
+    --border: #dfe2ea;
+    --text: #1c2030;
+    --muted: #626a80;
+    --accent: #4b45d6;
+    --accent-text: #ffffff;
+    --accent-soft: #e9e8fb;
+    --good: #14724a;
+    --good-soft: #def3e8;
+    --bad: #a3282f;
+    --bad-soft: #fbe3e4;
+    --edge: #b3b9c9;
+    --c-company: #475569;
+    --c-role: #2563eb;
+    --c-project: #0e7490;
+    --c-action: #15803d;
+    --c-technology: #b45309;
+    --c-collaborator: #7e22ce;
+    --c-outcome: #c2262e;
+    --c-skill: #be185d;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0e1015;
+      --panel: #171a22;
+      --panel-soft: #1d212b;
+      --border: #2b303d;
+      --text: #e6e8ef;
+      --muted: #9aa2b8;
+      --accent: #8b86ff;
+      --accent-text: #0e1015;
+      --accent-soft: #2a2850;
+      --good: #6fd3a2;
+      --good-soft: #17352a;
+      --bad: #f19aa0;
+      --bad-soft: #3d1c20;
+      --edge: #4a5167;
+      --c-company: #94a3b8;
+      --c-role: #6ea0ff;
+      --c-project: #4fc3d9;
+      --c-action: #5fcf80;
+      --c-technology: #f2a54a;
+      --c-collaborator: #c18cf5;
+      --c-outcome: #f2777e;
+      --c-skill: #f080b5;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: flex;
+    flex-direction: column;
+  }
+  [hidden] { display: none !important; }
+  h1, h2, h3, p { margin: 0; }
+  button, textarea { font: inherit; color: inherit; }
+
+  .top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 14px 20px;
+  }
+  .top h1 { font-size: 18px; font-weight: 700; }
+  .top .sub { color: var(--muted); font-size: 13px; }
+  .top .actions { display: flex; gap: 8px; }
+
+  .btn {
+    height: 40px;
+    min-width: 128px;
+    padding: 0 16px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .btn:hover:not(:disabled) { border-color: var(--accent); }
+  .btn:disabled { opacity: .55; cursor: default; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+  .btn:focus-visible, textarea:focus-visible, summary:focus-visible, .bullet:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .panels {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(300px, 1fr) minmax(0, 2fr) minmax(340px, 1.15fr);
+    gap: 12px;
+    padding: 0 20px 20px;
+  }
+  .panel {
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+  }
+  .panel > header { padding: 14px 16px 10px; border-bottom: 1px solid var(--border); }
+  .panel > header h2 { font-size: 14px; font-weight: 700; }
+  .panel > header p { color: var(--muted); font-size: 12.5px; }
+  .scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 14px 16px; }
+
+  /* chat */
+  #messages { display: flex; flex-direction: column; gap: 10px; }
+  .msg { max-width: 94%; padding: 10px 12px; border-radius: 10px; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .msg.question { background: var(--panel-soft); border: 1px solid var(--border); align-self: flex-start; }
+  .msg.answer { background: var(--accent-soft); align-self: flex-end; }
+  .msg.note { color: var(--muted); font-size: 12.5px; padding: 0 4px; max-width: 100%; align-self: flex-start; }
+  .msg.error { background: var(--bad-soft); color: var(--bad); align-self: stretch; max-width: 100%; }
+  .msg .tag { display: block; font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+  .merge { background: var(--panel-soft); border: 1px solid var(--border); border-radius: 10px; padding: 12px; align-self: stretch; }
+  .merge p { margin-bottom: 8px; }
+  .merge dl { margin: 0 0 12px; display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; }
+  .merge dt { color: var(--muted); }
+  .merge dd { margin: 0; font-weight: 600; }
+  .merge .choices { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .merge .choices .btn { min-width: 0; padding: 0 8px; }
+  .merge .decided { color: var(--muted); }
+  .composer { border-top: 1px solid var(--border); padding: 12px 16px 14px; display: grid; gap: 8px; }
+  .composer label { font-weight: 600; font-size: 13px; }
+  textarea {
+    width: 100%;
+    min-height: 92px;
+    resize: vertical;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--panel);
+    line-height: 1.45;
+  }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .hint { color: var(--muted); font-size: 12.5px; }
+
+  /* graph */
+  #graph-wrap { flex: 1; min-height: 0; position: relative; }
+  #graph { position: absolute; inset: 0; }
+  #graph-empty {
+    position: absolute; inset: 0; display: grid; place-items: center; text-align: center;
+    color: var(--muted); padding: 24px; pointer-events: none;
+  }
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; list-style: none; margin: 8px 0 0; padding: 0; font-size: 12px; color: var(--muted); }
+  .legend li { display: flex; align-items: center; gap: 6px; }
+  .legend i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  #evidence {
+    position: absolute; left: 12px; right: 12px; bottom: 12px; max-height: 46%;
+    overflow-y: auto; background: var(--panel); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 14px; box-shadow: 0 6px 24px rgba(0, 0, 0, .14);
+  }
+  #evidence .head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 6px; }
+  #evidence h3 { font-size: 13.5px; }
+  #evidence .kind { color: var(--muted); font-size: 12px; margin-right: 6px; }
+  #evidence blockquote {
+    margin: 6px 0 0; padding: 4px 0 4px 10px; border-left: 3px solid var(--accent); overflow-wrap: anywhere;
+  }
+  #evidence .close { border: 0; background: none; color: var(--muted); cursor: pointer; padding: 2px 6px; border-radius: 6px; }
+  #evidence .close:hover { color: var(--text); }
+
+  /* vacancy and resume */
+  #vacancy-text { min-height: 120px; }
+  .results { display: grid; gap: 16px; margin-top: 16px; }
+  .results h3 { font-size: 13px; margin-bottom: 6px; }
+  ul.plain { list-style: none; margin: 0; padding: 0; }
+  .reqs li { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--border); }
+  .reqs .name { font-weight: 600; }
+  .reqs .kind { color: var(--muted); font-size: 12px; grid-column: 1; }
+  .badge {
+    grid-column: 2; grid-row: 1 / span 2; min-width: 104px; text-align: center; padding: 3px 10px;
+    border-radius: 999px; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums;
+  }
+  .badge.covered { background: var(--good-soft); color: var(--good); }
+  .badge.missing { background: var(--bad-soft); color: var(--bad); }
+  .unmapped { margin-top: 8px; color: var(--muted); font-size: 12.5px; }
+  details.scores { font-size: 13px; }
+  details.scores summary { cursor: pointer; font-weight: 600; }
+  details.scores ul { margin: 8px 0 0; padding-left: 16px; }
+  details.scores li { margin-bottom: 4px; }
+  .num { font-variant-numeric: tabular-nums; color: var(--muted); }
+  .paper { background: var(--panel-soft); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
+  .paper h1 { font-size: 18px; margin-bottom: 2px; }
+  .paper h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 14px 0 6px; }
+  .paper h3 { font-size: 14px; margin: 12px 0 4px; }
+  .paper p { margin: 2px 0; }
+  .paper ul { margin: 4px 0; padding-left: 18px; }
+  .bullet { margin: 4px 0; cursor: help; border-radius: 4px; text-decoration: underline dotted var(--muted); text-underline-offset: 3px; }
+  .bullet:hover, .bullet:focus-visible { background: var(--accent-soft); }
+  #quotes-pop {
+    position: fixed; z-index: 30; max-width: min(420px, 90vw); background: var(--panel); border: 1px solid var(--border);
+    border-radius: 10px; padding: 10px 12px; box-shadow: 0 6px 24px rgba(0, 0, 0, .18); pointer-events: none;
+  }
+  #quotes-pop .tag { font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+  #quotes-pop blockquote { margin: 6px 0 0; padding-left: 10px; border-left: 3px solid var(--accent); overflow-wrap: anywhere; }
+
+  /* model calls drawer */
+  #drawer {
+    position: fixed; left: 0; right: 0; bottom: 0; height: min(52vh, 560px); z-index: 20;
+    background: var(--panel); border-top: 1px solid var(--border); box-shadow: 0 -8px 30px rgba(0, 0, 0, .16);
+    display: flex; flex-direction: column;
+  }
+  #drawer[hidden] { display: none; }
+  #drawer > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 20px; border-bottom: 1px solid var(--border); }
+  #drawer h2 { font-size: 14px; }
+  #drawer .totals { color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+  #drawer .tools { display: flex; gap: 8px; }
+  #drawer .scroll { padding: 8px 20px 16px; }
+  .call { border-bottom: 1px solid var(--border); }
+  .call summary {
+    cursor: pointer; padding: 9px 0; display: grid; gap: 4px 14px; align-items: center;
+    grid-template-columns: 90px 108px 80px 1fr; font-variant-numeric: tabular-nums;
+  }
+  .call .step { font-weight: 700; }
+  .call .when, .call .latency { color: var(--muted); }
+  .call .tokens { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+  .call .tokens span { color: var(--muted); }
+  .call .tokens b { color: var(--text); font-weight: 600; }
+  .call.failed .step { color: var(--bad); }
+  .call .body { padding: 0 0 12px; display: grid; gap: 10px; }
+  .call .body h4 { margin: 0 0 4px; font-size: 12px; color: var(--muted); font-weight: 600; }
+  .call pre {
+    margin: 0; padding: 10px 12px; max-height: 220px; overflow: auto; background: var(--panel-soft);
+    border: 1px solid var(--border); border-radius: 8px; font: 12px/1.45 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere;
+  }
+  .call .error { color: var(--bad); }
+  .empty { color: var(--muted); padding: 12px 0; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  @media (max-width: 1100px) {
+    body { display: block; height: auto; }
+    .panels { display: flex; flex-direction: column; }
+    .panel { min-height: 70vh; }
+    #graph-wrap { min-height: 60vh; }
+    .call summary { grid-template-columns: 80px 1fr; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <div>
+    <h1>Knowledge Core</h1>
+    <p class="sub">Every line of the résumé traces back to something you said.</p>
+  </div>
+  <div class="actions">
+    <button class="btn" id="drawer-toggle" type="button" aria-expanded="false" aria-controls="drawer">Model calls</button>
+    <button class="btn" id="reset" type="button">Start over</button>
+  </div>
+</header>
+
+<main class="panels">
+  <section class="panel" aria-labelledby="chat-title">
+    <header>
+      <h2 id="chat-title">Interview</h2>
+      <p>Answer in your own words, in any language.</p>
+    </header>
+    <div class="scroll" id="scroll-chat"><div id="messages" role="log" aria-live="polite"></div></div>
+    <form class="composer" id="composer">
+      <label for="answer">Your answer</label>
+      <textarea id="answer" placeholder="Type what you did, in your own words" required></textarea>
+      <div class="row">
+        <span class="hint" id="answer-status">Ctrl+Enter sends.</span>
+        <button class="btn primary" id="send" type="submit">Send answer</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="panel" aria-labelledby="graph-title">
+    <header>
+      <h2 id="graph-title">What the graph knows</h2>
+      <p>It grows with every answer. Select a node to see the words it came from.</p>
+      <ul class="legend" id="legend" aria-label="Node colours"></ul>
+    </header>
+    <div id="graph-wrap">
+      <div id="graph" aria-label="Knowledge graph"></div>
+      <div id="graph-empty"><p>Nothing here yet.<br>Answer the first question and the graph starts to grow.</p></div>
+      <aside id="evidence" hidden aria-live="polite"></aside>
+    </div>
+  </section>
+
+  <section class="panel" aria-labelledby="vacancy-title">
+    <header>
+      <h2 id="vacancy-title">Vacancy and résumé</h2>
+      <p>Paste a job description to see what you cover and what you do not.</p>
+    </header>
+    <div class="scroll">
+      <form id="vacancy-form" style="display:grid;gap:8px">
+        <label for="vacancy-text" style="font-weight:600;font-size:13px">Job description</label>
+        <textarea id="vacancy-text" placeholder="Paste the vacancy text here" required></textarea>
+        <div class="row">
+          <span class="hint" id="vacancy-status"></span>
+          <button class="btn primary" id="match" type="submit">Match vacancy</button>
+        </div>
+      </form>
+      <div class="results" id="results" hidden>
+        <div><h3 id="target"></h3><ul class="plain reqs" id="reqs"></ul><p class="unmapped" id="unmapped" hidden></p></div>
+        <details class="scores" id="scores" hidden><summary>Scores by role and project</summary><ul id="score-list"></ul></details>
+        <div>
+          <h3>Résumé</h3>
+          <p class="hint" style="margin-bottom:8px">Hover a bullet to see the words it comes from.</p>
+          <div class="paper" id="resume"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div id="quotes-pop" hidden></div>
+
+<aside id="drawer" hidden aria-label="Calls to the model">
+  <header>
+    <div>
+      <h2>Calls to the model</h2>
+      <p class="totals" id="totals"></p>
+    </div>
+    <div class="tools">
+      <button class="btn" id="drawer-refresh" type="button">Refresh</button>
+      <button class="btn" id="drawer-close" type="button">Close</button>
+    </div>
+  </header>
+  <div class="scroll" id="calls"></div>
+</aside>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.30.2/cytoscape.min.js" integrity="sha384-IWROdLKRsN1UuJywMlWl7/blXQ8GEooN2n7dzTxfEPd7ybYIKCUJ2Ol/1Gpf3YV4" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+
+  if (typeof cytoscape === 'undefined') {
+    $('graph-empty').textContent = 'The graph library could not be loaded from cdnjs. Check the connection and reload the page.';
+    return;
+  }
+
+  /** Builds an element; strings become text, never markup. */
+  function el(tag, props, ...children) {
+    const node = document.createElement(tag);
+    Object.entries(props || {}).forEach(([key, value]) => {
+      if (key === 'class') node.className = value;
+      else if (key === 'text') node.textContent = value;
+      else node.setAttribute(key, value);
+    });
+    children.flat().forEach((child) => {
+      if (child == null) return;
+      node.append(child.nodeType ? child : document.createTextNode(String(child)));
+    });
+    return node;
+  }
+
+  class ApiError extends Error {
+    constructor(message, step, status) {
+      super(message);
+      this.step = step;
+      this.status = status;
+    }
+  }
+
+  async function api(method, path, body) {
+    const response = await fetch(path, {
+      method,
+      headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    if (response.status === 204) return null;
+    const text = await response.text();
+    let data = null;
+    try { data = JSON.parse(text); } catch (ignored) { /* not JSON */ }
+    if (!response.ok) {
+      throw new ApiError((data && data.error) || response.statusText || 'The request failed.', data && data.step, response.status);
+    }
+    return data;
+  }
+
+  function describe(error) {
+    return error.step ? `${error.message} (step: ${error.step})` : error.message;
+  }
+
+  /* ---------------------------------------------------------------- graph */
+
+  const TYPES = {
+    company: { label: 'Company', plural: 'companies', shape: 'round-rectangle', size: 34 },
+    role: { label: 'Role', plural: 'roles', shape: 'round-rectangle', size: 30 },
+    project: { label: 'Project', plural: 'projects', shape: 'round-rectangle', size: 28 },
+    action: { label: 'Action', plural: 'actions', shape: 'ellipse', size: 24 },
+    technology: { label: 'Technology', plural: 'technologies', shape: 'diamond', size: 22 },
+    collaborator: { label: 'Collaborator', plural: 'collaborators', shape: 'hexagon', size: 22 },
+    outcome: { label: 'Outcome', plural: 'outcomes', shape: 'octagon', size: 22 },
+    skill: { label: 'Skill', plural: 'skills', shape: 'tag', size: 20 },
+  };
+  const FRESH_MILLIS = 2000;
+  const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+  function graphStyle() {
+    const text = css('--text');
+    const panel = css('--panel');
+    const rules = [
+      {
+        selector: 'node',
+        style: {
+          label: 'data(label)', 'font-size': 10, color: text, 'text-wrap': 'wrap', 'text-max-width': 112,
+          'text-valign': 'bottom', 'text-margin-y': 5, 'text-outline-color': panel, 'text-outline-width': 2,
+          'border-width': 0, 'border-color': css('--accent'), 'border-opacity': 1,
+          'transition-property': 'border-width', 'transition-duration': '0.25s',
+        },
+      },
+      {
+        selector: 'edge',
+        style: { width: 1, 'line-color': css('--edge'), 'curve-style': 'bezier', opacity: 0.75 },
+      },
+      { selector: 'edge[type="tagged"]', style: { 'line-style': 'dashed', width: 'mapData(weight, 0, 1, 0.6, 2)' } },
+      { selector: 'node.fresh', style: { 'border-width': 5 } },
+      { selector: 'node:selected', style: { 'border-width': 3 } },
+    ];
+    Object.entries(TYPES).forEach(([type, spec]) => {
+      rules.push({
+        selector: `node[type="${type}"]`,
+        style: { 'background-color': css(`--c-${type}`), shape: spec.shape, width: spec.size, height: spec.size },
+      });
+    });
+    return rules;
+  }
+
+  const cy = cytoscape({
+    container: $('graph'),
+    style: graphStyle(),
+    wheelSensitivity: 0.25,
+    minZoom: 0.15,
+    maxZoom: 2.5,
+  });
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => cy.style(graphStyle()));
+
+  $('legend').append(...Object.entries(TYPES).map(([type, spec]) => {
+    const dot = el('i');
+    dot.style.background = `var(--c-${type})`;
+    return el('li', {}, dot, spec.label);
+  }));
+
+  function layout() {
+    cy.layout({
+      name: 'breadthfirst',
+      directed: true,
+      roots: cy.nodes('[type="company"]'),
+      spacingFactor: 1.05,
+      padding: 30,
+      fit: true,
+      animate: !reducedMotion(),
+      animationDuration: 300,
+    }).run();
+  }
+
+  async function refreshGraph(highlight) {
+    const graph = await api('GET', '/api/graph');
+    const wanted = new Set(graph.nodes.map((node) => node.id));
+    const edgeId = (edge) => `${edge.from}>${edge.to}>${edge.type}`;
+    const wantedEdges = new Set(graph.edges.map(edgeId));
+    const fresh = [];
+    let changed = false;
+    cy.batch(() => {
+      cy.nodes().forEach((node) => { if (!wanted.has(node.id())) { cy.remove(node); changed = true; } });
+      cy.edges().forEach((edge) => { if (!wantedEdges.has(edge.id())) { cy.remove(edge); changed = true; } });
+      graph.nodes.forEach((node) => {
+        const existing = cy.getElementById(node.id);
+        if (existing.empty()) {
+          cy.add({ group: 'nodes', data: { id: node.id, type: node.type, label: node.label } });
+          fresh.push(node.id);
+          changed = true;
+        } else {
+          existing.data('label', node.label);
+        }
+      });
+      graph.edges.forEach((edge) => {
+        if (cy.getElementById(edgeId(edge)).empty()) {
+          cy.add({ group: 'edges', data: { id: edgeId(edge), source: edge.from, target: edge.to, type: edge.type, weight: edge.weight == null ? 0 : edge.weight } });
+          changed = true;
+        }
+      });
+    });
+    $('graph-empty').hidden = graph.nodes.length > 0;
+    if (changed) layout();
+    if (highlight && fresh.length > 0) {
+      const added = cy.nodes().filter((node) => fresh.includes(node.id()));
+      added.addClass('fresh');
+      setTimeout(() => added.removeClass('fresh'), FRESH_MILLIS);
+    }
+  }
+
+  const evidencePanel = $('evidence');
+  let evidenceFor = null;
+
+  async function showEvidence(data) {
+    evidenceFor = data.id;
+    const spec = TYPES[data.type] || { label: data.type };
+    evidencePanel.hidden = false;
+    evidencePanel.replaceChildren(el('p', { class: 'hint', text: 'Looking up your words…' }));
+    try {
+      const evidence = await api('GET', `/api/evidence/${encodeURIComponent(data.id)}`);
+      if (evidenceFor !== data.id) return;
+      const close = el('button', { class: 'close', type: 'button', 'aria-label': 'Close' }, '✕');
+      close.addEventListener('click', hideEvidence);
+      evidencePanel.replaceChildren(...[
+        el('div', { class: 'head' }, el('h3', {}, el('span', { class: 'kind', text: spec.label }), data.label), close),
+        evidence.quotes.length === 0
+          ? el('p', { class: 'hint', text: 'No words of yours are attached to this node directly.' })
+          : evidence.quotes.map((quote) => el('blockquote', { text: quote })),
+      ].flat());
+    } catch (error) {
+      if (evidenceFor === data.id) evidencePanel.replaceChildren(el('p', { class: 'hint', text: describe(error) }));
+    }
+  }
+
+  function hideEvidence() {
+    evidenceFor = null;
+    evidencePanel.hidden = true;
+  }
+
+  cy.on('tap', 'node', (event) => showEvidence(event.target.data()));
+  cy.on('tap', (event) => { if (event.target === cy) hideEvidence(); });
+
+  /* ----------------------------------------------------------------- chat */
+
+  const messages = $('messages');
+  const answerBox = $('answer');
+  const sendButton = $('send');
+  const answerStatus = $('answer-status');
+  let currentQuestion = null;
+  let pendingMerge = null;
+  let sending = false;
+
+  const scrollChat = () => { const box = $('scroll-chat'); box.scrollTop = box.scrollHeight; };
+
+  function say(kind, text, tag) {
+    const bubble = el('div', { class: `msg ${kind}` }, tag ? el('span', { class: 'tag', text: tag }) : null, text);
+    messages.append(bubble);
+    scrollChat();
+    return bubble;
+  }
+
+  function showQuestion(question) {
+    currentQuestion = question;
+    say('question', question.text, question.gap.replace(/_/g, ' ').toLowerCase());
+  }
+
+  function countsOf(nodes) {
+    const counts = {};
+    nodes.forEach((node) => { counts[node.type] = (counts[node.type] || 0) + 1; });
+    return Object.entries(counts).map(([type, count]) => {
+      const spec = TYPES[type];
+      return `${count} ${count === 1 ? (spec ? spec.label.toLowerCase() : type) : (spec ? spec.plural : type)}`;
+    }).join(', ');
+  }
+
+  function showMerge(candidate) {
+    const yes = el('button', { class: 'btn primary', type: 'button', text: 'Yes, same' });
+    const no = el('button', { class: 'btn', type: 'button', text: 'No, different' });
+    const choices = el('div', { class: 'choices' }, yes, no);
+    const card = el('div', { class: 'merge' },
+      el('p', { text: 'Is this the same as something you told me before?' }),
+      el('dl', {}, el('dt', { text: 'Just now' }), el('dd', { text: candidate.newLabel }), el('dt', { text: 'Earlier' }), el('dd', { text: candidate.existingLabel })),
+      choices);
+    const decide = async (accept) => {
+      yes.disabled = no.disabled = true;
+      try {
+        await api('POST', '/api/merge', { newActionId: candidate.newActionId, existingActionId: candidate.existingActionId, accept });
+        pendingMerge = null;
+        choices.replaceWith(el('p', { class: 'decided', text: accept ? 'Merged into the earlier action.' : 'Kept as two separate actions.' }));
+        await refreshGraph(false);
+      } catch (error) {
+        yes.disabled = no.disabled = false;
+        say('error', describe(error));
+      }
+    };
+    yes.addEventListener('click', () => decide(true));
+    no.addEventListener('click', () => decide(false));
+    messages.append(card);
+    pendingMerge = { card, choices };
+    scrollChat();
+  }
+
+  /** A merge nobody answered by the time the next answer is accepted is left as two actions, and the card says so. */
+  function retirePendingMerge() {
+    if (!pendingMerge) return;
+    pendingMerge.choices.replaceWith(el('p', { class: 'decided', text: 'Left as two separate actions.' }));
+    pendingMerge = null;
+  }
+
+  function setSending(on) {
+    sending = on;
+    sendButton.disabled = on;
+    answerBox.disabled = on;
+    answerStatus.textContent = on ? 'Reading your answer…' : 'Ctrl+Enter sends.';
+  }
+
+  async function sendAnswer() {
+    const text = answerBox.value.trim();
+    if (!text || sending) return;
+    say('answer', text);
+    setSending(true);
+    try {
+      const result = await api('POST', '/api/answer', { text, questionId: currentQuestion ? currentQuestion.id : null });
+      // The server has moved on, so the page does too, before anything that can fail on its own.
+      currentQuestion = result.nextQuestion;
+      answerBox.value = '';
+      retirePendingMerge();
+      if (result.nodes.length > 0) say('note', `Graph updated: ${countsOf(result.nodes)}.`);
+      try {
+        await refreshGraph(true);
+      } catch (error) {
+        say('error', `The answer was saved, but the graph could not be refreshed: ${describe(error)}`);
+      }
+      if (result.mergeCandidate) showMerge(result.mergeCandidate);
+      showQuestion(result.nextQuestion);
+    } catch (error) {
+      say('error', describe(error));
+    } finally {
+      setSending(false);
+      answerBox.focus();
+      refreshDrawerIfOpen();
+    }
+  }
+
+  $('composer').addEventListener('submit', (event) => { event.preventDefault(); sendAnswer(); });
+  answerBox.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) { event.preventDefault(); sendAnswer(); }
+  });
+
+  /* ------------------------------------------------------ vacancy, résumé */
+
+  const popover = $('quotes-pop');
+
+  function showQuotes(target, quotes) {
+    popover.replaceChildren(
+      el('span', { class: 'tag', text: quotes.length === 0 ? 'No source words recorded' : 'You said' }),
+      ...quotes.map((quote) => el('blockquote', { text: quote })),
+    );
+    popover.hidden = false;
+    const box = target.getBoundingClientRect();
+    const width = popover.offsetWidth;
+    const height = popover.offsetHeight;
+    const left = Math.max(8, Math.min(box.left, window.innerWidth - width - 8));
+    const below = box.bottom + 8;
+    popover.style.left = `${left}px`;
+    popover.style.top = `${below + height > window.innerHeight - 8 ? Math.max(8, box.top - height - 8) : below}px`;
+  }
+  const hideQuotes = () => { popover.hidden = true; };
+
+  function renderResume(resume) {
+    const unclaimed = [...resume.bullets];
+    const root = $('resume');
+    root.replaceChildren();
+    let list = null;
+    resume.markdown.split('\n').forEach((line) => {
+      if (line.startsWith('- ')) {
+        if (!list) { list = el('ul'); root.append(list); }
+        const text = line.slice(2);
+        // Two bullets can read alike; each line takes the first one not yet taken, which is the order they were built in.
+        const at = unclaimed.findIndex((candidate) => candidate.text === text);
+        const bullet = at >= 0 ? unclaimed.splice(at, 1)[0] : undefined;
+        const item = el('li', { class: 'bullet', text, tabindex: '0' });
+        const quotes = bullet ? bullet.evidence : [];
+        item.addEventListener('mouseenter', () => showQuotes(item, quotes));
+        item.addEventListener('focus', () => showQuotes(item, quotes));
+        item.addEventListener('mouseleave', hideQuotes);
+        item.addEventListener('blur', hideQuotes);
+        list.append(item);
+        return;
+      }
+      list = null;
+      if (line.startsWith('### ')) root.append(el('h3', { text: line.slice(4) }));
+      else if (line.startsWith('## ')) root.append(el('h2', { text: line.slice(3) }));
+      else if (line.startsWith('# ')) root.append(el('h1', { text: line.slice(2) }));
+      else if (line.trim() === '') return;
+      else if (line.startsWith('**') && line.indexOf('**', 2) > 1) {
+        const end = line.indexOf('**', 2);
+        root.append(el('p', {}, el('strong', { text: line.slice(2, end) }), line.slice(end + 2)));
+      } else root.append(el('p', { text: line }));
+    });
+  }
+
+  function renderMatch(vacancy, match) {
+    const gaps = new Map(match.gaps.map((gap) => [gap.skill, gap]));
+    $('target').textContent = vacancy.title ? `Target: ${vacancy.title}` : 'Target';
+    $('reqs').replaceChildren(...vacancy.reqs.map((req) => {
+      const gap = gaps.get(req.skill);
+      const row = el('li', {}, el('span', { class: 'name', text: req.name }), el('span', { class: 'kind', text: req.must ? 'Must have' : 'Nice to have' }));
+      if (gap && gap.must) {
+        const state = gap.missing ? 'missing' : 'covered';
+        row.append(el('span', {
+          class: `badge ${state}`,
+          title: `Best match among your actions: ${gap.bestWeight.toFixed(2)}`,
+          text: `${gap.missing ? 'Missing' : 'Covered'} · ${gap.bestWeight.toFixed(2)}`,
+        }));
+      }
+      return row;
+    }));
+    const unmapped = $('unmapped');
+    unmapped.hidden = match.unmapped.length === 0;
+    unmapped.textContent = `Not in the skill list, so not matched: ${match.unmapped.join(', ')}`;
+    const scores = $('scores');
+    scores.hidden = match.scores.length === 0;
+    $('score-list').replaceChildren(...match.scores.map((role) => el('li', {},
+      `${role.company}${role.title ? ` — ${role.title}` : ''}${role.period ? ` (${role.period})` : ''} `,
+      el('span', { class: 'num', text: role.score.toFixed(2) }),
+      el('ul', {}, role.projects.map((project) => el('li', {}, `${project.title || 'Untitled project'} `, el('span', { class: 'num', text: project.score.toFixed(2) })))))));
+  }
+
+  const matchButton = $('match');
+  const vacancyStatus = $('vacancy-status');
+
+  $('vacancy-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const text = $('vacancy-text').value.trim();
+    if (!text) return;
+    matchButton.disabled = true;
+    vacancyStatus.textContent = 'Reading the vacancy…';
+    try {
+      const vacancy = await api('POST', '/api/vacancy', { text });
+      vacancyStatus.textContent = 'Matching and building the résumé…';
+      const query = `vacancyId=${encodeURIComponent(vacancy.vacancyId)}`;
+      const [match, resume] = await Promise.all([api('GET', `/api/match?${query}`), api('GET', `/api/resume?${query}`)]);
+      renderMatch(vacancy, match);
+      renderResume(resume);
+      $('results').hidden = false;
+      vacancyStatus.textContent = '';
+    } catch (error) {
+      vacancyStatus.textContent = describe(error);
+    } finally {
+      matchButton.disabled = false;
+      refreshDrawerIfOpen();
+    }
+  });
+
+  /* ---------------------------------------------------------- model calls */
+
+  const drawer = $('drawer');
+  const toggle = $('drawer-toggle');
+
+  function prettyJson(text) {
+    try { return JSON.stringify(JSON.parse(text), null, 2); } catch (ignored) { return text; }
+  }
+
+  function tokenChips(call) {
+    return el('span', { class: 'tokens' },
+      el('span', {}, 'input ', el('b', { text: call.inputTokens })),
+      el('span', {}, 'cache write ', el('b', { text: call.cacheCreationTokens })),
+      el('span', {}, 'cache read ', el('b', { text: call.cacheReadTokens })),
+      el('span', {}, 'output ', el('b', { text: call.outputTokens })));
+  }
+
+  function renderCalls(calls) {
+    const sum = (key) => calls.reduce((total, call) => total + call[key], 0);
+    $('totals').textContent = calls.length === 0
+      ? 'No calls yet.'
+      : `${calls.length} calls · input ${sum('inputTokens')} · cache write ${sum('cacheCreationTokens')} · cache read ${sum('cacheReadTokens')} · output ${sum('outputTokens')}`;
+    $('calls').replaceChildren(...(calls.length === 0
+      ? [el('p', { class: 'empty', text: 'Answer a question and the calls to the model show up here, with what they cost.' })]
+      : calls.map((call) => {
+        const body = el('div', { class: 'body' },
+          el('div', {}, el('h4', { text: 'Cached prefix (rules, schema, examples)' }), el('pre', { text: call.cachedPrefix })),
+          el('div', {}, el('h4', { text: 'Dynamic part (this answer)' }), el('pre', { text: call.dynamicSuffix })),
+          call.reply != null
+            ? el('div', {}, el('h4', { text: 'Raw reply' }), el('pre', { text: prettyJson(call.reply) }))
+            : el('div', {}, el('h4', { text: 'Failed' }), el('pre', { class: 'error', text: call.error || 'Unknown error' })));
+        return el('details', { class: `call${call.error ? ' failed' : ''}` },
+          el('summary', {},
+            el('span', { class: 'step', text: call.step }),
+            el('span', { class: 'when', text: new Date(call.at).toLocaleTimeString() }),
+            el('span', { class: 'latency', text: `${call.latencyMillis} ms` }),
+            call.error ? el('span', { class: 'error', text: 'failed' }) : tokenChips(call)),
+          body);
+      })));
+  }
+
+  async function refreshDrawer() {
+    try {
+      renderCalls(await api('GET', '/api/debug/llm'));
+    } catch (error) {
+      $('calls').replaceChildren(el('p', { class: 'empty', text: describe(error) }));
+    }
+  }
+  const refreshDrawerIfOpen = () => { if (!drawer.hidden) refreshDrawer(); };
+
+  function setDrawer(open) {
+    drawer.hidden = !open;
+    toggle.setAttribute('aria-expanded', String(open));
+    if (open) refreshDrawer();
+  }
+  toggle.addEventListener('click', () => setDrawer(drawer.hidden));
+  $('drawer-close').addEventListener('click', () => setDrawer(false));
+  $('drawer-refresh').addEventListener('click', refreshDrawer);
+
+  /* ------------------------------------------------------------- start up */
+
+  async function start() {
+    messages.replaceChildren();
+    try {
+      await refreshGraph(false);
+      showQuestion(await api('GET', '/api/question'));
+    } catch (error) {
+      say('error', `The server did not answer: ${describe(error)}`);
+    }
+  }
+
+  $('reset').addEventListener('click', async () => {
+    if (!window.confirm('Delete everything you have said and the graph built from it? The skill and technology lists stay.')) return;
+    try {
+      await api('POST', '/api/reset');
+      hideEvidence();
+      hideQuotes();
+      cy.elements().remove();
+      $('results').hidden = true;
+      $('vacancy-status').textContent = '';
+      pendingMerge = null;
+      await start();
+      refreshDrawerIfOpen();
+    } catch (error) {
+      say('error', describe(error));
+    }
+  });
+
+  start();
+})();
+</script>
+</body>
+</html>

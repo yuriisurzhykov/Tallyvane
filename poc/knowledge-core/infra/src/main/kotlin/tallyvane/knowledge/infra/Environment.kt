@@ -9,6 +9,9 @@ import java.nio.file.Path
  * `.env` is found at once and not at the first answer.
  */
 class Environment(private val values: Map<String, String>) {
+    /** These settings, with [overrides] taking the place of any that are also set here. */
+    fun with(overrides: Map<String, String>): Environment = Environment(values + overrides)
+
     fun text(name: String, default: String): String = values[name]?.takeIf { it.isNotBlank() } ?: default
 
     fun required(name: String): String =
