@@ -1,10 +1,9 @@
-import { AppShell } from "frontend-shared/ui/app-shell";
+import { Heading } from "frontend-shared/ui/heading";
 import { Stack } from "frontend-shared/ui/stack";
 import { Text } from "frontend-shared/ui/text";
 import { AccountMenu } from "@/widgets/account-menu";
+import { ProductFrame } from "@/widgets/product-frame";
 import { DeviceList } from "@/widgets/device-list";
-
-const NAV_ITEMS = [{ label: "Today", href: "/today", isActive: false }];
 
 /**
  * The devices a person is signed in on. It lives under `/settings` because the settings page that will hold
@@ -12,13 +11,14 @@ const NAV_ITEMS = [{ label: "Today", href: "/today", isActive: false }];
  */
 export function DevicesPage() {
     return (
-        <AppShell navItems={NAV_ITEMS} title="Devices" skipLinkLabel="Skip to content" actions={<AccountMenu />}>
+        <ProductFrame back account={<AccountMenu />}>
             <Stack gap="group-gap">
+                <Heading level={1} variant="title1">Devices</Heading>
                 <Text variant="body" color="secondary">
                     Where you are signed in. Sign out on any you no longer use.
                 </Text>
                 <DeviceList />
             </Stack>
-        </AppShell>
+        </ProductFrame>
     );
 }

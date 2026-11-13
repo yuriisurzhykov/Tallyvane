@@ -1,16 +1,23 @@
-import { AppShell } from "frontend-shared/ui/app-shell";
+import { Heading } from "frontend-shared/ui/heading";
+import { Stack } from "frontend-shared/ui/stack";
+import { Text } from "frontend-shared/ui/text";
+import { useStrings } from "@/shared/i18n";
 import { AccountMenu } from "@/widgets/account-menu";
+import { ProductFrame } from "@/widgets/product-frame";
 import { ResumeSheet } from "@/widgets/resume-sheet";
 
-const NAV_ITEMS = [
-    { label: "Today", href: "/today", isActive: false },
-    { label: "Résumé", href: "/resume", isActive: true },
-];
-
 export function ResumePage() {
+    const t = useStrings("frame");
+    const resume = useStrings("resume");
     return (
-        <AppShell navItems={NAV_ITEMS} title="Résumé" skipLinkLabel="Skip to content" actions={<AccountMenu />}>
-            <ResumeSheet />
-        </AppShell>
+        <ProductFrame back account={<AccountMenu />}>
+            <Stack gap="group-gap">
+                <Stack gap="inline-tight">
+                    <Heading level={1} variant="title1">{t("resume")}</Heading>
+                    <Text variant="body" color="secondary">{resume("lead")}</Text>
+                </Stack>
+                <ResumeSheet />
+            </Stack>
+        </ProductFrame>
     );
 }
