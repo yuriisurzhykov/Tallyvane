@@ -62,6 +62,12 @@ tags:
     description: |
       What happened to a person's security, kept for them to read (ADR-083, ADR-095).
 
+  - name: stories
+    description: The person's own words about their work, and the facts that quote them (docs/backend/08-product-core.md).
+  - name: models
+    description: The model providers an administrator chooses between, and what calls to them cost.
+  - name: career
+    description: The goal, the one next step, the route and the résumé, chosen by rules from the stories (0 tokens).
 paths:
   /health:
     get:
@@ -1153,6 +1159,283 @@ paths:
         default:
           $ref: "#/components/responses/Problem"
 
+  /words:
+    post:
+      tags: [stories]
+      operationId: tell
+      summary: Tell something about your work
+      description: |
+        The one way in for what a person says (spec `extract_facts@1`). The words are kept first and never
+        changed; then the model lists claims, and the backend keeps only those whose fragments are exact
+        substrings of the words, whose figures are written in those fragments, and whose skills the catalog
+        lists. The words are sent to the model as a JSON string, never as instructions.
+
+        `story` adds to a story already begun; absent begins a new one. `400` for empty words, `404` for a
+        story that is not the person's, `503` when the model is unavailable and `429` when today's token
+        allowance is spent (the words are kept in both cases).
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Telling"
+      responses:
+        "200":
+          description: The story after hearing the words.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Story"
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /corrections:
+    post:
+      tags: [stories]
+      operationId: correctFact
+      summary: Correct one fact in your own words
+      description: |
+        Spec `correct_fact@1`. The old fact stays, marked as replaced by the new one. `409` when the
+        correction quotes nothing of the new words, so nothing changed; `404` for a story or fact that is
+        not the person's.
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Correction"
+      responses:
+        "200":
+          description: The story with the fact replaced.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Story"
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /stories:
+    get:
+      tags: [stories]
+      operationId: showStories
+      summary: Your stories, the newest first
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: Every story of the person, with its live facts and their quotes.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Stories"
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /home:
+    get:
+      tags: [career]
+      operationId: showHome
+      summary: The one next step, and the route to the goal
+      description: |
+        Chosen by rules, 0 tokens. `step`: `tell_first` (nothing told yet), `set_goal`, `finish_story`
+        (`subject` is the story, `detail` the slot to ask about), `close_gap` (`subject` is the skill),
+        `keep_going`. Never a vacancy to apply to (ADR-040).
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: The home.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Home"
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /goal:
+    put:
+      tags: [career]
+      operationId: setGoal
+      summary: Choose the role you are heading for
+      description: "`404` when the catalog has no such role track."
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Goal"
+      responses:
+        "200":
+          description: The goal as kept.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Goal"
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /resume:
+    get:
+      tags: [career]
+      operationId: showResume
+      summary: A résumé selected from your own facts
+      description: |
+        Only facts the person said they did themselves, results first, at most five a place. Every bullet
+        traces back to a quote of their words. 0 tokens.
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: The résumé.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Resume"
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /model-providers:
+    get:
+      tags: [models]
+      operationId: showModelProviders
+      summary: The model providers, the one in use, and the last 30 days of cost
+      description: |
+        Served on the administrators' site only (`404` elsewhere); `403` for anyone who is not an administrator.
+        Answers with the whole screen as it is after the change. Never cached.
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: The providers (keys never shown, only their last characters) and the cost by provider, model and spec.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModelProviders"
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /model-provider/{id}:
+    put:
+      tags: [models]
+      operationId: saveModelProvider
+      summary: Add a model provider, or change one
+      description: |
+        Served on the administrators' site only (`404` elsewhere); `403` for anyone who is not an administrator.
+        Answers with the whole screen as it is after the change. Never cached.
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+          description: Chosen by the client for a new provider, so a repeat is harmless.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ModelProviderSent"
+      responses:
+        "200":
+          description: The screen after saving. `400` names what is wrong; `409` when another provider has the name.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModelProviders"
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /model-provider-removal/{id}:
+    delete:
+      tags: [models]
+      operationId: removeModelProvider
+      summary: Remove a model provider and its key
+      description: |
+        Served on the administrators' site only (`404` elsewhere); `403` for anyone who is not an administrator.
+        Answers with the whole screen as it is after the change. Never cached.
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        "200":
+          description: The screen after removing. `404` when there is no such provider. Its calls stay in the cost table.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModelProviders"
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /active-model-provider:
+    put:
+      tags: [models]
+      operationId: chooseModelProvider
+      summary: Choose the provider every model call goes to from now on
+      description: |
+        Served on the administrators' site only (`404` elsewhere); `403` for anyone who is not an administrator.
+        Answers with the whole screen as it is after the change. Never cached.
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id]
+              properties:
+                id: {type: string, format: uuid}
+      responses:
+        "200":
+          description: The screen after choosing. `404` when there is no such provider.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModelProviders"
+        default:
+          $ref: "#/components/responses/Problem"
+
 components:
   securitySchemes:
     attemptCookie:
@@ -1242,6 +1525,141 @@ components:
             $ref: "#/components/schemas/Problem"
 
   schemas:
+    ModelProviders:
+      type: object
+      required: [providers, costs]
+      properties:
+        providers: {type: array, items: {$ref: "#/components/schemas/ModelProvider"}}
+        costs: {type: array, items: {$ref: "#/components/schemas/ModelCost"}}
+    ModelProvider:
+      type: object
+      required: [id, name, kind, key_hint, fast, careful, price_in, price_out, active]
+      properties:
+        id: {type: string, format: uuid}
+        name: {type: string}
+        kind: {type: string, enum: [anthropic, openai_compatible]}
+        base_url: {type: [string, "null"]}
+        key_hint: {type: string, description: "The key's last characters, like …a1b2. The key itself is never sent back."}
+        fast: {type: string, description: "The model for fast calls, like gpt-5-mini."}
+        careful: {type: string}
+        price_in: {type: number, description: "US dollars per million input tokens."}
+        price_out: {type: number, description: "US dollars per million output tokens."}
+        active: {type: boolean}
+    ModelProviderSent:
+      type: object
+      required: [name, kind, fast, careful, price_in, price_out]
+      properties:
+        name: {type: string, maxLength: 60}
+        kind: {type: string, enum: [anthropic, openai_compatible]}
+        base_url: {type: [string, "null"], description: "Required for openai_compatible, like https://openrouter.ai/api/v1."}
+        key: {type: [string, "null"], description: "Required for a new provider; absent or empty keeps the key kept."}
+        fast: {type: string}
+        careful: {type: string}
+        price_in: {type: number, minimum: 0}
+        price_out: {type: number, minimum: 0}
+    ModelCost:
+      type: object
+      required: [provider, model, spec, calls, remembered, tokens_in, tokens_out, dollars]
+      properties:
+        provider: {type: string}
+        model: {type: string}
+        spec: {type: string}
+        calls: {type: integer}
+        remembered: {type: integer, description: "Calls answered from the memo, for nothing."}
+        tokens_in: {type: integer}
+        tokens_out: {type: integer}
+        dollars: {type: number}
+    Telling:
+      type: object
+      required: [words]
+      properties:
+        words: {type: string, maxLength: 20000, description: "What the person said, as typed or transcribed."}
+        story: {type: string, format: uuid, description: "The story this adds to; absent for a new one."}
+    Correction:
+      type: object
+      required: [story, fact, words]
+      properties:
+        story: {type: string, format: uuid}
+        fact: {type: string, format: uuid}
+        words: {type: string, maxLength: 20000}
+    Stories:
+      type: object
+      required: [stories]
+      properties:
+        stories: {type: array, items: {$ref: "#/components/schemas/Story"}}
+    Story:
+      type: object
+      required: [id, state, facts]
+      properties:
+        id: {type: string, format: uuid}
+        title: {type: [string, "null"]}
+        company: {type: [string, "null"]}
+        position: {type: [string, "null"]}
+        started: {type: [string, "null"], description: "YYYY or YYYY-MM"}
+        ended: {type: [string, "null"]}
+        state: {type: string, enum: [open, strong, closed]}
+        missing: {type: [string, "null"], description: "The slot to ask about next."}
+        facts: {type: array, items: {$ref: "#/components/schemas/Fact"}}
+    Fact:
+      type: object
+      required: [id, kind, text, figures, technologies, skills, mine, quotes]
+      properties:
+        id: {type: string, format: uuid}
+        kind: {type: string, enum: [context, action, decision, outcome, scale, people, learning]}
+        text: {type: string, description: "One English sentence."}
+        figures: {type: array, items: {type: number}}
+        technologies: {type: array, items: {type: string}}
+        skills: {type: array, items: {type: string}, description: "Catalog skill slugs."}
+        mine: {type: boolean, description: "The person did it themselves, not the team."}
+        quotes: {type: array, items: {type: string}, description: "Exact fragments of the person's words."}
+    Home:
+      type: object
+      required: [step, route, stories, roles]
+      properties:
+        step: {type: string, enum: [tell_first, set_goal, finish_story, close_gap, keep_going]}
+        subject: {type: [string, "null"]}
+        detail: {type: [string, "null"]}
+        goal: {type: [string, "null"]}
+        goalName: {type: [string, "null"]}
+        stories: {type: integer}
+        route: {type: array, items: {$ref: "#/components/schemas/Stop"}}
+        roles:
+          type: array
+          description: The role tracks a goal may be chosen from.
+          items:
+            type: object
+            required: [slug, name]
+            properties:
+              slug: {type: string}
+              name: {type: string}
+    Stop:
+      type: object
+      required: [skill, name, importance, level, evidence]
+      properties:
+        skill: {type: string}
+        name: {type: string}
+        importance: {type: number}
+        level: {type: string, enum: [confirmed, growing, gap]}
+        evidence: {type: integer}
+    Goal:
+      type: object
+      required: [role]
+      properties:
+        role: {type: string, description: "A role track slug of the catalog, like staff-android."}
+    Resume:
+      type: object
+      required: [roles, skills]
+      properties:
+        skills: {type: array, items: {type: string}}
+        roles: {type: array, items: {$ref: "#/components/schemas/ResumeRole"}}
+    ResumeRole:
+      type: object
+      required: [bullets]
+      properties:
+        company: {type: [string, "null"]}
+        position: {type: [string, "null"]}
+        period: {type: [string, "null"]}
+        bullets: {type: array, items: {type: string}}
     HealthStatus:
       type: string
       enum: [up, degraded, down]

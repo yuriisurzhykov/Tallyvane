@@ -11,6 +11,8 @@ import tallyvane.platform.persistence.DatabaseAccess
  * accepted at startup by [EnvironmentConfiguration], which is where a bad one costs a failed start
  * rather than a failed request.
  */
+private const val TOKENS_A_DAY = 200_000
+
 public class Configuration(
     public val database: DatabaseAccess,
     public val pool: Int,
@@ -18,4 +20,5 @@ public class Configuration(
     public val level: Level,
     public val healthToken: Secret,
     public val signIn: SignInConfiguration,
+    public val model: ModelConfiguration = ModelConfiguration(TOKENS_A_DAY),
 )

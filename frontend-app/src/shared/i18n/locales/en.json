@@ -225,5 +225,39 @@
         "confirm": "Replace codes",
         "cancel": "Cancel",
         "failed": "That didn't work. Try again in a moment."
+    },
+    "home": {
+        "loading": "Loading…",
+        "loadFailed": "Couldn't load your home. Refresh to try again.",
+        "sendFailed": "Couldn't send that. Your words are not lost; try again.",
+        "nextStep": "Your next step",
+        "tellFirst": "Tell about one piece of work you're proud of: what was the problem, and what did you do?",
+        "setGoal": "Where are you heading? Choose a role.",
+        "ask_system": "What was the system, and how big was it?",
+        "ask_role": "What did you do yourself, not the team?",
+        "ask_outcome": "How did it end? What changed, in numbers if you have them?",
+        "ask_scale": "How big was it: users, payments, requests?",
+        "closeGap": "Tell about a time you used {skill}.",
+        "keepGoing": "Your route is covered. Tell about your latest work.",
+        "route": "Route to {goal}",
+        "confirmed": "confirmed",
+        "growing": "growing",
+        "gap": "gap",
+        "stories": "Your stories",
+        "noStories": "Nothing told yet.",
+        "untitled": "Untitled story",
+        "open": "open",
+        "strong": "strong",
+        "closed": "closed",
+        "whatsNew": "What's new?",
+        "answerHere": "Answer here…",
+        "send": "Send"
+    },
+    "resume": {
+        "loading": "Loading…",
+        "loadFailed": "Couldn't load your résumé.",
+        "empty": "Tell a story on Today first: the résumé is made only of what you said you did.",
+        "role": "Role",
+        "skills": "Skills: {skills}"
     }
 }

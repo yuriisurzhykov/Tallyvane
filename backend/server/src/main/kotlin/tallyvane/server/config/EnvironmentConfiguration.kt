@@ -36,6 +36,7 @@ public class EnvironmentConfiguration(private val environment: Environment) {
                 level = level(faults),
                 healthToken = token(faults),
                 signIn = signIn(faults),
+                model = model(faults),
             )
         check(faults.isEmpty()) {
             faults.joinToString(separator = "\n", prefix = "Refusing to start.\n") { "  - $it" }
@@ -50,6 +51,9 @@ public class EnvironmentConfiguration(private val environment: Environment) {
     private fun text(name: String, faults: MutableList<String>): String =
         environment.read(name)?.takeIf { it.isNotBlank() }
             ?: "".also { faults += "$name is not set" }
+
+    private fun model(faults: MutableList<String>): ModelConfiguration =
+        ModelConfiguration(tokensADay = number(MODEL_BUDGET, DEFAULT_BUDGET, MIN_BUDGET..MAX_BUDGET, faults))
 
     private fun number(name: String, fallback: Int, allowed: IntRange, faults: MutableList<String>): Int {
         val raw = environment.read(name) ?: return fallback
@@ -138,6 +142,12 @@ public class EnvironmentConfiguration(private val environment: Environment) {
          * the strings.
          */
         public const val URL: String = "TALLYVANE_DB_URL"
+
+        public const val MODEL_BUDGET: String = "TALLYVANE_MODEL_TOKENS_A_DAY"
+
+        private const val DEFAULT_BUDGET = 200_000
+        private const val MIN_BUDGET = 1_000
+        private const val MAX_BUDGET = 10_000_000
 
         public const val USER: String = "TALLYVANE_DB_USER"
 

@@ -94,7 +94,8 @@
         "strings": "Strings",
         "policies": "Sign-in policies",
         "lifetimes": "Session lifetimes",
-        "skipToContent": "Skip to content"
+        "skipToContent": "Skip to content",
+        "models": "Models"
     },
     "span": {
         "seconds": "{amount} s",
@@ -240,5 +241,35 @@
         "commentInvalid": "Write a reason of 1 to 500 characters, without control characters.",
         "unmapped": "The server refused {field}: {code}.",
         "other": "The server refused: {detail}"
+    },
+    "models": {
+        "title": "Models",
+        "lead": "Which provider and models answer the product's model calls, with which key, and what that costs. Switch at any time; answers already given are remembered per model.",
+        "add": "Add provider",
+        "addTitle": "New provider",
+        "editTitle": "Change {name}",
+        "name": "Name",
+        "baseUrl": "Address",
+        "baseUrlAnthropic": "Leave empty for api.anthropic.com.",
+        "baseUrlOpenAi": "The OpenAI-compatible API root, ending before /chat/completions.",
+        "key": "API key",
+        "keyNew": "Stored encrypted; never shown again.",
+        "keyKeep": "Kept: {hint}. Leave empty to keep it.",
+        "fast": "Model for fast calls",
+        "careful": "Model for careful calls",
+        "priceIn": "$ per 1M input tokens",
+        "priceOut": "$ per 1M output tokens",
+        "save": "Save",
+        "cancel": "Cancel",
+        "none": "No provider yet. Until one is chosen, every model call answers unavailable.",
+        "inUse": "In use",
+        "use": "Use this one",
+        "edit": "Change",
+        "remove": "Remove",
+        "modelsLine": "Fast: {fast} · Careful: {careful} · ${priceIn} in / ${priceOut} out per 1M tokens",
+        "costTitle": "Last 30 days: ${total}",
+        "noCalls": "No model calls yet.",
+        "costLine": "{provider} · {model} · {spec}: {calls} calls ({remembered} from memory), {tokensIn} in / {tokensOut} out tokens, ${dollars}",
+        "failed": "That didn't work. Try again."
     }
 }
