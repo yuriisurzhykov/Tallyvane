@@ -1,17 +1,10 @@
-import { AppShell } from "frontend-shared/ui/app-shell";
-import { AccountMenu } from "@/widgets/account-menu";
+"use client";
+
 import { HomeBoard } from "@/widgets/home-board";
+import { AccountMenu } from "@/widgets/account-menu";
+import { ProductFrame } from "@/widgets/product-frame";
 
-const NAV_ITEMS = [
-    { label: "Today", href: "/today", isActive: true },
-    { label: "Résumé", href: "/resume", isActive: false },
-];
-
-/** The home of variant E: one main step, the route, the stories, and the input pinned below. */
+/** The home of variant E: the route, one main step, the stories, and the input pinned below. */
 export function TodayPage() {
-    return (
-        <AppShell navItems={NAV_ITEMS} title="Today" skipLinkLabel="Skip to content" actions={<AccountMenu />}>
-            <HomeBoard />
-        </AppShell>
-    );
+    return <HomeBoard frame={({ dock, children }) => <ProductFrame dock={dock} account={<AccountMenu />}>{children}</ProductFrame>} />;
 }

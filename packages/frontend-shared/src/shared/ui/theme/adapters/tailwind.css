@@ -172,6 +172,8 @@
 
     --layout-console-max-width: var(--ds-semantic-layout-console-max-width);
     --layout-brief-max-width: var(--ds-semantic-layout-brief-max-width);
+    --layout-column-max-width: var(--ds-semantic-layout-column-max-width);
+    --layout-column-wide-max-width: var(--ds-semantic-layout-column-wide-max-width);
     --layout-sidebar-expanded: var(--ds-semantic-layout-sidebar-expanded);
     --layout-sidebar-collapsed: var(--ds-semantic-layout-sidebar-collapsed);
 

@@ -251,13 +251,34 @@
         "closed": "closed",
         "whatsNew": "What's new?",
         "answerHere": "Answer here…",
-        "send": "Send"
+        "send": "Send",
+        "headingTo": "Heading to {goal}",
+        "routeLabel": "Route to {goal}: {done} of {total} confirmed by your stories",
+        "closeGapEyebrow": "Close the gap",
+        "whyGap": "It is on your way to {goal}.",
+        "tell": "Tell",
+        "answer": "Answer",
+        "facts": "Facts: {count}",
+        "storiesLead": "Your career in your own words. Every fact below quotes you.",
+        "understoodTitle": "Here is what I kept",
+        "understoodLead": "From what you said about “{title}”. Each fact quotes your words.",
+        "done": "Done",
+        "mine": "You did this",
+        "team": "The team did this"
     },
     "resume": {
         "loading": "Loading…",
         "loadFailed": "Couldn't load your résumé.",
         "empty": "Tell a story on Today first: the résumé is made only of what you said you did.",
         "role": "Role",
-        "skills": "Skills: {skills}"
+        "skills": "Skills: {skills}",
+        "lead": "Made only of what you said you did. Every line traces to your own words.",
+        "skillsTitle": "Skills"
+    },
+    "frame": {
+        "home": "Home",
+        "back": "Back",
+        "resume": "Your résumé",
+        "skip": "Skip to content"
     }
 }

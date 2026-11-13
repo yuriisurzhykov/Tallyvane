@@ -5,9 +5,9 @@ import tallyvane.platform.llm.core.Model
 import tallyvane.platform.llm.core.Spending
 
 /**
- * A [tallyvane.platform.llm.core.Model] that refuses a call once the account has spent its day, and writes down what each call cost.
+ * A [Model] that refuses a call once the account has spent its day, and writes down what each call cost.
  *
- * Wrapped by [RememberingModel] and not the other way round: an answer from the memo costs nothing and is
+ * Wrapped by the routed model and not the other way round: an answer from the memo costs nothing and is
  * given even to an account over its budget.
  */
 public class BudgetedModel(
