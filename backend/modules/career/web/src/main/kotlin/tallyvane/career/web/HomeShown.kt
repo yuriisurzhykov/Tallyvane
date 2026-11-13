@@ -11,4 +11,5 @@ internal class HomeShown(
     val goalName: String?,
     val route: List<StopShown>,
     val stories: Int,
+    val roles: List<RoleChoice>,
 )

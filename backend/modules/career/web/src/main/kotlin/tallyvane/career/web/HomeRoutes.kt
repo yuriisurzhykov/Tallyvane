@@ -20,9 +20,23 @@ internal class HomeRoutes(private val show: ShowHomeUseCase) : RouteModule {
             val stops = home.route.map {
                 StopShown(it.skill, it.name, it.importance, it.level.name.lowercase(), it.evidence)
             }
-            call.respond(HomeShown(home.step, home.subject, home.detail, home.goal, home.goalName, stops, home.stories))
+            call.respond(
+                HomeShown(
+                    home.step,
+                    home.subject,
+                    home.detail,
+                    home.goal,
+                    home.goalName,
+                    stops,
+                    home.stories,
+                    choices(home),
+                ),
+            )
         }
     }
+
+    private fun choices(home: tallyvane.career.application.Home): List<RoleChoice> =
+        home.roles.map { (slug, name) -> RoleChoice(slug, name) }
 
     override fun toString(): String = "HomeRoutes"
 }

@@ -1405,6 +1405,97 @@ components:
             $ref: "#/components/schemas/Problem"
 
   schemas:
+    Telling:
+      type: object
+      required: [words]
+      properties:
+        words: {type: string, maxLength: 20000, description: "What the person said, as typed or transcribed."}
+        story: {type: string, format: uuid, description: "The story this adds to; absent for a new one."}
+    Correction:
+      type: object
+      required: [story, fact, words]
+      properties:
+        story: {type: string, format: uuid}
+        fact: {type: string, format: uuid}
+        words: {type: string, maxLength: 20000}
+    Stories:
+      type: object
+      required: [stories]
+      properties:
+        stories: {type: array, items: {$ref: "#/components/schemas/Story"}}
+    Story:
+      type: object
+      required: [id, state, facts]
+      properties:
+        id: {type: string, format: uuid}
+        title: {type: [string, "null"]}
+        company: {type: [string, "null"]}
+        position: {type: [string, "null"]}
+        started: {type: [string, "null"], description: "YYYY or YYYY-MM"}
+        ended: {type: [string, "null"]}
+        state: {type: string, enum: [open, strong, closed]}
+        missing: {type: [string, "null"], description: "The slot to ask about next."}
+        facts: {type: array, items: {$ref: "#/components/schemas/Fact"}}
+    Fact:
+      type: object
+      required: [id, kind, text, figures, technologies, skills, mine, quotes]
+      properties:
+        id: {type: string, format: uuid}
+        kind: {type: string, enum: [context, action, decision, outcome, scale, people, learning]}
+        text: {type: string, description: "One English sentence."}
+        figures: {type: array, items: {type: number}}
+        technologies: {type: array, items: {type: string}}
+        skills: {type: array, items: {type: string}, description: "Catalog skill slugs."}
+        mine: {type: boolean, description: "The person did it themselves, not the team."}
+        quotes: {type: array, items: {type: string}, description: "Exact fragments of the person's words."}
+    Home:
+      type: object
+      required: [step, route, stories, roles]
+      properties:
+        step: {type: string, enum: [tell_first, set_goal, finish_story, close_gap, keep_going]}
+        subject: {type: [string, "null"]}
+        detail: {type: [string, "null"]}
+        goal: {type: [string, "null"]}
+        goalName: {type: [string, "null"]}
+        stories: {type: integer}
+        route: {type: array, items: {$ref: "#/components/schemas/Stop"}}
+        roles:
+          type: array
+          description: The role tracks a goal may be chosen from.
+          items:
+            type: object
+            required: [slug, name]
+            properties:
+              slug: {type: string}
+              name: {type: string}
+    Stop:
+      type: object
+      required: [skill, name, importance, level, evidence]
+      properties:
+        skill: {type: string}
+        name: {type: string}
+        importance: {type: number}
+        level: {type: string, enum: [confirmed, growing, gap]}
+        evidence: {type: integer}
+    Goal:
+      type: object
+      required: [role]
+      properties:
+        role: {type: string, description: "A role track slug of the catalog, like staff-android."}
+    Resume:
+      type: object
+      required: [roles, skills]
+      properties:
+        skills: {type: array, items: {type: string}}
+        roles: {type: array, items: {$ref: "#/components/schemas/ResumeRole"}}
+    ResumeRole:
+      type: object
+      required: [bullets]
+      properties:
+        company: {type: [string, "null"]}
+        position: {type: [string, "null"]}
+        period: {type: [string, "null"]}
+        bullets: {type: array, items: {type: string}}
     HealthStatus:
       type: string
       enum: [up, degraded, down]

@@ -4,7 +4,8 @@ package tallyvane.career.application
  * The home screen: one main step, the route to the goal, and quiet rows below.
  *
  * [step] is one of: `tell_first`, `set_goal`, `finish_story`, `close_gap`, `keep_going`. [subject] is what the
- * step is about (a story id or a skill slug), [detail] what to ask (a slot) or the skill's name.
+ * step is about (a story id or a skill slug), [detail] what to ask (a slot) or the skill's name. [roles] are
+ * the role tracks a goal may be chosen from, as slug and name.
  */
 @Suppress("LongParameterList") // What the home shows.
 public class Home(
@@ -15,6 +16,7 @@ public class Home(
     public val goalName: String?,
     public val route: List<Stop>,
     public val stories: Int,
+    public val roles: List<Pair<String, String>>,
 ) {
     override fun toString(): String = "Home($step)"
 

@@ -39,7 +39,8 @@ public interface ShowHomeUseCase : UseCase {
                 )
             }
             val (step, subject, detail) = step(stories, role?.slug, route)
-            return Home(step, subject, detail, role?.slug, role?.name, route, stories.size)
+            val roles = catalog.roles().map { it.slug to it.name }
+            return Home(step, subject, detail, role?.slug, role?.name, route, stories.size, roles)
         }
 
         private fun step(

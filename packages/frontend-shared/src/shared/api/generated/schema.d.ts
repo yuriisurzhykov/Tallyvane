@@ -855,10 +855,226 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/words": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Tell something about your work
+         * @description The one way in for what a person says (spec `extract_facts@1`). The words are kept first and never
+         *     changed; then the model lists claims, and the backend keeps only those whose fragments are exact
+         *     substrings of the words, whose figures are written in those fragments, and whose skills the catalog
+         *     lists. The words are sent to the model as a JSON string, never as instructions.
+         *
+         *     `story` adds to a story already begun; absent begins a new one. `400` for empty words, `404` for a
+         *     story that is not the person's, `503` when the model is unavailable and `429` when today's token
+         *     allowance is spent (the words are kept in both cases).
+         */
+        post: operations["tell"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/corrections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Correct one fact in your own words
+         * @description Spec `correct_fact@1`. The old fact stays, marked as replaced by the new one. `409` when the
+         *     correction quotes nothing of the new words, so nothing changed; `404` for a story or fact that is
+         *     not the person's.
+         */
+        post: operations["correctFact"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/stories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Your stories, the newest first */
+        get: operations["showStories"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/home": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The one next step, and the route to the goal
+         * @description Chosen by rules, 0 tokens. `step`: `tell_first` (nothing told yet), `set_goal`, `finish_story`
+         *     (`subject` is the story, `detail` the slot to ask about), `close_gap` (`subject` is the skill),
+         *     `keep_going`. Never a vacancy to apply to (ADR-040).
+         */
+        get: operations["showHome"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/goal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Choose the role you are heading for
+         * @description `404` when the catalog has no such role track.
+         */
+        put: operations["setGoal"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A résumé selected from your own facts
+         * @description Only facts the person said they did themselves, results first, at most five a place. Every bullet
+         *     traces back to a quote of their words. 0 tokens.
+         */
+        get: operations["showResume"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        Telling: {
+            /** @description What the person said, as typed or transcribed. */
+            words: string;
+            /**
+             * Format: uuid
+             * @description The story this adds to; absent for a new one.
+             */
+            story?: string;
+        };
+        Correction: {
+            /** Format: uuid */
+            story: string;
+            /** Format: uuid */
+            fact: string;
+            words: string;
+        };
+        Stories: {
+            stories: components["schemas"]["Story"][];
+        };
+        Story: {
+            /** Format: uuid */
+            id: string;
+            title?: string | null;
+            company?: string | null;
+            position?: string | null;
+            /** @description YYYY or YYYY-MM */
+            started?: string | null;
+            ended?: string | null;
+            /** @enum {string} */
+            state: "open" | "strong" | "closed";
+            /** @description The slot to ask about next. */
+            missing?: string | null;
+            facts: components["schemas"]["Fact"][];
+        };
+        Fact: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            kind: "context" | "action" | "decision" | "outcome" | "scale" | "people" | "learning";
+            /** @description One English sentence. */
+            text: string;
+            figures: number[];
+            technologies: string[];
+            /** @description Catalog skill slugs. */
+            skills: string[];
+            /** @description The person did it themselves, not the team. */
+            mine: boolean;
+            /** @description Exact fragments of the person's words. */
+            quotes: string[];
+        };
+        Home: {
+            /** @enum {string} */
+            step: "tell_first" | "set_goal" | "finish_story" | "close_gap" | "keep_going";
+            subject?: string | null;
+            detail?: string | null;
+            goal?: string | null;
+            goalName?: string | null;
+            stories: number;
+            route: components["schemas"]["Stop"][];
+            /** @description The role tracks a goal may be chosen from. */
+            roles: {
+                slug: string;
+                name: string;
+            }[];
+        };
+        Stop: {
+            skill: string;
+            name: string;
+            importance: number;
+            /** @enum {string} */
+            level: "confirmed" | "growing" | "gap";
+            evidence: number;
+        };
+        Goal: {
+            /** @description A role track slug of the catalog, like staff-android. */
+            role: string;
+        };
+        Resume: {
+            skills: string[];
+            roles: components["schemas"]["ResumeRole"][];
+        };
+        ResumeRole: {
+            company?: string | null;
+            position?: string | null;
+            period?: string | null;
+            bullets: string[];
+        };
         /**
          * @description Three states, not two. `degraded` means working with something missing — the distinction
          *     exists so that an unavailable optional dependency does not read as an outage.
@@ -2131,6 +2347,150 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    tell: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Telling"];
+            };
+        };
+        responses: {
+            /** @description The story after hearing the words. */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Story"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    correctFact: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Correction"];
+            };
+        };
+        responses: {
+            /** @description The story with the fact replaced. */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Story"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    showStories: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Every story of the person, with its live facts and their quotes. */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Stories"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    showHome: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The home. */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Home"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    setGoal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Goal"];
+            };
+        };
+        responses: {
+            /** @description The goal as kept. */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Goal"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    showResume: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The résumé. */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Resume"];
+                };
             };
             default: components["responses"]["Problem"];
         };
