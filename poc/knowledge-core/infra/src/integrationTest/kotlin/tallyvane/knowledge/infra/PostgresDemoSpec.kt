@@ -154,5 +154,10 @@ class PostgresDemoSpec :
                     database.drop()
                 }
             }
+
+            "a database that cannot be reached stops the start and names where it looked" {
+                val failure = shouldThrow<StartupFailure> { Postgres.open("jdbc:postgresql://localhost:1/knowledge", "knowledge", "x", DemoWorld.DIMENSIONS) }
+                failure.message shouldContain "localhost:1/knowledge"
+            }
         },
     )

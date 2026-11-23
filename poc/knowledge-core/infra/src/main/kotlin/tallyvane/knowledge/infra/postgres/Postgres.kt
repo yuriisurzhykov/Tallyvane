@@ -2,6 +2,7 @@ package tallyvane.knowledge.infra.postgres
 
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
+import com.zaxxer.hikari.pool.HikariPool.PoolInitializationException
 import org.flywaydb.core.Flyway
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -23,14 +24,19 @@ class Postgres private constructor(private val pool: HikariDataSource, private v
 
     companion object {
         fun open(url: String, user: String, password: String, embeddingDimensions: Int): Postgres {
-            val pool = HikariDataSource(
-                HikariConfig().apply {
-                    jdbcUrl = url
-                    username = user
-                    this.password = password
-                    maximumPoolSize = POOL_SIZE
-                },
-            )
+            val pool =
+                try {
+                    HikariDataSource(
+                        HikariConfig().apply {
+                            jdbcUrl = url
+                            username = user
+                            this.password = password
+                            maximumPoolSize = POOL_SIZE
+                        },
+                    )
+                } catch (e: PoolInitializationException) {
+                    throw StartupFailure("Postgres could not be reached at $url as $user: ${e.cause?.message ?: e.message}", e)
+                }
             try {
                 migrate(pool, embeddingDimensions)
                 val database = Database.connect(pool)

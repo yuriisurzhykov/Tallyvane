@@ -4,6 +4,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
+import io.ktor.server.http.content.staticResources
 import io.ktor.server.plugins.BadRequestException
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.statuspages.StatusPages
@@ -65,6 +66,7 @@ class Api(private val core: KnowledgeCore, private val recentCalls: () -> List<R
             }
         }
         application.routing {
+            staticResources("/", "static")
             post("/api/answer") {
                 val request = call.receive<AnswerRequest>()
                 call.respond(core.ingestAnswer.ingest(request.text, request.questionId?.let { QuestionId(Uuid.parse(it)) }))

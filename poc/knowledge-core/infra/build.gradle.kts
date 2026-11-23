@@ -55,10 +55,13 @@ testing.suites.register<JvmTestSuite>("integrationTest") {
         implementation(libs.kotest.assertions.core)
         implementation(libs.testcontainers.postgresql)
         implementation(libs.kotlinx.coroutines.core)
+        implementation(libs.kotlinx.serialization.json)
     }
     targets.configureEach {
         testTask.configure {
             useJUnitPlatform()
+            // The live test reads .env from the root of the build, as the application does.
+            workingDir = rootDir
             // A database named here is used in place of a container, for machines without Docker.
             listOf("POC_TEST_DATABASE_URL", "POC_TEST_DATABASE_USER", "POC_TEST_DATABASE_PASSWORD").forEach { name ->
                 System.getenv(name)?.let { environment(name, it) }

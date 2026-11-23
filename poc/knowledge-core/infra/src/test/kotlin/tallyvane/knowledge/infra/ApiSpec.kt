@@ -41,6 +41,14 @@ private fun serving(world: DemoWorld, test: suspend ApplicationTestBuilder.() ->
 class ApiSpec :
     StringSpec(
         {
+            "the page is served from the root" {
+                serving(DemoWorld(DemoScript.llm())) {
+                    val reply = client.get("/")
+                    reply.status shouldBe HttpStatusCode.OK
+                    reply.bodyAsText() shouldContain "Knowledge Core"
+                }
+            }
+
             "the first question is the opening one" {
                 serving(DemoWorld(DemoScript.llm())) {
                     val reply = client.get("/api/question")
