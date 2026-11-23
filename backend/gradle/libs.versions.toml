@@ -33,6 +33,9 @@ nimbusJoseJwt = "10.9.1"
 # a real vulnerability surface (nonce reuse among others); Tink is the audited choice for the JVM.
 tink = "1.23.0"
 
+# The official Anthropic SDK; only platform:llm names it.
+anthropic = "3.3.0"
+
 # YAML
 snakeyaml = "2.4"
 
@@ -82,6 +85,9 @@ konsist = { group = "com.lemonappdev", name = "konsist", version.ref = "konsist"
 
 # Testcontainers
 testcontainers-postgresql = { group = "org.testcontainers", name = "postgresql", version.ref = "testcontainers" }
+
+# Anthropic
+anthropic-java = { group = "com.anthropic", name = "anthropic-java", version.ref = "anthropic" }
 
 # PostgreSQL
 postgresql = { group = "org.postgresql", name = "postgresql", version.ref = "postgresql" }

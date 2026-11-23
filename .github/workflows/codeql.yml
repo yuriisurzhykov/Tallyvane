@@ -102,7 +102,7 @@ jobs:
         if: matrix.language == 'java-kotlin'
         working-directory: backend
         shell: bash
-        run: sh ./gradlew compileKotlin compileTestKotlin --no-daemon --no-build-cache --no-configuration-cache
+        run: sh ./gradlew compileKotlin compileTestKotlin --no-daemon --no-build-cache --no-configuration-cache -Pkotlin.daemon.jvmargs=-Xmx3g --max-workers=2
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v4

@@ -10,7 +10,7 @@ import { enDictionary } from "@/shared/i18n";
  * routes exist and in what order — not a piece of UI, the same distinction
  * `providers/block-registry.tsx` (§12.6) already draws for this layer.
  */
-export type AdminHref = "/pages" | "/media" | "/strings" | "/policies" | "/lifetimes";
+export type AdminHref = "/pages" | "/media" | "/strings" | "/policies" | "/lifetimes" | "/models";
 
 export function adminNavItems(activeHref: AdminHref): SidebarNavItem[] {
     const words = enDictionary.nav;
@@ -20,5 +20,6 @@ export function adminNavItems(activeHref: AdminHref): SidebarNavItem[] {
         { label: words.strings, href: "/strings", isActive: activeHref === "/strings" },
         { label: words.policies, href: "/policies", isActive: activeHref === "/policies" },
         { label: words.lifetimes, href: "/lifetimes", isActive: activeHref === "/lifetimes" },
+        { label: words.models, href: "/models", isActive: activeHref === "/models" },
     ];
 }

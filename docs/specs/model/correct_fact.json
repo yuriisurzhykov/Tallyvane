@@ -1,0 +1,28 @@
+{
+  "spec": "correct_fact@1",
+  "tier": "fast",
+  "endpoint": "POST /corrections",
+  "purpose": "Replace one fact with what the person's correction says, keeping what it did not change.",
+  "prompt": "backend/modules/stories/infrastructure/src/main/resources/prompts/correct_fact.txt",
+  "input_schema": {
+    "type": "object",
+    "required": ["words", "skills", "fact"],
+    "properties": {
+      "words": {"type": "string", "maxLength": 20000},
+      "skills": {"type": "array", "items": {"type": "string"}},
+      "fact": {"$ref": "extract_facts.json#/output_schema/properties/facts/items"}
+    }
+  },
+  "input_example": {
+    "words": "Not two million, one and a half.",
+    "skills": ["architecture"],
+    "fact": {"kind": "scale", "text_en": "2M clients, 300 payments/s", "q": ["Two million clients", "up to 300 payments a second"], "figures": [2000000, 300], "tech": [], "skills": [], "mine": true}
+  },
+  "output_schema": {"$ref": "extract_facts.json#/output_schema/properties/facts/items"},
+  "output_example": {"kind": "scale", "text_en": "1.5M clients, 300 payments/s", "q": ["one and a half", "up to 300 payments a second"], "figures": [1500000, 300], "tech": [], "skills": [], "mine": true},
+  "backend_checks": [
+    "At least one fragment must be quoted from the new words, else nothing changes (409).",
+    "Other fragments may quote the old fact's quotes; figures must be written in some fragment.",
+    "The old fact stays, marked replaced_by the new one; only the person's own live facts can be corrected (404)."
+  ]
+}

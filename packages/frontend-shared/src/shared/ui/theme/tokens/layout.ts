@@ -19,6 +19,8 @@ export const layout = definePrimitives({
     256: "16rem",
     288: "18rem",
     448: "28rem",
+    720: "45rem",
+    960: "60rem",
     1280: "80rem",
     1600: "100rem",
 });

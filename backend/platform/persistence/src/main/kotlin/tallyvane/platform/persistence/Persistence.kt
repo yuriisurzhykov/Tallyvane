@@ -30,4 +30,11 @@ public interface Persistence {
      * What is remembered about requests already seen, asked around a transaction and never inside one.
      */
     public val ledger: Ledger
+
+    /**
+     * Unclaimed transactions for the platform's own bookkeeping that must outlive the request's single
+     * transaction, as the ledger does: the model memo and the model spending (`platform:llm`). Never handed
+     * to a use case; the request's work goes through [transactions].
+     */
+    public val bookkeeping: TransactionRunner
 }
