@@ -84,6 +84,8 @@ public class PostgresPersistence(
 
     override val ledger: Ledger = PostgresLedger(unclaimed, clock)
 
+    override val bookkeeping: TransactionRunner = unclaimed
+
     override fun close() {
         pool.close()
     }

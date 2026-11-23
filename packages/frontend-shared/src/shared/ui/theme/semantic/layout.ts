@@ -17,6 +17,13 @@ export const layoutRole = defineTheme(layoutContract, {
      */
     briefMaxWidth: "{layout.1600}",
 
+    /**
+     * The product's reading column: one calm column of cards, as in the design canvas. The wide one is for the
+     * few pages that set a document beside its notes.
+     */
+    columnMaxWidth: "{layout.720}",
+    columnWideMaxWidth: "{layout.960}",
+
     sidebarExpanded: "{layout.240}",
     sidebarCollapsed: "{layout.64}",
 });

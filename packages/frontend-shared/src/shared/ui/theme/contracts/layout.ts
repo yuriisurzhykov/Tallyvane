@@ -6,5 +6,5 @@ import { defineContract } from "design-token-engine";
  */
 export const layoutContract = defineContract({
     category: "layout",
-    required: ["consoleMaxWidth", "briefMaxWidth", "sidebarExpanded", "sidebarCollapsed"],
+    required: ["consoleMaxWidth", "briefMaxWidth", "columnMaxWidth", "columnWideMaxWidth", "sidebarExpanded", "sidebarCollapsed"],
 });

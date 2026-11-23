@@ -1,0 +1,281 @@
+[
+  {
+    "name": "Redis",
+    "aliases": [
+      "редис"
+    ]
+  },
+  {
+    "name": "PostgreSQL",
+    "aliases": [
+      "postgres",
+      "постгрес",
+      "постгре",
+      "pg"
+    ]
+  },
+  {
+    "name": "MySQL",
+    "aliases": [
+      "мускул",
+      "mariadb"
+    ]
+  },
+  {
+    "name": "MongoDB",
+    "aliases": [
+      "mongo",
+      "монго"
+    ]
+  },
+  {
+    "name": "Kafka",
+    "aliases": [
+      "apache kafka",
+      "кафка"
+    ]
+  },
+  {
+    "name": "RabbitMQ",
+    "aliases": [
+      "rabbit",
+      "рэббит",
+      "кролик"
+    ]
+  },
+  {
+    "name": "Elasticsearch",
+    "aliases": [
+      "elastic",
+      "эластик",
+      "opensearch"
+    ]
+  },
+  {
+    "name": "Memcached",
+    "aliases": [
+      "мемкеш",
+      "мемкэш"
+    ]
+  },
+  {
+    "name": "ClickHouse",
+    "aliases": [
+      "кликхаус"
+    ]
+  },
+  {
+    "name": "Cassandra",
+    "aliases": [
+      "кассандра"
+    ]
+  },
+  {
+    "name": "Kubernetes",
+    "aliases": [
+      "k8s",
+      "кубернетес",
+      "кубер"
+    ]
+  },
+  {
+    "name": "Docker",
+    "aliases": [
+      "докер"
+    ]
+  },
+  {
+    "name": "Terraform",
+    "aliases": [
+      "терраформ"
+    ]
+  },
+  {
+    "name": "Nginx",
+    "aliases": [
+      "нжинкс",
+      "энджинкс"
+    ]
+  },
+  {
+    "name": "AWS",
+    "aliases": [
+      "amazon web services",
+      "амазон"
+    ]
+  },
+  {
+    "name": "Google Cloud",
+    "aliases": [
+      "gcp",
+      "google cloud platform"
+    ]
+  },
+  {
+    "name": "Azure",
+    "aliases": [
+      "microsoft azure",
+      "азур"
+    ]
+  },
+  {
+    "name": "Prometheus",
+    "aliases": [
+      "прометеус"
+    ]
+  },
+  {
+    "name": "Grafana",
+    "aliases": [
+      "графана"
+    ]
+  },
+  {
+    "name": "Jenkins",
+    "aliases": [
+      "дженкинс"
+    ]
+  },
+  {
+    "name": "GitHub Actions",
+    "aliases": [
+      "github workflows"
+    ]
+  },
+  {
+    "name": "GitLab CI",
+    "aliases": [
+      "gitlab pipelines"
+    ]
+  },
+  {
+    "name": "Git",
+    "aliases": [
+      "гит"
+    ]
+  },
+  {
+    "name": "Linux",
+    "aliases": [
+      "линукс"
+    ]
+  },
+  {
+    "name": "Kotlin",
+    "aliases": [
+      "котлин"
+    ]
+  },
+  {
+    "name": "Java",
+    "aliases": [
+      "джава"
+    ]
+  },
+  {
+    "name": "Python",
+    "aliases": [
+      "питон"
+    ]
+  },
+  {
+    "name": "Go",
+    "aliases": [
+      "golang",
+      "го"
+    ]
+  },
+  {
+    "name": "TypeScript",
+    "aliases": [
+      "тайпскрипт",
+      "ts"
+    ]
+  },
+  {
+    "name": "JavaScript",
+    "aliases": [
+      "js",
+      "джаваскрипт"
+    ]
+  },
+  {
+    "name": "React",
+    "aliases": [
+      "реакт",
+      "react.js"
+    ]
+  },
+  {
+    "name": "Node.js",
+    "aliases": [
+      "node",
+      "nodejs",
+      "нода"
+    ]
+  },
+  {
+    "name": "Spring",
+    "aliases": [
+      "spring boot",
+      "спринг"
+    ]
+  },
+  {
+    "name": "Ktor",
+    "aliases": [
+      "ктор"
+    ]
+  },
+  {
+    "name": "Django",
+    "aliases": [
+      "джанго"
+    ]
+  },
+  {
+    "name": "FastAPI",
+    "aliases": [
+      "фастапи"
+    ]
+  },
+  {
+    "name": "Flask",
+    "aliases": [
+      "фласк"
+    ]
+  },
+  {
+    "name": "GraphQL",
+    "aliases": [
+      "графкьюэл"
+    ]
+  },
+  {
+    "name": "gRPC",
+    "aliases": [
+      "грпс",
+      "grpc"
+    ]
+  },
+  {
+    "name": "Spark",
+    "aliases": [
+      "apache spark",
+      "спарк"
+    ]
+  },
+  {
+    "name": "Airflow",
+    "aliases": [
+      "apache airflow",
+      "эйрфлоу"
+    ]
+  },
+  {
+    "name": "Celery",
+    "aliases": [
+      "селери"
+    ]
+  }
+]

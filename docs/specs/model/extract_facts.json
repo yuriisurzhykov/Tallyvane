@@ -1,0 +1,71 @@
+{
+  "spec": "extract_facts@1",
+  "tier": "fast",
+  "endpoint": "POST /words",
+  "purpose": "List the facts a person stated about their own work. The model translates; the backend decides what holds.",
+  "prompt": "backend/modules/stories/infrastructure/src/main/resources/prompts/extract_facts.txt",
+  "input_schema": {
+    "type": "object",
+    "required": ["words", "skills"],
+    "properties": {
+      "words": {"type": "string", "maxLength": 20000, "description": "The person's speech, sent as a JSON string so it stays data."},
+      "skills": {"type": "array", "items": {"type": "string"}, "description": "Catalog skill slugs the model may credit."},
+      "asked": {"type": ["string", "null"], "enum": ["system", "role", "outcome", "scale", null], "description": "The slot the person was asked about."}
+    }
+  },
+  "input_example": {
+    "words": "Old call lost payments, I proposed a Kafka queue myself, by the end of the quarter not one was lost.",
+    "skills": ["architecture", "kotlin", "mentoring"],
+    "asked": null
+  },
+  "output_schema": {
+    "type": "object",
+    "required": ["place", "facts"],
+    "properties": {
+      "place": {
+        "type": "object",
+        "properties": {
+          "company": {"type": ["string", "null"]},
+          "position": {"type": ["string", "null"]},
+          "started": {"type": ["string", "null"], "description": "YYYY or YYYY-MM"},
+          "ended": {"type": ["string", "null"]},
+          "title": {"type": ["string", "null"], "description": "2-4 words naming the story"}
+        }
+      },
+      "facts": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["kind", "text_en", "q"],
+          "properties": {
+            "kind": {"enum": ["context", "action", "decision", "outcome", "scale", "people", "learning"]},
+            "text_en": {"type": "string", "description": "One English sentence, at most 20 words."},
+            "q": {"type": "array", "items": {"type": "string"}, "description": "Exact fragments of words."},
+            "figures": {"type": "array", "items": {"type": "number"}},
+            "tech": {"type": "array", "items": {"type": "string"}},
+            "skills": {"type": "array", "items": {"type": "string"}},
+            "mine": {"type": "boolean", "description": "The person did it, not the team."}
+          }
+        }
+      }
+    }
+  },
+  "output_example": {
+    "place": {"company": null, "position": null, "started": null, "ended": null, "title": "Payment queue"},
+    "facts": [
+      {"kind": "context", "text_en": "The legacy call lost payments", "q": ["Old call lost payments"], "figures": [], "tech": [], "skills": [], "mine": false},
+      {"kind": "decision", "text_en": "Proposed a Kafka payment queue", "q": ["I proposed a Kafka queue myself"], "figures": [], "tech": ["Kafka"], "skills": ["architecture"], "mine": true},
+      {"kind": "outcome", "text_en": "Zero lost payments by quarter end", "q": ["not one was lost"], "figures": [0], "tech": [], "skills": [], "mine": true}
+    ]
+  },
+  "backend_checks": [
+    "The words are kept before the model is asked, and stay if it fails (503 unavailable, 429 over budget).",
+    "Every fragment in q is an exact substring of the words, else the fact is dropped.",
+    "Every figure is written in one of its fragments, as digits (grouped thousands allowed) or as a number in words, else the fact is dropped.",
+    "Skills not in the catalog are dropped; at most 3 a fact. Technologies at most 8, 40 characters each.",
+    "An unknown kind, or an answer that is not this JSON, is dropped or answered as unavailable, never guessed.",
+    "A fact repeating a live fact of the story is dropped; at most 12 claims a call.",
+    "Place fills only empty fields; the slot heard and 'nothing more' are decided by code, not by the model.",
+    "The same spec, model and input are answered from the memo and cost nothing; each person has a daily token budget."
+  ]
+}

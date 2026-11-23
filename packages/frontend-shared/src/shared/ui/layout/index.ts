@@ -6,3 +6,5 @@ export { AppShell } from "./app-shell";
 export type { AppShellProps } from "./app-shell";
 export { PageFrame } from "./page-frame";
 export type { PageFrameProps } from "./page-frame";
+export { ProductShell } from "./product-shell";
+export type { ProductShellProps } from "./product-shell";

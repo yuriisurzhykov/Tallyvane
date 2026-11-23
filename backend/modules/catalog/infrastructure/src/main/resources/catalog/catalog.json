@@ -1,0 +1,408 @@
+{
+  "skills": [
+    {
+      "slug": "kotlin",
+      "name": "Kotlin"
+    },
+    {
+      "slug": "swift",
+      "name": "Swift"
+    },
+    {
+      "slug": "java",
+      "name": "Java"
+    },
+    {
+      "slug": "python",
+      "name": "Python"
+    },
+    {
+      "slug": "typescript",
+      "name": "TypeScript"
+    },
+    {
+      "slug": "go",
+      "name": "Go"
+    },
+    {
+      "slug": "react",
+      "name": "React"
+    },
+    {
+      "slug": "compose",
+      "name": "Jetpack Compose"
+    },
+    {
+      "slug": "sql",
+      "name": "SQL and data modelling"
+    },
+    {
+      "slug": "architecture",
+      "name": "Architecture"
+    },
+    {
+      "slug": "system-design",
+      "name": "System design"
+    },
+    {
+      "slug": "offline",
+      "name": "Offline and sync"
+    },
+    {
+      "slug": "payments",
+      "name": "Payments"
+    },
+    {
+      "slug": "reliability",
+      "name": "Reliability"
+    },
+    {
+      "slug": "performance",
+      "name": "Performance"
+    },
+    {
+      "slug": "testing",
+      "name": "Testing"
+    },
+    {
+      "slug": "security",
+      "name": "Security"
+    },
+    {
+      "slug": "observability",
+      "name": "Observability"
+    },
+    {
+      "slug": "api-design",
+      "name": "API design"
+    },
+    {
+      "slug": "distributed-systems",
+      "name": "Distributed systems"
+    },
+    {
+      "slug": "cloud",
+      "name": "Cloud infrastructure"
+    },
+    {
+      "slug": "ci-cd",
+      "name": "Delivery and CI/CD"
+    },
+    {
+      "slug": "llm-products",
+      "name": "LLM products"
+    },
+    {
+      "slug": "data-pipelines",
+      "name": "Data pipelines"
+    },
+    {
+      "slug": "mentoring",
+      "name": "Mentoring"
+    },
+    {
+      "slug": "leadership",
+      "name": "Technical leadership"
+    },
+    {
+      "slug": "influence",
+      "name": "Influence across teams"
+    },
+    {
+      "slug": "product-thinking",
+      "name": "Product thinking"
+    },
+    {
+      "slug": "communication",
+      "name": "Communication"
+    },
+    {
+      "slug": "hiring",
+      "name": "Hiring and interviewing"
+    },
+    {
+      "slug": "planning",
+      "name": "Planning and estimation"
+    },
+    {
+      "slug": "incident-response",
+      "name": "Incident response"
+    }
+  ],
+  "roles": [
+    {
+      "slug": "senior-android",
+      "name": "Senior Android Engineer",
+      "stations": [
+        {
+          "skill": "kotlin",
+          "importance": 1.0
+        },
+        {
+          "skill": "compose",
+          "importance": 0.7
+        },
+        {
+          "skill": "testing",
+          "importance": 0.7
+        },
+        {
+          "skill": "architecture",
+          "importance": 0.8
+        },
+        {
+          "skill": "performance",
+          "importance": 0.6
+        },
+        {
+          "skill": "offline",
+          "importance": 0.5
+        }
+      ]
+    },
+    {
+      "slug": "staff-android",
+      "name": "Staff Android Engineer",
+      "stations": [
+        {
+          "skill": "kotlin",
+          "importance": 0.9
+        },
+        {
+          "skill": "architecture",
+          "importance": 1.0
+        },
+        {
+          "skill": "system-design",
+          "importance": 0.9
+        },
+        {
+          "skill": "offline",
+          "importance": 0.6
+        },
+        {
+          "skill": "mentoring",
+          "importance": 0.7
+        },
+        {
+          "skill": "leadership",
+          "importance": 0.9
+        },
+        {
+          "skill": "influence",
+          "importance": 0.8
+        }
+      ]
+    },
+    {
+      "slug": "senior-ios",
+      "name": "Senior iOS Engineer",
+      "stations": [
+        {
+          "skill": "swift",
+          "importance": 1.0
+        },
+        {
+          "skill": "testing",
+          "importance": 0.7
+        },
+        {
+          "skill": "architecture",
+          "importance": 0.8
+        },
+        {
+          "skill": "performance",
+          "importance": 0.6
+        },
+        {
+          "skill": "offline",
+          "importance": 0.5
+        }
+      ]
+    },
+    {
+      "slug": "staff-ios",
+      "name": "Staff iOS Engineer",
+      "stations": [
+        {
+          "skill": "swift",
+          "importance": 0.9
+        },
+        {
+          "skill": "architecture",
+          "importance": 1.0
+        },
+        {
+          "skill": "system-design",
+          "importance": 0.9
+        },
+        {
+          "skill": "mentoring",
+          "importance": 0.7
+        },
+        {
+          "skill": "leadership",
+          "importance": 0.9
+        },
+        {
+          "skill": "influence",
+          "importance": 0.8
+        }
+      ]
+    },
+    {
+      "slug": "senior-backend",
+      "name": "Senior Backend Engineer",
+      "stations": [
+        {
+          "skill": "api-design",
+          "importance": 0.9
+        },
+        {
+          "skill": "sql",
+          "importance": 0.8
+        },
+        {
+          "skill": "testing",
+          "importance": 0.7
+        },
+        {
+          "skill": "reliability",
+          "importance": 0.8
+        },
+        {
+          "skill": "observability",
+          "importance": 0.6
+        },
+        {
+          "skill": "architecture",
+          "importance": 0.8
+        }
+      ]
+    },
+    {
+      "slug": "staff-backend",
+      "name": "Staff Backend Engineer",
+      "stations": [
+        {
+          "skill": "architecture",
+          "importance": 1.0
+        },
+        {
+          "skill": "system-design",
+          "importance": 1.0
+        },
+        {
+          "skill": "distributed-systems",
+          "importance": 0.9
+        },
+        {
+          "skill": "reliability",
+          "importance": 0.8
+        },
+        {
+          "skill": "mentoring",
+          "importance": 0.7
+        },
+        {
+          "skill": "leadership",
+          "importance": 0.9
+        },
+        {
+          "skill": "influence",
+          "importance": 0.8
+        }
+      ]
+    },
+    {
+      "slug": "senior-frontend",
+      "name": "Senior Frontend Engineer",
+      "stations": [
+        {
+          "skill": "typescript",
+          "importance": 1.0
+        },
+        {
+          "skill": "react",
+          "importance": 0.9
+        },
+        {
+          "skill": "testing",
+          "importance": 0.7
+        },
+        {
+          "skill": "performance",
+          "importance": 0.7
+        },
+        {
+          "skill": "architecture",
+          "importance": 0.8
+        }
+      ]
+    },
+    {
+      "slug": "staff-frontend",
+      "name": "Staff Frontend Engineer",
+      "stations": [
+        {
+          "skill": "typescript",
+          "importance": 0.8
+        },
+        {
+          "skill": "architecture",
+          "importance": 1.0
+        },
+        {
+          "skill": "system-design",
+          "importance": 0.8
+        },
+        {
+          "skill": "performance",
+          "importance": 0.7
+        },
+        {
+          "skill": "mentoring",
+          "importance": 0.7
+        },
+        {
+          "skill": "leadership",
+          "importance": 0.9
+        },
+        {
+          "skill": "influence",
+          "importance": 0.8
+        }
+      ]
+    },
+    {
+      "slug": "engineering-manager",
+      "name": "Engineering Manager",
+      "stations": [
+        {
+          "skill": "leadership",
+          "importance": 1.0
+        },
+        {
+          "skill": "hiring",
+          "importance": 0.9
+        },
+        {
+          "skill": "mentoring",
+          "importance": 0.9
+        },
+        {
+          "skill": "planning",
+          "importance": 0.9
+        },
+        {
+          "skill": "communication",
+          "importance": 0.8
+        },
+        {
+          "skill": "product-thinking",
+          "importance": 0.7
+        }
+      ]
+    }
+  ]
+}

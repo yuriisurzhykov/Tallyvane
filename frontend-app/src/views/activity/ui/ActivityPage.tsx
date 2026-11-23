@@ -1,11 +1,10 @@
-import { AppShell } from "frontend-shared/ui/app-shell";
+import { Heading } from "frontend-shared/ui/heading";
 import { Stack } from "frontend-shared/ui/stack";
 import { Text } from "frontend-shared/ui/text";
 import { useStrings } from "@/shared/i18n";
 import { AccountMenu } from "@/widgets/account-menu";
+import { ProductFrame } from "@/widgets/product-frame";
 import { ActivityList } from "@/widgets/activity-list";
-
-const NAV_ITEMS = [{ label: "Today", href: "/today", isActive: false }];
 
 /**
  * What has happened to the account's security: sign-ins and changes to the second factor. It lives under
@@ -14,11 +13,12 @@ const NAV_ITEMS = [{ label: "Today", href: "/today", isActive: false }];
 export function ActivityPage() {
     const t = useStrings("activity");
     return (
-        <AppShell navItems={NAV_ITEMS} title={t("page")} skipLinkLabel="Skip to content" actions={<AccountMenu />}>
+        <ProductFrame back account={<AccountMenu />}>
             <Stack gap="group-gap">
+                <Heading level={1} variant="title1">{t("page")}</Heading>
                 <Text variant="body" color="secondary">{t("lead")}</Text>
                 <ActivityList />
             </Stack>
-        </AppShell>
+        </ProductFrame>
     );
 }

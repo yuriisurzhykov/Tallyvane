@@ -34,6 +34,7 @@ frontend-web/    Next.js app: blog + console — see frontend-web/README.md
 frontend-admin/  Next.js app: CMS admin, a separate deployable — see frontend-admin/README.md
 packages/        Shared workspace packages: design-tokens, frontend-shared, content-kit
 extension/       Chrome extension, the only way LinkedIn can be captured
+poc/             Proofs of concept, each a build of its own — see poc/knowledge-core/README.md
 ops/             Deployment, database migrations, backup jobs
 data/            Tax tables by year, generated block schemas
 templates/       Typst templates for résumé rendering

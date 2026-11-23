@@ -10,7 +10,7 @@ import type { NavGroup } from "@/widgets/admin-shell";
  * routes exist and in what order — not a piece of UI, the same distinction
  * `providers/block-registry.tsx` (§12.6) already draws for this layer.
  */
-export type AdminHref = "/pages" | "/media" | "/strings" | "/policies" | "/lifetimes";
+export type AdminHref = "/pages" | "/media" | "/strings" | "/policies" | "/lifetimes" | "/models";
 
 export function adminNavGroups(activeHref: AdminHref): NavGroup[] {
     const words = enDictionary.nav;
@@ -18,5 +18,11 @@ export function adminNavGroups(activeHref: AdminHref): NavGroup[] {
     return [
         { label: words.groupContent, items: [item(words.pages, "/pages"), item(words.media, "/media"), item(words.strings, "/strings")] },
         { label: words.groupSignIn, items: [item(words.policies, "/policies"), item(words.lifetimes, "/lifetimes")] },
+        { label: words.pages, href: "/pages", isActive: activeHref === "/pages" },
+        { label: words.media, href: "/media", isActive: activeHref === "/media" },
+        { label: words.strings, href: "/strings", isActive: activeHref === "/strings" },
+        { label: words.policies, href: "/policies", isActive: activeHref === "/policies" },
+        { label: words.lifetimes, href: "/lifetimes", isActive: activeHref === "/lifetimes" },
+        { label: words.models, href: "/models", isActive: activeHref === "/models" },
     ];
 }
