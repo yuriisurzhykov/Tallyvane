@@ -7,5 +7,5 @@ import { defineComponentTokens } from "design-token-engine";
  * that rule asks for.
  */
 export const drawerTokens = defineComponentTokens("drawer", {
-    width: "{layout.448}",
+    width: "{layout.640}",
 });

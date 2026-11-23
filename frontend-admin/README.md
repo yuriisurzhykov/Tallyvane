@@ -74,6 +74,7 @@ Two screens use the API of [ADR-098](../docs/adr/ADR-098-policies-and-lifetimes-
 
 The plan, the diagrams and what changed while building are in [`docs/backend/07-authentication-slice-7-admin.md`](../docs/backend/07-authentication-slice-7-admin.md)
 (section 8); the decision is [ADR-099](../docs/adr/ADR-099-the-admin-screens-keep-versions-in-place-and-let-the-server-judge-the-bounds.md).
+The look of the two screens (the version in force on top, quiet history below, a drawer that explains every field) is [ADR-101](../docs/adr/ADR-101-the-version-screens-lead-with-the-policy-in-force-and-explain-every-field.md), with its diagrams in [`docs/frontend/04-admin-version-screens.md`](../docs/frontend/04-admin-version-screens.md).
 Tests are plain classes under `src/**/*.test.ts` (`pnpm test`); a component is looked at in a browser, not in jsdom.
 
 ## Status

@@ -58,7 +58,7 @@ function DrawerPopup({ className, children, ...rest }: DrawerPopupProps) {
             <BaseDrawer.Viewport style={FULL_VIEWPORT_STYLE} className="z-modal flex items-stretch justify-end">
                 <BaseDrawer.Popup
                     className={[
-                        "flex h-full flex-col gap-stack overflow-y-auto border-l border-border-subtle bg-surface-elevated p-stack text-body text-text-primary shadow-elevation3 outline-none transition-drawer data-[starting-style]:translate-x-full data-[ending-style]:translate-x-full",
+                        "flex h-full max-w-full flex-col gap-stack overflow-y-auto border-l border-border-subtle bg-surface-elevated p-stack text-body text-text-primary shadow-elevation3 outline-none transition-drawer data-[starting-style]:translate-x-full data-[ending-style]:translate-x-full",
                         className,
                     ]
                         .filter(Boolean)

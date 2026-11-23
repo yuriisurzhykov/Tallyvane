@@ -139,6 +139,7 @@
     --ds-layout-240: 15rem;
     --ds-layout-256: 16rem;
     --ds-layout-288: 18rem;
+    --ds-layout-640: 40rem;
     --ds-layout-448: 28rem;
     --ds-layout-720: 45rem;
     --ds-layout-960: 60rem;
@@ -287,7 +288,7 @@
     --ds-component-switch-track-height: 1.5rem;
     --ds-component-switch-thumb-size: 1rem;
     --ds-component-switch-thumb-travel: 1rem;
-    --ds-component-drawer-width: 28rem;
+    --ds-component-drawer-width: 40rem;
     --ds-component-file-drop-filename-max-width: 16rem;
     --ds-component-qr-code-size: 18rem;
     color-scheme: dark;

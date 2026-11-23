@@ -9,7 +9,13 @@ import type { LifetimeWords } from "./LifetimeForm";
 export function useLifetimeWords(): LifetimeWords {
     const t = useStrings("lifetimeWords");
     const { words } = useSpanWords();
-    return { span: words, summary: (idle, absolute, freshness) => t("summary", { idle, absolute, freshness }) };
+    return {
+        span: words,
+        summary: (idle, absolute, freshness) => t("summary", { idle, absolute, freshness }),
+        idleLine: (idle) => t("idleLine", { idle }),
+        absoluteLine: (absolute) => t("absoluteLine", { absolute }),
+        freshnessLine: (freshness) => t("freshnessLine", { freshness }),
+    };
 }
 
 export function useLifetimeConsequenceWords(): LifetimeConsequenceWords {

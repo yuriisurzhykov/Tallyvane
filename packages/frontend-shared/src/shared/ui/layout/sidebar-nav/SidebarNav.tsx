@@ -6,6 +6,8 @@ export interface SidebarNavItem {
 
 export interface SidebarNavProps {
     readonly items: readonly SidebarNavItem[];
+    /** The landmark's name. A page with more than one nav gives each its own, so assistive technology can tell them apart. @default "Primary" */
+    readonly label?: string;
     /** Layout and position only — see `COMPONENTS.md` §11. */
     readonly className?: string;
 }
@@ -31,10 +33,10 @@ const ITEM_INACTIVE = "text-text-secondary hover:bg-surface-row-hover hover:text
  * arrives pre-computed per item so this stays free of any router dependency,
  * the same reasoning `Link.tsx` already applies to navigation.
  */
-export function SidebarNav({ items, className }: SidebarNavProps) {
+export function SidebarNav({ items, label = "Primary", className }: SidebarNavProps) {
     return (
         <nav
-            aria-label="Primary"
+            aria-label={label}
             className={[
                 "flex flex-row items-center gap-inline-tight overflow-x-auto",
                 "lg:w-(--layout-sidebar-expanded) lg:shrink-0 lg:flex-col lg:items-stretch lg:gap-stack-tight lg:overflow-visible",

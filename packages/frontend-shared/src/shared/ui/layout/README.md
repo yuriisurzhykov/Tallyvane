@@ -14,6 +14,7 @@ this folder's `README.md` is a pointer, not a second copy of any of them:
 - [`sidebar-nav/README.md`](./sidebar-nav/README.md)
 - [`top-bar/README.md`](./top-bar/README.md)
 - [`app-shell/README.md`](./app-shell/README.md)
+- [`page-frame/README.md`](./page-frame/README.md)
 
 Built 2026-08-28, first pass: `AppShell` composes `SidebarNav` and `TopBar`
 around a `children` slot with a working skip link. `ThreeColumnLayout`,

@@ -6,7 +6,7 @@ Accepted. Chosen by the owner on 2026-10-14 while planning slice 7c (`https://cl
 diagrams in `docs/backend/07-authentication-slice-7-admin.md`, section 8) and confirmed by building it: the look follows the
 board "S9 · admin policies" of the design canvas "Tallyvane auth screens". Builds on ADR-098 (versions through an API of the
 administrators' site), ADR-097 (the administrators' door), ADR-100 (the sign-in flow is a package) and ADR-091 (no modal
-windows).
+windows). The look of the screens was redesigned afterwards by ADR-101, which leaves what they do as decided here.
 
 ## Context
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { Span, type SpanWords } from "@/shared/span";
+import type { DiffLook } from "@/shared/diff";
 import { PolicyForm, type PolicyWords } from "./PolicyForm";
 import { PolicyStep } from "./PolicyStep";
 
@@ -18,6 +19,12 @@ const words: PolicyWords = {
     then: " > ",
     limits: (lifetime, failures, delay) => `${lifetime}, ${String(failures)} failures, ${delay}`,
     span: spanWords,
+    stepsSection: "steps",
+    limitsSection: "limits",
+    stepAt: (position, step) => `step ${String(position)}: ${step}`,
+    lifetimeLine: (lifetime) => `open for ${lifetime}`,
+    failuresLine: (failures) => `${String(failures)} wrong`,
+    delayLine: (delay) => `pause ${delay}`,
 };
 
 const form = () =>
@@ -100,5 +107,45 @@ describe("PolicyForm", () => {
         const emptied = PolicyStep.fromWire({ accepts: ["google"], necessity: "always" }).withFactorToggled("google");
 
         expect(emptied.acceptsNothing()).toBe(true);
+    });
+
+    it("says the limits in one line of their own", () => {
+        expect(form().limitsLine(words)).toBe("10 min, 5 failures, 2 s");
+    });
+});
+
+describe("PolicyForm.changesFrom", () => {
+    const look: DiffLook<string> = { section: (t) => `# ${t}`, removed: (t) => `- ${t}`, added: (t) => `+ ${t}` };
+    const told = (now: PolicyForm, before: PolicyForm) => now.changesFrom(before, words).map((line) => line.appearAs(look));
+
+    it("has nothing to tell about a policy and its copy", () => {
+        expect(form().changesFrom(form(), words).isEmpty()).toBe(true);
+    });
+
+    it("tells each limit that changed, what it was and what it is, and no other", () => {
+        const now = form().withMaxFailures(3).withFirstDelay(Span.of(10, "seconds"));
+
+        expect(told(now, form())).toEqual(["# limits", "- 5 wrong", "+ 3 wrong", "- pause 2 s", "+ pause 10 s"]);
+    });
+
+    it("tells a step whose factors changed, in its position", () => {
+        const now = form().withFactorToggled(0, "totp");
+
+        expect(told(now, form())).toEqual(["# steps", "- step 1: Google (everyone)", "+ step 1: Google or App (everyone)"]);
+    });
+
+    it("tells a step whose audience changed", () => {
+        const now = form().withNecessity(1, "always");
+
+        expect(told(now, form())).toEqual([
+            "# steps",
+            "- step 2: App or Recovery (if set up)",
+            "+ step 2: App or Recovery (everyone)",
+        ]);
+    });
+
+    it("tells a step that was added and a step that was removed", () => {
+        expect(told(form().withStepAdded(), form())).toEqual(["# steps", "+ step 3: App (if set up)"]);
+        expect(told(form().withoutStep(1), form())).toEqual(["# steps", "- step 2: App or Recovery (if set up)"]);
     });
 });

@@ -11,7 +11,9 @@ import { Stack } from "frontend-shared/ui/stack";
 import { Surface } from "frontend-shared/ui/surface";
 import { Text } from "frontend-shared/ui/text";
 import { VisuallyHidden } from "frontend-shared/ui/visually-hidden";
+import type { Diff } from "@/shared/diff";
 import { useStrings } from "@/shared/i18n";
+import { DiffBlock } from "@/shared/ui/diff-block";
 import type { Activation, Harmless } from "../model/Activation";
 import type { Refusal } from "../model/Refusal";
 import { useActivation } from "../model/useActivation";
@@ -23,6 +25,10 @@ export interface ActivationPanelProps<Consequences extends Harmless> {
     readonly rollback: boolean;
     /** The consequences in words, one line each. */
     readonly describe: (consequences: Consequences) => readonly string[];
+    /** How the version differs from the one in force, drawn above the consequences; `undefined` when nothing is in force to compare with. */
+    readonly diff?: Diff | undefined;
+    /** The number of the version in force, named in the line above the differences. */
+    readonly inForceNumber?: number | undefined;
     readonly onActivated: () => void;
     /** The version has gone from the server meanwhile: the list needs reading again. */
     readonly onGone: () => void;
@@ -39,6 +45,8 @@ export function ActivationPanel<Consequences extends Harmless>({
     number,
     rollback,
     describe,
+    diff,
+    inForceNumber,
     onActivated,
     onGone,
     onCancel,
@@ -51,11 +59,12 @@ export function ActivationPanel<Consequences extends Harmless>({
     return (
         <Surface variant="inset" className="p-stack">
             <Stack gap="stack">
-                <Text variant="bodyStrong">{t(rollback ? "rollBackTitle" : "activateTitle", { number })}</Text>
+                <Text variant="title3">{t(rollback ? "rollBackTitle" : "activateTitle", { number })}</Text>
+                {diff !== undefined && inForceNumber !== undefined ? <Differences diff={diff} inForceNumber={inForceNumber} /> : null}
                 {state.status === "previewing" ? (
                     <Stack gap="stack-tight">
                         <VisuallyHidden>{t("loading")}</VisuallyHidden>
-                        <Skeleton className="h-12 w-full" />
+                        <Skeleton />
                     </Stack>
                 ) : null}
                 {state.status === "previewFailed" ? <Callout tone="danger">{t("previewFailed")}</Callout> : null}
@@ -77,17 +86,18 @@ export function ActivationPanel<Consequences extends Harmless>({
                         <Input value={reason} onChange={(event) => { setReason(event.target.value); }} />
                     </Field>
                 ) : null}
-                <Row gap="inline">
+                <Row gap="inline" className="w-full">
+                    <Button tone="neutral" size="sm" className="flex-1" disabled={working} onClick={onCancel}>{t("cancel")}</Button>
                     <Button
                         tone="primary"
                         size="sm"
+                        className="flex-1"
                         loading={working}
                         disabled={state.status === "previewing" || state.status === "previewFailed"}
                         onClick={() => { confirm(reason); }}
                     >
                         {t(rollback ? "confirmRollBack" : "confirm")}
                     </Button>
-                    <Button tone="ghost" size="sm" disabled={working} onClick={onCancel}>{t("cancel")}</Button>
                 </Row>
             </Stack>
         </Surface>
@@ -101,3 +111,16 @@ const REFUSAL_KEY = {
     comment: "commentInvalid",
     failed: "failed",
 } as const satisfies Record<Refusal, "failed" | "gone" | "wouldLockOut" | "commentInvalid">;
+
+/** How the version differs from the one in force, or the sentence saying it does not. */
+function Differences({ diff, inForceNumber }: { readonly diff: Diff; readonly inForceNumber: number }) {
+    const t = useStrings("activation");
+    return (
+        <Stack gap="stack-tight">
+            <Text variant="small" color="secondary">
+                {t(diff.isEmpty() ? "noDifferences" : "differences", { number: inForceNumber })}
+            </Text>
+            {diff.isEmpty() ? null : <DiffBlock diff={diff} />}
+        </Stack>
+    );
+}

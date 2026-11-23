@@ -1,10 +1,10 @@
-import { AppShell } from "frontend-shared/ui/app-shell";
 import { Grid } from "frontend-shared/ui/grid";
 import { Panel } from "frontend-shared/ui/panel";
 import { Stack } from "frontend-shared/ui/stack";
 import { Surface } from "frontend-shared/ui/surface";
 import { Text } from "frontend-shared/ui/text";
-import { adminNavItems } from "@/app/navigation";
+import { adminNavGroups } from "@/app/navigation";
+import { AdminShell } from "@/widgets/admin-shell";
 
 interface MediaItem {
     readonly id: string;
@@ -27,7 +27,7 @@ const MOCK_MEDIA: MediaItem[] = [
  */
 export function AdminMediaView() {
     return (
-        <AppShell navItems={adminNavItems("/media")} title="Media" skipLinkLabel="Skip to content">
+        <AdminShell groups={adminNavGroups("/media")} title="Media">
             <Grid columns={2} gap="stack">
                 {MOCK_MEDIA.map((item) => (
                     <Panel key={item.id}>
@@ -47,6 +47,6 @@ export function AdminMediaView() {
                     </Panel>
                 ))}
             </Grid>
-        </AppShell>
+        </AdminShell>
     );
 }

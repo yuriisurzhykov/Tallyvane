@@ -1,4 +1,5 @@
 import type { components } from "frontend-shared/api";
+import type { Diff } from "@/shared/diff";
 import { Span } from "@/shared/span";
 import { VersionStamp } from "@/shared/history";
 import { LifetimeForm, type LifetimeWords } from "./LifetimeForm";
@@ -33,6 +34,11 @@ export class LifetimeVersion {
 
     public summary(words: LifetimeWords): string {
         return this.asForm().summary(words);
+    }
+
+    /** How this version differs from the one in force: what the one in force had that this does not, and what this has that it did not. */
+    public changesFrom(inForce: LifetimeVersion, words: LifetimeWords): Diff {
+        return this.asForm().changesFrom(inForce.asForm(), words);
     }
 
     public asForm(): LifetimeForm {

@@ -82,4 +82,27 @@ describe("PolicyConsequences", () => {
         expect(new PolicyConsequences({ people: 3, cannot_pass: 0 }).isHarmless()).toBe(true);
         expect(new PolicyConsequences({ people: 3, cannot_pass: 1 }).isHarmless()).toBe(false);
     });
+
+    it("tells how it differs from the version in force, saying the limits that changed", () => {
+        const inForce = new PolicyVersion(wire(1, { in_force: { since: "2026-10-01T00:00:00Z" } }));
+        const next = new PolicyVersion(wire(2, { max_failures: 3 }));
+        const look = { section: (t: string) => `# ${t}`, removed: (t: string) => `- ${t}`, added: (t: string) => `+ ${t}` };
+        const words = {
+            factor: { google: "Google", totp: "App", recovery_code: "Recovery" },
+            necessity: { always: "everyone", when_enrolled: "if set up" },
+            or: " or ",
+            then: " > ",
+            step: (factors: string, who: string) => `${factors} (${who})`,
+            limits: () => "",
+            span: { seconds: (n: number) => `${String(n)} s`, minutes: (n: number) => `${String(n)} min`, hours: (n: number) => `${String(n)} h`, days: (n: number) => `${String(n)} d` },
+            stepsSection: "steps",
+            limitsSection: "limits",
+            stepAt: (position: number, step: string) => `step ${String(position)}: ${step}`,
+            lifetimeLine: (lifetime: string) => lifetime,
+            failuresLine: (failures: number) => `${String(failures)} wrong`,
+            delayLine: (delay: string) => delay,
+        };
+
+        expect(next.changesFrom(inForce, words).map((line) => line.appearAs(look))).toEqual(["# limits", "- 5 wrong", "+ 3 wrong"]);
+    });
 });
