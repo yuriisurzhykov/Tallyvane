@@ -1,0 +1,29 @@
+version: 1
+id: deadline_not_completed
+description: A known due date without a completion is not a met deadline.
+tags:
+- deadline
+- unknown
+initial_state: ../fixtures/two-companies.yaml
+context:
+  company_id: c1
+  project_id: p1
+  task_id: t1
+  action_id: a1
+turns:
+- input:
+    id: deadline_not_completed_m1
+    text: 'Срок задачи Login в Panel: 2026-12-01. Работа ещё идёт.'
+  expected:
+    changes:
+    - operation: set_deadline
+      task_id: t1
+      deadline:
+        due_at: '2026-12-01'
+        completed_at: null
+        status: in_progress
+        reaction: null
+      evidence:
+        message_id: deadline_not_completed_m1
+        quote: 'Срок задачи Login в Panel: 2026-12-01. Работа ещё идёт.'
+    unresolved_references: []

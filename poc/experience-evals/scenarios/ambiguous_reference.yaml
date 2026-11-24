@@ -1,0 +1,27 @@
+version: 1
+id: ambiguous_reference
+description: No selected scope and identical actions require unresolved references.
+tags:
+- ambiguity
+- same_names
+initial_state: ../fixtures/two-companies.yaml
+context:
+  company_id: null
+  project_id: null
+  task_id: null
+  action_id: null
+turns:
+- input:
+    id: ambiguous_reference_m1
+    text: Тот экран был на Java.
+  expected:
+    changes: []
+    unresolved_references:
+    - text: Тот экран
+      candidate_ids:
+      - a1
+      - a2
+      - a3
+      evidence:
+        message_id: ambiguous_reference_m1
+        quote: Тот экран был на Java.

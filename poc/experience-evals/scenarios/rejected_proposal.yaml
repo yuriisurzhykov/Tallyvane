@@ -1,0 +1,29 @@
+version: 1
+id: rejected_proposal
+description: A rejected proposal is not an implemented change or an inferred lesson.
+tags:
+- rejected
+- no_invented_lesson
+initial_state: ../fixtures/two-companies.yaml
+context:
+  company_id: c1
+  project_id: p1
+  task_id: t1
+  action_id: a1
+turns:
+- input:
+    id: rejected_proposal_m1
+    text: 'Результат: предложение отклонили из-за нехватки времени.'
+  expected:
+    changes:
+    - operation: set_result
+      action_id: a1
+      result:
+        status: rejected
+        description: предложение отклонили из-за нехватки времени
+        metrics: []
+        lesson: null
+      evidence:
+        message_id: rejected_proposal_m1
+        quote: 'Результат: предложение отклонили из-за нехватки времени.'
+    unresolved_references: []

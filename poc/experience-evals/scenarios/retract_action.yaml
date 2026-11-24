@@ -1,0 +1,23 @@
+version: 1
+id: retract_action
+description: Retract a misattributed action without erasing its history.
+tags:
+- retraction
+initial_state: ../fixtures/two-companies.yaml
+context:
+  company_id: c1
+  project_id: p1
+  task_id: t1
+  action_id: a1
+turns:
+- input:
+    id: retract_action_m1
+    text: Этот экран делал не я. Удали моё действие из подтверждённого опыта.
+  expected:
+    changes:
+    - operation: retract_action
+      action_id: a1
+      evidence:
+        message_id: retract_action_m1
+        quote: Этот экран делал не я. Удали моё действие из подтверждённого опыта.
+    unresolved_references: []

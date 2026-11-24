@@ -1,0 +1,71 @@
+version: 1
+id: many_tasks_and_actions
+description: One project contains several tasks, each with several actions; a later addition targets the new action in its task.
+tags: [hierarchy, create_task, create_action, multi_turn, task_scope]
+initial_state: ../fixtures/two-companies.yaml
+context: {company_id: c1, project_id: p1, task_id: null, action_id: null}
+turns:
+  - input:
+      id: many_tasks_and_actions_m1
+      text: "В Panel задача Performance. Профилировал UI через Android Profiler. Оптимизировал компоненты на Kotlin. Ещё задача Logs. Добавил ротацию на Kotlin. Добавил сжатие через gzip."
+    expected:
+      changes:
+        - operation: create_task
+          ref: $performance
+          project_id: p1
+          title: Performance
+          requirements: []
+          deadline: {due_at: null, completed_at: null, status: not_stated, reaction: null}
+          evidence: {message_id: many_tasks_and_actions_m1, quote: "задача Performance"}
+        - operation: create_action
+          ref: $profile
+          task_id: $performance
+          description: Профилировал UI
+          reason: null
+          technologies: [Android Profiler]
+          approaches: []
+          result: {status: not_stated, description: null, metrics: [], lesson: null}
+          evidence: {message_id: many_tasks_and_actions_m1, quote: "Профилировал UI через Android Profiler"}
+        - operation: create_action
+          ref: $optimize
+          task_id: $performance
+          description: Оптимизировал компоненты
+          reason: null
+          technologies: [Kotlin]
+          approaches: []
+          result: {status: not_stated, description: null, metrics: [], lesson: null}
+          evidence: {message_id: many_tasks_and_actions_m1, quote: "Оптимизировал компоненты на Kotlin"}
+        - operation: create_task
+          ref: $logs
+          project_id: p1
+          title: Logs
+          requirements: []
+          deadline: {due_at: null, completed_at: null, status: not_stated, reaction: null}
+          evidence: {message_id: many_tasks_and_actions_m1, quote: "задача Logs"}
+        - operation: create_action
+          ref: $rotation
+          task_id: $logs
+          description: Добавил ротацию
+          reason: null
+          technologies: [Kotlin]
+          approaches: []
+          result: {status: not_stated, description: null, metrics: [], lesson: null}
+          evidence: {message_id: many_tasks_and_actions_m1, quote: "Добавил ротацию на Kotlin"}
+        - operation: create_action
+          ref: $compression
+          task_id: $logs
+          description: Добавил сжатие
+          reason: null
+          technologies: [gzip]
+          approaches: []
+          result: {status: not_stated, description: null, metrics: [], lesson: null}
+          evidence: {message_id: many_tasks_and_actions_m1, quote: "Добавил сжатие через gzip"}
+  - input:
+      id: many_tasks_and_actions_m2
+      text: "В задаче Logs для сжатия ещё использовал Java."
+    expected:
+      changes:
+        - operation: add_technologies
+          action_id: "@compression"
+          technologies: [Java]
+          evidence: {message_id: many_tasks_and_actions_m2, quote: "В задаче Logs для сжатия ещё использовал Java"}

@@ -1,0 +1,27 @@
+version: 1
+id: requirements
+description: Requirements remain attached to the explicitly named project.
+tags:
+- requirements
+- project_scope
+initial_state: ../fixtures/two-companies.yaml
+context:
+  company_id: c1
+  project_id: p1
+  task_id: t1
+  action_id: a1
+turns:
+- input:
+    id: requirements_m1
+    text: 'Требование к проекту Portal: поддерживать офлайн-вход.'
+  expected:
+    changes:
+    - operation: set_requirements
+      target_type: project
+      target_id: p3
+      requirements:
+      - поддерживать офлайн-вход
+      evidence:
+        message_id: requirements_m1
+        quote: 'Требование к проекту Portal: поддерживать офлайн-вход.'
+    unresolved_references: []

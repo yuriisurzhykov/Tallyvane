@@ -1,0 +1,35 @@
+version: 1
+id: new_action_unknown_result
+description: A separate action has one explicitly unknown result.
+tags:
+- create_action
+- unknown_result
+initial_state: ../fixtures/two-companies.yaml
+context:
+  company_id: c1
+  project_id: p1
+  task_id: t1
+  action_id: a1
+turns:
+- input:
+    id: new_action_unknown_result_m1
+    text: Ещё Добавил кеширование на Room.
+  expected:
+    changes:
+    - operation: create_action
+      ref: $cache
+      task_id: t1
+      description: Добавил кеширование
+      reason: null
+      technologies:
+      - Room
+      approaches: []
+      result:
+        status: not_stated
+        description: null
+        metrics: []
+        lesson: null
+      evidence:
+        message_id: new_action_unknown_result_m1
+        quote: Ещё Добавил кеширование на Room.
+    unresolved_references: []

@@ -1,0 +1,28 @@
+version: 1
+id: unfinished_result
+description: Ongoing work must not turn into a delivered achievement.
+tags:
+- in_progress
+initial_state: ../fixtures/two-companies.yaml
+context:
+  company_id: c1
+  project_id: p1
+  task_id: t1
+  action_id: a1
+turns:
+- input:
+    id: unfinished_result_m1
+    text: 'Результат: пока не завершено.'
+  expected:
+    changes:
+    - operation: set_result
+      action_id: a1
+      result:
+        status: in_progress
+        description: пока не завершено
+        metrics: []
+        lesson: null
+      evidence:
+        message_id: unfinished_result_m1
+        quote: 'Результат: пока не завершено.'
+    unresolved_references: []

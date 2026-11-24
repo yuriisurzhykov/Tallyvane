@@ -1,0 +1,25 @@
+version: 1
+id: move_action
+description: A placement correction preserves the action ID and its data.
+tags:
+- move
+- stable_id
+initial_state: ../fixtures/two-companies.yaml
+context:
+  company_id: c1
+  project_id: p1
+  task_id: t1
+  action_id: a1
+turns:
+- input:
+    id: move_action_m1
+    text: 'Перепутал: этот экран относится к задаче Login в Portal, а не в Panel.'
+  expected:
+    changes:
+    - operation: move_action
+      action_id: a1
+      task_id: t3
+      evidence:
+        message_id: move_action_m1
+        quote: 'Перепутал: этот экран относится к задаче Login в Portal, а не в Panel.'
+    unresolved_references: []
